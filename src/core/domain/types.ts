@@ -48,23 +48,48 @@ export type TextFormatStyle =
   | { kind: 'orderedList' }
   | { kind: 'blockquote' };
 
-export type AnnotationCommand =
+export type AssistedMarkdownCommand =
   | {
       target: 'assisted-markdown';
-      action: 'insert-text' | 'replace-text' | 'apply-format';
-      text?: string;
-      selectionRange?: { start: number; end: number };
-      formatStyle?: TextFormatStyle;
+      action: 'insert-text';
+      text: string;
+    }
+  | {
+      target: 'assisted-markdown';
+      action: 'replace-text';
+      text: string;
+    }
+  | {
+      target: 'assisted-markdown';
+      action: 'apply-format';
+      selectionRange: { start: number; end: number };
+      formatStyle: TextFormatStyle;
+    };
+
+export type TldrawCommand =
+  | {
+      target: 'tldraw';
+      action: 'save-snapshot';
+      snapshotJson: string;
+      svgPreview?: string;
     }
   | {
       target: 'tldraw';
-      action: 'save-snapshot' | 'clear-canvas';
-      snapshotJson?: string;
+      action: 'clear-canvas';
+      svgPreview?: string;
+    };
+
+export type DrawioCommand =
+  | {
+      target: 'drawio';
+      action: 'save-diagram';
+      xmlOrJsonDiagram: string;
       svgPreview?: string;
     }
   | {
       target: 'drawio';
-      action: 'save-diagram' | 'clear-diagram';
-      xmlOrJsonDiagram?: string;
+      action: 'clear-diagram';
       svgPreview?: string;
     };
+
+export type AnnotationCommand = AssistedMarkdownCommand | TldrawCommand | DrawioCommand;
