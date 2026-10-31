@@ -5,3 +5,5 @@ export * from './Badge';
 export * from './Input';
 export * from './Modal';
 export * from './Popover';
+export * from './Dialog';
+export * from './DropdownMenu';

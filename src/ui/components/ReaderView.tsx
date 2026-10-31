@@ -2,9 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Highlight } from '../../core/domain/Highlight';
 import { useNavigation } from '../hooks/useNavigation';
 import { useReader } from '../hooks/useReader';
+import { ExplainDialog } from './ExplainDialog';
 import { HighlightDetailModal } from './HighlightDetailModal';
 import { HighlightPopover } from './HighlightPopover';
-import { SelectionActionMenu } from './SelectionActionMenu';
+import { NoteDialog } from './NoteDialog';
+import { ReaderContextMenu } from './ReaderContextMenu';
+import { TranslateDialog } from './TranslateDialog';
 import { Button, IconButton } from './ui';
 
 interface TextChunk {
@@ -77,6 +80,25 @@ export function ReaderView() {
   const [touchOffset, setTouchOffset] = useState<number>(0);
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
 
+  // Dropdown Context Menu and Dedicated Feature Dialogs
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    text: string;
+  } | null>(null);
+
+  const [activeNoteDialog, setActiveNoteDialog] = useState<{
+    text: string;
+  } | null>(null);
+
+  const [activeExplainDialog, setActiveExplainDialog] = useState<{
+    text: string;
+  } | null>(null);
+
+  const [activeTranslateDialog, setActiveTranslateDialog] = useState<{
+    text: string;
+  } | null>(null);
+
   const touchStartXRef = useRef<number>(0);
   const touchStartYRef = useRef<number>(0);
   const isSwipingRef = useRef<boolean>(false);
@@ -100,7 +122,7 @@ export function ReaderView() {
     [isAnimating, reader]
   );
 
-  // 1. Context Menu (Right Click) on Selected Text
+  // 1. Right Click Context Menu (Dropdown) Handler
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => {
       const selection = window.getSelection();
@@ -113,7 +135,7 @@ export function ReaderView() {
       }
 
       e.preventDefault();
-      reader.setSelectionPopover({
+      setContextMenu({
         text,
         x: e.clientX,
         y: e.clientY,
@@ -129,7 +151,7 @@ export function ReaderView() {
         container.removeEventListener('contextmenu', handleContextMenu);
       }
     };
-  }, [reader.setSelectionPopover]);
+  }, []);
 
   // 2. Mouse Wheel Scroll (Continuous Scroll / Infinite Turn Feeling)
   useEffect(() => {
@@ -202,7 +224,16 @@ export function ReaderView() {
   // 4. Keyboard Navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (reader.expandedHighlight || reader.selectionPopover) return;
+      if (
+        reader.expandedHighlight ||
+        reader.activeHighlightPopover ||
+        contextMenu ||
+        activeNoteDialog ||
+        activeExplainDialog ||
+        activeTranslateDialog
+      ) {
+        return;
+      }
       if (e.key === 'Escape') {
         setIsChromeVisible((prev) => !prev);
       } else if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
@@ -218,16 +249,31 @@ export function ReaderView() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [reader.expandedHighlight, reader.selectionPopover, turnPage]);
+  }, [
+    activeExplainDialog,
+    activeNoteDialog,
+    activeTranslateDialog,
+    contextMenu,
+    reader.activeHighlightPopover,
+    reader.expandedHighlight,
+    turnPage,
+  ]);
 
   // 5. Immersive Click / Tap Toggle for Chrome
   const handleViewportClick = (e: React.MouseEvent<HTMLElement>) => {
-    // If popovers are open, ignore toggle to let popover close handle it
-    if (reader.activeHighlightPopover || reader.selectionPopover) {
+    // If popovers or dialogs are active, ignore toggle to prevent unwanted chrome transitions
+    if (
+      contextMenu ||
+      activeNoteDialog ||
+      activeExplainDialog ||
+      activeTranslateDialog ||
+      reader.activeHighlightPopover ||
+      reader.expandedHighlight
+    ) {
       return;
     }
     const target = e.target as HTMLElement;
-    if (target.closest('button, [role="button"], input, textarea, pre')) {
+    if (target.closest('button, [role="button"], input, textarea, pre, [role="menu"]')) {
       return;
     }
     const selection = window.getSelection();
@@ -348,6 +394,15 @@ export function ReaderView() {
                             y: rect.top,
                           });
                         }}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setContextMenu({
+                            text: hl.text,
+                            x: e.clientX,
+                            y: e.clientY,
+                          });
+                        }}
                       >
                         {chunk.text}
                       </button>
@@ -404,45 +459,87 @@ export function ReaderView() {
         </div>
       )}
 
-      {/* Floating Selection Action Popover Menu (Right-Click Context Menu) */}
-      {reader.selectionPopover && (
-        <SelectionActionMenu
-          text={reader.selectionPopover.text}
-          x={reader.selectionPopover.x}
-          y={reader.selectionPopover.y}
-          onCreateNote={async (color) => {
-            const currentSelection = reader.selectionPopover;
-            if (!currentSelection) return;
-            const created = await reader.createHighlightWithColor(color, currentSelection.text, '');
-            if (created) {
-              reader.openHighlightPopover(created, {
-                x: currentSelection.x,
-                y: currentSelection.y,
+      {/* 4. Right-Click Context Menu (Dropdown) */}
+      {contextMenu && (
+        <ReaderContextMenu
+          text={contextMenu.text}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          isOpen={true}
+          onHighlightColor={(color) => {
+            void reader.createHighlightWithColor(color, contextMenu.text);
+          }}
+          onOpenNoteDialog={() => {
+            setActiveNoteDialog({ text: contextMenu.text });
+          }}
+          onOpenExplainDialog={() => {
+            setActiveExplainDialog({ text: contextMenu.text });
+          }}
+          onOpenTranslateDialog={() => {
+            setActiveTranslateDialog({ text: contextMenu.text });
+          }}
+          onCopyText={() => {
+            if (typeof navigator !== 'undefined') {
+              void navigator.clipboard.writeText(contextMenu.text);
+            }
+          }}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+
+      {/* 5. Note Creation Dialog */}
+      {activeNoteDialog && (
+        <NoteDialog
+          isOpen={true}
+          text={activeNoteDialog.text}
+          onSave={(color, note) => {
+            void reader.createHighlightWithColor(color, activeNoteDialog.text, note);
+            setActiveNoteDialog(null);
+          }}
+          onOpenStudio={() => {
+            void reader
+              .createHighlightWithColor('#eab308', activeNoteDialog.text, '')
+              .then((hl) => {
+                if (hl) reader.openExpandedStudio(hl);
               });
-            }
+            setActiveNoteDialog(null);
           }}
-          onHighlight={(color) => {
-            if (reader.selectionPopover) {
-              void reader.createHighlightWithColor(color, reader.selectionPopover.text);
-            }
+          onClose={() => setActiveNoteDialog(null)}
+        />
+      )}
+
+      {/* 6. AI Explanation Dialog */}
+      {activeExplainDialog && (
+        <ExplainDialog
+          isOpen={true}
+          text={activeExplainDialog.text}
+          bookTitle={`${reader.document.bookTitle} (${reader.document.chapterTitle})`}
+          onSaveAsAnnotation={(explanation) => {
+            void reader.createHighlightWithColor(
+              '#a855f7',
+              activeExplainDialog.text,
+              `[IA Explanation]: ${explanation}`
+            );
+            setActiveExplainDialog(null);
           }}
-          onExplain={() => {
-            if (reader.selectionPopover) {
-              void reader.generateContextualPrompt(
-                `Explain this passage in depth: "${reader.selectionPopover.text}"`
-              );
-              reader.setSelectionPopover(null);
-            }
+          onClose={() => setActiveExplainDialog(null)}
+        />
+      )}
+
+      {/* 7. Translation Dialog */}
+      {activeTranslateDialog && (
+        <TranslateDialog
+          isOpen={true}
+          text={activeTranslateDialog.text}
+          onSaveAsNote={(translation) => {
+            void reader.createHighlightWithColor(
+              '#38bdf8',
+              activeTranslateDialog.text,
+              `[Tradução]: ${translation}`
+            );
+            setActiveTranslateDialog(null);
           }}
-          onTranslate={() => {
-            if (reader.selectionPopover) {
-              void reader.generateContextualPrompt(
-                `Translate to Portuguese and explain idioms: "${reader.selectionPopover.text}"`
-              );
-              reader.setSelectionPopover(null);
-            }
-          }}
-          onClose={() => reader.setSelectionPopover(null)}
+          onClose={() => setActiveTranslateDialog(null)}
         />
       )}
 
