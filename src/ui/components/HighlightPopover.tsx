@@ -35,18 +35,18 @@ export function HighlightPopover({
 
   return (
     <div
-      className="fixed z-50 flex w-76 -translate-x-1/2 flex-col gap-2.5 rounded-xl border border-slate-700 bg-slate-900/95 p-3.5 shadow-2xl backdrop-blur-md transition-all duration-200"
+      className="fixed z-50 flex w-76 -translate-x-1/2 flex-col gap-2.5 rounded-xl border border-line-subtle bg-surface/95 p-3.5 shadow-2xl backdrop-blur-md transition-all duration-200"
       style={{
         left: `${x}px`,
         top: `${Math.max(16, y - 110)}px`,
       }}
     >
-      <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+      <div className="flex items-center justify-between border-b border-line-subtle pb-2">
         <div className="flex items-center gap-1.5">
           <span className="h-3 w-3 rounded-full" style={{ backgroundColor: highlight.color }} />
-          <span className="text-xs font-semibold text-slate-200">Highlight</span>
+          <span className="text-xs font-semibold text-tx-main">Highlight</span>
           {annotationsCount > 0 && (
-            <span className="rounded bg-sky-500/20 px-1.5 py-0.5 text-[0.65rem] font-medium text-sky-400">
+            <span className="rounded bg-sky-500/20 px-1.5 py-0.5 text-[0.65rem] font-medium text-sky-600 dark:text-sky-400">
               {annotationsCount} rich
             </span>
           )}
@@ -54,7 +54,7 @@ export function HighlightPopover({
         <div className="flex items-center gap-1">
           <button
             type="button"
-            className="rounded p-1 text-xs text-rose-400 hover:bg-rose-500/20 transition"
+            className="rounded p-1 text-xs text-rose-500 hover:bg-rose-500/10 transition"
             onClick={onDelete}
             title="Delete Highlight"
           >
@@ -62,7 +62,7 @@ export function HighlightPopover({
           </button>
           <button
             type="button"
-            className="rounded p-1 text-xs text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+            className="rounded p-1 text-xs text-tx-faint hover:bg-surface-subtle hover:text-tx-main"
             onClick={onClose}
           >
             ✕
@@ -70,20 +70,18 @@ export function HighlightPopover({
         </div>
       </div>
 
-      <div className="max-h-16 overflow-y-auto text-xs text-slate-300 italic border-l-2 border-slate-600 pl-2">
+      <div className="max-h-16 overflow-y-auto text-xs text-tx-secondary italic border-l-2 border-line-strong pl-2">
         &ldquo;{highlight.text}&rdquo;
       </div>
 
       <div className="flex items-center gap-1.5 py-1">
-        <span className="text-[0.7rem] text-slate-400">Color:</span>
+        <span className="text-[0.7rem] text-tx-muted">Color:</span>
         {COLOR_PRESETS.map((c) => (
           <button
             key={c.hex}
             type="button"
             className={`h-4 w-4 rounded-full ${c.classBg} transition hover:scale-125 ${
-              highlight.color === c.hex
-                ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-900'
-                : ''
+              highlight.color === c.hex ? 'ring-2 ring-brand ring-offset-1 ring-offset-surface' : ''
             }`}
             onClick={() => onChangeColor(c.hex)}
           />
@@ -91,7 +89,7 @@ export function HighlightPopover({
       </div>
 
       <textarea
-        className="w-full rounded-lg border border-slate-700 bg-slate-950 p-2 text-xs text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:outline-none"
+        className="w-full rounded-lg border border-line-subtle bg-surface-subtle p-2 text-xs text-tx-main placeholder:text-tx-faint focus:border-brand focus:outline-none"
         rows={2}
         placeholder="Add personal note..."
         value={noteDraft}
@@ -99,7 +97,7 @@ export function HighlightPopover({
       />
 
       <div className="flex items-center justify-between pt-1">
-        <span className="text-[0.65rem] text-slate-500">Page {highlight.anchor.pageNumber}</span>
+        <span className="text-[0.65rem] text-tx-faint">Page {highlight.anchor.pageNumber}</span>
         <button
           type="button"
           className="flex items-center gap-1 rounded-md bg-linear-to-r from-sky-600 to-indigo-600 px-2.5 py-1 text-xs font-semibold text-white shadow-md transition hover:from-sky-500 hover:to-indigo-500 active:scale-95"

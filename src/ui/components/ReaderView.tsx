@@ -4,7 +4,7 @@ import type {
   ActiveHighlightPopoverState,
   SelectionPopoverState,
   StudyDocumentDescriptor,
-} from '../hooks/useStudyWorkbenchViewModel';
+} from '../hooks/studyWorkbenchTypes';
 import { HighlightPopover } from './HighlightPopover';
 import { SelectionActionMenu } from './SelectionActionMenu';
 
@@ -89,37 +89,37 @@ export function ReaderView({
   const percentage = Math.round((currentPage / totalPages) * 100);
 
   return (
-    <div className="relative min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-amber-400/30 selection:text-amber-200">
+    <div className="relative min-h-screen bg-canvas text-tx-main flex flex-col justify-between selection:bg-amber-300/40 selection:text-amber-900 dark:selection:bg-amber-400/30 dark:selection:text-amber-200">
       {/* 1. Minimal distraction-free Header */}
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-800/80 bg-slate-950/80 px-6 py-3 backdrop-blur-md transition-all">
+      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-line-subtle bg-surface/80 px-6 py-3 backdrop-blur-md transition-all">
         <div className="flex items-center gap-3">
           <button
             type="button"
-            className="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white active:scale-95"
+            className="flex items-center gap-1.5 rounded-lg border border-line-subtle bg-surface px-3 py-1.5 text-xs font-semibold text-tx-secondary transition hover:bg-surface-subtle hover:text-tx-main active:scale-95"
             onClick={onBackToLibrary}
           >
             <span>&larr;</span>
             <span>Library</span>
           </button>
           <div className="hidden sm:flex flex-col">
-            <span className="text-xs font-semibold text-slate-200">
+            <span className="text-xs font-semibold text-tx-main">
               {document.bookAuthor} &mdash; {document.bookTitle}
             </span>
-            <span className="text-[0.7rem] text-slate-400">{document.chapterTitle}</span>
+            <span className="text-[0.7rem] text-tx-muted">{document.chapterTitle}</span>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-900/90 px-3 py-1 text-xs text-slate-300">
-            <span className="font-mono text-sky-400">{percentage}%</span>
-            <span className="text-slate-600">&bull;</span>
-            <span className="text-slate-400">
+          <div className="flex items-center gap-2 rounded-full border border-line-subtle bg-surface px-3 py-1 text-xs text-tx-secondary">
+            <span className="font-mono text-sky-600 dark:text-sky-400">{percentage}%</span>
+            <span className="text-tx-faint">&bull;</span>
+            <span className="text-tx-muted">
               Page {currentPage} of {totalPages}
             </span>
           </div>
           <button
             type="button"
-            className="rounded-lg border border-slate-800 bg-slate-900 p-2 text-xs text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition"
+            className="rounded-lg border border-line-subtle bg-surface p-2 text-xs text-tx-secondary hover:bg-surface-subtle hover:text-tx-main transition"
             onClick={onOpenSettings}
             title="Settings"
           >
@@ -132,17 +132,17 @@ export function ReaderView({
       <main className="flex-1 flex justify-center px-4 py-8 sm:py-12">
         <div className="w-full max-w-2xl flex flex-col gap-8">
           <div className="text-center">
-            <h1 className="text-2xl font-serif font-bold text-slate-100 sm:text-3xl tracking-tight">
+            <h1 className="text-2xl font-serif font-bold text-tx-main sm:text-3xl tracking-tight">
               {document.chapterTitle}
             </h1>
-            <p className="mt-1 text-xs text-slate-400 tracking-wider uppercase font-semibold">
+            <p className="mt-1 text-xs text-tx-muted tracking-wider uppercase font-semibold">
               {document.bookAuthor} &bull; {document.bookTitle}
             </p>
           </div>
 
           <div
             ref={contentAreaRef}
-            className="rounded-2xl border border-slate-800/80 bg-slate-900/30 p-6 sm:p-10 text-lg leading-relaxed text-slate-200 font-serif tracking-normal shadow-sm"
+            className="rounded-2xl border border-line-subtle bg-surface p-6 sm:p-10 text-lg leading-relaxed text-tx-main font-serif tracking-normal shadow-xs"
           >
             <p className="indent-6 mb-6">{document.sampleParagraph}</p>
 
@@ -156,8 +156,8 @@ export function ReaderView({
 
             {/* Render active page highlights */}
             {highlights.length > 0 && (
-              <div className="mt-8 border-t border-slate-800/80 pt-4 flex flex-col gap-2">
-                <span className="text-[0.7rem] uppercase tracking-wider font-semibold text-slate-400">
+              <div className="mt-8 border-t border-line-subtle pt-4 flex flex-col gap-2">
+                <span className="text-[0.7rem] uppercase tracking-wider font-semibold text-tx-muted">
                   Highlights on this page ({highlights.length})
                 </span>
                 <div className="flex flex-wrap gap-2">
@@ -165,7 +165,7 @@ export function ReaderView({
                     <button
                       key={hl.id}
                       type="button"
-                      className="group flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/90 px-3 py-1.5 text-xs text-slate-200 transition hover:border-slate-700 hover:bg-slate-800 active:scale-95"
+                      className="group flex items-center gap-1.5 rounded-lg border border-line-subtle bg-surface-subtle px-3 py-1.5 text-xs text-tx-secondary transition hover:border-line-strong hover:bg-surface-hover active:scale-95"
                       onClick={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
                         onHighlightClick(hl, {
@@ -179,7 +179,7 @@ export function ReaderView({
                         style={{ backgroundColor: hl.color }}
                       />
                       <span className="max-w-44 truncate italic">&ldquo;{hl.text}&rdquo;</span>
-                      {hl.note && <span className="text-slate-400">📝</span>}
+                      {hl.note && <span className="text-tx-muted">📝</span>}
                     </button>
                   ))}
                 </div>
@@ -191,10 +191,10 @@ export function ReaderView({
 
       {/* 3. Floating Bottom Navigation Controller */}
       <footer className="sticky bottom-4 z-20 flex justify-center px-4 pointer-events-none">
-        <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-slate-800 bg-slate-900/90 px-5 py-2 shadow-2xl backdrop-blur-md text-xs font-semibold">
+        <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-line-subtle bg-surface/90 px-5 py-2 shadow-xl backdrop-blur-md text-xs font-semibold">
           <button
             type="button"
-            className="flex items-center gap-1 text-slate-400 hover:text-white transition active:scale-95 disabled:opacity-40"
+            className="flex items-center gap-1 text-tx-secondary hover:text-tx-main transition active:scale-95 disabled:opacity-40"
             disabled={currentPage <= 1}
             onClick={() => onNavigatePage(-1)}
           >
@@ -202,17 +202,17 @@ export function ReaderView({
             <span>Prev</span>
           </button>
 
-          <span className="text-slate-500">|</span>
+          <span className="text-tx-faint">|</span>
 
-          <span className="font-mono text-slate-300">
+          <span className="font-mono text-tx-secondary">
             {currentPage} / {totalPages}
           </span>
 
-          <span className="text-slate-500">|</span>
+          <span className="text-tx-faint">|</span>
 
           <button
             type="button"
-            className="flex items-center gap-1 text-slate-400 hover:text-white transition active:scale-95 disabled:opacity-40"
+            className="flex items-center gap-1 text-tx-secondary hover:text-tx-main transition active:scale-95 disabled:opacity-40"
             disabled={currentPage >= totalPages}
             onClick={() => onNavigatePage(1)}
           >

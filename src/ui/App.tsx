@@ -4,6 +4,7 @@ import { ReaderView } from './components/ReaderView';
 import { SettingsView } from './components/SettingsView';
 import { useStudyWorkbenchViewModel } from './hooks/useStudyWorkbenchViewModel';
 import { ServiceContainerProvider } from './providers/ServiceContainerContext';
+import { ThemeProvider } from './providers/ThemeContext';
 
 function StudyWorkbenchView() {
   const vm = useStudyWorkbenchViewModel();
@@ -80,8 +81,10 @@ function StudyWorkbenchView() {
 
 export function App() {
   return (
-    <ServiceContainerProvider>
-      <StudyWorkbenchView />
-    </ServiceContainerProvider>
+    <ThemeProvider>
+      <ServiceContainerProvider>
+        <StudyWorkbenchView />
+      </ServiceContainerProvider>
+    </ThemeProvider>
   );
 }

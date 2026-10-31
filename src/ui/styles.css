@@ -1,1 +1,50 @@
 @import "tailwindcss";
+
+@variant dark (&:where(.dark, [data-theme="dark"], .dark *, [data-theme="dark"] *));
+
+:root,
+[data-theme="light"] {
+  --color-canvas: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-subtle: #f1f5f9;
+  --color-surface-hover: #e2e8f0;
+  --color-line-subtle: #e2e8f0;
+  --color-line-strong: #cbd5e1;
+  --color-tx-main: #0f172a;
+  --color-tx-secondary: #334155;
+  --color-tx-muted: #64748b;
+  --color-tx-faint: #94a3b8;
+  --color-brand: #0284c7;
+  --color-brand-hover: #0369a1;
+}
+
+.dark,
+[data-theme="dark"] {
+  --color-canvas: #020617;
+  --color-surface: #0f172a;
+  --color-surface-subtle: #1e293b;
+  --color-surface-hover: #334155;
+  --color-line-subtle: #1e293b;
+  --color-line-strong: #334155;
+  --color-tx-main: #f8fafc;
+  --color-tx-secondary: #cbd5e1;
+  --color-tx-muted: #94a3b8;
+  --color-tx-faint: #64748b;
+  --color-brand: #38bdf8;
+  --color-brand-hover: #7dd3fc;
+}
+
+@theme {
+  --color-canvas: var(--color-canvas);
+  --color-surface: var(--color-surface);
+  --color-surface-subtle: var(--color-surface-subtle);
+  --color-surface-hover: var(--color-surface-hover);
+  --color-line-subtle: var(--color-line-subtle);
+  --color-line-strong: var(--color-line-strong);
+  --color-tx-main: var(--color-tx-main);
+  --color-tx-secondary: var(--color-tx-secondary);
+  --color-tx-muted: var(--color-tx-muted);
+  --color-tx-faint: var(--color-tx-faint);
+  --color-brand: var(--color-brand);
+  --color-brand-hover: var(--color-brand-hover);
+}

@@ -34,7 +34,7 @@ export function AssistedFormattingToolbar({
         <button
           key={action.id}
           type="button"
-          className="cursor-pointer rounded-md border border-slate-600 bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-slate-700"
+          className="cursor-pointer rounded-md border border-line-subtle bg-surface-subtle px-2.5 py-1.5 text-xs font-medium text-tx-secondary transition hover:bg-surface-hover hover:text-tx-main"
           onClick={() => onApplyFormat(action.style)}
         >
           {action.label}

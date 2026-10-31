@@ -29,14 +29,14 @@ export function SelectionActionMenu({
 }: SelectionActionMenuProps) {
   return (
     <div
-      className="fixed z-50 flex -translate-x-1/2 flex-col gap-2 rounded-xl border border-slate-700 bg-slate-900/95 p-2 shadow-2xl backdrop-blur-md transition-all duration-200"
+      className="fixed z-50 flex -translate-x-1/2 flex-col gap-2 rounded-xl border border-line-subtle bg-surface/95 p-2 shadow-xl backdrop-blur-md transition-all duration-200"
       style={{
         left: `${x}px`,
         top: `${Math.max(16, y - 60)}px`,
       }}
     >
       <div className="flex items-center gap-1.5">
-        <div className="flex items-center gap-1 border-r border-slate-700 pr-1.5">
+        <div className="flex items-center gap-1 border-r border-line-subtle pr-1.5">
           {COLOR_OPTIONS.map((c) => (
             <button
               key={c.hex}
@@ -50,7 +50,7 @@ export function SelectionActionMenu({
 
         <button
           type="button"
-          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-200 hover:bg-slate-800 active:scale-95 transition"
+          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-tx-secondary hover:bg-surface-subtle hover:text-tx-main active:scale-95 transition"
           onClick={onExplain}
         >
           <span>✨</span>
@@ -59,7 +59,7 @@ export function SelectionActionMenu({
 
         <button
           type="button"
-          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-200 hover:bg-slate-800 active:scale-95 transition"
+          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-tx-secondary hover:bg-surface-subtle hover:text-tx-main active:scale-95 transition"
           onClick={onDefineTerm}
         >
           <span>📖</span>
@@ -68,7 +68,7 @@ export function SelectionActionMenu({
 
         <button
           type="button"
-          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-200 hover:bg-slate-800 active:scale-95 transition"
+          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-tx-secondary hover:bg-surface-subtle hover:text-tx-main active:scale-95 transition"
           onClick={onTranslate}
         >
           <span>🌐</span>
@@ -77,7 +77,7 @@ export function SelectionActionMenu({
 
         <button
           type="button"
-          className="ml-1 rounded-md px-1.5 py-0.5 text-xs text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+          className="ml-1 rounded-md px-1.5 py-0.5 text-xs text-tx-faint hover:bg-surface-subtle hover:text-tx-main"
           onClick={onClose}
           title="Dismiss"
         >
@@ -85,7 +85,7 @@ export function SelectionActionMenu({
         </button>
       </div>
 
-      <div className="max-w-64 truncate text-[0.65rem] text-slate-400 italic px-1">
+      <div className="max-w-64 truncate text-[0.65rem] text-tx-muted italic px-1">
         &ldquo;{text}&rdquo;
       </div>
     </div>
