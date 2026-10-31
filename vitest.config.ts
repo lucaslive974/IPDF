@@ -8,7 +8,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       enabled: true,
-      reporter: ['text', 'html', 'json-summary'],
+      reporter: ['text', 'html', 'json-summary', 'lcov'],
       include: ['src/core/**/*.ts', 'src/adapters/**/*.ts'],
       exclude: [
         'src/core/ports/**/*.ts',

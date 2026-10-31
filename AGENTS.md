@@ -32,5 +32,5 @@ Este repositório segue uma arquitetura **Hexagonal (Ports & Adapters)** estrita
   2. `src/ui/hooks/` (ViewModels / Custom Hooks concentrando estado e casos de uso),
   3. `src/ui/components/` (Componentes visuais puros, pequenos e reutilizáveis recebendo dados via props).
 - **Zero `any` Policy:** Proibido usar `any`.
-- **Cobertura de Testes Mínima (>= 80%):** Todo código em `src/core/` e `src/adapters/` deve manter no mínimo **80% de cobertura** em *lines*, *functions*, *branches* e *statements* (validado pelo `@vitest/coverage-v8`), além da suíte de testes Rust em `src-tauri/crates/ipdf-core/tests/` validada por `cargo test` e `cargo clippy -- -D warnings`.
+- **Cobertura de Testes Mínima (>= 80% em TypeScript & Rust + Coverage Gutters):** Todo código em `src/core/`, `src/adapters/` e `src-tauri/crates/ipdf-core/src/` deve manter no mínimo **80% de cobertura** (validado por `@vitest/coverage-v8` no TS e `llvm-cov` via `scripts/rust-coverage.mjs` no Rust), gerando LCOV unificado em `coverage/lcov.info` compatível com a extensão **Coverage Gutters**.
 - **Quality Gate Bloqueante:** Nenhum commit pode ser realizado sem que `npm run verify` (`format` + `lint` + `typecheck` + `test --coverage` + `verify:rust`) retorne `exit code 0`.

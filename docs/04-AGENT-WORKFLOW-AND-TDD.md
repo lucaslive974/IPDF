@@ -20,8 +20,8 @@ Este documento define as regras operacionais obrigatórias para qualquer agente 
      - **IoC Provider (`src/ui/providers/`):** Injeção do container de serviços via Context.
      - **ViewModel Hook (`src/ui/hooks/`):** Custom Hook isolando toda a lógica de estado e interação com `src/core/services/`.
      - **Reusable Presentational Components (`src/ui/components/`):** Componentes pequenos, desacoplados e orientados a `props` (sem valores hardcoded fixos quando puderem receber configuração por props).
-6. **Meta Mínima de Cobertura de Testes (>= 80%):**
-   É obrigatório manter **pelo menos 80% de cobertura de testes** (`lines >= 80%`, `functions >= 80%`, `branches >= 80%`, `statements >= 80%`) em `src/core/` e `src/adapters/`. O Vitest (`@vitest/coverage-v8`) está configurado com *thresholds* bloqueantes: se a cobertura cair abaixo de 80%, `npm run test` e `npm run verify` falharão automaticamente.
+6. **Meta Mínima de Cobertura de Testes (>= 80% em TypeScript e Rust + Coverage Gutters):**
+   É obrigatório manter **pelo menos 80% de cobertura de testes** tanto no TypeScript (`src/core/` e `src/adapters/`, validado pelo `@vitest/coverage-v8`) quanto no Rust (`src-tauri/crates/ipdf-core/src/`, validado pelo `llvm-cov` via `npm run test:rust:coverage` exigindo `lines >= 80%`, `functions >= 80%` e `regions >= 80%`). Ambos exportam relatórios LCOV unificados para `coverage/lcov.info` e `coverage/rust-lcov.info`, pré-configurados em `.vscode/settings.json` para exibição em tempo real na extensão **Coverage Gutters**.
 
 ---
 
@@ -49,7 +49,7 @@ O comando `npm run verify` executa em sequência:
 2. `npm run lint` (`biome check ./src`)
 3. `npm run typecheck` (`tsc --noEmit`)
 4. `npm run test` (`vitest run --coverage`, exigindo >= 80% em lines, functions, branches e statements)
-5. `npm run verify:rust` (`cargo fmt --check` + `cargo clippy --all-targets -- -D warnings` + `cargo test` na crate `src-tauri/crates/ipdf-core`)
+5. `npm run verify:rust` (`cargo fmt --check` + `cargo clippy --all-targets -- -D warnings` + `npm run test:rust:coverage` com `llvm-cov` exigindo >= 80% de cobertura na crate `src-tauri/crates/ipdf-core`)
 
 > [!CAUTION]
 > **REGRA DE BLOQUEIO:** Se qualquer uma dessas 4 etapas falhar, emitir erros ou ficar abaixo de **80% de cobertura de testes**, o agente **ESTÁ PROIBIDO** de fazer commit ou avançar para a próxima tarefa. Corrija a formatação, a tipagem, o teste quebrado ou adicione casos de teste faltantes até que `npm run verify` retorne `exit code 0`.

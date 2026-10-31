@@ -1,0 +1,11 @@
+{
+  "coverage-gutters.coverageBaseDir": "coverage",
+  "coverage-gutters.coverageFileNames": [
+    "lcov.info",
+    "rust-lcov.info",
+    "combined-lcov.info"
+  ],
+  "coverage-gutters.showLineCoverage": true,
+  "coverage-gutters.showRulerCoverage": true,
+  "coverage-gutters.showGutterCoverage": true
+}
