@@ -22,29 +22,46 @@ function collectTsxFiles(dir) {
 
 function extractClassLiterals(source) {
   const literals = [];
-  const classAttrRegex = /className\s*=\s*(?:"([^"]*)"|'([^']*)'|\{`([^`]*)`\})/g;
+  const classAttrRegex = /className\s*=\s*(?:"([^"]*)"|'([^']*)'|\{`([\s\S]*?)`\}|\{([\s\S]*?)\})/g;
   for (const match of source.matchAll(classAttrRegex)) {
-    const raw = match[1] ?? match[2] ?? match[3] ?? '';
-    const cleaned = raw.replace(/\$\{[^}]*\}/g, ' ');
-    const tokens = cleaned
-      .split(/\s+/)
-      .map((t) => t.trim())
-      .filter(Boolean);
-    if (tokens.length > 0) {
-      literals.push(tokens);
-    }
-  }
-
-  const ternaryStringRegex = /\?\s*['"]([^'"]+)['"]\s*:\s*['"]([^'"]*)['"]/g;
-  for (const match of source.matchAll(ternaryStringRegex)) {
-    for (const group of [match[1], match[2]]) {
-      if (!group) continue;
-      const tokens = group
+    if (match[1] || match[2]) {
+      // Direct string literal: className="foo bar"
+      const raw = match[1] ?? match[2];
+      const tokens = raw
         .split(/\s+/)
         .map((t) => t.trim())
         .filter(Boolean);
-      if (tokens.length > 0) {
-        literals.push(tokens);
+      if (tokens.length > 0) literals.push(tokens);
+    } else if (match[3]) {
+      // Template string: className={`foo ${bar ? 'baz' : 'qux'}`}
+      const raw = match[3];
+      const ternaryStringRegex = /\?\s*['"]([^'"]+)['"]\s*:\s*['"]([^'"]*)['"]/g;
+      for (const tMatch of raw.matchAll(ternaryStringRegex)) {
+        for (const group of [tMatch[1], tMatch[2]]) {
+          if (!group) continue;
+          const tokens = group
+            .split(/\s+/)
+            .map((t) => t.trim())
+            .filter(Boolean);
+          if (tokens.length > 0) literals.push(tokens);
+        }
+      }
+      const staticParts = raw.replace(/\$\{[^}]*\}/g, ' ');
+      const tokens = staticParts
+        .split(/\s+/)
+        .map((t) => t.trim())
+        .filter(Boolean);
+      if (tokens.length > 0) literals.push(tokens);
+    } else if (match[4]) {
+      // Expression: className={cond ? 'foo' : 'bar'}
+      const expr = match[4];
+      const stringLiteralRegex = /['"]([^'"]+)['"]/g;
+      for (const sMatch of expr.matchAll(stringLiteralRegex)) {
+        const tokens = sMatch[1]
+          .split(/\s+/)
+          .map((t) => t.trim())
+          .filter(Boolean);
+        if (tokens.length > 0) literals.push(tokens);
       }
     }
   }

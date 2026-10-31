@@ -5,12 +5,26 @@ import type { AnnotationFormatterMap } from '../../core/domain/RichAnnotation';
 import type { TextFormatStyle } from '../../core/domain/types';
 import { useServiceContainer } from '../providers/ServiceContainerContext';
 
+export type AppViewMode = 'library' | 'reader' | 'settings';
+
 export interface StudyDocumentDescriptor {
   readonly bookHash: string;
   readonly bookTitle: string;
   readonly bookAuthor: string;
   readonly chapterTitle: string;
   readonly sampleParagraph: string;
+}
+
+export interface SelectionPopoverState {
+  readonly text: string;
+  readonly x: number;
+  readonly y: number;
+}
+
+export interface ActiveHighlightPopoverState {
+  readonly highlight: Highlight;
+  readonly x: number;
+  readonly y: number;
 }
 
 const DEFAULT_DOCUMENT: StudyDocumentDescriptor = {
@@ -51,26 +65,43 @@ const ANNOTATION_FORMATTERS: AnnotationFormatterMap<string> = {
 };
 
 export interface StudyWorkbenchViewModel {
+  readonly currentView: AppViewMode;
   readonly document: StudyDocumentDescriptor;
   readonly libraryBooks: BookMetadata[];
   readonly currentPage: number;
   readonly totalPages: number;
   readonly highlights: Highlight[];
   readonly selectedId: string | null;
+  readonly activeHighlightPopover: ActiveHighlightPopoverState | null;
+  readonly expandedHighlight: Highlight | null;
+  readonly selectionPopover: SelectionPopoverState | null;
   readonly noteInput: string;
   readonly formattedAnnotations: string[];
   readonly llmPromptPreview: string;
   readonly syncExportPreview: string;
+  setCurrentView(view: AppViewMode): void;
+  openReader(book?: BookMetadata): void;
+  closeReader(): void;
+  openSettings(): void;
+  closeSettings(): void;
   selectHighlight(highlightId: string): Promise<void>;
+  openHighlightPopover(highlight: Highlight, coords: { x: number; y: number }): void;
+  closeHighlightPopover(): void;
+  openExpandedHighlightStudio(highlight: Highlight): void;
+  closeExpandedHighlightStudio(): void;
   updateNoteDraft(value: string): void;
   updateSelectionRange(start: number, end: number): void;
   createHighlightFromCurrentSelection(color: string): Promise<void>;
+  createHighlightWithColor(color: string, overrideText?: string): Promise<void>;
+  changeHighlightColor(highlightId: string, colorHex: string): Promise<void>;
+  deleteHighlight(highlightId: string): Promise<void>;
   applyAssistedFormat(style: TextFormatStyle): Promise<void>;
   attachVisualBoard(kind: 'tldraw' | 'drawio'): Promise<void>;
-  generateContextualPrompt(): Promise<void>;
+  generateContextualPrompt(customText?: string): Promise<void>;
   runCloudlessSync(): Promise<void>;
   importSampleEpubBook(): Promise<void>;
   navigatePage(delta: number): Promise<void>;
+  setSelectionPopover(state: SelectionPopoverState | null): void;
 }
 
 export function useStudyWorkbenchViewModel(
@@ -78,12 +109,18 @@ export function useStudyWorkbenchViewModel(
 ): StudyWorkbenchViewModel {
   const { annotationWorkbench, backendGateway } = useServiceContainer();
 
+  const [currentView, setCurrentView] = useState<AppViewMode>('library');
   const [libraryBooks, setLibraryBooks] = useState<BookMetadata[]>([]);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const totalPages = 320;
 
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [activeHighlightPopover, setActiveHighlightPopover] =
+    useState<ActiveHighlightPopoverState | null>(null);
+  const [expandedHighlight, setExpandedHighlight] = useState<Highlight | null>(null);
+  const [selectionPopover, setSelectionPopover] = useState<SelectionPopoverState | null>(null);
+
   const selectedIdRef = useRef<string | null>(null);
   const excerptCounterRef = useRef<number>(0);
 
@@ -157,12 +194,53 @@ export function useStudyWorkbenchViewModel(
     };
   }, [annotationWorkbench, backendGateway, document, refreshState]);
 
+  const openReader = useCallback((_book?: BookMetadata) => {
+    setCurrentView('reader');
+  }, []);
+
+  const closeReader = useCallback(() => {
+    setCurrentView('library');
+    setActiveHighlightPopover(null);
+    setSelectionPopover(null);
+  }, []);
+
+  const openSettings = useCallback(() => {
+    setCurrentView('settings');
+  }, []);
+
+  const closeSettings = useCallback(() => {
+    setCurrentView('library');
+  }, []);
+
   const selectHighlight = useCallback(
     async (highlightId: string) => {
       await refreshState(highlightId, currentPage);
     },
     [currentPage, refreshState]
   );
+
+  const openHighlightPopover = useCallback(
+    (highlight: Highlight, coords: { x: number; y: number }) => {
+      selectedIdRef.current = highlight.id;
+      setSelectedId(highlight.id);
+      setNoteInput(highlight.note);
+      setActiveHighlightPopover({ highlight, x: coords.x, y: coords.y });
+    },
+    []
+  );
+
+  const closeHighlightPopover = useCallback(() => {
+    setActiveHighlightPopover(null);
+  }, []);
+
+  const openExpandedHighlightStudio = useCallback((highlight: Highlight) => {
+    setExpandedHighlight(highlight);
+    setActiveHighlightPopover(null);
+  }, []);
+
+  const closeExpandedHighlightStudio = useCallback(() => {
+    setExpandedHighlight(null);
+  }, []);
 
   const updateNoteDraft = useCallback(
     (value: string) => {
@@ -179,27 +257,35 @@ export function useStudyWorkbenchViewModel(
             setFormattedAnnotations(
               annotationWorkbench.formatHighlightAnnotations(currentId, ANNOTATION_FORMATTERS)
             );
-            setHighlights([...annotationWorkbench.getForPage(currentPage)]);
+            const currentHighlights = annotationWorkbench.getForPage(currentPage);
+            setHighlights([...currentHighlights]);
+            if (activeHighlightPopover?.highlight.id === currentId) {
+              const updated = currentHighlights.find((h) => h.id === currentId);
+              if (updated) {
+                setActiveHighlightPopover((prev) =>
+                  prev ? { ...prev, highlight: updated } : null
+                );
+              }
+            }
           });
       }
     },
-    [annotationWorkbench, currentPage]
+    [activeHighlightPopover, annotationWorkbench, currentPage]
   );
 
   const updateSelectionRange = useCallback((start: number, end: number) => {
     setSelectionRange({ start, end });
   }, []);
 
-  const createHighlightFromCurrentSelection = useCallback(
-    async (color: string) => {
-      const browserSel =
-        typeof window !== 'undefined' ? window.getSelection()?.toString().trim() : '';
+  const createHighlightWithColor = useCallback(
+    async (color: string, overrideText?: string) => {
       const fallbackExcerpt =
         FALLBACK_PASSAGE_EXCERPTS[excerptCounterRef.current % FALLBACK_PASSAGE_EXCERPTS.length] ??
         'human beings living in an underground den';
       excerptCounterRef.current += 1;
 
-      const textToHighlight = browserSel && browserSel.length > 0 ? browserSel : fallbackExcerpt;
+      const textToHighlight =
+        overrideText && overrideText.trim().length > 0 ? overrideText.trim() : fallbackExcerpt;
 
       const created = await annotationWorkbench.createFromSelection(
         document.bookHash,
@@ -214,14 +300,62 @@ export function useStudyWorkbenchViewModel(
           clientRect: createEmptyRect(),
         },
         color,
-        'New section study annotation'
+        'Study note'
       );
       if (typeof window !== 'undefined') {
         window.getSelection()?.removeAllRanges();
       }
+      setSelectionPopover(null);
       await refreshState(created.id, currentPage);
     },
     [annotationWorkbench, currentPage, document, refreshState]
+  );
+
+  const createHighlightFromCurrentSelection = useCallback(
+    async (color: string) => {
+      const browserSel =
+        typeof window !== 'undefined' ? window.getSelection()?.toString().trim() : '';
+      await createHighlightWithColor(color, browserSel);
+    },
+    [createHighlightWithColor]
+  );
+
+  const changeHighlightColor = useCallback(
+    async (highlightId: string, colorHex: string) => {
+      const target = highlights.find((h) => h.id === highlightId);
+      if (!target) {
+        return;
+      }
+      target.changeColor(colorHex);
+      await backendGateway.saveHighlight(target);
+      await refreshState(highlightId, currentPage);
+      if (activeHighlightPopover?.highlight.id === highlightId) {
+        setActiveHighlightPopover((prev) => (prev ? { ...prev, highlight: target } : null));
+      }
+    },
+    [activeHighlightPopover, backendGateway, currentPage, highlights, refreshState]
+  );
+
+  const deleteHighlight = useCallback(
+    async (highlightId: string) => {
+      await backendGateway.deleteHighlight(highlightId);
+      closeHighlightPopover();
+      if (expandedHighlight?.id === highlightId) {
+        closeExpandedHighlightStudio();
+      }
+      await annotationWorkbench.loadBookHighlights(document.bookHash);
+      await refreshState(null, currentPage);
+    },
+    [
+      annotationWorkbench,
+      backendGateway,
+      closeExpandedHighlightStudio,
+      closeHighlightPopover,
+      currentPage,
+      document.bookHash,
+      expandedHighlight?.id,
+      refreshState,
+    ]
   );
 
   const applyAssistedFormat = useCallback(
@@ -280,21 +414,25 @@ export function useStudyWorkbenchViewModel(
     [annotationWorkbench, currentPage, refreshState]
   );
 
-  const generateContextualPrompt = useCallback(async () => {
-    const activeId = selectedIdRef.current;
-    const active = highlights.find((h) => h.id === activeId);
-    const req = await backendGateway.buildTermLookupRequest(
-      {
-        bookTitle: document.bookTitle,
-        bookAuthor: document.bookAuthor,
-        chapterTitle: document.chapterTitle,
-        selectedText: active?.text ?? 'noesis',
-        surroundingContext: document.sampleParagraph,
-      },
-      'en'
-    );
-    setLlmPromptPreview(JSON.stringify(req, null, 2));
-  }, [backendGateway, document, highlights]);
+  const generateContextualPrompt = useCallback(
+    async (customText?: string) => {
+      const activeId = selectedIdRef.current;
+      const active = highlights.find((h) => h.id === activeId);
+      const textToQuery = customText ?? active?.text ?? 'noesis';
+      const req = await backendGateway.buildTermLookupRequest(
+        {
+          bookTitle: document.bookTitle,
+          bookAuthor: document.bookAuthor,
+          chapterTitle: document.chapterTitle,
+          selectedText: textToQuery,
+          surroundingContext: document.sampleParagraph,
+        },
+        'en'
+      );
+      setLlmPromptPreview(JSON.stringify(req, null, 2));
+    },
+    [backendGateway, document, highlights]
+  );
 
   const runCloudlessSync = useCallback(async () => {
     const exportedJson = await backendGateway.syncBookWorkspace(document.bookHash);
@@ -327,25 +465,42 @@ export function useStudyWorkbenchViewModel(
   );
 
   return {
+    currentView,
     document,
     libraryBooks,
     currentPage,
     totalPages,
     highlights,
     selectedId,
+    activeHighlightPopover,
+    expandedHighlight,
+    selectionPopover,
     noteInput,
     formattedAnnotations,
     llmPromptPreview,
     syncExportPreview,
+    setCurrentView,
+    openReader,
+    closeReader,
+    openSettings,
+    closeSettings,
     selectHighlight,
+    openHighlightPopover,
+    closeHighlightPopover,
+    openExpandedHighlightStudio,
+    closeExpandedHighlightStudio,
     updateNoteDraft,
     updateSelectionRange,
     createHighlightFromCurrentSelection,
+    createHighlightWithColor,
+    changeHighlightColor,
+    deleteHighlight,
     applyAssistedFormat,
     attachVisualBoard,
     generateContextualPrompt,
     runCloudlessSync,
     importSampleEpubBook,
     navigatePage,
+    setSelectionPopover,
   };
 }

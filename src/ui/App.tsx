@@ -1,5 +1,7 @@
-import { PassageReaderPanel } from './components/PassageReaderPanel';
-import { SectionAnnotationPanel } from './components/SectionAnnotationPanel';
+import { HighlightDetailModal } from './components/HighlightDetailModal';
+import { LibraryView } from './components/LibraryView';
+import { ReaderView } from './components/ReaderView';
+import { SettingsView } from './components/SettingsView';
 import { useStudyWorkbenchViewModel } from './hooks/useStudyWorkbenchViewModel';
 import { ServiceContainerProvider } from './providers/ServiceContainerContext';
 
@@ -7,35 +9,72 @@ function StudyWorkbenchView() {
   const vm = useStudyWorkbenchViewModel();
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-5">
-      <div className="mx-auto max-w-360 grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-5">
-        <PassageReaderPanel
+    <>
+      {vm.currentView === 'library' && (
+        <LibraryView
+          books={vm.libraryBooks}
+          highlights={vm.highlights}
+          onOpenBook={(book) => vm.openReader(book)}
+          onImportNewBook={() => void vm.importSampleEpubBook()}
+          onOpenSettings={() => vm.openSettings()}
+        />
+      )}
+
+      {vm.currentView === 'reader' && (
+        <ReaderView
           document={vm.document}
-          libraryBooks={vm.libraryBooks}
           currentPage={vm.currentPage}
           totalPages={vm.totalPages}
           highlights={vm.highlights}
-          selectedHighlightId={vm.selectedId}
-          onCreateHighlight={(color) => void vm.createHighlightFromCurrentSelection(color)}
-          onSelectHighlight={(id) => void vm.selectHighlight(id)}
-          onGeneratePrompt={() => void vm.generateContextualPrompt()}
-          onSyncBook={() => void vm.runCloudlessSync()}
-          onImportSampleBook={() => void vm.importSampleEpubBook()}
+          selectionPopover={vm.selectionPopover}
+          activeHighlightPopover={vm.activeHighlightPopover}
+          noteDraft={vm.noteInput}
+          onBackToLibrary={() => vm.closeReader()}
+          onOpenSettings={() => vm.openSettings()}
           onNavigatePage={(delta) => void vm.navigatePage(delta)}
+          onSelectText={(state) => vm.setSelectionPopover(state)}
+          onHighlightClick={(highlight, coords) => vm.openHighlightPopover(highlight, coords)}
+          onCloseHighlightPopover={() => vm.closeHighlightPopover()}
+          onCreateHighlight={(colorHex) => void vm.createHighlightWithColor(colorHex)}
+          onChangeHighlightColor={(id, colorHex) => void vm.changeHighlightColor(id, colorHex)}
+          onDeleteHighlight={(id) => void vm.deleteHighlight(id)}
+          onNoteChange={vm.updateNoteDraft}
+          onExpandHighlight={() => {
+            if (vm.activeHighlightPopover) {
+              vm.openExpandedHighlightStudio(vm.activeHighlightPopover.highlight);
+            }
+          }}
+          onExplainSelection={() => void vm.generateContextualPrompt()}
+          onDefineSelection={() => void vm.generateContextualPrompt('Define philosophical concept')}
+          onTranslateSelection={() =>
+            void vm.generateContextualPrompt('Translate passage into Portuguese')
+          }
         />
+      )}
 
-        <SectionAnnotationPanel
+      {vm.currentView === 'settings' && (
+        <SettingsView
+          syncExportPreview={vm.syncExportPreview}
+          onRunCloudlessSync={() => void vm.runCloudlessSync()}
+          onBackToLibrary={() => vm.closeSettings()}
+        />
+      )}
+
+      {vm.expandedHighlight && (
+        <HighlightDetailModal
+          highlight={vm.expandedHighlight}
           noteInput={vm.noteInput}
           formattedAnnotations={vm.formattedAnnotations}
           llmPromptPreview={vm.llmPromptPreview}
-          syncExportPreview={vm.syncExportPreview}
           onNoteChange={vm.updateNoteDraft}
           onSelectionChange={vm.updateSelectionRange}
           onApplyFormat={(style) => void vm.applyAssistedFormat(style)}
           onAttachBoard={(kind) => void vm.attachVisualBoard(kind)}
+          onGeneratePrompt={() => void vm.generateContextualPrompt()}
+          onClose={() => vm.closeExpandedHighlightStudio()}
         />
-      </div>
-    </div>
+      )}
+    </>
   );
 }
 
