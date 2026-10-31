@@ -24,33 +24,7 @@ function encodeUtf8(text: string): ArrayBuffer {
   return buffer;
 }
 
-describe('EpubViewerAdapter (EPUB CFI, Highlights, Inline Ruby & Cover Extraction)', () => {
-  it('extracts PNG, JPEG, and WEBP cover images into Uint8Array without Node Buffer', async () => {
-    const pngPayload = new Uint8Array([
-      0x50, 0x4b, 0x03, 0x04, 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x01, 0x02, 0x03,
-      0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
-    ]);
-    const pngCover = await EpubViewerAdapter.extractCoverToUint8Array(pngPayload.buffer);
-    expect(pngCover).not.toBeNull();
-    expect(pngCover?.coverMimeType).toBe('image/png');
-    expect(pngCover?.coverImageBuffer).toBeInstanceOf(Uint8Array);
-    expect(pngCover?.coverImageBuffer[0]).toBe(0x89);
-
-    const jpegPayload = new Uint8Array([0x00, 0xff, 0xd8, 0xff, 0xe0, 0x11, 0x22, 0xff, 0xd9]);
-    const jpegCover = await EpubViewerAdapter.extractCoverToUint8Array(jpegPayload.buffer);
-    expect(jpegCover?.coverMimeType).toBe('image/jpeg');
-    expect(jpegCover?.coverImageBuffer).toBeInstanceOf(Uint8Array);
-
-    const webpPayload = new Uint8Array([
-      0x52, 0x49, 0x46, 0x46, 0x04, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50, 0xaa, 0xbb,
-    ]);
-    const webpCover = await EpubViewerAdapter.extractCoverToUint8Array(webpPayload.buffer);
-    expect(webpCover?.coverMimeType).toBe('image/webp');
-
-    const emptyCover = await EpubViewerAdapter.extractCoverToUint8Array(encodeUtf8('Plain text'));
-    expect(emptyCover).toBeNull();
-  });
-
+describe('EpubViewerAdapter (EPUB CFI, Highlights & Virtual Pagination)', () => {
   it('renders EPUB chapters, navigates by page number and CFI, and emits onPageChanged', async () => {
     const viewer = new EpubViewerAdapter();
     const container = createFakeContainer();

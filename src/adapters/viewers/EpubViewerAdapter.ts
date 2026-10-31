@@ -13,11 +13,6 @@ export interface EpubChapterDescriptor {
   readonly content: string;
 }
 
-export interface ExtractedCoverImage {
-  readonly coverImageBuffer: Uint8Array;
-  readonly coverMimeType: 'image/webp' | 'image/png' | 'image/jpeg';
-}
-
 interface InlineAnnotationEntry {
   readonly anchor: HighlightAnchor;
   readonly shortText: string;
@@ -50,77 +45,6 @@ export class EpubViewerAdapter implements IDocumentViewer {
   private pageChangedListeners: Array<(pageInfo: PageInfo) => void> = [];
   private textSelectedListeners: Array<(selection: TextSelection | null) => void> = [];
   private highlightClickedListeners: Array<(highlight: Highlight, rect: DOMRect) => void> = [];
-
-  public static async extractCoverToUint8Array(
-    fileData: ArrayBuffer
-  ): Promise<ExtractedCoverImage | null> {
-    const bytes = new Uint8Array(fileData);
-
-    // 1. Check PNG signature: 89 50 4E 47 0D 0A 1A 0A ... IEND (49 45 4E 44 AE 42 60 82)
-    for (let i = 0; i <= bytes.length - 8; i += 1) {
-      if (
-        bytes[i] === 0x89 &&
-        bytes[i + 1] === 0x50 &&
-        bytes[i + 2] === 0x4e &&
-        bytes[i + 3] === 0x47
-      ) {
-        let endIdx = bytes.length;
-        for (let j = i + 8; j <= bytes.length - 8; j += 1) {
-          if (
-            bytes[j] === 0x49 &&
-            bytes[j + 1] === 0x45 &&
-            bytes[j + 2] === 0x4e &&
-            bytes[j + 3] === 0x44
-          ) {
-            endIdx = Math.min(bytes.length, j + 8);
-            break;
-          }
-        }
-        return {
-          coverImageBuffer: bytes.slice(i, endIdx),
-          coverMimeType: 'image/png',
-        };
-      }
-    }
-
-    // 2. Check JPEG signature: FF D8 FF ... FF D9
-    for (let i = 0; i <= bytes.length - 4; i += 1) {
-      if (bytes[i] === 0xff && bytes[i + 1] === 0xd8 && bytes[i + 2] === 0xff) {
-        let endIdx = bytes.length;
-        for (let j = i + 3; j <= bytes.length - 2; j += 1) {
-          if (bytes[j] === 0xff && bytes[j + 1] === 0xd9) {
-            endIdx = j + 2;
-            break;
-          }
-        }
-        return {
-          coverImageBuffer: bytes.slice(i, endIdx),
-          coverMimeType: 'image/jpeg',
-        };
-      }
-    }
-
-    // 3. Check WEBP signature: "RIFF" .... "WEBP"
-    for (let i = 0; i <= bytes.length - 12; i += 1) {
-      if (
-        bytes[i] === 0x52 &&
-        bytes[i + 1] === 0x49 &&
-        bytes[i + 2] === 0x46 &&
-        bytes[i + 3] === 0x46 &&
-        bytes[i + 8] === 0x57 &&
-        bytes[i + 9] === 0x45 &&
-        bytes[i + 10] === 0x42 &&
-        bytes[i + 11] === 0x50
-      ) {
-        return {
-          coverImageBuffer: bytes.slice(i),
-          coverMimeType: 'image/webp',
-        };
-      }
-    }
-
-    return null;
-  }
 
   public async render(container: HTMLElement, fileData: ArrayBuffer): Promise<void> {
     this.container = container;

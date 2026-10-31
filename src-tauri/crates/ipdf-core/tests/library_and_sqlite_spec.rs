@@ -83,6 +83,14 @@ fn test_library_manager_import_progress_and_sorting() {
     let all_books = library.list_books().unwrap();
     assert_eq!(all_books.len(), 3);
     assert_eq!(all_books[0].book_hash, second_book.book_hash);
+    assert!(all_books[0].cover_image_url.is_some());
+    assert!(all_books[0]
+        .cover_image_url
+        .as_ref()
+        .unwrap()
+        .starts_with("data:image/"));
+    assert!(all_books[1].cover_image_url.is_some());
+    assert!(all_books[2].cover_image_url.is_some());
 
     // Direct filesystem opening (System handler / Open with / Default app)
     let temp_file = env::temp_dir().join(format!("external_book_{}.epub", std::process::id()));

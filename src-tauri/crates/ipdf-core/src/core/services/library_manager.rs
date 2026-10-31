@@ -85,6 +85,13 @@ impl<S: StorageProvider> LibraryManager<S> {
     fn ensure_bundled_assets(&mut self) -> Result<(), String> {
         let marker = self.storage.read_entry(ASSET_INIT_MARKER)?;
         if marker.is_none() {
+            let cover_url = Self::extract_or_generate_cover(
+                &[],
+                "The Republic",
+                "Plato",
+                "Book VII — Allegory of the Cave",
+            );
+
             self.progress_map
                 .entry(DEFAULT_ASSET_HASH.to_string())
                 .or_insert_with(|| ReadingProgress {
@@ -95,7 +102,7 @@ impl<S: StorageProvider> LibraryManager<S> {
                     total_pages: 320,
                     percentage: 0.31,
                     last_read_at_ms: 0,
-                    cover_image_url: None,
+                    cover_image_url: Some(cover_url),
                     file_path: None,
                 });
 
@@ -134,6 +141,32 @@ impl<S: StorageProvider> LibraryManager<S> {
             None => (1, ((1.0 / total_pages as f64) * 100.0).clamp(0.0, 100.0)),
         };
 
+        let pages = Self::parse_and_paginate_book(&input.raw_bytes, total_pages)?;
+        let first_page_title = pages
+            .first()
+            .map(|p| p.chapter_title.as_str())
+            .unwrap_or("Chapter 1");
+
+        let cover_image_url = if let Some(ref url) = input.cover_image_url {
+            if !url.is_empty() {
+                Some(url.clone())
+            } else {
+                Some(Self::extract_or_generate_cover(
+                    &input.raw_bytes,
+                    &input.title,
+                    &input.author,
+                    first_page_title,
+                ))
+            }
+        } else {
+            Some(Self::extract_or_generate_cover(
+                &input.raw_bytes,
+                &input.title,
+                &input.author,
+                first_page_title,
+            ))
+        };
+
         let progress = ReadingProgress {
             title: input.title.clone(),
             author: input.author.clone(),
@@ -142,7 +175,7 @@ impl<S: StorageProvider> LibraryManager<S> {
             total_pages,
             percentage,
             last_read_at_ms: input.now_ms,
-            cover_image_url: input.cover_image_url.clone(),
+            cover_image_url: cover_image_url.clone(),
             file_path: None,
         };
 
@@ -159,7 +192,7 @@ impl<S: StorageProvider> LibraryManager<S> {
             current_page,
             total_pages,
             percentage,
-            cover_image_url: input.cover_image_url,
+            cover_image_url,
             last_read_at_ms: input.now_ms,
             updated_at_ms: input.now_ms,
         })
@@ -169,6 +202,13 @@ impl<S: StorageProvider> LibraryManager<S> {
         self.load_progress_cache()?;
 
         if self.auto_bundle_assets && !self.progress_map.contains_key(DEFAULT_ASSET_HASH) {
+            let cover_url = Self::extract_or_generate_cover(
+                &[],
+                "The Republic",
+                "Plato",
+                "Book VII — Allegory of the Cave",
+            );
+
             self.progress_map.insert(
                 DEFAULT_ASSET_HASH.to_string(),
                 ReadingProgress {
@@ -179,7 +219,7 @@ impl<S: StorageProvider> LibraryManager<S> {
                     total_pages: 320,
                     percentage: 0.31,
                     last_read_at_ms: 0,
-                    cover_image_url: None,
+                    cover_image_url: Some(cover_url),
                     file_path: None,
                 },
             );
@@ -187,6 +227,15 @@ impl<S: StorageProvider> LibraryManager<S> {
 
         let mut books = Vec::new();
         for (book_hash, progress) in &self.progress_map {
+            let cover_url = progress.cover_image_url.clone().or_else(|| {
+                Some(Self::extract_or_generate_cover(
+                    &[],
+                    &progress.title,
+                    &progress.author,
+                    "Page 1",
+                ))
+            });
+
             books.push(BookMetadata {
                 book_hash: book_hash.clone(),
                 title: progress.title.clone(),
@@ -195,7 +244,7 @@ impl<S: StorageProvider> LibraryManager<S> {
                 current_page: progress.current_page,
                 total_pages: progress.total_pages,
                 percentage: progress.percentage,
-                cover_image_url: progress.cover_image_url.clone(),
+                cover_image_url: cover_url,
                 last_read_at_ms: progress.last_read_at_ms,
                 updated_at_ms: progress.last_read_at_ms,
             });
@@ -271,6 +320,14 @@ impl<S: StorageProvider> LibraryManager<S> {
         };
 
         let now_ms = 0;
+        let pages = Self::parse_and_paginate_book(&bytes, total_pages)?;
+        let first_page_title = pages
+            .first()
+            .map(|p| p.chapter_title.as_str())
+            .unwrap_or("Chapter 1");
+        let cover_url =
+            Self::extract_or_generate_cover(&bytes, &stem, "Local File", first_page_title);
+
         let progress = ReadingProgress {
             title: stem.clone(),
             author: "Local File".to_string(),
@@ -279,7 +336,7 @@ impl<S: StorageProvider> LibraryManager<S> {
             total_pages,
             percentage,
             last_read_at_ms: now_ms,
-            cover_image_url: None,
+            cover_image_url: Some(cover_url.clone()),
             file_path: Some(path.to_string_lossy().to_string()),
         };
 
@@ -294,7 +351,7 @@ impl<S: StorageProvider> LibraryManager<S> {
             current_page,
             total_pages,
             percentage,
-            cover_image_url: None,
+            cover_image_url: Some(cover_url),
             last_read_at_ms: now_ms,
             updated_at_ms: now_ms,
         };
@@ -569,5 +626,100 @@ impl<S: StorageProvider> LibraryManager<S> {
             .replace("&rdquo;", "”")
             .replace("&amp;", "&")
             .replace("&nbsp;", " ")
+    }
+
+    pub fn extract_or_generate_cover(
+        raw_bytes: &[u8],
+        title: &str,
+        author: &str,
+        first_page_subtitle: &str,
+    ) -> String {
+        if raw_bytes.len() > 30 && raw_bytes.starts_with(b"PK\x03\x04") {
+            let cursor = std::io::Cursor::new(raw_bytes);
+            if let Ok(mut archive) = zip::ZipArchive::new(cursor) {
+                for i in 0..archive.len() {
+                    if let Ok(mut file) = archive.by_index(i) {
+                        let Ok(file_name) = file.name() else {
+                            continue;
+                        };
+                        let lower = file_name.to_lowercase();
+                        let is_cover_img = lower.contains("cover")
+                            && (lower.ends_with(".png")
+                                || lower.ends_with(".jpg")
+                                || lower.ends_with(".jpeg")
+                                || lower.ends_with(".webp"));
+
+                        if is_cover_img {
+                            use base64::Engine;
+                            use std::io::Read;
+                            let mut buffer = Vec::new();
+                            if file.read_to_end(&mut buffer).is_ok() && !buffer.is_empty() {
+                                let mime = if lower.ends_with(".png") {
+                                    "image/png"
+                                } else if lower.ends_with(".webp") {
+                                    "image/webp"
+                                } else {
+                                    "image/jpeg"
+                                };
+                                let encoded =
+                                    base64::engine::general_purpose::STANDARD.encode(&buffer);
+                                return format!("data:{};base64,{}", mime, encoded);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Self::generate_svg_cover(title, author, first_page_subtitle)
+    }
+
+    pub fn generate_svg_cover(title: &str, author: &str, subtitle: &str) -> String {
+        let safe_title = Self::escape_xml(title);
+        let safe_author = Self::escape_xml(author);
+        let safe_subtitle = Self::escape_xml(subtitle);
+
+        let svg = format!(
+            r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="50%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="600" rx="8" fill="url(#bgGrad)"/>
+  <rect x="0" y="0" width="24" height="600" fill="rgba(255,255,255,0.06)"/>
+  <line x1="24" y1="0" x2="24" y2="600" stroke="rgba(255,255,255,0.12)" stroke-width="2"/>
+  <rect x="36" y="28" width="338" height="544" rx="4" fill="none" stroke="url(#goldGrad)" stroke-width="2"/>
+  <rect x="42" y="34" width="326" height="532" rx="2" fill="none" stroke="rgba(251,191,36,0.35)" stroke-width="1"/>
+  <text x="205" y="85" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="11" font-weight="bold" letter-spacing="3">IPDF ACTIVE STUDY EDITION</text>
+  <line x1="120" y1="100" x2="290" y2="100" stroke="#fbbf24" stroke-width="1"/>
+  <text x="205" y="190" text-anchor="middle" fill="#f8fafc" font-family="serif" font-size="26" font-weight="bold">{}</text>
+  <text x="205" y="235" text-anchor="middle" fill="#cbd5e1" font-family="serif" font-size="14" font-style="italic">{}</text>
+  <circle cx="205" cy="350" r="28" fill="none" stroke="#fbbf24" stroke-width="1.5"/>
+  <text x="205" y="358" text-anchor="middle" fill="#fbbf24" font-family="serif" font-size="22">❦</text>
+  <text x="205" y="440" text-anchor="middle" fill="#f1f5f9" font-family="serif" font-size="18" font-weight="600" letter-spacing="1">{}</text>
+  <line x1="140" y1="475" x2="270" y2="475" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+  <text x="205" y="520" text-anchor="middle" fill="#64748b" font-family="sans-serif" font-size="10" letter-spacing="2">ACTIVE STUDY READER</text>
+</svg>"##,
+            safe_title, safe_subtitle, safe_author
+        );
+
+        use base64::Engine;
+        let encoded = base64::engine::general_purpose::STANDARD.encode(svg.as_bytes());
+        format!("data:image/svg+xml;base64,{}", encoded)
+    }
+
+    fn escape_xml(s: &str) -> String {
+        s.replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+            .replace('"', "&quot;")
+            .replace('\'', "&apos;")
     }
 }

@@ -323,6 +323,40 @@ export function ReaderView() {
                 data-page-number={page.pageNumber}
                 className="w-full flex flex-col gap-6 py-6 border-b border-line-subtle/25"
               >
+                {/* Page 1 Front Book Cover */}
+                {page.pageNumber === 1 && (
+                  <div className="w-full flex flex-col items-center justify-center pt-2 pb-8">
+                    {reader.document.coverImageUrl ? (
+                      <div className="w-full max-w-xs aspect-3/4 rounded-xl overflow-hidden shadow-2xl border border-line-subtle/60 bg-surface-subtle transition-all duration-300 hover:shadow-brand/20">
+                        <img
+                          src={reader.document.coverImageUrl}
+                          alt={`Book cover of ${reader.document.bookTitle}`}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-full max-w-xs aspect-3/4 rounded-xl border border-line-subtle/60 bg-linear-to-b from-surface-subtle via-surface to-surface-subtle p-6 flex flex-col justify-between shadow-2xl">
+                        <div className="flex justify-between items-center text-[0.65rem] font-bold uppercase tracking-widest text-tx-muted">
+                          <span>Classical Edition</span>
+                          <span>IPDF</span>
+                        </div>
+                        <div className="text-center my-auto">
+                          <h1 className="text-2xl font-serif font-black text-tx-main tracking-tight">
+                            {reader.document.bookTitle}
+                          </h1>
+                          <div className="w-12 h-0.5 bg-brand mx-auto my-3" />
+                          <p className="text-sm text-tx-muted font-serif italic">
+                            {reader.document.bookAuthor}
+                          </p>
+                        </div>
+                        <p className="text-center text-[0.65rem] text-tx-muted tracking-wider uppercase font-semibold">
+                          First Page &bull; Active Study
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Chapter Heading & Page Indicator */}
                 <div className="text-center mb-2">
                   <h2 className="text-xl font-serif font-bold text-tx-main sm:text-2xl tracking-tight">

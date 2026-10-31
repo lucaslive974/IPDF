@@ -21,6 +21,7 @@ export interface StudyDocumentDescriptor {
   readonly bookAuthor: string;
   readonly chapterTitle: string;
   readonly sampleParagraph: string;
+  readonly coverImageUrl?: string;
 }
 
 export interface SelectionPopoverState {
@@ -131,6 +132,7 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
           book.bookHash === DEFAULT_BOOK_HASH
             ? DEFAULT_DOCUMENT.sampleParagraph
             : `Reading "${book.title}" by ${book.author}. Select any passage in the text to create persistent highlights, add margin notes, or consult AI explanations.`,
+        coverImageUrl: book.coverImageUrl,
       };
     }
     return DEFAULT_DOCUMENT;

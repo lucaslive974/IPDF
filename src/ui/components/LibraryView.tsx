@@ -174,10 +174,35 @@ export function LibraryView({
                   key={book.bookHash}
                   variant="interactive"
                   padding="md"
-                  className="group flex flex-col justify-between"
+                  className="group flex flex-col justify-between overflow-hidden"
                 >
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
+                  <div className="flex flex-col gap-3">
+                    {/* Front Book Cover extracted by Backend from First Page */}
+                    {book.coverImageUrl ? (
+                      <div className="relative aspect-3/4 w-full overflow-hidden rounded-lg bg-surface-subtle shadow-md border border-line-subtle/50 flex items-center justify-center">
+                        <img
+                          src={book.coverImageUrl}
+                          alt={`Cover of ${book.title}`}
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          loading="lazy"
+                        />
+                      </div>
+                    ) : (
+                      <div className="aspect-3/4 w-full rounded-lg bg-linear-to-b from-surface-subtle to-surface border border-line-subtle/40 p-4 flex flex-col justify-between shadow-xs">
+                        <span className="text-[0.65rem] font-bold uppercase tracking-wider text-tx-muted">
+                          IPDF Edition
+                        </span>
+                        <div>
+                          <p className="font-serif font-bold text-sm text-tx-main line-clamp-2">
+                            {book.title}
+                          </p>
+                          <p className="text-xs text-tx-muted mt-1">{book.author}</p>
+                        </div>
+                        <span className="text-lg">📖</span>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between">
                       <Badge variant="brand" size="xs">
                         {book.format}
                       </Badge>
@@ -186,13 +211,15 @@ export function LibraryView({
                       </span>
                     </div>
 
-                    <h3 className="text-base font-bold text-tx-main group-hover:text-brand transition line-clamp-2">
-                      {book.title}
-                    </h3>
-                    <p className="mt-1 text-xs text-tx-muted font-medium">{book.author}</p>
+                    <div>
+                      <h3 className="text-sm font-bold text-tx-main group-hover:text-brand transition line-clamp-2">
+                        {book.title}
+                      </h3>
+                      <p className="mt-0.5 text-xs text-tx-muted font-medium">{book.author}</p>
+                    </div>
                   </div>
 
-                  <div className="mt-6 flex flex-col gap-3">
+                  <div className="mt-5 flex flex-col gap-3">
                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-subtle">
                       <div
                         className="h-full bg-linear-to-r from-sky-500 to-indigo-500 transition-all duration-300"
