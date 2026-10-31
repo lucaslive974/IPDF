@@ -25,6 +25,15 @@ export function ReaderView() {
   const isProgrammaticScrollRef = useRef(false);
   const programmaticScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Prevent initial mount reflow from overriding restored page number
+  useEffect(() => {
+    isProgrammaticScrollRef.current = true;
+    const timer = setTimeout(() => {
+      isProgrammaticScrollRef.current = false;
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Sync reading progress to library and backend on departure
   const lastSavedStateRef = useRef<{
     bookHash: string;

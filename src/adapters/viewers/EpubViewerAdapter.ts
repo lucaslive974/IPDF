@@ -93,6 +93,7 @@ export class EpubViewerAdapter implements IDocumentViewer {
     let match = pRegex.exec(content);
     while (match !== null) {
       const clean = match[1]
+        .replace(/<br\s*\/?>/gi, ' ')
         .replace(/<[^>]+>/g, '')
         .replace(/&mdash;/g, '—')
         .replace(/&ndash;/g, '–')

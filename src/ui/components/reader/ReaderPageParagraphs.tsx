@@ -6,6 +6,64 @@ export interface TextChunk {
   readonly highlight?: Highlight;
 }
 
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function findHighlightMatchesInParagraph(
+  paragraph: string,
+  hlText: string
+): { start: number; end: number }[] {
+  const trimmed = hlText.trim();
+  if (!trimmed) return [];
+
+  // 1. Direct exact match first (fast path)
+  const exactIdx = paragraph.indexOf(trimmed);
+  if (exactIdx !== -1) {
+    return [{ start: exactIdx, end: exactIdx + trimmed.length }];
+  }
+
+  // 2. Flexible whitespace match (matches \n, \r, tabs and multiple spaces across paragraph text)
+  const tokens = trimmed.split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return [];
+
+  const pattern = tokens.map(escapeRegex).join('\\s+');
+  const regex = new RegExp(pattern, 'g');
+  const matches: { start: number; end: number }[] = [];
+
+  let m: RegExpExecArray | null = regex.exec(paragraph);
+  while (m !== null) {
+    matches.push({ start: m.index, end: m.index + m[0].length });
+    m = regex.exec(paragraph);
+  }
+
+  if (matches.length > 0) {
+    return matches;
+  }
+
+  // 3. Multi-line segments (if selection spanned across paragraphs or line breaks)
+  const lines = trimmed
+    .split(/\r?\n+/)
+    .map((l) => l.trim())
+    .filter((l) => l.length >= 3);
+
+  if (lines.length > 1) {
+    for (const line of lines) {
+      const lineTokens = line.split(/\s+/).filter(Boolean);
+      if (lineTokens.length === 0) continue;
+      const linePattern = lineTokens.map(escapeRegex).join('\\s+');
+      const lineRegex = new RegExp(linePattern, 'g');
+      let lm: RegExpExecArray | null = lineRegex.exec(paragraph);
+      while (lm !== null) {
+        matches.push({ start: lm.index, end: lm.index + lm[0].length });
+        lm = lineRegex.exec(paragraph);
+      }
+    }
+  }
+
+  return matches;
+}
+
 export function tokenizeTextWithHighlights(
   paragraph: string,
   highlights: readonly Highlight[]
@@ -23,11 +81,11 @@ export function tokenizeTextWithHighlights(
   const matches: Match[] = [];
   for (const hl of highlights) {
     if (!hl.text || hl.text.trim().length === 0) continue;
-    const idx = paragraph.indexOf(hl.text);
-    if (idx !== -1) {
+    const ranges = findHighlightMatchesInParagraph(paragraph, hl.text);
+    for (const r of ranges) {
       matches.push({
-        start: idx,
-        end: idx + hl.text.length,
+        start: r.start,
+        end: r.end,
         highlight: hl,
       });
     }
@@ -108,8 +166,9 @@ export const ReaderPageParagraphs = memo(function ReaderPageParagraphs({
                 <button
                   key={`hl-${hl.id}-${cIdx + 1}`}
                   type="button"
-                  className="inline cursor-pointer rounded-xs px-0.5 text-inherit transition duration-150 select-text hover:brightness-105 active:opacity-80"
+                  className="inline p-0 m-0 border-0 bg-transparent text-left whitespace-normal cursor-pointer rounded-xs px-0.5 text-inherit transition duration-150 select-text hover:brightness-105 active:opacity-80"
                   style={{
+                    font: 'inherit',
                     backgroundColor: `${hl.color}33`,
                     borderBottom: `1.5px solid ${hl.color}aa`,
                   }}

@@ -179,25 +179,53 @@ export const ReaderStream = memo(function ReaderStream({
     };
   }, [reader]);
 
-  // Top Sentinel for upward infinite scroll
+  // Top Sentinel for upward infinite scroll with scroll anchoring
   useEffect(() => {
     const sentinel = topSentinelRef.current;
     if (!sentinel) return;
 
+    let hasSettled = false;
+    const settleTimer = setTimeout(() => {
+      hasSettled = true;
+    }, 600);
+
     const observer = new IntersectionObserver(
       (entries) => {
+        // Prevent auto-firing on initial mount when scroll is at 0
+        if (!hasSettled) return;
+
         if (entries[0]?.isIntersecting && reader.currentPage > 1) {
-          void reader.loadMorePages('prev');
+          const container = contentAreaRef.current;
+          const prevScrollHeight = container
+            ? container.scrollHeight
+            : document.documentElement.scrollHeight;
+          isProgrammaticScrollRef.current = true;
+
+          void reader.loadMorePages('prev').then(() => {
+            window.requestAnimationFrame(() => {
+              const newScrollHeight = container
+                ? container.scrollHeight
+                : document.documentElement.scrollHeight;
+              const diff = newScrollHeight - prevScrollHeight;
+              if (diff > 0) {
+                window.scrollBy({ top: diff, behavior: 'instant' });
+              }
+              setTimeout(() => {
+                isProgrammaticScrollRef.current = false;
+              }, 150);
+            });
+          });
         }
       },
-      { rootMargin: '200px' }
+      { rootMargin: '100px' }
     );
 
     observer.observe(sentinel);
     return () => {
+      clearTimeout(settleTimer);
       observer.disconnect();
     };
-  }, [reader]);
+  }, [reader, isProgrammaticScrollRef]);
 
   // 5. Dynamic Page Focal Tracker (Tracks active page at 60fps based on reading line)
   useEffect(() => {
