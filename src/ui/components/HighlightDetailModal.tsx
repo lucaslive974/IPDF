@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Highlight } from '../../core/domain/Highlight';
 import type { TextFormatStyle } from '../../core/domain/types';
 import { AssistedFormattingToolbar } from './AssistedFormattingToolbar';
-import { Button, Card, Modal } from './ui';
+import { Button, Card, Modal, SegmentedControl, type SegmentedControlOption } from './ui';
 
 export interface HighlightDetailModalProps {
   readonly highlight: Highlight;
@@ -16,6 +16,14 @@ export interface HighlightDetailModalProps {
   readonly onGeneratePrompt: () => void;
   readonly onClose: () => void;
 }
+
+type StudioTabId = 'text' | 'visual' | 'ai';
+
+const STUDIO_TABS: readonly SegmentedControlOption<StudioTabId>[] = [
+  { id: 'text', label: 'Assisted Notes' },
+  { id: 'visual', label: 'Diagram Boards' },
+  { id: 'ai', label: 'Contextual Synthesis' },
+];
 
 export function HighlightDetailModal({
   highlight,
@@ -44,41 +52,13 @@ export function HighlightDetailModal({
 
   return (
     <Modal isOpen={true} title={titleNode} subtitle={subtitleNode} onClose={onClose}>
-      {/* Tab switcher */}
-      <div className="flex border-b border-line-subtle -mx-6 -mt-6 px-6 bg-surface-subtle/40 mb-6">
-        <button
-          type="button"
-          className={`px-4 py-2.5 text-xs font-medium border-b-2 transition cursor-pointer ${
-            activeTab === 'text'
-              ? 'border-tx-main text-tx-main'
-              : 'border-transparent text-tx-muted hover:text-tx-main'
-          }`}
-          onClick={() => setActiveTab('text')}
-        >
-          Assisted Notes
-        </button>
-        <button
-          type="button"
-          className={`px-4 py-2.5 text-xs font-medium border-b-2 transition cursor-pointer ${
-            activeTab === 'visual'
-              ? 'border-tx-main text-tx-main'
-              : 'border-transparent text-tx-muted hover:text-tx-main'
-          }`}
-          onClick={() => setActiveTab('visual')}
-        >
-          Diagram Boards
-        </button>
-        <button
-          type="button"
-          className={`px-4 py-2.5 text-xs font-medium border-b-2 transition cursor-pointer ${
-            activeTab === 'ai'
-              ? 'border-tx-main text-tx-main'
-              : 'border-transparent text-tx-muted hover:text-tx-main'
-          }`}
-          onClick={() => setActiveTab('ai')}
-        >
-          Contextual Synthesis
-        </button>
+      <div className="mb-6">
+        <SegmentedControl
+          options={STUDIO_TABS}
+          value={activeTab}
+          onChange={setActiveTab}
+          className="w-full flex"
+        />
       </div>
 
       {/* Tab Body */}

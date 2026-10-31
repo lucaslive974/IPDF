@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { Badge, Button, CopyIcon, Dialog, SparklesIcon } from './ui';
+import {
+  Badge,
+  Button,
+  CopyIcon,
+  Dialog,
+  PassageQuote,
+  SegmentedControl,
+  SparklesIcon,
+} from './ui';
 
 export interface ExplainDialogProps {
   readonly isOpen: boolean;
@@ -87,33 +95,14 @@ export function ExplainDialog({
         </>
       }
     >
-      {/* Excerpt */}
-      <div className="rounded-lg border border-line-subtle/80 bg-surface-subtle/60 p-3 space-y-1">
-        <span className="text-[0.62rem] font-medium text-tx-muted uppercase tracking-wider">
-          Analyzed Passage
-        </span>
-        <p className="text-xs text-tx-main italic leading-relaxed border-l border-line-strong pl-2.5">
-          &ldquo;{text}&rdquo;
-        </p>
-      </div>
+      <PassageQuote text={text} />
 
-      {/* Perspective / Modes (Apple Segmented Style) */}
-      <div className="flex items-center gap-1 rounded-lg bg-surface-subtle/80 p-0.5 border border-line-subtle/60 text-xs">
-        {MODES.map((mode) => (
-          <button
-            key={mode.id}
-            type="button"
-            onClick={() => setCurrentMode(mode.id)}
-            className={`flex-1 text-center py-1 rounded-md text-xs font-medium transition ${
-              currentMode === mode.id
-                ? 'bg-surface text-tx-main shadow-2xs'
-                : 'text-tx-muted hover:text-tx-main'
-            }`}
-          >
-            {mode.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        options={MODES}
+        value={currentMode}
+        onChange={setCurrentMode}
+        className="w-full flex"
+      />
 
       {/* AI Explanation Result Box */}
       <div className="rounded-lg border border-line-subtle/80 bg-surface p-4 space-y-2.5">

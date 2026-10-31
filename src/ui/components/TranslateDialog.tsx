@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Badge, Button, CopyIcon, Dialog } from './ui';
+import { Badge, Button, CopyIcon, Dialog, PassageQuote, SegmentedControl } from './ui';
 
 export interface TranslateDialogProps {
   readonly isOpen: boolean;
@@ -111,40 +111,16 @@ export function TranslateDialog({ isOpen, text, onSaveAsNote, onClose }: Transla
         </>
       }
     >
-      {/* Original Passage */}
-      <div className="rounded-lg border border-line-subtle/80 bg-surface-subtle/60 p-3 space-y-1">
-        <div className="flex items-center justify-between">
-          <span className="text-[0.62rem] font-medium text-tx-muted uppercase tracking-wider">
-            Original (English)
-          </span>
-          <Badge variant="neutral" size="xs">
-            EN
-          </Badge>
-        </div>
-        <p className="text-xs text-tx-main italic leading-relaxed border-l border-line-strong pl-2.5">
-          &ldquo;{text}&rdquo;
-        </p>
-      </div>
+      <PassageQuote text={text} />
 
-      {/* Language Selector (Apple Segmented Style) */}
       <div className="space-y-1.5">
         <span className="text-[0.68rem] font-medium text-tx-secondary block">Target Language:</span>
-        <div className="flex items-center gap-1 rounded-lg bg-surface-subtle/80 p-0.5 border border-line-subtle/60 text-xs">
-          {LANGUAGES.map((lang) => (
-            <button
-              key={lang.code}
-              type="button"
-              onClick={() => setTargetLang(lang.code)}
-              className={`flex-1 text-center py-1 rounded-md text-xs font-medium transition ${
-                targetLang === lang.code
-                  ? 'bg-surface text-tx-main shadow-2xs'
-                  : 'text-tx-muted hover:text-tx-main'
-              }`}
-            >
-              {lang.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          options={LANGUAGES.map((l) => ({ id: l.code, label: l.label }))}
+          value={targetLang}
+          onChange={setTargetLang}
+          className="w-full flex"
+        />
       </div>
 
       {/* Translation Result Box */}

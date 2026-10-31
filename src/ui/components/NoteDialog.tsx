@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Dialog } from './ui';
+import { Button, ColorPicker, Dialog, PassageQuote } from './ui';
 
 export interface NoteDialogProps {
   readonly isOpen: boolean;
@@ -12,11 +12,11 @@ export interface NoteDialogProps {
 }
 
 const COLOR_CHOICES = [
-  { label: 'Amber', hex: '#d97706', classBg: 'bg-amber-600/70' },
-  { label: 'Emerald', hex: '#059669', classBg: 'bg-emerald-600/70' },
-  { label: 'Sky', hex: '#0284c7', classBg: 'bg-sky-600/70' },
-  { label: 'Purple', hex: '#7c3aed', classBg: 'bg-purple-600/70' },
-  { label: 'Rose', hex: '#e11d48', classBg: 'bg-rose-600/70' },
+  { label: 'Amber', value: '#d97706' },
+  { label: 'Emerald', value: '#059669' },
+  { label: 'Sky', value: '#0284c7' },
+  { label: 'Purple', value: '#7c3aed' },
+  { label: 'Rose', value: '#e11d48' },
 ];
 
 export function NoteDialog({
@@ -65,37 +65,18 @@ export function NoteDialog({
         </>
       }
     >
-      {/* Selected passage quote */}
-      <div className="rounded-lg border border-line-subtle/80 bg-surface-subtle/60 p-3 space-y-1">
-        <span className="text-[0.62rem] font-medium text-tx-muted uppercase tracking-wider">
-          Selected Passage
-        </span>
-        <p className="text-xs text-tx-main italic leading-relaxed border-l border-line-strong pl-2.5">
-          &ldquo;{text}&rdquo;
-        </p>
-      </div>
+      <PassageQuote text={text} color={selectedColor} />
 
-      {/* Color Selection */}
       <div className="space-y-1.5">
         <span className="text-[0.68rem] font-medium text-tx-secondary block">Highlight Tone:</span>
-        <div className="flex items-center gap-2">
-          {COLOR_CHOICES.map((c) => (
-            <button
-              key={c.hex}
-              type="button"
-              title={c.label}
-              className={`h-5 w-5 rounded-full ${c.classBg} transition-all duration-150 cursor-pointer ${
-                selectedColor === c.hex
-                  ? 'ring-2 ring-tx-main ring-offset-2 ring-offset-surface scale-110'
-                  : 'hover:scale-105 opacity-70 hover:opacity-100'
-              }`}
-              onClick={() => setSelectedColor(c.hex)}
-            />
-          ))}
-        </div>
+        <ColorPicker
+          selectedColor={selectedColor}
+          onSelectColor={setSelectedColor}
+          colors={COLOR_CHOICES}
+          size="sm"
+        />
       </div>
 
-      {/* Note Textarea */}
       <div className="space-y-1.5">
         <label
           htmlFor="note-draft-textarea"
