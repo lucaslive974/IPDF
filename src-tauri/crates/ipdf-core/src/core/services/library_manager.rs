@@ -181,6 +181,9 @@ impl<S: StorageProvider> LibraryManager<S> {
             file_path: None,
         };
 
+        let _ = self
+            .storage
+            .write_book_binary(&book_hash, input.raw_bytes.clone(), input.format);
         self.in_memory_books
             .insert(book_hash.clone(), input.raw_bytes);
         self.progress_map.insert(book_hash.clone(), progress);

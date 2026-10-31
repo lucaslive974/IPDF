@@ -44,6 +44,7 @@ fn test_library_manager_import_progress_and_sorting() {
 
     let binary = library.open_book_binary(&expected_hash).unwrap();
     assert_eq!(binary, raw_epub_bytes);
+    assert!(library.storage().has_book_binary(&expected_hash).unwrap());
 
     let updated = library
         .update_reading_progress(&expected_hash, 80, 320, 2500)
