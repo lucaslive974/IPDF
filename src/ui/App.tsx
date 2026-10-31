@@ -2,11 +2,13 @@ import { LibraryView } from './components/LibraryView';
 import { ReaderView } from './components/ReaderView';
 import { SettingsView } from './components/SettingsView';
 import { useNavigation } from './hooks/useNavigation';
+import { useSystemHandler } from './hooks/useSystemHandler';
 import { NavigationProvider } from './providers/NavigationContext';
 import { ServiceContainerProvider } from './providers/ServiceContainerContext';
 import { ThemeProvider } from './providers/ThemeContext';
 
 function AppRouter() {
+  useSystemHandler();
   const { currentView } = useNavigation();
 
   if (currentView === 'reader') {

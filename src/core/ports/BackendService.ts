@@ -35,6 +35,8 @@ export interface DocumentPage {
 
 export interface BackendService {
   listLibraryBooks(): Promise<BookMetadata[]>;
+  getStartupBook(): Promise<BookMetadata | null>;
+  openBookFile(filePath: string): Promise<BookMetadata>;
   readBookBinary(bookHash: string): Promise<Uint8Array>;
   getBookPages(bookHash: string, startPage: number, count: number): Promise<DocumentPage[]>;
   importLibraryBook(input: ImportLibraryBookInput): Promise<BookMetadata>;

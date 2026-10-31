@@ -69,6 +69,30 @@ vi.mock('@tauri-apps/api/core', () => ({
       storedBooks.set(bookHash, updated);
       return updated as unknown as T;
     }
+    if (cmd === 'get_startup_book') {
+      return (storedBooks.get('sha256-startup-book') ?? null) as unknown as T;
+    }
+    if (cmd === 'open_book_file') {
+      const filePath = String(args.filePath);
+      const cleanTitle =
+        filePath
+          .split('/')
+          .pop()
+          ?.replace(/\.[^/.]+$/, '') ?? 'Opened File';
+      const dto: SerializedBookMetadata = {
+        bookHash: 'sha256-opened-file',
+        title: cleanTitle,
+        author: 'Local File',
+        format: filePath.endsWith('.pdf') ? 'pdf' : 'epub',
+        currentPage: 1,
+        totalPages: 120,
+        percentage: 1,
+        lastReadAtMs: 1_700_000_300_000,
+        updatedAtMs: 1_700_000_300_000,
+      };
+      storedBooks.set(dto.bookHash, dto);
+      return dto as unknown as T;
+    }
     if (cmd === 'save_highlight') {
       const dto = args.highlight as SerializedHighlight;
       storedDtos.set(dto.id, dto);
@@ -132,6 +156,13 @@ describe('TauriBackend (Direct Tauri IPC)', () => {
     const renamed = await backend.renameBook('sha256-imported-book', 'Renamed Tauri Book');
     expect(renamed.title).toBe('Renamed Tauri Book');
     expect(renamed.bookHash).toBe('sha256-imported-book');
+
+    const startup = await backend.getStartupBook();
+    expect(startup).toBeNull();
+
+    const openedFromFile = await backend.openBookFile('/path/to/my_book.pdf');
+    expect(openedFromFile.title).toBe('my_book');
+    expect(openedFromFile.format).toBe('pdf');
 
     const highlight = new Highlight(
       'hl-direct',
@@ -210,6 +241,13 @@ describe('MockBackend (In-Memory Test Double)', () => {
 
     const renamedMock = await mock.renameBook(imported.bookHash, 'Renamed Mock Book');
     expect(renamedMock.title).toBe('Renamed Mock Book');
+
+    const mockStartup = await mock.getStartupBook();
+    expect(mockStartup).toBeNull();
+
+    const mockOpened = await mock.openBookFile('/home/user/books/stoic_philosophy.epub');
+    expect(mockOpened.title).toBe('stoic_philosophy');
+    expect(mockOpened.format).toBe('epub');
 
     const pages = await mock.getBookPages(imported.bookHash, 1, 3);
     expect(pages).toHaveLength(3);

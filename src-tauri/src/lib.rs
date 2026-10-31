@@ -68,6 +68,25 @@ pub struct BackendState {
     config_store: FileConfigurationStore,
     platform_env: Box<dyn PlatformEnvironment + Send>,
     book_binaries: BTreeMap<String, Vec<u8>>,
+    startup_book: Option<BookMetadata>,
+}
+
+fn find_file_argument(args: &[String]) -> Option<std::path::PathBuf> {
+    for arg in args.iter().skip(1) {
+        if arg.starts_with('-') {
+            continue;
+        }
+        let path = std::path::PathBuf::from(arg);
+        if path.is_file() {
+            if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                let ext_lower = ext.to_lowercase();
+                if ext_lower == "epub" || ext_lower == "pdf" {
+                    return Some(path);
+                }
+            }
+        }
+    }
+    None
 }
 
 impl Default for BackendState {
@@ -95,13 +114,24 @@ impl Default for BackendState {
                 FileConfigurationStore::new(fallback_path).unwrap()
             });
 
+        let mut startup_book = None;
+        let mut book_binaries = BTreeMap::new();
+        let args: Vec<String> = std::env::args().collect();
+        if let Some(path) = find_file_argument(&args) {
+            if let Ok((metadata, bytes)) = library.open_book_from_path(&path) {
+                book_binaries.insert(metadata.book_hash.clone(), bytes);
+                startup_book = Some(metadata);
+            }
+        }
+
         Self {
             highlights: BTreeMap::new(),
             library,
             highlight_repo,
             config_store,
             platform_env: platform,
-            book_binaries: BTreeMap::new(),
+            book_binaries,
+            startup_book,
         }
     }
 }
@@ -141,6 +171,14 @@ fn open_book_file(
         .book_binaries
         .insert(metadata.book_hash.clone(), bytes);
     Ok(metadata)
+}
+
+#[tauri::command]
+fn get_startup_book(
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<Option<BookMetadata>, String> {
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    Ok(guard.startup_book.take())
 }
 
 #[tauri::command]
@@ -439,12 +477,33 @@ fn set_app_setting(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            use tauri::{Emitter, Manager};
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+
+            if let Some(path) = find_file_argument(&args) {
+                if let Some(state) = app.try_state::<Mutex<BackendState>>() {
+                    if let Ok(mut guard) = state.lock() {
+                        if let Ok((metadata, bytes)) = guard.library.open_book_from_path(&path) {
+                            guard
+                                .book_binaries
+                                .insert(metadata.book_hash.clone(), bytes);
+                            let _ = app.emit("open-book-from-system", &metadata);
+                        }
+                    }
+                }
+            }
+        }))
         .manage(Mutex::new(BackendState::default()))
         .invoke_handler(tauri::generate_handler![
             healthcheck,
             compute_book_sha256,
             list_library_books,
             open_book_file,
+            get_startup_book,
             import_library_book,
             update_book_progress,
             rename_book,
@@ -461,4 +520,52 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_find_file_argument() {
+        let temp_dir = std::env::temp_dir();
+        let epub_path = temp_dir.join(format!("test_doc_{}.epub", std::process::id()));
+        let pdf_path = temp_dir.join(format!("test_doc_{}.pdf", std::process::id()));
+        let txt_path = temp_dir.join(format!("test_doc_{}.txt", std::process::id()));
+
+        std::fs::write(&epub_path, b"epub content").unwrap();
+        std::fs::write(&pdf_path, b"pdf content").unwrap();
+        std::fs::write(&txt_path, b"text content").unwrap();
+
+        // 1. Only binary name passed
+        assert!(find_file_argument(&["ipdf".to_string()]).is_none());
+
+        // 2. Flags are ignored
+        assert!(find_file_argument(&[
+            "ipdf".to_string(),
+            "--help".to_string(),
+            "-v".to_string()
+        ])
+        .is_none());
+
+        // 3. EPUB file is found
+        let args_epub = vec![
+            "ipdf".to_string(),
+            "--debug".to_string(),
+            epub_path.to_string_lossy().to_string(),
+        ];
+        assert_eq!(find_file_argument(&args_epub), Some(epub_path.clone()));
+
+        // 4. PDF file is found
+        let args_pdf = vec!["ipdf".to_string(), pdf_path.to_string_lossy().to_string()];
+        assert_eq!(find_file_argument(&args_pdf), Some(pdf_path.clone()));
+
+        // 5. TXT file is ignored
+        let args_txt = vec!["ipdf".to_string(), txt_path.to_string_lossy().to_string()];
+        assert!(find_file_argument(&args_txt).is_none());
+
+        let _ = std::fs::remove_file(&epub_path);
+        let _ = std::fs::remove_file(&pdf_path);
+        let _ = std::fs::remove_file(&txt_path);
+    }
 }

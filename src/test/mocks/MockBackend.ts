@@ -12,6 +12,7 @@ export class MockBackend implements BackendService {
   private readonly books = new Map<string, BookMetadata>();
   private readonly highlights = new Map<string, Highlight>();
   public syncedBooks: string[] = [];
+  public startupBook: BookMetadata | null = null;
 
   constructor(initialBooks: BookMetadata[] = [], initialHighlights: Highlight[] = []) {
     for (const b of initialBooks) {
@@ -26,6 +27,35 @@ export class MockBackend implements BackendService {
     return Array.from(this.books.values()).sort(
       (a, b) => b.lastReadAt.getTime() - a.lastReadAt.getTime()
     );
+  }
+
+  public async getStartupBook(): Promise<BookMetadata | null> {
+    const book = this.startupBook;
+    this.startupBook = null;
+    return book;
+  }
+
+  public async openBookFile(filePath: string): Promise<BookMetadata> {
+    const cleanTitle =
+      filePath
+        .split('/')
+        .pop()
+        ?.replace(/\.[^/.]+$/, '') ?? 'Opened File';
+    const bookHash = `sha256-path-${cleanTitle.toLowerCase().replace(/\s+/g, '-')}`;
+    const now = new Date();
+    const metadata: BookMetadata = {
+      bookHash,
+      title: cleanTitle,
+      author: 'Local File',
+      format: filePath.endsWith('.pdf') ? 'pdf' : 'epub',
+      currentPage: 1,
+      totalPages: 100,
+      percentage: 1,
+      lastReadAt: now,
+      updatedAt: now,
+    };
+    this.books.set(bookHash, metadata);
+    return metadata;
   }
 
   public async readBookBinary(_bookHash: string): Promise<Uint8Array> {

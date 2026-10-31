@@ -64,6 +64,16 @@ export class TauriBackend implements BackendService {
     return dtos.map((dto) => this.deserializeBookMetadata(dto));
   }
 
+  public async getStartupBook(): Promise<BookMetadata | null> {
+    const dto = await invoke<SerializedBookMetadata | null>('get_startup_book');
+    return dto ? this.deserializeBookMetadata(dto) : null;
+  }
+
+  public async openBookFile(filePath: string): Promise<BookMetadata> {
+    const dto = await invoke<SerializedBookMetadata>('open_book_file', { filePath });
+    return this.deserializeBookMetadata(dto);
+  }
+
   public async readBookBinary(bookHash: string): Promise<Uint8Array> {
     const bytes = await invoke<number[]>('read_book_binary', { bookHash });
     return new Uint8Array(bytes);
