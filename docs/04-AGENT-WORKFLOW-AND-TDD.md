@@ -44,12 +44,11 @@ Antes de considerar qualquer arquivo pronto ou iniciar o próximo módulo, execu
 npm run verify
 ```
 
-O comando `npm run verify` executa em sequência:
-1. `npm run format` (`biome format --write ./src`)
-2. `npm run lint` (`biome check ./src`)
-3. `npm run typecheck` (`tsc --noEmit`)
-4. `npm run test` (`vitest run --coverage`, exigindo >= 80% em lines, functions, branches e statements)
-5. `npm run verify:rust` (`cargo fmt --check` + `cargo clippy --all-targets -- -D warnings` + `npm run test:rust:coverage` com `llvm-cov` exigindo >= 80% de cobertura na crate `src-tauri/crates/ipdf-core`)
+O comando `npm run verify` executa em sequência os comandos globais (onde cada comando `<acao>` roda `<acao>:frontend` e `<acao>:backend`):
+1. `npm run format` (`format:frontend` via Biome + `format:backend` via `cargo fmt`)
+2. `npm run lint` (`lint:frontend` via `biome check` + `lint:backend` via `cargo fmt --check` & `cargo clippy -- -D warnings`)
+3. `npm run typecheck` (`typecheck:frontend` via `tsc --noEmit` + `typecheck:backend` via `cargo check --all-targets`)
+4. `npm run test` (`test:frontend` via `vitest run --coverage` + `test:backend` via `node scripts/rust-coverage.mjs` com `llvm-cov`, ambos exigindo >= 80% de cobertura)
 
 > [!CAUTION]
 > **REGRA DE BLOQUEIO:** Se qualquer uma dessas 4 etapas falhar, emitir erros ou ficar abaixo de **80% de cobertura de testes**, o agente **ESTÁ PROIBIDO** de fazer commit ou avançar para a próxima tarefa. Corrija a formatação, a tipagem, o teste quebrado ou adicione casos de teste faltantes até que `npm run verify` retorne `exit code 0`.

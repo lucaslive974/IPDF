@@ -33,4 +33,4 @@ Este repositório segue uma arquitetura **Hexagonal (Ports & Adapters)** estrita
   3. `src/ui/components/` (Componentes visuais puros, pequenos e reutilizáveis recebendo dados via props).
 - **Zero `any` Policy:** Proibido usar `any`.
 - **Cobertura de Testes Mínima (>= 80% em TypeScript & Rust + Coverage Gutters):** Todo código em `src/core/`, `src/adapters/` e `src-tauri/crates/ipdf-core/src/` deve manter no mínimo **80% de cobertura** (validado por `@vitest/coverage-v8` no TS e `llvm-cov` via `scripts/rust-coverage.mjs` no Rust), gerando LCOV unificado em `coverage/lcov.info` compatível com a extensão **Coverage Gutters**.
-- **Quality Gate Bloqueante:** Nenhum commit pode ser realizado sem que `npm run verify` (`format` + `lint` + `typecheck` + `test --coverage` + `verify:rust`) retorne `exit code 0`.
+- **Quality Gate Bloqueante:** Nenhum commit pode ser realizado sem que `npm run verify` (`format` + `lint` + `typecheck` + `test`, onde cada script executa tanto `:frontend` quanto `:backend`) retorne `exit code 0`.
