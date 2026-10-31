@@ -1,26 +1,29 @@
-import type { IExportStrategy, IRemoteStorageProvider } from '../ports/IRemoteStorageProvider';
+import type { IExportStrategy, IStorageProvider } from '../ports/IStorageProvider';
 import type { DataPortabilityService } from './DataPortabilityService';
 
 export class CloudlessSyncEngine {
   private static readonly LIBRARY_INDEX_FILE = '.reader_library_index.json';
 
   constructor(
-    private readonly remoteStorage: IRemoteStorageProvider,
+    private readonly storage: IStorageProvider,
     private readonly portabilityService: DataPortabilityService,
     private readonly exportStrategy: IExportStrategy
   ) {}
 
   public async syncBookState(bookHash: string): Promise<void> {
-    if (!this.remoteStorage.isAuthenticated()) {
+    if (!this.storage.isAvailable()) {
       return;
     }
 
     const highlightsFileName = `${bookHash}.highlights.json`;
-    const remoteEntry = await this.remoteStorage.findFileByName(highlightsFileName);
+    const existingBytes = await this.storage.readEntry(highlightsFileName);
 
-    if (remoteEntry) {
-      const remoteBytes = await this.remoteStorage.downloadFile(remoteEntry.id);
-      await this.portabilityService.importData(remoteBytes, this.exportStrategy, 'last-write-wins');
+    if (existingBytes) {
+      await this.portabilityService.importData(
+        existingBytes,
+        this.exportStrategy,
+        'last-write-wins'
+      );
     }
 
     const mergedSerialized = await this.portabilityService.exportData(
@@ -32,21 +35,22 @@ export class CloudlessSyncEngine {
       this.exportStrategy
     );
 
-    await this.remoteStorage.uploadFile(highlightsFileName, mergedSerialized, 'application/json');
+    await this.storage.writeEntry(highlightsFileName, mergedSerialized, 'application/json');
   }
 
   public async syncLibraryIndex(): Promise<void> {
-    if (!this.remoteStorage.isAuthenticated()) {
+    if (!this.storage.isAvailable()) {
       return;
     }
 
-    const remoteIndex = await this.remoteStorage.findFileByName(
-      CloudlessSyncEngine.LIBRARY_INDEX_FILE
-    );
+    const existingIndexBytes = await this.storage.readEntry(CloudlessSyncEngine.LIBRARY_INDEX_FILE);
 
-    if (remoteIndex) {
-      const remoteBytes = await this.remoteStorage.downloadFile(remoteIndex.id);
-      await this.portabilityService.importData(remoteBytes, this.exportStrategy, 'last-write-wins');
+    if (existingIndexBytes) {
+      await this.portabilityService.importData(
+        existingIndexBytes,
+        this.exportStrategy,
+        'last-write-wins'
+      );
     }
 
     const updatedCatalog = await this.portabilityService.exportData(
@@ -57,7 +61,7 @@ export class CloudlessSyncEngine {
       this.exportStrategy
     );
 
-    await this.remoteStorage.uploadFile(
+    await this.storage.writeEntry(
       CloudlessSyncEngine.LIBRARY_INDEX_FILE,
       updatedCatalog,
       'application/json'

@@ -1,6 +1,5 @@
 import type {
   IClipboardService,
-  IFileStorageService,
   IMediaControlService,
   INotificationService,
   IPowerSaveBlocker,
@@ -11,7 +10,6 @@ export class SystemBridge {
     public readonly notifications: INotificationService,
     public readonly mediaSession: IMediaControlService,
     public readonly power: IPowerSaveBlocker,
-    public readonly clipboard: IClipboardService,
-    public readonly fileStorage: IFileStorageService
+    public readonly clipboard: IClipboardService
   ) {}
 }

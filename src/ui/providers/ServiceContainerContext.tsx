@@ -1,8 +1,7 @@
 import { type ReactNode, createContext, useContext, useRef } from 'react';
 import { InMemoryBookRepository } from '../../../test/fakes/InMemoryBookRepository';
-import { InMemoryFileStorage } from '../../../test/fakes/InMemoryFileStorage';
 import { InMemoryHighlightRepository } from '../../../test/fakes/InMemoryHighlightRepository';
-import { InMemoryRemoteStorageProvider } from '../../../test/fakes/InMemoryRemoteStorageProvider';
+import { InMemoryStorageProvider } from '../../../test/fakes/InMemoryStorageProvider';
 import { JsonExportStrategy } from '../../../test/fakes/JsonExportStrategy';
 import { AssistedRichTextStrategy } from '../../adapters/annotations/AssistedRichTextStrategy';
 import {
@@ -25,8 +24,7 @@ export interface ServiceContainer {
 export function createDefaultServiceContainer(): ServiceContainer {
   const bookRepo = new InMemoryBookRepository();
   const highlightRepo = new InMemoryHighlightRepository();
-  const fileStorage = new InMemoryFileStorage();
-  const remoteStorage = new InMemoryRemoteStorageProvider();
+  const storage = new InMemoryStorageProvider();
   const jsonStrategy = new JsonExportStrategy();
 
   const highlightManager = new HighlightManager(highlightRepo, [
@@ -35,8 +33,8 @@ export function createDefaultServiceContainer(): ServiceContainer {
     new DrawioAnnotationStrategy(),
   ]);
 
-  const portabilityService = new DataPortabilityService(bookRepo, highlightRepo, fileStorage);
-  const syncEngine = new CloudlessSyncEngine(remoteStorage, portabilityService, jsonStrategy);
+  const portabilityService = new DataPortabilityService(bookRepo, highlightRepo, storage);
+  const syncEngine = new CloudlessSyncEngine(storage, portabilityService, jsonStrategy);
 
   return {
     highlightManager,

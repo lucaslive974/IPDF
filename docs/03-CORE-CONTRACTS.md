@@ -116,8 +116,6 @@ export type AnnotationCommand = AssistedMarkdownCommand | TldrawCommand | Drawio
 ```typescript
 import type { BookFormat } from './types';
 
-export type BookSourceType = 'standalone-file' | 'local-folder' | 'remote-storage';
-
 export interface BookMetadata {
   bookHash: string;
   title: string;
@@ -126,10 +124,6 @@ export interface BookMetadata {
   currentPage: number;
   totalPages: number;
   percentage: number;
-  sourceType?: BookSourceType;
-  localFilePath?: string;
-  isDownloadedLocally: boolean;
-  remoteFileId?: string;
   coverImageBuffer?: Uint8Array;
   coverMimeType?: 'image/webp' | 'image/png' | 'image/jpeg';
   coverImageUrl?: string;
@@ -479,8 +473,6 @@ export interface IPresenceProvider {
 ### `src/core/ports/ISystemBridge.ts`
 
 ```typescript
-import type { BookFormat } from '../domain/types';
-
 export type PlaybackState = 'playing' | 'paused' | 'none';
 
 export interface INotificationService {
@@ -505,33 +497,16 @@ export interface IClipboardService {
   writeText(text: string): Promise<void>;
   readText(): Promise<string>;
 }
-
-export interface LocalFileDescriptor {
-  path: string;
-  fileName: string;
-  format: BookFormat;
-  sizeBytes: number;
-  modifiedAt: Date;
-}
-
-export interface IFileStorageService {
-  readBookBinary(bookHash: string): Promise<ArrayBuffer>;
-  writeBookBinary(bookHash: string, data: ArrayBuffer, ext: BookFormat): Promise<string>;
-  hasBookBinary(bookHash: string): Promise<boolean>;
-  readFileAtPath?(filePath: string): Promise<ArrayBuffer>;
-  pickLocalBookFiles?(): Promise<LocalFileDescriptor[]>;
-  pickLocalFolder?(): Promise<string | null>;
-  scanLocalFolderForBooks?(folderPath: string): Promise<LocalFileDescriptor[]>;
-}
 ```
 
 ---
 
-## 8. Portas de Portabilidade e Cloudless Sync (`src/core/ports/IRemoteStorageProvider.ts`)
+## 8. Porta Unificada de Storage e Portabilidade (`src/core/ports/IStorageProvider.ts`)
 
 ```typescript
 import type { BookMetadata } from '../domain/BookMetadata';
 import type { Highlight } from '../domain/Highlight';
+import type { BookFormat } from '../domain/types';
 
 export interface SyncPayload {
   schemaVersion: number;
@@ -565,22 +540,25 @@ export interface IExportStrategy {
   deserialize(raw: Uint8Array | string): Promise<SyncPayload>;
 }
 
-export interface RemoteFileEntry {
-  id: string;
+export interface StorageEntry {
   name: string;
   sizeBytes: number;
   mimeType: string;
   modifiedAt: Date;
 }
 
-export interface IRemoteStorageProvider {
+export interface IStorageProvider {
   readonly providerId: string;
-  authenticate(): Promise<boolean>;
-  isAuthenticated(): boolean;
-  setRootFolder(folderId: string): Promise<void>;
-  listFiles(subfolder?: string): Promise<RemoteFileEntry[]>;
-  findFileByName(fileName: string): Promise<RemoteFileEntry | null>;
-  downloadFile(remoteId: string, onProgress?: (pct: number) => void): Promise<Uint8Array>;
-  uploadFile(fileName: string, data: Uint8Array | string, mimeType: string): Promise<RemoteFileEntry>;
+
+  initialize(): Promise<boolean>;
+  isAvailable(): boolean;
+
+  hasBookBinary(bookHash: string): Promise<boolean>;
+  readBookBinary(bookHash: string, onProgress?: (pct: number) => void): Promise<ArrayBuffer>;
+  writeBookBinary(bookHash: string, data: ArrayBuffer, format: BookFormat): Promise<void>;
+
+  listEntries(prefix?: string): Promise<StorageEntry[]>;
+  readEntry(name: string): Promise<Uint8Array | null>;
+  writeEntry(name: string, data: Uint8Array | string, mimeType?: string): Promise<StorageEntry>;
 }
 ```

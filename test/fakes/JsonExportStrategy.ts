@@ -7,7 +7,7 @@ import {
   TldrawBoardAnnotation,
 } from '../../src/core/domain/RichAnnotation';
 import type { HighlightAnchor, RichAnnotationType } from '../../src/core/domain/types';
-import type { IExportStrategy, SyncPayload } from '../../src/core/ports/IRemoteStorageProvider';
+import type { IExportStrategy, SyncPayload } from '../../src/core/ports/IStorageProvider';
 
 interface SerializedAnnotation {
   type: RichAnnotationType;

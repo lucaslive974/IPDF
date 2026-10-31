@@ -9,7 +9,7 @@ Este repositório segue uma arquitetura **Hexagonal (Ports & Adapters)** estrita
 2. **[`docs/02-ARCHITECTURE-UML.md`](docs/02-ARCHITECTURE-UML.md)**
    Princípios de Clean Architecture, árvore de diretórios obrigatória (`src/core/domain`, `src/core/ports`, `src/core/services`, `src/adapters`, `src/ui` e `test/` espelhando `src/` na raiz), diagrama de classes UML e estrutura de sincronização remota (*Cloudless Sync*).
 3. **[`docs/03-CORE-CONTRACTS.md`](docs/03-CORE-CONTRACTS.md)**
-   Contratos TypeScript exatos e imutáveis para objetos de valor, entidades (`Highlight`, `RichAnnotation` com Visitor/Double Dispatch, `BookMetadata`) e portas (`IAnnotationToolStrategy`, `IAssistedTextFormattingStrategy`, `IRepository`, `IDocumentViewer`, `ILLMProvider`, `ITTSProvider`, `IPresenceProvider`, `ISystemBridge`, `IRemoteStorageProvider`).
+   Contratos TypeScript exatos e imutáveis para objetos de valor, entidades (`Highlight`, `RichAnnotation` com Visitor/Double Dispatch, `BookMetadata`) e portas (`IAnnotationToolStrategy`, `IAssistedTextFormattingStrategy`, `IRepository`, `IDocumentViewer`, `ILLMProvider`, `ITTSProvider`, `IPresenceProvider`, `ISystemBridge`, `IStorageProvider`).
 4. **[`docs/04-AGENT-WORKFLOW-AND-TDD.md`](docs/04-AGENT-WORKFLOW-AND-TDD.md)**
    Regras de engenharia, ciclo obrigatório **Red -> Green -> Verify -> Commit**, política *Zero `any`*, meta mínima obrigatória de **80% de cobertura de testes (Test Coverage)**, comando bloqueante `npm run verify` e matriz de testes unitários obrigatórios no Vitest.
 

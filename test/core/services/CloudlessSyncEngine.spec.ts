@@ -3,23 +3,20 @@ import { Highlight } from '../../../src/core/domain/Highlight';
 import { CloudlessSyncEngine } from '../../../src/core/services/CloudlessSyncEngine';
 import { DataPortabilityService } from '../../../src/core/services/DataPortabilityService';
 import { InMemoryBookRepository } from '../../fakes/InMemoryBookRepository';
-import { InMemoryFileStorage } from '../../fakes/InMemoryFileStorage';
 import { InMemoryHighlightRepository } from '../../fakes/InMemoryHighlightRepository';
-import { InMemoryRemoteStorageProvider } from '../../fakes/InMemoryRemoteStorageProvider';
+import { InMemoryStorageProvider } from '../../fakes/InMemoryStorageProvider';
 import { JsonExportStrategy } from '../../fakes/JsonExportStrategy';
 
 describe('CloudlessSyncEngine', () => {
-  it('downloads <bookHash>.highlights.json, merges via DataPortabilityService (LWW), and uploads the updated JSON', async () => {
+  it('reads <bookHash>.highlights.json from IStorageProvider, merges via DataPortabilityService (LWW), and writes the updated JSON', async () => {
     const bookRepo = new InMemoryBookRepository();
     const highlightRepo = new InMemoryHighlightRepository();
-    const fileStorage = new InMemoryFileStorage();
-    const remoteStorage = new InMemoryRemoteStorageProvider();
+    const storage = new InMemoryStorageProvider();
     const jsonStrategy = new JsonExportStrategy();
 
     const t1 = new Date('2026-03-10T10:00:00Z');
     const t2 = new Date('2026-03-10T12:00:00Z');
 
-    // Local highlight
     await highlightRepo.save(
       new Highlight(
         'hl-local',
@@ -33,7 +30,6 @@ describe('CloudlessSyncEngine', () => {
       )
     );
 
-    // Pre-existing remote file with another highlight and an older version of hl-local
     const remoteInitialJson = await jsonStrategy.serialize({
       schemaVersion: 1,
       exportedAt: t1,
@@ -63,56 +59,47 @@ describe('CloudlessSyncEngine', () => {
       ],
     });
 
-    await remoteStorage.uploadFile(
-      'book-phaedo.highlights.json',
-      remoteInitialJson,
-      'application/json'
-    );
+    await storage.writeEntry('book-phaedo.highlights.json', remoteInitialJson, 'application/json');
 
-    const portabilityService = new DataPortabilityService(bookRepo, highlightRepo, fileStorage);
-    const syncEngine = new CloudlessSyncEngine(remoteStorage, portabilityService, jsonStrategy);
+    const portabilityService = new DataPortabilityService(bookRepo, highlightRepo, storage);
+    const syncEngine = new CloudlessSyncEngine(storage, portabilityService, jsonStrategy);
 
     await syncEngine.syncBookState('book-phaedo');
 
-    // Local repository now has both highlights, and hl-local preserved its newer note
     const localHighlights = await highlightRepo.findByBook('book-phaedo');
     expect(localHighlights).toHaveLength(2);
     const mergedLocal = await highlightRepo.findById('hl-local');
     expect(mergedLocal?.note).toBe('Local note');
 
-    // Remote file was updated with the merged state
-    const remoteEntry = await remoteStorage.findFileByName('book-phaedo.highlights.json');
-    expect(remoteEntry).not.toBeNull();
-    if (!remoteEntry) {
-      throw new Error('Expected remoteEntry to exist');
+    const uploadedBytes = await storage.readEntry('book-phaedo.highlights.json');
+    expect(uploadedBytes).not.toBeNull();
+    if (!uploadedBytes) {
+      throw new Error('Expected uploadedBytes to exist');
     }
-    const uploadedBytes = await remoteStorage.downloadFile(remoteEntry.id);
     const uploadedPayload = await jsonStrategy.deserialize(uploadedBytes);
     expect(uploadedPayload.highlights).toHaveLength(2);
   });
 
-  it('silently ignores execution without throwing an error when isAuthenticated() is false', async () => {
+  it('silently ignores execution without throwing an error when isAvailable() is false', async () => {
     const bookRepo = new InMemoryBookRepository();
     const highlightRepo = new InMemoryHighlightRepository();
-    const fileStorage = new InMemoryFileStorage();
-    const remoteStorage = new InMemoryRemoteStorageProvider();
-    remoteStorage.setAuthenticated(false);
+    const storage = new InMemoryStorageProvider();
+    storage.setAvailable(false);
 
     const jsonStrategy = new JsonExportStrategy();
-    const portabilityService = new DataPortabilityService(bookRepo, highlightRepo, fileStorage);
-    const syncEngine = new CloudlessSyncEngine(remoteStorage, portabilityService, jsonStrategy);
+    const portabilityService = new DataPortabilityService(bookRepo, highlightRepo, storage);
+    const syncEngine = new CloudlessSyncEngine(storage, portabilityService, jsonStrategy);
 
     await expect(syncEngine.syncBookState('book-phaedo')).resolves.toBeUndefined();
     await expect(syncEngine.syncLibraryIndex()).resolves.toBeUndefined();
-    expect(remoteStorage.uploadCount).toBe(0);
-    expect(remoteStorage.downloadCount).toBe(0);
+    expect(storage.writeEntryCount).toBe(0);
+    expect(storage.readEntryCount).toBe(0);
   });
 
   it('synchronizes .reader_library_index.json via syncLibraryIndex()', async () => {
     const bookRepo = new InMemoryBookRepository();
     const highlightRepo = new InMemoryHighlightRepository();
-    const fileStorage = new InMemoryFileStorage();
-    const remoteStorage = new InMemoryRemoteStorageProvider();
+    const storage = new InMemoryStorageProvider();
     const jsonStrategy = new JsonExportStrategy();
 
     const now = new Date('2026-03-10T15:00:00Z');
@@ -129,7 +116,6 @@ describe('CloudlessSyncEngine', () => {
           currentPage: 12,
           totalPages: 300,
           percentage: 4,
-          isDownloadedLocally: false,
           lastReadAt: now,
           updatedAt: now,
         },
@@ -137,10 +123,10 @@ describe('CloudlessSyncEngine', () => {
       highlights: [],
     });
 
-    await remoteStorage.uploadFile('.reader_library_index.json', initialIndex, 'application/json');
+    await storage.writeEntry('.reader_library_index.json', initialIndex, 'application/json');
 
-    const portabilityService = new DataPortabilityService(bookRepo, highlightRepo, fileStorage);
-    const syncEngine = new CloudlessSyncEngine(remoteStorage, portabilityService, jsonStrategy);
+    const portabilityService = new DataPortabilityService(bookRepo, highlightRepo, storage);
+    const syncEngine = new CloudlessSyncEngine(storage, portabilityService, jsonStrategy);
 
     await syncEngine.syncLibraryIndex();
 

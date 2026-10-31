@@ -31,11 +31,11 @@ O sistema opera sob os princípios **Offline-First** e **BYOC (Bring Your Own Cl
 
 ## 3. Requisitos Funcionais (Features)
 
-1. **Biblioteca Unificada (Arquivos Avulsos, Pastas Locais & On-Demand Cloud):**
-   Gerenciamento flexível em 3 modos de operação (que podem coexistir na mesma biblioteca, unificados pelo `bookHash` SHA-256):
-   - **Arquivos Avulsos (`standalone-file`):** Abertura direta de qualquer `.epub` ou `.pdf` avulso do sistema de arquivos local (`localFilePath`), mantendo grifos e anotações vinculados ao `bookHash` mesmo que o arquivo seja movido ou renomeado.
-   - **Pastas Locais Monitoradas (`local-folder`):** Seleção de diretórios locais no dispositivo para indexação automática de livros `.epub`/`.pdf` e/ou sincronização baseada em pasta local (`LocalFolderStorageProvider`, compatível com Syncthing, iCloud Drive, Dropbox ou armazenamento puramente local).
-   - **Nuvem Sob Demanda (`remote-storage`):** Sincronização a partir de uma pasta remota (`IRemoteStorageProvider`, ex.: Google Drive), mantendo o catálogo leve sincronizado e baixando os binários sob demanda (*On-Demand Caching*).
+1. **Biblioteca Unificada via `IStorageProvider` Único (Arquivos Avulsos, Pastas Locais & On-Demand Cloud):**
+   Toda leitura/escrita de binários (`.epub` e `.pdf`) e artefatos de sincronização é abstraída sob uma única interface (`IStorageProvider`), de modo que o restante do software (`ReaderController`, `LibraryManager`, `DataPortabilityService`, `CloudlessSyncEngine`) jamais saiba qual mecanismo físico está por trás:
+   - **`StandaloneFileStorageAdapter`:** Abertura direta de arquivos `.epub` ou `.pdf` avulsos do sistema operacional, mapeados internamente pelo `bookHash` SHA-256.
+   - **`LocalFolderStorageAdapter`:** Operação direta sobre uma pasta local escolhida pelo usuário (ou sincronizada via Syncthing/iCloud/Dropbox).
+   - **`GoogleDriveStorageAdapter` + `CachedStorageDecorator` (Decorator Pattern):** Sincronização remota sob demanda (*On-Demand Caching*) transparente para o Core.
 2. **Marca-Texto Polimórfico & Anotações Ricas de Seção (Strategy + Visitor):**
    - Seleção de texto com grifos em múltiplas cores e notas pessoais associadas, persistidos por `epubCfi` (no EPUB) ou array de `BoundingBox` (no PDF), com detecção de colisão/sobreposição geométrica (AABB no PDF e igualdade de CFI no EPUB).
    - **Anotações Assistidas e Gráficas na Seção/Trecho:** O usuário pode deixar anotações ricas na seção ou grifo sem precisar conhecer sintaxe técnica:

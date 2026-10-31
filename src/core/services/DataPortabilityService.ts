@@ -1,20 +1,20 @@
 import type { BookMetadata } from '../domain/BookMetadata';
 import type { Highlight } from '../domain/Highlight';
+import type { IBookRepository, IHighlightRepository } from '../ports/IRepository';
 import type {
   ConflictResolution,
   ExportOptions,
   IExportStrategy,
+  IStorageProvider,
   ImportReport,
   SyncPayload,
-} from '../ports/IRemoteStorageProvider';
-import type { IBookRepository, IHighlightRepository } from '../ports/IRepository';
-import type { IFileStorageService } from '../ports/ISystemBridge';
+} from '../ports/IStorageProvider';
 
 export class DataPortabilityService {
   constructor(
     private readonly bookRepo: IBookRepository,
     private readonly highlightRepo: IHighlightRepository,
-    private readonly fileStorage: IFileStorageService,
+    private readonly storage: IStorageProvider,
     private readonly deviceId = 'default-device'
   ) {}
 
@@ -33,7 +33,6 @@ export class DataPortabilityService {
       highlights.push(...bookHighlights);
     }
 
-    // If bookHashes were passed for a book whose metadata isn't in bookRepo yet, still export its highlights
     if (options.bookHashes) {
       const coveredHashes = new Set(targetBooks.map((b) => b.bookHash));
       for (const hash of options.bookHashes) {
@@ -48,8 +47,8 @@ export class DataPortabilityService {
     if (options.includeBookFiles) {
       binaries = new Map<string, ArrayBuffer>();
       for (const book of targetBooks) {
-        if (await this.fileStorage.hasBookBinary(book.bookHash)) {
-          const binary = await this.fileStorage.readBookBinary(book.bookHash);
+        if (await this.storage.hasBookBinary(book.bookHash)) {
+          const binary = await this.storage.readBookBinary(book.bookHash);
           binaries.set(book.bookHash, binary);
         }
       }
@@ -117,11 +116,11 @@ export class DataPortabilityService {
       }
 
       for (const [bookHash, binaryData] of payload.binaries.entries()) {
-        const alreadyExists = await this.fileStorage.hasBookBinary(bookHash);
+        const alreadyExists = await this.storage.hasBookBinary(bookHash);
         if (!alreadyExists) {
           const localBook = await this.bookRepo.findById(bookHash);
           const ext = formatByHash.get(bookHash) ?? localBook?.format ?? 'epub';
-          await this.fileStorage.writeBookBinary(bookHash, binaryData, ext);
+          await this.storage.writeBookBinary(bookHash, binaryData, ext);
           report.binariesRestored++;
         }
       }

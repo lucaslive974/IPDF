@@ -3,8 +3,8 @@ import type { BookMetadata } from '../../../src/core/domain/BookMetadata';
 import { Highlight } from '../../../src/core/domain/Highlight';
 import { DataPortabilityService } from '../../../src/core/services/DataPortabilityService';
 import { InMemoryBookRepository } from '../../fakes/InMemoryBookRepository';
-import { InMemoryFileStorage } from '../../fakes/InMemoryFileStorage';
 import { InMemoryHighlightRepository } from '../../fakes/InMemoryHighlightRepository';
+import { InMemoryStorageProvider } from '../../fakes/InMemoryStorageProvider';
 import { JsonExportStrategy } from '../../fakes/JsonExportStrategy';
 
 const makeBook = (hash: string, page: number, updatedAt: Date): BookMetadata => ({
@@ -15,7 +15,6 @@ const makeBook = (hash: string, page: number, updatedAt: Date): BookMetadata => 
   currentPage: page,
   totalPages: 200,
   percentage: page / 2,
-  isDownloadedLocally: true,
   lastReadAt: updatedAt,
   updatedAt,
 });
@@ -24,18 +23,14 @@ describe('DataPortabilityService', () => {
   it('omits book binaries when exporting with includeBookFiles: false', async () => {
     const bookRepo = new InMemoryBookRepository();
     const highlightRepo = new InMemoryHighlightRepository();
-    const fileStorage = new InMemoryFileStorage();
+    const storage = new InMemoryStorageProvider();
     const strategy = new JsonExportStrategy();
 
     const now = new Date('2026-02-01T12:00:00Z');
     await bookRepo.save(makeBook('hash-meditations', 20, now));
-    await fileStorage.writeBookBinary(
-      'hash-meditations',
-      new Uint8Array([1, 2, 3, 4]).buffer,
-      'epub'
-    );
+    await storage.writeBookBinary('hash-meditations', new Uint8Array([1, 2, 3, 4]).buffer, 'epub');
 
-    const service = new DataPortabilityService(bookRepo, highlightRepo, fileStorage);
+    const service = new DataPortabilityService(bookRepo, highlightRepo, storage);
     const exportedRaw = await service.exportData(
       { includeBookFiles: false, format: 'json-only' },
       strategy
@@ -49,14 +44,13 @@ describe('DataPortabilityService', () => {
   it('updates local records under last-write-wins only when incoming.updatedAt > local.updatedAt', async () => {
     const bookRepo = new InMemoryBookRepository();
     const highlightRepo = new InMemoryHighlightRepository();
-    const fileStorage = new InMemoryFileStorage();
+    const storage = new InMemoryStorageProvider();
     const strategy = new JsonExportStrategy();
 
     const t1 = new Date('2026-02-01T10:00:00Z');
     const t2 = new Date('2026-02-01T12:00:00Z');
     const t3 = new Date('2026-02-01T14:00:00Z');
 
-    // Local state at t2
     await bookRepo.save(makeBook('hash-1', 50, t2));
     await highlightRepo.save(
       new Highlight(
@@ -87,7 +81,7 @@ describe('DataPortabilityService', () => {
       schemaVersion: 1,
       exportedAt: t3,
       deviceId: 'remote-device',
-      books: [makeBook('hash-1', 80, t3)], // newer than local t2 -> should update
+      books: [makeBook('hash-1', 80, t3)],
       highlights: [
         new Highlight(
           'hl-older-incoming',
@@ -97,7 +91,7 @@ describe('DataPortabilityService', () => {
           { format: 'epub', pageNumber: 10, epubCfi: 'cfi-1' },
           'Stale remote note',
           t1,
-          t1 // older than local t2 -> should NOT update
+          t1
         ),
         new Highlight(
           'hl-newer-incoming',
@@ -107,7 +101,7 @@ describe('DataPortabilityService', () => {
           { format: 'epub', pageNumber: 11, epubCfi: 'cfi-2' },
           'Fresh remote note',
           t1,
-          t3 // newer than local t2 -> should update
+          t3
         ),
         new Highlight(
           'hl-brand-new',
@@ -122,7 +116,7 @@ describe('DataPortabilityService', () => {
       ],
     });
 
-    const service = new DataPortabilityService(bookRepo, highlightRepo, fileStorage);
+    const service = new DataPortabilityService(bookRepo, highlightRepo, storage);
     const report = await service.importData(incomingPayload, strategy, 'last-write-wins');
 
     expect(report.booksUpdated).toBe(1);
@@ -143,12 +137,12 @@ describe('DataPortabilityService', () => {
   it('restores missing binaries without overwriting existing local binary files', async () => {
     const bookRepo = new InMemoryBookRepository();
     const highlightRepo = new InMemoryHighlightRepository();
-    const fileStorage = new InMemoryFileStorage();
+    const storage = new InMemoryStorageProvider();
     const strategy = new JsonExportStrategy();
 
     const now = new Date('2026-02-01T12:00:00Z');
     const existingBytes = new Uint8Array([10, 20, 30]).buffer;
-    await fileStorage.writeBookBinary('book-existing', existingBytes, 'epub');
+    await storage.writeBookBinary('book-existing', existingBytes, 'epub');
 
     const incomingRaw = await strategy.serialize({
       schemaVersion: 1,
@@ -162,15 +156,15 @@ describe('DataPortabilityService', () => {
       ]),
     });
 
-    const service = new DataPortabilityService(bookRepo, highlightRepo, fileStorage);
+    const service = new DataPortabilityService(bookRepo, highlightRepo, storage);
     const report = await service.importData(incomingRaw, strategy, 'last-write-wins');
 
     expect(report.binariesRestored).toBe(1);
 
-    const preserved = new Uint8Array(await fileStorage.readBookBinary('book-existing'));
+    const preserved = new Uint8Array(await storage.readBookBinary('book-existing'));
     expect(Array.from(preserved)).toEqual([10, 20, 30]);
 
-    const restored = new Uint8Array(await fileStorage.readBookBinary('book-missing'));
+    const restored = new Uint8Array(await storage.readBookBinary('book-missing'));
     expect(Array.from(restored)).toEqual([42, 43, 44]);
   });
 });

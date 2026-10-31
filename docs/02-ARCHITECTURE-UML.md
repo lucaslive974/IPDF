@@ -5,9 +5,9 @@
 O projeto utiliza **Clean Architecture / Hexagonal Architecture (Ports & Adapters)** com forte orientação a objetos e Injeção de Dependência (DI) via construtor:
 
 - **Domínio (`src/core/domain/`):** Entidades puras e objetos de valor (`Highlight`, `BookMetadata`, `BoundingBox`, `HighlightAnchor`, `PageInfo`, `TextSelection`, `SentenceNode`). Zero dependências de frameworks, DOM específico de terceiros, UI ou banco de dados.
-- **Portas (`src/core/ports/`):** Interfaces TypeScript estritas que definem os contratos de entrada e saída (`IDocumentViewer`, `IRepository`, `IHighlightRepository`, `ITTSProvider`, `ILLMProvider`, `IPresenceProvider`, `IRemoteStorageProvider`, `ISystemBridge`).
+- **Portas (`src/core/ports/`):** Interfaces TypeScript estritas que definem os contratos de entrada e saída (`IDocumentViewer`, `IAnnotationStrategy`, `IRepository`, `IHighlightRepository`, `ITTSProvider`, `ILLMProvider`, `IPresenceProvider`, `IStorageProvider`, `ISystemBridge`).
 - **Serviços de Aplicação (`src/core/services/`):** Orquestradores de casos de uso (`ReaderController`, `HighlightManager`, `LibraryManager`, `ContextualAssistant`, `PromptBuilder`, `DataPortabilityService`, `RichPresenceManager`, `CloudlessSyncEngine`, `SystemBridge`). Dependem exclusivamente das entidades de `domain/` e interfaces em `ports/`.
-- **Adaptadores (`src/adapters/`):** Implementações concretas (`EpubViewerAdapter`, `PdfViewerAdapter`, `SQLiteHighlightRepository`, `OllamaLocalLLMProvider`, `CloudAPILLMProvider`, `GoogleDriveStorageProvider`, `DiscordIPCProvider`, `CustomWebhookProvider`, `PiperLocalTTS`, `NativeSystemTTS`).
+- **Adaptadores (`src/adapters/`):** Implementações concretas (`EpubViewerAdapter`, `PdfViewerAdapter`, `SQLiteHighlightRepository`, `StandaloneFileStorageAdapter`, `LocalFolderStorageAdapter`, `GoogleDriveStorageAdapter`, `CachedStorageDecorator`, `OllamaLocalLLMProvider`, `CloudAPILLMProvider`, `DiscordIPCProvider`, `CustomWebhookProvider`, `PiperLocalTTS`, `NativeSystemTTS`).
 - **Frontend UI — Padrão MVVC / MVVM (`src/ui/`):**
   - `src/ui/providers/`: *Composition Root* e provedores React Context (`ServiceContainerContext.tsx`) responsáveis exclusivamente pela Inversão de Controle (DI).
   - `src/ui/hooks/`: *ViewModels / ViewControllers* implementados como Custom Hooks (`useStudyWorkbenchViewModel.ts`), encapsulando todo o estado de tela e invocação dos serviços do Core.
@@ -33,8 +33,8 @@ O projeto utiliza **Clean Architecture / Hexagonal Architecture (Ports & Adapter
 │   │   │   ├── ITTSProvider.ts           # Contrato de síntese de voz
 │   │   │   ├── ILLMProvider.ts           # Contrato de inferência de IA e Structured Outputs
 │   │   │   ├── IPresenceProvider.ts      # Contrato para Discord RPC e Webhooks
-│   │   │   ├── IRemoteStorageProvider.ts # Contrato BYOC (Google Drive, WebDAV) e Portabilidade
-│   │   │   └── ISystemBridge.ts          # Contratos nativos de SO (Mídia, Notificações, FS, Energia)
+│   │   │   ├── IStorageProvider.ts       # Contrato unificado de Storage (Arquivos Avulsos, Pasta Local, Cloud + Portabilidade)
+│   │   │   └── ISystemBridge.ts          # Contratos nativos de SO (Mídia, Notificações, Clipboard, Energia)
 │   │   └── services/
 │   │       ├── ReaderController.ts       # Orquestrador central da sessão de leitura
 │   │       ├── HighlightManager.ts       # Gerenciamento de grifos, cache por página e composição de IAnnotationToolStrategy
@@ -131,18 +131,31 @@ classDiagram
     }
 
     class DataPortabilityService {
-        -IRepository~BookMetadata~ bookRepo
+        -IBookRepository bookRepo
         -IHighlightRepository highlightRepo
-        -IFileStorageService fileStorage
+        -IStorageProvider storage
         +exportData(options: ExportOptions, strategy: IExportStrategy) Promise~Uint8Array | string~
         +importData(raw: Uint8Array | string, strategy: IExportStrategy, rule: ConflictResolution) Promise~ImportReport~
     }
 
     class CloudlessSyncEngine {
-        -IRemoteStorageProvider remoteStorage
+        -IStorageProvider storage
         -DataPortabilityService portabilityService
         +syncBookState(bookHash: string) Promise~void~
         +syncLibraryIndex() Promise~void~
+    }
+
+    class IStorageProvider {
+        <<interface>>
+        +readonly providerId: string
+        +initialize() Promise~boolean~
+        +isAvailable() boolean
+        +hasBookBinary(bookHash: string) Promise~boolean~
+        +readBookBinary(bookHash: string, onProgress?: Function) Promise~ArrayBuffer~
+        +writeBookBinary(bookHash: string, data: ArrayBuffer, format: BookFormat) Promise~void~
+        +listEntries(prefix?: string) Promise~StorageEntry[]~
+        +readEntry(name: string) Promise~Uint8Array | null~
+        +writeEntry(name: string, data: Uint8Array | string, mimeType?: string) Promise~StorageEntry~
     }
 
     class ContextualAssistant {
@@ -165,7 +178,6 @@ classDiagram
         +readonly mediaSession: IMediaControlService
         +readonly power: IPowerSaveBlocker
         +readonly clipboard: IClipboardService
-        +readonly fileStorage: IFileStorageService
     }
 
     ReaderController --> IDocumentViewer
@@ -177,28 +189,28 @@ classDiagram
     ReaderController --> RichPresenceManager
     ReaderController --> CloudlessSyncEngine
     CloudlessSyncEngine --> DataPortabilityService
+    CloudlessSyncEngine --> IStorageProvider
+    DataPortabilityService --> IStorageProvider
 ```
 
 ---
 
-## 4. Modos de Armazenamento: Arquivos Avulsos, Pastas Locais e Cloudless Sync
+## 4. Abstração Unificada de Storage (`IStorageProvider` + Decorator Pattern)
 
-O sistema suporta três origens de livros (`BookSourceType = 'standalone-file' | 'local-folder' | 'remote-storage'`), todas unificadas pelo `bookHash` (**SHA-256** do binário):
+O Core (`ReaderController`, `LibraryManager`, `DataPortabilityService`, `CloudlessSyncEngine`) conversa exclusivamente com a porta `IStorageProvider`, sem saber qual adaptador está por trás:
 
-1. **Arquivos Avulsos (`standalone-file` via `IFileStorageService`):**
-   - O usuário abre um `.epub` ou `.pdf` em qualquer caminho do disco (`pickLocalBookFiles` / `readFileAtPath`).
-   - O `LibraryManager` calcula o `bookHash` SHA-256, registra o `localFilePath` no `BookMetadata` e salva os grifos no SQLite local. Se o arquivo for movido de pasta ou renomeado, ao abri-lo novamente o `bookHash` reconhece a obra e restaura todos os grifos e anotações automaticamente.
-2. **Pastas Locais (`local-folder` via `IFileStorageService` / `LocalFolderStorageProvider`):**
-   - O usuário pode apontar para uma pasta local (`pickLocalFolder` / `scanLocalFolderForBooks`) contendo seus livros `.epub`/`.pdf`.
-   - Adicionalmente, uma pasta local pode atuar como `LocalFolderStorageProvider` (implementando `IRemoteStorageProvider` sobre o filesystem local), permitindo usar a mesma estrutura de sincronização LWW em pastas locais ou sincronizadas por ferramentas externas (Syncthing, iCloud, OneDrive).
-3. **Pasta Remota no Google Drive / WebDAV (`remote-storage` via `CloudlessSyncEngine`):**
-   O `CloudlessSyncEngine` mantém a seguinte organização na pasta selecionada (seja no Google Drive ou via `LocalFolderStorageProvider`):
+- **`StandaloneFileStorageAdapter`:** Mapeia arquivos `.epub`/`.pdf` avulsos abertos pelo usuário a partir de qualquer caminho do sistema de arquivos ao seu `bookHash` SHA-256.
+- **`LocalFolderStorageAdapter`:** Lê e grava diretamente em uma pasta local do dispositivo (ou pasta sincronizada por Syncthing/iCloud/Dropbox).
+- **`GoogleDriveStorageAdapter`:** Implementa a mesma interface sobre a API do Google Drive.
+- **`CachedStorageDecorator` (`implements IStorageProvider`):** Envolve um `localCache: IStorageProvider` e um `primaryStorage: IStorageProvider`, realizando cache local sob demanda (*On-Demand Caching*) e fallback offline de forma 100% transparente.
+
+Estrutura lógica de entradas mantida pelo `IStorageProvider`:
 
 ```text
-📁 Pasta Raiz (Google Drive ou Pasta Local de Sync)
+📁 Storage Root (Local Folder, App Data ou Google Drive)
  ├── 📄 .reader_library_index.json       # Catálogo leve com metadados, capas e página atual
  ├── 📁 books/
- │    └── 📕 <bookHash>.epub | .pdf      # Binários completos baixados sob demanda (On-Demand Caching)
+ │    └── 📕 <bookHash>.epub | .pdf      # Binários completos acessados por bookHash
  └── 📁 highlights/
       └── 📄 <bookHash>.highlights.json  # Grifos e notas isolados por livro para merge rápido (LWW)
 ```

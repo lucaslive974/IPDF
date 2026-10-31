@@ -1,5 +1,6 @@
 import type { BookMetadata } from '../domain/BookMetadata';
 import type { Highlight } from '../domain/Highlight';
+import type { BookFormat } from '../domain/types';
 
 export interface SyncPayload {
   schemaVersion: number;
@@ -33,25 +34,24 @@ export interface IExportStrategy {
   deserialize(raw: Uint8Array | string): Promise<SyncPayload>;
 }
 
-export interface RemoteFileEntry {
-  id: string;
+export interface StorageEntry {
   name: string;
   sizeBytes: number;
   mimeType: string;
   modifiedAt: Date;
 }
 
-export interface IRemoteStorageProvider {
+export interface IStorageProvider {
   readonly providerId: string;
-  authenticate(): Promise<boolean>;
-  isAuthenticated(): boolean;
-  setRootFolder(folderId: string): Promise<void>;
-  listFiles(subfolder?: string): Promise<RemoteFileEntry[]>;
-  findFileByName(fileName: string): Promise<RemoteFileEntry | null>;
-  downloadFile(remoteId: string, onProgress?: (pct: number) => void): Promise<Uint8Array>;
-  uploadFile(
-    fileName: string,
-    data: Uint8Array | string,
-    mimeType: string
-  ): Promise<RemoteFileEntry>;
+
+  initialize(): Promise<boolean>;
+  isAvailable(): boolean;
+
+  hasBookBinary(bookHash: string): Promise<boolean>;
+  readBookBinary(bookHash: string, onProgress?: (pct: number) => void): Promise<ArrayBuffer>;
+  writeBookBinary(bookHash: string, data: ArrayBuffer, format: BookFormat): Promise<void>;
+
+  listEntries(prefix?: string): Promise<StorageEntry[]>;
+  readEntry(name: string): Promise<Uint8Array | null>;
+  writeEntry(name: string, data: Uint8Array | string, mimeType?: string): Promise<StorageEntry>;
 }
