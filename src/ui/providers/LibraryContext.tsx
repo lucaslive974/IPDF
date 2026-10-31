@@ -8,12 +8,14 @@ import {
   useState,
 } from 'react';
 import type { BookMetadata } from '../../core/domain/BookMetadata';
+import type { BookFormat } from '../../core/domain/types';
 import { useServiceContainer } from './ServiceContainerContext';
 
 export interface LibraryContextValue {
   readonly books: BookMetadata[];
   readonly isLoading: boolean;
   loadBooks(): Promise<BookMetadata[]>;
+  importBookFile(file: File): Promise<BookMetadata>;
   importSampleBook(): Promise<void>;
 }
 
@@ -39,17 +41,36 @@ export function LibraryProvider({ children }: LibraryProviderProps) {
     }
   }, [backendGateway]);
 
+  const importBookFile = useCallback(
+    async (file: File): Promise<BookMetadata> => {
+      setIsLoading(true);
+      try {
+        const buffer = await file.arrayBuffer();
+        const rawBytes = new Uint8Array(buffer);
+        const extension = file.name.split('.').pop()?.toLowerCase();
+        const format: BookFormat = extension === 'pdf' ? 'pdf' : 'epub';
+        const cleanTitle =
+          file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ') || 'Untitled Document';
+
+        const book = await backendGateway.importLibraryBook({
+          rawBytes,
+          title: cleanTitle,
+          author: 'Unknown Author',
+          format,
+          totalPages: 100,
+        });
+        await loadBooks();
+        return book;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [backendGateway, loadBooks]
+  );
+
   const importSampleBook = useCallback(async () => {
-    const rawBytes = new TextEncoder().encode('PK\x03\x04kant-critique-pure-reason');
-    await backendGateway.importLibraryBook({
-      rawBytes,
-      title: 'Critique of Pure Reason',
-      author: 'Immanuel Kant',
-      format: 'epub',
-      totalPages: 480,
-    });
     await loadBooks();
-  }, [backendGateway, loadBooks]);
+  }, [loadBooks]);
 
   useEffect(() => {
     void loadBooks();
@@ -60,9 +81,10 @@ export function LibraryProvider({ children }: LibraryProviderProps) {
       books,
       isLoading,
       loadBooks,
+      importBookFile,
       importSampleBook,
     }),
-    [books, isLoading, loadBooks, importSampleBook]
+    [books, isLoading, loadBooks, importBookFile, importSampleBook]
   );
 
   return <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>;

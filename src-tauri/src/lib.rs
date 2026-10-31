@@ -5,8 +5,12 @@ use ipdf_core::adapters::platform::{
     AndroidEnvironment, IosEnvironment, LinuxEnvironment, WindowsEnvironment,
 };
 use ipdf_core::adapters::storage::LocalFolderStorageAdapter;
-use ipdf_core::core::domain::{BookFormat, BookMetadata, HighlightAnchor};
-use ipdf_core::core::ports::{ConfigurationStore, PlatformEnvironment, ReadingContext};
+use ipdf_core::core::domain::{
+    BookFormat, BookMetadata, Highlight, HighlightAnchor, RichAnnotation, RichAnnotationType,
+};
+use ipdf_core::core::ports::{
+    ConfigurationStore, HighlightRepository, PlatformEnvironment, ReadingContext,
+};
 use ipdf_core::core::services::{ImportBookInput, LibraryManager, PromptBuilder, Sha256BookHasher};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -60,7 +64,7 @@ pub struct IpcPlatformInfoDto {
 pub struct BackendState {
     highlights: BTreeMap<String, IpcHighlightDto>,
     library: LibraryManager<LocalFolderStorageAdapter>,
-    _highlight_repo: SqliteHighlightRepository,
+    highlight_repo: SqliteHighlightRepository,
     config_store: FileConfigurationStore,
     platform_env: Box<dyn PlatformEnvironment + Send>,
 }
@@ -93,7 +97,7 @@ impl Default for BackendState {
         Self {
             highlights: BTreeMap::new(),
             library,
-            _highlight_repo: highlight_repo,
+            highlight_repo,
             config_store,
             platform_env: platform,
         }
@@ -172,12 +176,58 @@ fn update_book_progress(
     )
 }
 
+fn domain_to_ipc_highlight(h: Highlight) -> IpcHighlightDto {
+    let mut annots = Vec::new();
+    for (k, v) in &h.annotations {
+        let (raw_data, svg_preview) = match v {
+            RichAnnotation::AssistedMarkdown { raw_data, .. } => (raw_data.clone(), None),
+            RichAnnotation::Tldraw {
+                raw_data,
+                svg_preview,
+                ..
+            } => (raw_data.clone(), svg_preview.clone()),
+            RichAnnotation::Drawio {
+                raw_data,
+                svg_preview,
+                ..
+            } => (raw_data.clone(), svg_preview.clone()),
+        };
+        annots.push(IpcRichAnnotationDto {
+            r#type: match k {
+                RichAnnotationType::AssistedMarkdown => "assisted-markdown".to_string(),
+                RichAnnotationType::Tldraw => "tldraw".to_string(),
+                RichAnnotationType::Drawio => "drawio".to_string(),
+            },
+            raw_data,
+            svg_preview,
+            updated_at: h.updated_at_ms.to_string(),
+        });
+    }
+    IpcHighlightDto {
+        id: h.id,
+        book_hash: h.book_hash,
+        text: h.text,
+        color: h.color,
+        anchor: h.anchor,
+        note: h.note,
+        created_at: h.created_at_ms.to_string(),
+        updated_at: h.updated_at_ms.to_string(),
+        annotations: annots,
+    }
+}
+
 #[tauri::command]
 fn load_book_highlights(
     book_hash: String,
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<Vec<IpcHighlightDto>, String> {
     let guard = state.lock().map_err(|e| e.to_string())?;
+    let domain_highlights = guard.highlight_repo.find_by_book(&book_hash)?;
+
+    if !domain_highlights.is_empty() {
+        return Ok(domain_highlights.into_iter().map(domain_to_ipc_highlight).collect());
+    }
+
     let list = guard
         .highlights
         .values()
@@ -193,6 +243,39 @@ fn save_highlight(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<(), String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
+
+    let mut domain = Highlight::new(
+        &highlight.id,
+        &highlight.book_hash,
+        &highlight.text,
+        &highlight.color,
+        highlight.anchor.clone(),
+        &highlight.note,
+        current_epoch_ms(),
+    );
+
+    for a in &highlight.annotations {
+        let rich = match a.r#type.as_str() {
+            "assisted-markdown" => RichAnnotation::AssistedMarkdown {
+                raw_data: a.raw_data.clone(),
+                updated_at_ms: current_epoch_ms(),
+            },
+            "tldraw" => RichAnnotation::Tldraw {
+                raw_data: a.raw_data.clone(),
+                svg_preview: a.svg_preview.clone(),
+                updated_at_ms: current_epoch_ms(),
+            },
+            "drawio" => RichAnnotation::Drawio {
+                raw_data: a.raw_data.clone(),
+                svg_preview: a.svg_preview.clone(),
+                updated_at_ms: current_epoch_ms(),
+            },
+            _ => continue,
+        };
+        domain.set_rich_annotation(rich, current_epoch_ms());
+    }
+
+    guard.highlight_repo.save(domain)?;
     guard.highlights.insert(highlight.id.clone(), highlight);
     Ok(())
 }
@@ -203,6 +286,7 @@ fn delete_highlight(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<(), String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
+    let _ = guard.highlight_repo.delete(&highlight_id);
     guard.highlights.remove(&highlight_id);
     Ok(())
 }
@@ -241,12 +325,27 @@ fn sync_book_workspace(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<String, String> {
     let guard = state.lock().map_err(|e| e.to_string())?;
-    let highlights: Vec<_> = guard
-        .highlights
-        .values()
-        .filter(|h| h.book_hash == book_hash)
-        .cloned()
-        .collect();
+    let highlights: Vec<IpcHighlightDto> = if let Ok(domain_highlights) =
+        guard.highlight_repo.find_by_book(&book_hash)
+    {
+        if !domain_highlights.is_empty() {
+            domain_highlights.into_iter().map(domain_to_ipc_highlight).collect()
+        } else {
+            guard
+                .highlights
+                .values()
+                .filter(|h| h.book_hash == book_hash)
+                .cloned()
+                .collect()
+        }
+    } else {
+        guard
+            .highlights
+            .values()
+            .filter(|h| h.book_hash == book_hash)
+            .cloned()
+            .collect()
+    };
 
     let payload = serde_json::json!({
         "schemaVersion": 1,

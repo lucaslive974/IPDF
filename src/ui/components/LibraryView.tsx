@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { type ChangeEvent, useRef, useState } from 'react';
 import type { BookMetadata } from '../../core/domain/BookMetadata';
 import { useLibrary } from '../hooks/useLibrary';
 import { useNavigation } from '../hooks/useNavigation';
@@ -21,14 +21,35 @@ export function LibraryView({
   const library = useLibrary();
   const navigation = useNavigation();
   const { theme, toggleTheme } = useTheme();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const books = propBooks ?? library.books;
   const onOpenBook = propOnOpenBook ?? navigation.openReader;
-  const onImportNewBook = propOnImportNewBook ?? library.importSampleBook;
   const onOpenSettings = propOnOpenSettings ?? navigation.openSettings;
 
   const [activeTab, setActiveTab] = useState<'recents' | 'all' | 'highlights' | 'lists'>('recents');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const handleOpenFileInput = () => {
+    if (propOnImportNewBook) {
+      propOnImportNewBook();
+    } else {
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const imported = await library.importBookFile(file);
+      onOpenBook(imported);
+    } catch (err) {
+      console.error('Failed to import book:', err);
+    } finally {
+      e.target.value = '';
+    }
+  };
 
   const filteredBooks = books.filter(
     (b) =>
@@ -63,9 +84,17 @@ export function LibraryView({
 
         {/* Quick action buttons */}
         <div className="flex items-center gap-2">
-          <Button variant="primary" size="md" iconLeft="+" onClick={onImportNewBook}>
+          <Button variant="primary" size="md" iconLeft="+" onClick={handleOpenFileInput}>
             Open eBook
           </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".epub,.pdf"
+            className="hidden"
+            onChange={handleFileChange}
+            aria-label="Upload eBook file"
+          />
 
           <IconButton
             variant="outline"
@@ -130,48 +159,59 @@ export function LibraryView({
         {/* Tab 1 & 2: Books Grid */}
         {(activeTab === 'recents' || activeTab === 'all') && (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-            {filteredBooks.map((book) => (
+            {filteredBooks.length === 0 ? (
               <Card
-                key={book.bookHash}
-                variant="interactive"
-                padding="md"
-                className="group flex flex-col justify-between"
+                variant="dashed"
+                padding="lg"
+                className="col-span-full text-center text-sm text-tx-muted py-12"
               >
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <Badge variant="brand" size="xs">
-                      {book.format}
-                    </Badge>
-                    <span className="text-[0.7rem] font-mono text-tx-muted">
-                      {Math.round(book.percentage)}%
-                    </span>
-                  </div>
-
-                  <h3 className="text-base font-bold text-tx-main group-hover:text-brand transition line-clamp-2">
-                    {book.title}
-                  </h3>
-                  <p className="mt-1 text-xs text-tx-muted font-medium">{book.author}</p>
-                </div>
-
-                <div className="mt-6 flex flex-col gap-3">
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-subtle">
-                    <div
-                      className="h-full bg-linear-to-r from-sky-500 to-indigo-500 transition-all duration-300"
-                      style={{ width: `${Math.max(4, book.percentage)}%` }}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between text-[0.7rem] text-tx-muted">
-                    <span>
-                      Page {book.currentPage} / {book.totalPages}
-                    </span>
-                    <Button variant="secondary" size="xs" onClick={() => onOpenBook(book)}>
-                      Read &rarr;
-                    </Button>
-                  </div>
-                </div>
+                No books found. Click &ldquo;Open eBook&rdquo; above to load an EPUB or PDF from
+                your device.
               </Card>
-            ))}
+            ) : (
+              filteredBooks.map((book) => (
+                <Card
+                  key={book.bookHash}
+                  variant="interactive"
+                  padding="md"
+                  className="group flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <Badge variant="brand" size="xs">
+                        {book.format}
+                      </Badge>
+                      <span className="text-[0.7rem] font-mono text-tx-muted">
+                        {Math.round(book.percentage)}%
+                      </span>
+                    </div>
+
+                    <h3 className="text-base font-bold text-tx-main group-hover:text-brand transition line-clamp-2">
+                      {book.title}
+                    </h3>
+                    <p className="mt-1 text-xs text-tx-muted font-medium">{book.author}</p>
+                  </div>
+
+                  <div className="mt-6 flex flex-col gap-3">
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-subtle">
+                      <div
+                        className="h-full bg-linear-to-r from-sky-500 to-indigo-500 transition-all duration-300"
+                        style={{ width: `${Math.max(4, book.percentage)}%` }}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-[0.7rem] text-tx-muted">
+                      <span>
+                        Page {book.currentPage} / {book.totalPages}
+                      </span>
+                      <Button variant="secondary" size="xs" onClick={() => onOpenBook(book)}>
+                        Read &rarr;
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))
+            )}
           </div>
         )}
 

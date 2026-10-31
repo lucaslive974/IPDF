@@ -34,8 +34,10 @@ export interface ActiveHighlightPopoverState {
   readonly y: number;
 }
 
+export const DEFAULT_BOOK_HASH = '8c8bf2ed9bff65aaf226bf5db3879eb378a26e72489bd28666abc01c02f2a0c2';
+
 export const DEFAULT_DOCUMENT: StudyDocumentDescriptor = {
-  bookHash: 'sha256-plato-republic-book-vii',
+  bookHash: DEFAULT_BOOK_HASH,
   bookTitle: 'The Republic',
   bookAuthor: 'Plato',
   chapterTitle: 'Book VII — Allegory of the Cave',
@@ -45,12 +47,6 @@ export const DEFAULT_DOCUMENT: StudyDocumentDescriptor = {
     'and necks chained so that they cannot move, and can only see before them, being prevented by ' +
     'the chains from turning round their heads (noesis vs. doxa).',
 };
-
-export const FALLBACK_PASSAGE_EXCERPTS = [
-  'human beings living in an underground den',
-  'mouth open towards the light and reaching all along the den',
-  'prevented by the chains from turning round their heads',
-];
 
 export const createEmptyRect = (): DOMRect =>
   ({
@@ -121,8 +117,11 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
         bookHash: book.bookHash,
         bookTitle: book.title,
         bookAuthor: book.author,
-        chapterTitle: 'Chapter I &mdash; Opening Passage',
-        sampleParagraph: DEFAULT_DOCUMENT.sampleParagraph,
+        chapterTitle: `Chapter ${book.currentPage} &mdash; Reading Session`,
+        sampleParagraph:
+          book.bookHash === DEFAULT_BOOK_HASH
+            ? DEFAULT_DOCUMENT.sampleParagraph
+            : `Reading "${book.title}" by ${book.author}. Select any passage in the text to create persistent highlights, add margin notes, or consult AI explanations.`,
       };
     }
     return DEFAULT_DOCUMENT;
@@ -181,28 +180,7 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
       if (cancelled) return;
 
       const existing = annotationWorkbench.getForPage(currentPage);
-      if (existing.length === 0) {
-        const created = await annotationWorkbench.createFromSelection(
-          document.bookHash,
-          {
-            text: 'noesis vs. doxa',
-            surroundingContext: document.sampleParagraph,
-            anchor: {
-              format: 'epub',
-              pageNumber: currentPage,
-              epubCfi: 'epubcfi(/6/14!/4/2/1:120)',
-            },
-            clientRect: createEmptyRect(),
-          },
-          '#eab308',
-          'Transition from sensory opinion to pure intellection'
-        );
-        if (!cancelled) {
-          await refreshState(created.id, currentPage);
-        }
-      } else if (!cancelled) {
-        await refreshState(existing[0]?.id, currentPage);
-      }
+      await refreshState(existing[0]?.id ?? null, currentPage);
     };
 
     void bootstrapReader();

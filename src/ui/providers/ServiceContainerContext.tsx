@@ -12,6 +12,7 @@ import {
   type TauriInvokeFn,
 } from '../../adapters/ipc/TauriBackendGateway';
 import { EpubViewerAdapter } from '../../adapters/viewers/EpubViewerAdapter';
+import type { BookFormat } from '../../core/domain/types';
 import type { IBackendGateway } from '../../core/ports/IBackendGateway';
 import type { IDocumentViewer } from '../../core/ports/IDocumentViewer';
 import { AnnotationWorkbenchService } from '../../core/services/AnnotationWorkbenchService';
@@ -22,13 +23,15 @@ export interface ServiceContainer {
   readonly epubViewer: IDocumentViewer;
 }
 
+export const DEFAULT_BOOK_HASH = '8c8bf2ed9bff65aaf226bf5db3879eb378a26e72489bd28666abc01c02f2a0c2';
+
 export function createHybridInvoke(): TauriInvokeFn {
   const highlightsByBook = new Map<string, Map<string, SerializedHighlight>>();
   const booksByHash = new Map<string, SerializedBookMetadata>([
     [
-      'sha256-plato-republic-book-vii',
+      DEFAULT_BOOK_HASH,
       {
-        bookHash: 'sha256-plato-republic-book-vii',
+        bookHash: DEFAULT_BOOK_HASH,
         title: 'The Republic',
         author: 'Plato',
         format: 'epub',
@@ -69,7 +72,7 @@ export function createHybridInvoke(): TauriInvokeFn {
         bookHash,
         title,
         author: String(args.author ?? 'Unknown'),
-        format: 'epub',
+        format: (args.format as BookFormat) || 'epub',
         currentPage: 1,
         totalPages,
         percentage: Math.round((1 / totalPages) * 100),

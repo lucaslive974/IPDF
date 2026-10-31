@@ -211,5 +211,29 @@ describe('AnnotationWorkbenchService (60fps Frontend Strategy + IPC Gateway)', (
         text: 'Fail',
       })
     ).rejects.toThrow('Highlight not found');
+
+    const bareService = new AnnotationWorkbenchService(gateway);
+    const bareHl = await bareService.createFromSelection('book_bare', {
+      text: 'No strategy',
+      surroundingContext: 'Context',
+      anchor: { format: 'epub', pageNumber: 1, epubCfi: 'epubcfi(/6/2!/4/6)' },
+      clientRect: createEmptyRect(),
+    });
+
+    await expect(
+      bareService.interactWithAnnotation(bareHl.id, 'assisted-markdown', {
+        target: 'assisted-markdown',
+        action: 'replace-text',
+        text: 'Fail',
+      })
+    ).rejects.toThrow('Annotation tool strategy not registered');
+
+    expect(() =>
+      bareService.formatHighlightAnnotations('missing_id', {
+        'assisted-markdown': () => 'text',
+        tldraw: () => 'canvas',
+        drawio: () => 'diagram',
+      })
+    ).toThrow('Highlight not found');
   });
 });
