@@ -33,7 +33,7 @@ export interface DocumentPage {
   readonly cfiBase: string;
 }
 
-export interface IBackendGateway {
+export interface BackendService {
   listLibraryBooks(): Promise<BookMetadata[]>;
   readBookBinary(bookHash: string): Promise<Uint8Array>;
   getBookPages(bookHash: string, startPage: number, count: number): Promise<DocumentPage[]>;
@@ -49,3 +49,5 @@ export interface IBackendGateway {
   buildTermLookupRequest(context: ReadingContext, targetLanguage?: string): Promise<LLMRequest>;
   syncBookWorkspace(bookHash: string): Promise<string>;
 }
+
+export type IBackendGateway = BackendService;
