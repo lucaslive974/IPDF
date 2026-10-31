@@ -51,15 +51,14 @@ export interface StudyWorkbenchViewModel {
   createHighlightFromCurrentSelection(color: string): Promise<void>;
   applyAssistedFormat(style: TextFormatStyle): Promise<void>;
   attachVisualBoard(kind: 'tldraw' | 'drawio'): Promise<void>;
-  generateContextualPrompt(): void;
+  generateContextualPrompt(): Promise<void>;
   runCloudlessSync(): Promise<void>;
 }
 
 export function useStudyWorkbenchViewModel(
   document: StudyDocumentDescriptor = DEFAULT_DOCUMENT
 ): StudyWorkbenchViewModel {
-  const { highlightManager, syncEngine, portabilityService, jsonStrategy, promptBuilder } =
-    useServiceContainer();
+  const { annotationWorkbench, backendGateway } = useServiceContainer();
 
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -74,7 +73,7 @@ export function useStudyWorkbenchViewModel(
 
   const refreshState = useCallback(
     async (activeHighlightId?: string | null) => {
-      const pageHighlights = highlightManager.getForPage(1);
+      const pageHighlights = annotationWorkbench.getForPage(1);
       setHighlights([...pageHighlights]);
 
       const targetId = activeHighlightId ?? selectedId ?? pageHighlights[0]?.id ?? null;
@@ -92,18 +91,18 @@ export function useStudyWorkbenchViewModel(
           visitDrawioDiagram: (node) =>
             `[draw.io Diagram] ${node.rawData} | SVG: ${node.svgPreview}`,
         };
-        setVisitorOutput(highlightManager.visitHighlightAnnotations(targetId, visitor));
+        setVisitorOutput(annotationWorkbench.visitHighlightAnnotations(targetId, visitor));
       }
     },
-    [highlightManager, selectedId]
+    [annotationWorkbench, selectedId]
   );
 
   useEffect(() => {
     const initializeBookSession = async () => {
-      await highlightManager.loadBookHighlights(document.bookHash);
-      const existing = highlightManager.getForPage(1);
+      await annotationWorkbench.loadBookHighlights(document.bookHash);
+      const existing = annotationWorkbench.getForPage(1);
       if (existing.length === 0) {
-        const created = await highlightManager.createFromSelection(
+        const created = await annotationWorkbench.createFromSelection(
           document.bookHash,
           {
             text: 'noesis vs. doxa',
@@ -120,7 +119,7 @@ export function useStudyWorkbenchViewModel(
       }
     };
     void initializeBookSession();
-  }, [document, highlightManager, refreshState]);
+  }, [annotationWorkbench, document, refreshState]);
 
   const selectHighlight = useCallback(
     async (highlightId: string) => {
@@ -145,7 +144,7 @@ export function useStudyWorkbenchViewModel(
           ? browserSel
           : 'human beings living in an underground den';
 
-      const created = await highlightManager.createFromSelection(
+      const created = await annotationWorkbench.createFromSelection(
         document.bookHash,
         {
           text: textToHighlight,
@@ -162,7 +161,7 @@ export function useStudyWorkbenchViewModel(
       );
       await refreshState(created.id);
     },
-    [document, highlightManager, refreshState]
+    [annotationWorkbench, document, refreshState]
   );
 
   const applyAssistedFormat = useCallback(
@@ -170,7 +169,7 @@ export function useStudyWorkbenchViewModel(
       if (!selectedId) {
         return;
       }
-      await highlightManager.interactWithAnnotation(selectedId, 'assisted-markdown', {
+      await annotationWorkbench.interactWithAnnotation(selectedId, 'assisted-markdown', {
         target: 'assisted-markdown',
         action: 'replace-text',
         text: noteInput,
@@ -181,7 +180,7 @@ export function useStudyWorkbenchViewModel(
           ? selectionRange
           : { start: 0, end: noteInput.length };
 
-      await highlightManager.interactWithAnnotation(selectedId, 'assisted-markdown', {
+      await annotationWorkbench.interactWithAnnotation(selectedId, 'assisted-markdown', {
         target: 'assisted-markdown',
         action: 'apply-format',
         selectionRange: range,
@@ -189,7 +188,7 @@ export function useStudyWorkbenchViewModel(
       });
       await refreshState(selectedId);
     },
-    [highlightManager, noteInput, refreshState, selectedId, selectionRange]
+    [annotationWorkbench, noteInput, refreshState, selectedId, selectionRange]
   );
 
   const attachVisualBoard = useCallback(
@@ -198,14 +197,14 @@ export function useStudyWorkbenchViewModel(
         return;
       }
       if (kind === 'tldraw') {
-        await highlightManager.interactWithAnnotation(selectedId, 'tldraw', {
+        await annotationWorkbench.interactWithAnnotation(selectedId, 'tldraw', {
           target: 'tldraw',
           action: 'save-snapshot',
           snapshotJson: '{"shapes":[{"type":"arrow","from":"Doxa","to":"Noesis"}]}',
           svgPreview: '<svg viewBox="0 0 120 40"><text>tldraw: Doxa -> Noesis</text></svg>',
         });
       } else {
-        await highlightManager.interactWithAnnotation(selectedId, 'drawio', {
+        await annotationWorkbench.interactWithAnnotation(selectedId, 'drawio', {
           target: 'drawio',
           action: 'save-diagram',
           xmlOrJsonDiagram:
@@ -215,12 +214,12 @@ export function useStudyWorkbenchViewModel(
       }
       await refreshState(selectedId);
     },
-    [highlightManager, refreshState, selectedId]
+    [annotationWorkbench, refreshState, selectedId]
   );
 
-  const generateContextualPrompt = useCallback(() => {
+  const generateContextualPrompt = useCallback(async () => {
     const active = highlights.find((h) => h.id === selectedId);
-    const req = promptBuilder.buildTermLookupRequest(
+    const req = await backendGateway.buildTermLookupRequest(
       {
         bookTitle: document.bookTitle,
         bookAuthor: document.bookAuthor,
@@ -231,20 +230,12 @@ export function useStudyWorkbenchViewModel(
       'en'
     );
     setLlmPromptPreview(JSON.stringify(req, null, 2));
-  }, [document, highlights, promptBuilder, selectedId]);
+  }, [backendGateway, document, highlights, selectedId]);
 
   const runCloudlessSync = useCallback(async () => {
-    await syncEngine.syncBookState(document.bookHash);
-    const exported = await portabilityService.exportData(
-      { bookHashes: [document.bookHash], includeBookFiles: false, format: 'json-only' },
-      jsonStrategy
-    );
-    setSyncExportPreview(
-      typeof exported === 'string'
-        ? JSON.stringify(JSON.parse(exported), null, 2)
-        : 'Binary Uint8Array'
-    );
-  }, [document.bookHash, jsonStrategy, portabilityService, syncEngine]);
+    const exportedJson = await backendGateway.syncBookWorkspace(document.bookHash);
+    setSyncExportPreview(exportedJson);
+  }, [backendGateway, document.bookHash]);
 
   return {
     document,

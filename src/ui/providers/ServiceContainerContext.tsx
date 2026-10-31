@@ -1,47 +1,97 @@
 import { type ReactNode, createContext, useContext, useRef } from 'react';
-import { InMemoryBookRepository } from '../../../test/fakes/InMemoryBookRepository';
-import { InMemoryHighlightRepository } from '../../../test/fakes/InMemoryHighlightRepository';
-import { InMemoryStorageProvider } from '../../../test/fakes/InMemoryStorageProvider';
-import { JsonExportStrategy } from '../../../test/fakes/JsonExportStrategy';
 import { AssistedRichTextStrategy } from '../../adapters/annotations/AssistedRichTextStrategy';
 import {
   DrawioAnnotationStrategy,
   TldrawAnnotationStrategy,
 } from '../../adapters/annotations/DiagramAnnotationStrategies';
-import { CloudlessSyncEngine } from '../../core/services/CloudlessSyncEngine';
-import { DataPortabilityService } from '../../core/services/DataPortabilityService';
-import { HighlightManager } from '../../core/services/HighlightManager';
-import { PromptBuilder } from '../../core/services/PromptBuilder';
+import {
+  type SerializedHighlight,
+  TauriBackendGateway,
+  type TauriInvokeFn,
+} from '../../adapters/ipc/TauriBackendGateway';
+import type { IBackendGateway } from '../../core/ports/IBackendGateway';
+import { AnnotationWorkbenchService } from '../../core/services/AnnotationWorkbenchService';
 
 export interface ServiceContainer {
-  readonly highlightManager: HighlightManager;
-  readonly syncEngine: CloudlessSyncEngine;
-  readonly portabilityService: DataPortabilityService;
-  readonly jsonStrategy: JsonExportStrategy;
-  readonly promptBuilder: PromptBuilder;
+  readonly backendGateway: IBackendGateway;
+  readonly annotationWorkbench: AnnotationWorkbenchService;
 }
 
-export function createDefaultServiceContainer(): ServiceContainer {
-  const bookRepo = new InMemoryBookRepository();
-  const highlightRepo = new InMemoryHighlightRepository();
-  const storage = new InMemoryStorageProvider();
-  const jsonStrategy = new JsonExportStrategy();
+function createBrowserFallbackInvoke(): TauriInvokeFn {
+  const highlightsByBook = new Map<string, Map<string, SerializedHighlight>>();
 
-  const highlightManager = new HighlightManager(highlightRepo, [
+  return async <T,>(cmd: string, args: Record<string, unknown> = {}): Promise<T> => {
+    const tauriWindow = globalThis as unknown as {
+      __TAURI_INTERNALS__?: { invoke: TauriInvokeFn };
+    };
+    if (tauriWindow.__TAURI_INTERNALS__?.invoke) {
+      return tauriWindow.__TAURI_INTERNALS__.invoke<T>(cmd, args);
+    }
+
+    if (cmd === 'load_book_highlights') {
+      const bookHash = String(args.bookHash ?? '');
+      const map = highlightsByBook.get(bookHash);
+      return (map ? Array.from(map.values()) : []) as unknown as T;
+    }
+
+    if (cmd === 'save_highlight') {
+      const hl = args.highlight as SerializedHighlight;
+      let map = highlightsByBook.get(hl.bookHash);
+      if (!map) {
+        map = new Map<string, SerializedHighlight>();
+        highlightsByBook.set(hl.bookHash, map);
+      }
+      map.set(hl.id, hl);
+      return undefined as unknown as T;
+    }
+
+    if (cmd === 'delete_highlight') {
+      const highlightId = String(args.highlightId ?? '');
+      for (const map of highlightsByBook.values()) {
+        map.delete(highlightId);
+      }
+      return undefined as unknown as T;
+    }
+
+    if (cmd === 'build_term_lookup_prompt') {
+      return {
+        systemPrompt: `Rust ipdf-core PromptBuilder (${String(args.targetLanguage ?? 'en')})`,
+        userPrompt: `Book: "${String(args.bookTitle ?? '')}" | Selected: "${String(args.selectedText ?? '')}"`,
+        temperature: 0.3,
+        maxTokens: 500,
+      } as unknown as T;
+    }
+
+    if (cmd === 'sync_book_workspace') {
+      const bookHash = String(args.bookHash ?? '');
+      const highlights = Array.from(highlightsByBook.get(bookHash)?.values() ?? []);
+      return JSON.stringify(
+        {
+          version: '1.0',
+          engine: 'ipdf-core (Rust LWW)',
+          bookHash,
+          highlights,
+        },
+        null,
+        2
+      ) as unknown as T;
+    }
+
+    throw new Error(`Unsupported IPC command: ${cmd}`);
+  };
+}
+
+export function createDefaultServiceContainer(customGateway?: IBackendGateway): ServiceContainer {
+  const backendGateway = customGateway ?? new TauriBackendGateway(createBrowserFallbackInvoke());
+  const annotationWorkbench = new AnnotationWorkbenchService(backendGateway, [
     new AssistedRichTextStrategy(),
     new TldrawAnnotationStrategy(),
     new DrawioAnnotationStrategy(),
   ]);
 
-  const portabilityService = new DataPortabilityService(bookRepo, highlightRepo, storage);
-  const syncEngine = new CloudlessSyncEngine(storage, portabilityService, jsonStrategy);
-
   return {
-    highlightManager,
-    syncEngine,
-    portabilityService,
-    jsonStrategy,
-    promptBuilder: new PromptBuilder(),
+    backendGateway,
+    annotationWorkbench,
   };
 }
 

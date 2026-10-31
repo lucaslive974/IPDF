@@ -24,39 +24,37 @@ O projeto utiliza **Clean Architecture / Hexagonal Architecture (Ports & Adapter
 ## 2. Estrutura de Diretórios Obrigatória
 
 ```text
+├── src-tauri/
+│   ├── crates/
+│   │   └── ipdf-core/                    # Crate Rust pura (Domínio, Storage Unificado, LWW Sync, SHA-256 Streaming)
+│   │       ├── src/
+│   │       │   ├── domain.rs             # Highlight, BookMetadata, RichAnnotation + AnnotationVisitor
+│   │       │   ├── ports.rs              # Traits BookRepository, HighlightRepository, StorageProvider, PresenceProvider
+│   │       │   ├── services.rs           # Sha256BookHasher, HighlightManager, DataPortabilityService, CloudlessSyncEngine, CachedStorageDecorator, PromptBuilder, RichPresenceManager
+│   │       │   └── lib.rs
+│   │       └── tests/
+│   │           └── core_tests.rs         # Suíte de testes de integração Rust
+│   └── src/
+│       └── lib.rs                        # Comandos IPC Tauri (#[tauri::command]) expondo o ipdf-core
 ├── src/
 │   ├── core/
 │   │   ├── domain/
-│   │   │   ├── types.ts                  # Value Objects (BoundingBox, HighlightAnchor, PageInfo, etc.)
-│   │   │   ├── Highlight.ts              # Entidade rica Highlight com regras de negócio, colisão e suporte a Visitor
+│   │   │   ├── types.ts                  # Value Objects (BoundingBox, HighlightAnchor, AnnotationCommand, etc.)
+│   │   │   ├── Highlight.ts              # Entidade/DTO Highlight para colisão e Visitor a 60fps na UI
 │   │   │   ├── RichAnnotation.ts         # Hierarquia polimórfica de anotações (AssistedText, Tldraw, Drawio) + Visitor
-│   │   │   └── BookMetadata.ts           # Estrutura e tipos de metadados do livro
+│   │   │   └── BookMetadata.ts           # Estrutura de metadados do livro
 │   │   ├── ports/
-│   │   │   ├── IDocumentViewer.ts        # Contrato de renderização (EPUB/PDF)
-│   │   │   ├── IAnnotationStrategy.ts    # Contratos Strategy + Visitor para editores de anotação (Texto Assistido, tldraw, draw.io)
-│   │   │   ├── IRepository.ts            # Contratos genéricos e específicos de persistência
+│   │   │   ├── IBackendGateway.ts        # Porta IPC unificada conectando o Frontend ao ipdf-core em Rust
+│   │   │   ├── IDocumentViewer.ts        # Contrato de renderização DOM/Canvas (EPUB/PDF)
+│   │   │   ├── IAnnotationStrategy.ts    # Contratos Strategy para editores visuais a 60fps (Texto Assistido, tldraw, draw.io)
 │   │   │   ├── ITTSProvider.ts           # Contrato de síntese de voz
-│   │   │   ├── ILLMProvider.ts           # Contrato de inferência de IA e Structured Outputs
-│   │   │   ├── IPresenceProvider.ts      # Contrato para Discord RPC e Webhooks
-│   │   │   ├── IStorageProvider.ts       # Contrato unificado de Storage (Arquivos Avulsos, Pasta Local, Cloud + Portabilidade)
-│   │   │   └── ISystemBridge.ts          # Contratos nativos de SO (Mídia, Notificações, Clipboard, Energia)
+│   │   │   └── ISystemBridge.ts          # Contratos de integração WebView/SO
 │   │   └── services/
-│   │       ├── ReaderController.ts       # Orquestrador central da sessão de leitura
-│   │       ├── HighlightManager.ts       # Gerenciamento de grifos, cache por página e composição de IAnnotationToolStrategy
-│   │       ├── LibraryManager.ts         # Gestão da biblioteca local e remota
-│   │       ├── ContextualAssistant.ts    # Serviço de tradução in-place e explicação com LLM
-│   │       ├── PromptBuilder.ts          # Construção determinística de prompts com contexto literário
-│   │       ├── DataPortabilityService.ts # Exportação, importação e merge LWW
-│   │       ├── CloudlessSyncEngine.ts    # Sincronização serverless via pasta remota (Google Drive)
-│   │       ├── RichPresenceManager.ts    # Pub-Sub com Debounce para presença social
-│   │       └── SystemBridge.ts           # Classe composta de recursos do sistema operacional
+│   │       └── AnnotationWorkbenchService.ts # Orquestrador de edição 60fps (Command Dispatch + Visitor) persistindo via IBackendGateway
 │   ├── adapters/
-│   │   ├── viewers/                      # EpubViewerAdapter.ts, PdfViewerAdapter.ts
-│   │   ├── annotations/                  # AssistedRichTextStrategy.ts, DiagramAnnotationStrategies.ts
-│   │   ├── storage/                      # SQLite repositories, LocalFileStorageAdapter.ts, LocalFolderStorageProvider.ts, GoogleDriveStorageProvider.ts
-│   │   ├── llm/                          # CloudAPILLMProvider.ts, OllamaLocalLLMProvider.ts
-│   │   ├── tts/                          # PiperLocalTTS.ts, NativeSystemTTS.ts
-│   │   └── presence/                     # DiscordIPCProvider.ts, CustomWebhookProvider.ts
+│   │   ├── ipc/
+│   │   │   └── TauriBackendGateway.ts    # Implementação de IBackendGateway via Tauri invoke()
+│   │   └── annotations/                  # AssistedRichTextStrategy.ts, DiagramAnnotationStrategies.ts
 │   └── ui/                               # Camada de Apresentação em Arquitetura MVVC
 │       ├── providers/                    # IoC / Injeção de Dependências (ServiceContainerContext.tsx)
 │       ├── hooks/                        # ViewModels / ViewControllers (Custom Hooks)
@@ -65,9 +63,10 @@ O projeto utiliza **Clean Architecture / Hexagonal Architecture (Ports & Adapter
 └── test/                                 # Espelha a estrutura de src/ (NENHUM arquivo .spec.ts dentro de src/)
     ├── core/
     │   ├── domain/                       # Highlight.spec.ts
-    │   └── services/                     # HighlightManager.spec.ts, DataPortabilityService.spec.ts, etc.
-    ├── adapters/                         # Testes de adaptadores
-    └── fakes/                            # Implementações In-Memory e Spies para testes unitários rápidos
+    │   └── services/                     # AnnotationWorkbenchService.spec.ts
+    ├── adapters/
+    │   └── ipc/                          # TauriBackendGateway.spec.ts
+    └── fakes/                            # FakeBackendGateway.ts
 ```
 
 ---

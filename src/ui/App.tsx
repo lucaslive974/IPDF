@@ -14,7 +14,7 @@ function StudyWorkbenchView() {
         selectedHighlightId={vm.selectedId}
         onCreateHighlight={(color) => void vm.createHighlightFromCurrentSelection(color)}
         onSelectHighlight={(id) => void vm.selectHighlight(id)}
-        onGeneratePrompt={vm.generateContextualPrompt}
+        onGeneratePrompt={() => void vm.generateContextualPrompt()}
         onSyncBook={() => void vm.runCloudlessSync()}
       />
 
