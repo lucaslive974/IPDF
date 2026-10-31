@@ -18,7 +18,7 @@ O sistema opera sob os princípios **Offline-First** e **BYOC (Bring Your Own Cl
 
 | Camada | Tecnologia / Biblioteca | Detalhes e Decisões Técnicas |
 | :--- | :--- | :--- |
-| **Runtime Multiplataforma** | **Tauri v2** | Frontend Web em TypeScript/React + Backend Nativo em Rust/C++/Swift (Desktop + iOS WKWebView). |
+| **Runtime Multiplataforma** | **Tauri v2 (Backend-Heavy em Rust)** | Core pesado de dados, Storage, SHA-256 em *streaming*, Sync LWW, ZIP, SQLite, Discord IPC e HTTP em **Rust (`src-tauri/crates/ipdf-core`)** + UI MVVC e Renderizadores DOM em **TypeScript/React**. |
 | **Linguagem Principal** | **TypeScript (Strict Mode)** | `strict: true`, proibição de `any`, uso exclusivo de `Uint8Array` / `ArrayBuffer` (sem `Node.js Buffer`). |
 | **Renderizador EPUB** | `epub.js` ou `foliate-js` | Baseado em DOM dinâmico e *Canonical Fragment Identifier* (**CFI**). |
 | **Renderizador PDF** | `pdfjs-dist` (Mozilla PDF.js) | Renderização em Canvas + TextLayer com coordenadas cartesianas normalizadas (`BoundingBox`). |

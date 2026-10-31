@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage",
     "test:coverage": "vitest run --coverage",
-    "verify": "npm run format && npm run lint && npm run typecheck && npm run test"
+    "verify:rust": "cargo fmt --manifest-path src-tauri/crates/ipdf-core/Cargo.toml --check && cargo clippy --manifest-path src-tauri/crates/ipdf-core/Cargo.toml --all-targets -- -D warnings && cargo test --manifest-path src-tauri/crates/ipdf-core/Cargo.toml",
+    "verify": "npm run format && npm run lint && npm run typecheck && npm run test && npm run verify:rust"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.2.0",

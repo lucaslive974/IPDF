@@ -3,5 +3,6 @@ dist/
 coverage/
 .tauri/
 src-tauri/target/
+src-tauri/crates/*/target/
 *.log
 .DS_Store

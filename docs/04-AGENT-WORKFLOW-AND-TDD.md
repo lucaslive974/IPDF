@@ -48,6 +48,7 @@ O comando `npm run verify` executa em sequência:
 2. `npm run lint` (`biome check ./src ./test`)
 3. `npm run typecheck` (`tsc --noEmit`)
 4. `npm run test` (`vitest run --coverage`, exigindo >= 80% em lines, functions, branches e statements)
+5. `npm run verify:rust` (`cargo fmt --check` + `cargo clippy --all-targets -- -D warnings` + `cargo test` na crate `src-tauri/crates/ipdf-core`)
 
 > [!CAUTION]
 > **REGRA DE BLOQUEIO:** Se qualquer uma dessas 4 etapas falhar, emitir erros ou ficar abaixo de **80% de cobertura de testes**, o agente **ESTÁ PROIBIDO** de fazer commit ou avançar para a próxima tarefa. Corrija a formatação, a tipagem, o teste quebrado ou adicione casos de teste faltantes até que `npm run verify` retorne `exit code 0`.

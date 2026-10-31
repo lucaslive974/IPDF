@@ -1,18 +1,23 @@
 # 02. Software Architecture & Directory Structure
 
-## 1. Princípios Arquiteturais
+## 1. Princípios Arquiteturais e Divisão Rust vs. TypeScript (Backend-Heavy)
 
-O projeto utiliza **Clean Architecture / Hexagonal Architecture (Ports & Adapters)** com forte orientação a objetos e Injeção de Dependência (DI) via construtor:
+O projeto utiliza **Clean Architecture / Hexagonal Architecture (Ports & Adapters)** combinada com uma estratégia **Backend-Heavy em Rust** para garantir baixo consumo de memória (essencial no iOS `WKWebView`) e UI a 60fps:
 
-- **Domínio (`src/core/domain/`):** Entidades puras e objetos de valor (`Highlight`, `BookMetadata`, `BoundingBox`, `HighlightAnchor`, `PageInfo`, `TextSelection`, `SentenceNode`). Zero dependências de frameworks, DOM específico de terceiros, UI ou banco de dados.
-- **Portas (`src/core/ports/`):** Interfaces TypeScript estritas que definem os contratos de entrada e saída (`IDocumentViewer`, `IAnnotationStrategy`, `IRepository`, `IHighlightRepository`, `ITTSProvider`, `ILLMProvider`, `IPresenceProvider`, `IStorageProvider`, `ISystemBridge`).
-- **Serviços de Aplicação (`src/core/services/`):** Orquestradores de casos de uso (`ReaderController`, `HighlightManager`, `LibraryManager`, `ContextualAssistant`, `PromptBuilder`, `DataPortabilityService`, `RichPresenceManager`, `CloudlessSyncEngine`, `SystemBridge`). Dependem exclusivamente das entidades de `domain/` e interfaces em `ports/`.
-- **Adaptadores (`src/adapters/`):** Implementações concretas (`EpubViewerAdapter`, `PdfViewerAdapter`, `SQLiteHighlightRepository`, `StandaloneFileStorageAdapter`, `LocalFolderStorageAdapter`, `GoogleDriveStorageAdapter`, `CachedStorageDecorator`, `OllamaLocalLLMProvider`, `CloudAPILLMProvider`, `DiscordIPCProvider`, `CustomWebhookProvider`, `PiperLocalTTS`, `NativeSystemTTS`).
+- **Core Nativo em Rust (`src-tauri/crates/ipdf-core/`):**
+  - Isolado como uma crate pura (sem dependência direta de janelas/WebKit, permitindo rodar `cargo test` e `cargo clippy` instantaneamente em qualquer ambiente).
+  - Concentra o domínio (`Highlight`, `BookMetadata`, `RichAnnotation`), as traits de portas (`BookRepository`, `HighlightRepository`, `StorageProvider`, `ExportStrategy`, `PresenceProvider`), o cálculo de hash SHA-256 em *streaming* de 64 KB (`Sha256BookHasher`), o merge *Last-Write-Wins* (`DataPortabilityService`), o `CloudlessSyncEngine`, o `CachedStorageDecorator`, o `PromptBuilder` e o `RichPresenceManager`.
+- **Shell Tauri v2 (`src-tauri/src/`):**
+  - Expõe comandos IPC (`#[tauri::command]`) conectando a WebView à crate `ipdf-core` e aos plugins/recursos do sistema operacional.
+- **Domínio, Portas e Adaptadores de WebView em TypeScript (`src/core/` e `src/adapters/`):**
+  - Focados nas responsabilidades que vivem no DOM/Canvas da WebView: renderização de documentos (`IDocumentViewer`: `EpubViewerAdapter`, `PdfViewerAdapter`) e estratégias de edição visual/formatação assistida (`IAnnotationToolStrategy`: `AssistedRichTextStrategy`, `TldrawAnnotationStrategy`, `DrawioAnnotationStrategy` com *Command Dispatch Maps*), além de espelhos leves para modo de bancada/testes.
 - **Frontend UI — Padrão MVVC / MVVM (`src/ui/`):**
   - `src/ui/providers/`: *Composition Root* e provedores React Context (`ServiceContainerContext.tsx`) responsáveis exclusivamente pela Inversão de Controle (DI).
-  - `src/ui/hooks/`: *ViewModels / ViewControllers* implementados como Custom Hooks (`useStudyWorkbenchViewModel.ts`), encapsulando todo o estado de tela e invocação dos serviços do Core.
-  - `src/ui/components/`: Componentes visuais puramente declarativos, modulares e reutilizáveis (`PassageReaderPanel`, `SectionAnnotationPanel`, `AssistedFormattingToolbar`, `HighlightCard`, `CodeInspectorBox`), sem lógica de negócio ou instanciação de serviços.
-- **Testes e Dublês (`test/` na raiz):** Todos os arquivos `*.spec.ts` ficam fora de `src/`, na pasta raiz `test/` espelhando exatamente a árvore de `src/` (`test/core/domain/`, `test/core/services/`, `test/adapters/`), junto com `test/fakes/` (*In-Memory*, *Mocks* e *Spies*).
+  - `src/ui/hooks/`: *ViewModels / ViewControllers* implementados como Custom Hooks (`useStudyWorkbenchViewModel.ts`), encapsulando todo o estado de tela.
+  - `src/ui/components/`: Componentes visuais puramente declarativos, modulares e reutilizáveis (`PassageReaderPanel`, `SectionAnnotationPanel`, `AssistedFormattingToolbar`, `HighlightCard`, `CodeInspectorBox`).
+- **Testes e Dublês (`test/` na raiz + `src-tauri/crates/ipdf-core/tests/`):**
+  - No TypeScript, todos os arquivos `*.spec.ts` ficam na pasta raiz `test/` espelhando `src/`.
+  - No Rust, os testes de integração e unidade ficam em `src-tauri/crates/ipdf-core/tests/`.
 
 ---
 
