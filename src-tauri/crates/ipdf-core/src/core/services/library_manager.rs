@@ -133,7 +133,10 @@ impl<S: StorageProvider> LibraryManager<S> {
 
     pub fn import_book(&mut self, input: ImportBookInput) -> Result<BookMetadata, String> {
         let book_hash = Sha256BookHasher::hash_bytes(&input.raw_bytes)?;
-        let total_pages = input.total_pages.max(1);
+        let pages = Self::parse_and_paginate_book(&input.raw_bytes, input.total_pages)?;
+        let total_pages = (pages.len() as u32).max(1);
+        self.pages_cache.insert(book_hash.clone(), pages.clone());
+
         let existing = self.progress_map.get(&book_hash).cloned();
 
         let (current_page, percentage) = match existing {
@@ -141,7 +144,6 @@ impl<S: StorageProvider> LibraryManager<S> {
             None => (1, ((1.0 / total_pages as f64) * 100.0).clamp(0.0, 100.0)),
         };
 
-        let pages = Self::parse_and_paginate_book(&input.raw_bytes, total_pages)?;
         let first_page_title = pages
             .first()
             .map(|p| p.chapter_title.as_str())
@@ -311,7 +313,10 @@ impl<S: StorageProvider> LibraryManager<S> {
             .map(|f| f.to_string_lossy().to_string())
             .unwrap_or_else(|| "Book".to_string());
 
-        let total_pages = 100;
+        let pages = Self::parse_and_paginate_book(&bytes, 0)?;
+        let total_pages = (pages.len() as u32).max(1);
+        self.pages_cache.insert(book_hash.clone(), pages.clone());
+
         let existing = self.progress_map.get(&book_hash).cloned();
 
         let (current_page, percentage) = match existing {
@@ -320,7 +325,6 @@ impl<S: StorageProvider> LibraryManager<S> {
         };
 
         let now_ms = 0;
-        let pages = Self::parse_and_paginate_book(&bytes, total_pages)?;
         let first_page_title = pages
             .first()
             .map(|p| p.chapter_title.as_str())

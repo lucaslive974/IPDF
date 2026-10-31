@@ -105,6 +105,18 @@ export function ReaderView() {
   const bottomSentinelRef = useRef<HTMLDivElement>(null);
   const topSentinelRef = useRef<HTMLDivElement>(null);
 
+  const onPageVisibleRef = useRef(reader.onPageVisible);
+  onPageVisibleRef.current = reader.onPageVisible;
+
+  const [pageInputValue, setPageInputValue] = useState<string>(String(reader.currentPage));
+  const isPageInputFocusedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isPageInputFocusedRef.current) {
+      setPageInputValue(String(reader.currentPage));
+    }
+  }, [reader.currentPage]);
+
   // 1. Right Click Context Menu (Dropdown) Handler
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => {
@@ -183,33 +195,52 @@ export function ReaderView() {
     };
   }, [reader]);
 
-  // 3. Dynamic Page Focal Observer (Tracks active page and updates progress during scroll)
+  // 3. Dynamic Page Focal Tracker (Tracks active page at 60fps based on comfortable reading line)
   useEffect(() => {
-    const articles = document.querySelectorAll('article[data-page-number]');
-    if (articles.length === 0) return;
+    let ticking = false;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            const pageNum = Number(entry.target.getAttribute('data-page-number'));
-            if (pageNum > 0) {
-              reader.onPageVisible(pageNum);
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const articles = document.querySelectorAll<HTMLElement>('article[data-page-number]');
+          if (articles.length === 0) {
+            ticking = false;
+            return;
+          }
+
+          const focalY = window.innerHeight * 0.35;
+          let activePage: number | null = null;
+          let closestDistance = Number.POSITIVE_INFINITY;
+
+          for (const article of articles) {
+            const rect = article.getBoundingClientRect();
+            if (rect.top <= focalY && rect.bottom >= focalY) {
+              activePage = Number(article.getAttribute('data-page-number'));
+              break;
+            }
+            const dist = Math.abs(rect.top - focalY);
+            if (dist < closestDistance) {
+              closestDistance = dist;
+              activePage = Number(article.getAttribute('data-page-number'));
             }
           }
-        }
-      },
-      { rootMargin: '-15% 0px -55% 0px', threshold: 0.1 }
-    );
 
-    for (const article of articles) {
-      observer.observe(article);
-    }
+          if (activePage && activePage > 0) {
+            onPageVisibleRef.current(activePage);
+          }
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
 
     return () => {
-      observer.disconnect();
+      window.removeEventListener('scroll', handleScroll);
     };
-  }, [reader]);
+  }, []);
 
   // 4. Smooth Page Scrolling Navigation for buttons
   const scrollToPage = useCallback(
@@ -253,8 +284,6 @@ export function ReaderView() {
     setIsChromeVisible((prev) => !prev);
   };
 
-  const percentage = Math.round((reader.currentPage / reader.totalPages) * 100);
-
   return (
     <section
       aria-label="Book Reader Document"
@@ -290,9 +319,7 @@ export function ReaderView() {
 
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 rounded-full border border-line-subtle bg-surface px-3 py-1 text-xs text-tx-secondary">
-            <span className="font-mono text-sky-600 dark:text-sky-400">{percentage}%</span>
-            <span className="text-tx-faint">&bull;</span>
-            <span className="text-tx-muted">
+            <span className="font-mono font-bold text-tx-main">
               Page {reader.currentPage} of {reader.totalPages}
             </span>
           </div>
@@ -430,7 +457,7 @@ export function ReaderView() {
         </div>
       </main>
 
-      {/* 3. Immersive Bottom Controller */}
+      {/* 3. Immersive Bottom Page Jump Controller */}
       <footer
         className={`fixed bottom-4 inset-x-0 z-40 flex justify-center px-4 transition-all duration-300 ease-in-out ${
           isChromeVisible
@@ -438,32 +465,41 @@ export function ReaderView() {
             : 'translate-y-12 opacity-0 pointer-events-none'
         }`}
       >
-        <div className="flex items-center gap-3 rounded-full border border-line-subtle bg-surface/90 px-5 py-2 shadow-xl backdrop-blur-md text-xs font-semibold">
-          <Button
-            variant="ghost"
-            size="xs"
-            disabled={reader.currentPage <= 1}
-            onClick={() => scrollToPage(reader.currentPage - 1)}
-          >
-            &larr; Prev
-          </Button>
-
-          <span className="text-tx-faint">|</span>
-
-          <span className="font-mono text-tx-secondary">
-            Page {reader.currentPage} of {reader.totalPages}
-          </span>
-
-          <span className="text-tx-faint">|</span>
-
-          <Button
-            variant="ghost"
-            size="xs"
-            disabled={reader.currentPage >= reader.totalPages}
-            onClick={() => scrollToPage(reader.currentPage + 1)}
-          >
-            Next &rarr;
-          </Button>
+        <div className="flex items-center gap-2 rounded-full border border-line-subtle bg-surface/95 px-4 py-1.5 shadow-xl backdrop-blur-md text-xs font-semibold">
+          <span className="text-tx-muted">Page</span>
+          <input
+            type="number"
+            min={1}
+            max={reader.totalPages}
+            value={pageInputValue}
+            onFocus={() => {
+              isPageInputFocusedRef.current = true;
+            }}
+            onChange={(e) => setPageInputValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const target = Number.parseInt(pageInputValue, 10);
+                if (!Number.isNaN(target) && target >= 1 && target <= reader.totalPages) {
+                  scrollToPage(target);
+                  (e.target as HTMLInputElement).blur();
+                }
+              }
+            }}
+            onBlur={() => {
+              isPageInputFocusedRef.current = false;
+              const target = Number.parseInt(pageInputValue, 10);
+              if (!Number.isNaN(target) && target >= 1 && target <= reader.totalPages) {
+                if (target !== reader.currentPage) {
+                  scrollToPage(target);
+                }
+              } else {
+                setPageInputValue(String(reader.currentPage));
+              }
+            }}
+            className="w-16 rounded-md border border-line-subtle bg-surface-subtle px-2 py-0.5 text-center font-mono text-xs font-bold text-tx-main focus:border-brand outline-none"
+            aria-label="Direct page number jump"
+          />
+          <span className="text-tx-muted font-mono">of {reader.totalPages}</span>
         </div>
       </footer>
 

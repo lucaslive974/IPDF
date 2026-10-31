@@ -57,7 +57,7 @@ export function LibraryProvider({ children }: LibraryProviderProps) {
           title: cleanTitle,
           author: 'Unknown Author',
           format,
-          totalPages: 100,
+          totalPages: 0,
         });
         await loadBooks();
         return book;
