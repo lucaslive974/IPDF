@@ -49,5 +49,3 @@ export interface BackendService {
   buildTermLookupRequest(context: ReadingContext, targetLanguage?: string): Promise<LLMRequest>;
   syncBookWorkspace(bookHash: string): Promise<string>;
 }
-
-export type IBackendGateway = BackendService;

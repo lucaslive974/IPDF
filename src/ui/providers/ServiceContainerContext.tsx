@@ -6,13 +6,12 @@ import {
 } from '../../adapters/annotations/DiagramAnnotationStrategies';
 import { TauriBackend } from '../../adapters/ipc/TauriBackend';
 import { EpubViewerAdapter } from '../../adapters/viewers/EpubViewerAdapter';
-import type { BackendService, IBackendGateway } from '../../core/ports/IBackendGateway';
+import type { BackendService } from '../../core/ports/BackendService';
 import type { IDocumentViewer } from '../../core/ports/IDocumentViewer';
 import { AnnotationWorkbenchService } from '../../core/services/AnnotationWorkbenchService';
 
 export interface ServiceContainer {
   readonly services: BackendService;
-  readonly backendGateway: IBackendGateway;
   readonly annotationWorkbench: AnnotationWorkbenchService;
   readonly epubViewer: IDocumentViewer;
 }
@@ -22,18 +21,16 @@ export const ServiceContainerContext = createContext<ServiceContainer | null>(nu
 export interface ServiceContainerProviderProps {
   readonly children: ReactNode;
   readonly services?: BackendService;
-  readonly gateway?: IBackendGateway;
   readonly viewer?: IDocumentViewer;
 }
 
 export function ServiceContainerProvider({
   children,
   services: injectedServices,
-  gateway,
   viewer,
 }: ServiceContainerProviderProps) {
   const container = useMemo<ServiceContainer>(() => {
-    const services = injectedServices ?? gateway ?? new TauriBackend();
+    const services = injectedServices ?? new TauriBackend();
     const annotationWorkbench = new AnnotationWorkbenchService(services, [
       new AssistedRichTextStrategy(),
       new TldrawAnnotationStrategy(),
@@ -42,11 +39,10 @@ export function ServiceContainerProvider({
     const epubViewer = viewer ?? new EpubViewerAdapter();
     return {
       services,
-      backendGateway: services,
       annotationWorkbench,
       epubViewer,
     };
-  }, [injectedServices, gateway, viewer]);
+  }, [injectedServices, viewer]);
 
   return (
     <ServiceContainerContext.Provider value={container}>

@@ -14,7 +14,7 @@ import type {
   ImportLibraryBookInput,
   LLMRequest,
   ReadingContext,
-} from '../../core/ports/IBackendGateway';
+} from '../../core/ports/BackendService';
 
 export interface SerializedRichAnnotation {
   readonly type: RichAnnotationType;
@@ -190,5 +190,3 @@ export class TauriBackend implements BackendService {
     );
   }
 }
-
-export const TauriBackendGateway = TauriBackend;

@@ -18,7 +18,7 @@ export interface SettingsHook {
 }
 
 export function useSettings(): SettingsHook {
-  const { backendGateway } = useServiceContainer();
+  const { services } = useServiceContainer();
 
   const [monitoredFolders, setMonitoredFolders] = useState<string[]>([
     '~/Documents/PhilosophyBooks',
@@ -47,12 +47,12 @@ export function useSettings(): SettingsHook {
 
   const triggerSync = useCallback(
     async (bookHash = 'sha256-plato-republic-book-vii') => {
-      const exportedJson = await backendGateway.syncBookWorkspace(bookHash);
+      const exportedJson = await services.syncBookWorkspace(bookHash);
       setSyncExportPreview(exportedJson);
       setSyncStatusMessage('Last-Write-Wins synchronization completed successfully!');
       setTimeout(() => setSyncStatusMessage(null), 4000);
     },
-    [backendGateway]
+    [services]
   );
 
   const resetDatabase = useCallback(async () => {

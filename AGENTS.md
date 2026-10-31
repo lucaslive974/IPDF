@@ -9,7 +9,7 @@ Este repositório segue uma arquitetura **Hexagonal (Ports & Adapters)** estrita
 2. **[`docs/02-ARCHITECTURE-UML.md`](docs/02-ARCHITECTURE-UML.md)**
    Princípios de Clean Architecture, árvore de diretórios obrigatória (`src/core/domain`, `src/core/ports`, `src/core/services`, `src/adapters`, `src/ui` e `src/test/` para os testes de frontend/TS), diagrama de classes UML e estrutura de sincronização remota (*Cloudless Sync*).
 3. **[`docs/03-CORE-CONTRACTS.md`](docs/03-CORE-CONTRACTS.md)**
-   Contratos TypeScript exatos e imutáveis para objetos de valor, entidades (`Highlight`, `RichAnnotation` com Discriminated Unions e Handler Maps, `BookMetadata`) e portas (`IAnnotationToolStrategy`, `IAssistedTextFormattingStrategy`, `IDocumentViewer`, `IBackendGateway`).
+   Contratos TypeScript exatos e imutáveis para objetos de valor, entidades (`Highlight`, `RichAnnotation` com Discriminated Unions e Handler Maps, `BookMetadata`) e portas (`IAnnotationToolStrategy`, `IAssistedTextFormattingStrategy`, `IDocumentViewer`, `BackendService`).
 4. **[`docs/04-AGENT-WORKFLOW-AND-TDD.md`](docs/04-AGENT-WORKFLOW-AND-TDD.md)**
    Regras de engenharia, ciclo obrigatório **Red -> Green -> Verify -> Commit**, política *Zero `any`*, meta mínima obrigatória de **80% de cobertura de testes (Test Coverage)**, comando bloqueante `npm run verify` e matriz de testes unitários obrigatórios no Vitest.
 
@@ -17,7 +17,7 @@ Este repositório segue uma arquitetura **Hexagonal (Ports & Adapters)** estrita
 
 - **Arquitetura Backend-Heavy em Rust (`Caminho 2`):**
   - **Rust (`src-tauri/crates/ipdf-core/` & `src-tauri/`):** Concentra o motor pesado de dados, hashing SHA-256 em *streaming* (`Sha256BookHasher`), persistência SQLite, `StorageProvider` (arquivos avulsos, pastas locais, nuvem e `CachedStorageDecorator`), `DataPortabilityService` (LWW, ZIP), `CloudlessSyncEngine`, `RichPresenceManager` (Discord IPC / Webhooks), `PromptBuilder`, `TtsProvider` + `TtsSessionManager` (síntese de voz neural/nativa com *prefetch*) e `SystemBridge` (`MediaControlService`, `PowerSaveBlocker`, `NotificationService`, `ClipboardService`).
-  - **TypeScript (`src/`):** Focado exclusivamente em renderização DOM/Canvas (`IDocumentViewer`: `epub.js`, `pdf.js`), edição visual/assistida a 60fps (`IAnnotationToolStrategy`: `AssistedRichTextStrategy`, `tldraw`, `draw.io`), ponte IPC (`IBackendGateway`) e camada de apresentação **MVVC** (`src/ui/providers`, `src/ui/hooks`, `src/ui/components`).
+  - **TypeScript (`src/`):** Focado exclusivamente em renderização DOM/Canvas (`IDocumentViewer`), edição visual/assistida a 60fps (`IAnnotationToolStrategy`: `AssistedRichTextStrategy`, `tldraw`, `draw.io`), ponte IPC (`BackendService` / `TauriBackend`) e camada de apresentação **MVVC** (`src/ui/providers`, `src/ui/hooks`, `src/ui/components`).
 - **Código e Comentários 100% em Inglês:** Todo código-fonte (`src/` e `src-tauri/`), nomes de símbolos, mensagens de erro e comentários/JSDoc (quando estritamente necessários) devem ser escritos **exclusivamente em inglês**. Evite comentários óbvios nas estruturas de dados.
 - **Portabilidade Desktop + iOS (`WKWebView`):** Nunca utilize `Buffer` do Node.js em `src/core/`. Utilize sempre `Uint8Array` ou `ArrayBuffer`.
 - **Injeção de Dependência Pura:** Nenhuma classe em `src/core/` ou `ipdf-core` pode acessar singletons globais, `window` diretamente, banco de dados físico ou rede. Tudo entra via `constructor` / traits tipados pelas portas.

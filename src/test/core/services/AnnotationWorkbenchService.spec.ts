@@ -6,7 +6,7 @@ import {
 } from '../../../adapters/annotations/DiagramAnnotationStrategies';
 import type { AnnotationFormatterMap } from '../../../core/domain/RichAnnotation';
 import { AnnotationWorkbenchService } from '../../../core/services/AnnotationWorkbenchService';
-import { FakeBackendGateway } from '../../fakes/FakeBackendGateway';
+import { MockBackend } from '../../mocks/MockBackend';
 
 const createEmptyRect = (): DOMRect =>
   ({
@@ -21,13 +21,13 @@ const createEmptyRect = (): DOMRect =>
     toJSON: () => ({}),
   }) as DOMRect;
 
-describe('AnnotationWorkbenchService (60fps Frontend Strategy + IPC Gateway)', () => {
-  let gateway: FakeBackendGateway;
+describe('AnnotationWorkbenchService (60fps Frontend Strategy + Backend Persistence)', () => {
+  let backend: MockBackend;
   let service: AnnotationWorkbenchService;
 
   beforeEach(() => {
-    gateway = new FakeBackendGateway();
-    service = new AnnotationWorkbenchService(gateway, [
+    backend = new MockBackend();
+    service = new AnnotationWorkbenchService(backend, [
       new AssistedRichTextStrategy(),
       new TldrawAnnotationStrategy(),
       new DrawioAnnotationStrategy(),
@@ -212,7 +212,7 @@ describe('AnnotationWorkbenchService (60fps Frontend Strategy + IPC Gateway)', (
       })
     ).rejects.toThrow('Highlight not found');
 
-    const bareService = new AnnotationWorkbenchService(gateway);
+    const bareService = new AnnotationWorkbenchService(backend);
     const bareHl = await bareService.createFromSelection('book_bare', {
       text: 'No strategy',
       surroundingContext: 'Context',

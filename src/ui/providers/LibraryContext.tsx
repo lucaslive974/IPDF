@@ -26,20 +26,20 @@ export interface LibraryProviderProps {
 }
 
 export function LibraryProvider({ children }: LibraryProviderProps) {
-  const { backendGateway } = useServiceContainer();
+  const { services } = useServiceContainer();
   const [books, setBooks] = useState<BookMetadata[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const loadBooks = useCallback(async () => {
     setIsLoading(true);
     try {
-      const result = await backendGateway.listLibraryBooks();
+      const result = await services.listLibraryBooks();
       setBooks(result);
       return result;
     } finally {
       setIsLoading(false);
     }
-  }, [backendGateway]);
+  }, [services]);
 
   const importBookFile = useCallback(
     async (file: File): Promise<BookMetadata> => {
@@ -52,7 +52,7 @@ export function LibraryProvider({ children }: LibraryProviderProps) {
         const cleanTitle =
           file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ') || 'Untitled Document';
 
-        const book = await backendGateway.importLibraryBook({
+        const book = await services.importLibraryBook({
           rawBytes,
           title: cleanTitle,
           author: 'Unknown Author',
@@ -65,7 +65,7 @@ export function LibraryProvider({ children }: LibraryProviderProps) {
         setIsLoading(false);
       }
     },
-    [backendGateway, loadBooks]
+    [services, loadBooks]
   );
 
   const importSampleBook = useCallback(async () => {

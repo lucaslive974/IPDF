@@ -52,14 +52,14 @@ O projeto utiliza **Clean Architecture / Hexagonal Architecture (Ports & Adapter
 │   │   │   ├── RichAnnotation.ts         # Discriminated Unions de anotações (AssistedText, Tldraw, Drawio) + FormatterMap
 │   │   │   └── BookMetadata.ts           # Estrutura de metadados do livro
 │   │   ├── ports/
-│   │   │   ├── IBackendGateway.ts        # Porta IPC unificada conectando o Frontend ao ipdf-core em Rust
+│   │   │   ├── BackendService.ts         # Porta de serviços unificada conectando o Frontend ao ipdf-core em Rust
 │   │   │   ├── IDocumentViewer.ts        # Contrato de renderização DOM/Canvas (EPUB/PDF)
 │   │   │   └── IAnnotationStrategy.ts    # Contratos Strategy para editores visuais a 60fps (Texto Assistido, tldraw, draw.io)
 │   │   └── services/
-│   │       └── AnnotationWorkbenchService.ts # Orquestrador de edição 60fps (Command Dispatch + Formatters) persistindo via IBackendGateway
+│   │       └── AnnotationWorkbenchService.ts # Orquestrador de edição 60fps (Command Dispatch + Formatters) persistindo via BackendService
 │   ├── adapters/
 │   │   ├── ipc/
-│   │   │   └── TauriBackendGateway.ts    # Implementação de IBackendGateway via Tauri invoke()
+│   │   │   └── TauriBackend.ts           # Implementação de BackendService via Tauri invoke()
 │   │   └── annotations/                  # AssistedRichTextStrategy.ts, DiagramAnnotationStrategies.ts
 │   ├── ui/                               # Camada de Apresentação em Arquitetura MVVC
 │   │   ├── providers/                    # IoC / Injeção de Dependências e Tema (ServiceContainerContext.tsx, ThemeContext.tsx)
@@ -72,8 +72,8 @@ O projeto utiliza **Clean Architecture / Hexagonal Architecture (Ports & Adapter
 │       │   ├── domain/                   # Highlight.spec.ts
 │       │   └── services/                 # AnnotationWorkbenchService.spec.ts
 │       ├── adapters/
-│       │   └── ipc/                      # TauriBackendGateway.spec.ts
-│       └── fakes/                        # FakeBackendGateway.ts
+│       │   └── ipc/                      # TauriBackend.spec.ts
+│       └── mocks/                        # MockBackend.ts
 ```
 
 ---

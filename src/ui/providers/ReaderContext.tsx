@@ -12,7 +12,7 @@ import type { BookMetadata } from '../../core/domain/BookMetadata';
 import type { Highlight } from '../../core/domain/Highlight';
 import type { AnnotationFormatterMap } from '../../core/domain/RichAnnotation';
 import type { TextFormatStyle } from '../../core/domain/types';
-import type { DocumentPage } from '../../core/ports/IBackendGateway';
+import type { DocumentPage } from '../../core/ports/BackendService';
 import { useServiceContainer } from './ServiceContainerContext';
 
 export interface StudyDocumentDescriptor {
@@ -118,7 +118,7 @@ export interface ReaderProviderProps {
 }
 
 export function ReaderProvider({ children, book }: ReaderProviderProps) {
-  const { annotationWorkbench, backendGateway, epubViewer } = useServiceContainer();
+  const { annotationWorkbench, services, epubViewer } = useServiceContainer();
 
   const [document] = useState<StudyDocumentDescriptor>(() => {
     if (book) {
@@ -198,7 +198,7 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
 
     const bootstrapReader = async () => {
       try {
-        const pages = await backendGateway.getBookPages(document.bookHash, currentPage, 5);
+        const pages = await services.getBookPages(document.bookHash, currentPage, 5);
         if (!cancelled && pages.length > 0) {
           setLoadedPages(pages);
           const first = pages[0];
@@ -213,7 +213,7 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
             setTotalPages(book.totalPages);
           }
         } else {
-          const rawBytes = await backendGateway.readBookBinary(document.bookHash);
+          const rawBytes = await services.readBookBinary(document.bookHash);
           if (!cancelled && rawBytes.length > 0) {
             const container =
               typeof globalThis !== 'undefined' && globalThis.document?.createElement
@@ -249,7 +249,7 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
     };
   }, [
     annotationWorkbench,
-    backendGateway,
+    services,
     book?.totalPages,
     currentPage,
     document,
@@ -266,11 +266,7 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
         if (direction === 'next') {
           const lastPageNum = loadedPages[loadedPages.length - 1]?.pageNumber ?? 0;
           if (lastPageNum >= totalPages) return;
-          const nextPages = await backendGateway.getBookPages(
-            document.bookHash,
-            lastPageNum + 1,
-            5
-          );
+          const nextPages = await services.getBookPages(document.bookHash, lastPageNum + 1, 5);
           if (nextPages.length === 0) return;
           setLoadedPages((prev) => {
             const combined = [...prev, ...nextPages];
@@ -284,11 +280,7 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
           if (firstPageNum <= 1) return;
           const prevStart = Math.max(1, firstPageNum - 5);
           const prevCount = firstPageNum - prevStart;
-          const prevPages = await backendGateway.getBookPages(
-            document.bookHash,
-            prevStart,
-            prevCount
-          );
+          const prevPages = await services.getBookPages(document.bookHash, prevStart, prevCount);
           if (prevPages.length === 0) return;
           setLoadedPages((prev) => {
             const combined = [...prevPages, ...prev];
@@ -304,7 +296,7 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
         isLoadingMoreRef.current = false;
       }
     },
-    [backendGateway, document.bookHash, loadedPages, totalPages]
+    [services, document.bookHash, loadedPages, totalPages]
   );
 
   const onPageVisible = useCallback(
@@ -315,9 +307,9 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
       if (visible?.chapterTitle) {
         setChapterTitle(visible.chapterTitle);
       }
-      void backendGateway.updateBookProgress(document.bookHash, pageNumber, totalPages);
+      void services.updateBookProgress(document.bookHash, pageNumber, totalPages);
     },
-    [backendGateway, currentPage, document.bookHash, loadedPages, totalPages]
+    [services, currentPage, document.bookHash, loadedPages, totalPages]
   );
 
   const getHighlightsForPage = useCallback(
@@ -334,7 +326,7 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
       const exists = loadedPages.some((p) => p.pageNumber === next);
       if (!exists) {
         const start = Math.max(1, next - 2);
-        const pages = await backendGateway.getBookPages(document.bookHash, start, 5);
+        const pages = await services.getBookPages(document.bookHash, start, 5);
         if (pages.length > 0) {
           setLoadedPages(pages);
           const active = pages.find((p) => p.pageNumber === next) ?? pages[0];
@@ -348,10 +340,10 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
           setChapterTitle(active.chapterTitle);
         }
       }
-      await backendGateway.updateBookProgress(document.bookHash, next, totalPages);
+      await services.updateBookProgress(document.bookHash, next, totalPages);
       await refreshState(null, next);
     },
-    [backendGateway, document.bookHash, loadedPages, refreshState, totalPages]
+    [services, document.bookHash, loadedPages, refreshState, totalPages]
   );
 
   const navigatePage = useCallback(
@@ -488,7 +480,7 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
       if (!target) return;
 
       target.changeColor(colorHex);
-      await backendGateway.saveHighlight(target);
+      await services.saveHighlight(target);
       await refreshState(highlightId, currentPage);
 
       setActiveHighlightPopover((prev) =>
@@ -496,7 +488,7 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
       );
       setExpandedHighlight((prev) => (prev && prev.id === highlightId ? target : prev));
     },
-    [backendGateway, currentPage, highlights, refreshState]
+    [services, currentPage, highlights, refreshState]
   );
 
   const deleteHighlight = useCallback(
@@ -505,13 +497,13 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
       if (expandedHighlight?.id === highlightId) {
         closeExpandedStudio();
       }
-      await backendGateway.deleteHighlight(highlightId);
+      await services.deleteHighlight(highlightId);
       await annotationWorkbench.loadBookHighlights(document.bookHash);
       await refreshState(null, currentPage);
     },
     [
       annotationWorkbench,
-      backendGateway,
+      services,
       closeExpandedStudio,
       closeHighlightPopover,
       currentPage,
@@ -580,7 +572,7 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
       const activeId = selectedIdRef.current;
       const active = highlights.find((h) => h.id === activeId);
       const textToQuery = customText ?? active?.text ?? 'noesis';
-      const req = await backendGateway.buildTermLookupRequest(
+      const req = await services.buildTermLookupRequest(
         {
           bookTitle: document.bookTitle,
           bookAuthor: document.bookAuthor,
@@ -592,7 +584,7 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
       );
       setLlmPromptPreview(JSON.stringify(req, null, 2));
     },
-    [backendGateway, document, highlights]
+    [services, document, highlights]
   );
 
   const value = useMemo<ReaderContextValue>(

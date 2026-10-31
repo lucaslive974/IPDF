@@ -6,7 +6,7 @@ import type {
   ImportLibraryBookInput,
   LLMRequest,
   ReadingContext,
-} from '../../core/ports/IBackendGateway';
+} from '../../core/ports/BackendService';
 
 export class MockBackend implements BackendService {
   private readonly books = new Map<string, BookMetadata>();
