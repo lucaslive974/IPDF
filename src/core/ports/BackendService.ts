@@ -43,6 +43,7 @@ export interface BackendService {
     currentPage: number,
     totalPages: number
   ): Promise<BookMetadata>;
+  renameBook(bookHash: string, newTitle: string): Promise<BookMetadata>;
   loadBookHighlights(bookHash: string): Promise<Highlight[]>;
   saveHighlight(highlight: Highlight): Promise<void>;
   deleteHighlight(highlightId: string): Promise<void>;

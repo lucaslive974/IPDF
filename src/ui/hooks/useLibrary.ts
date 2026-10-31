@@ -15,6 +15,7 @@ export interface LibraryViewModel {
     currentPage: number,
     totalPages: number
   ): Promise<BookMetadata>;
+  renameBook(bookHash: string, newTitle: string): Promise<BookMetadata>;
 }
 
 // Keep type alias for backwards compatibility
@@ -79,6 +80,20 @@ export function useLibrary(): LibraryViewModel {
     [services, upsertBook]
   );
 
+  const renameBook = useCallback(
+    async (bookHash: string, newTitle: string): Promise<BookMetadata> => {
+      setLoading(true);
+      try {
+        const updated = await services.renameBook(bookHash, newTitle);
+        upsertBook(updated);
+        return updated;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [services, setLoading, upsertBook]
+  );
+
   useEffect(() => {
     if (books.length === 0) {
       void loadBooks();
@@ -92,5 +107,6 @@ export function useLibrary(): LibraryViewModel {
     importBookFile,
     importSampleBook,
     updateBookProgress,
+    renameBook,
   };
 }

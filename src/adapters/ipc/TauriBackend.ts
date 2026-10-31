@@ -106,6 +106,14 @@ export class TauriBackend implements BackendService {
     return this.deserializeBookMetadata(dto);
   }
 
+  public async renameBook(bookHash: string, newTitle: string): Promise<BookMetadata> {
+    const dto = await invoke<SerializedBookMetadata>('rename_book', {
+      bookHash,
+      newTitle,
+    });
+    return this.deserializeBookMetadata(dto);
+  }
+
   public async loadBookHighlights(bookHash: string): Promise<Highlight[]> {
     const dtos = await invoke<SerializedHighlight[]>('load_book_highlights', { bookHash });
     return dtos.map((dto) => this.deserializeHighlight(dto));

@@ -7,6 +7,7 @@ import { BooksGrid } from './library/BooksGrid';
 import { LibraryAnnotationsTab } from './library/LibraryAnnotationsTab';
 import { LibraryCollectionsTab } from './library/LibraryCollectionsTab';
 import { LibraryHeader } from './library/LibraryHeader';
+import { RenameBookDialog } from './library/RenameBookDialog';
 import type { SegmentedControlOption } from './ui';
 
 export type LibraryTabId = 'recents' | 'all' | 'highlights' | 'lists';
@@ -35,6 +36,7 @@ export function LibraryView({
 
   const [activeTab, setActiveTab] = useState<LibraryTabId>('recents');
   const [searchQuery, setSearchQuery] = useState('');
+  const [bookToRename, setBookToRename] = useState<BookMetadata | null>(null);
 
   const handleOpenFileInput = () => {
     if (propOnImportNewBook) {
@@ -92,6 +94,7 @@ export function LibraryView({
           <BooksGrid
             books={filteredBooks}
             onOpenBook={onOpenBook}
+            onRenameBook={setBookToRename}
             onImportClick={handleOpenFileInput}
           />
         )}
@@ -100,6 +103,15 @@ export function LibraryView({
 
         {activeTab === 'lists' && <LibraryCollectionsTab />}
       </main>
+
+      <RenameBookDialog
+        isOpen={Boolean(bookToRename)}
+        book={bookToRename}
+        onClose={() => setBookToRename(null)}
+        onRename={async (hash, newTitle) => {
+          await library.renameBook(hash, newTitle);
+        }}
+      />
     </div>
   );
 }

@@ -6,12 +6,14 @@ import { BookCard } from './BookCard';
 export interface BooksGridProps {
   readonly books: readonly BookMetadata[];
   readonly onOpenBook: (book: BookMetadata) => void;
+  readonly onRenameBook?: (book: BookMetadata) => void;
   readonly onImportClick?: () => void;
 }
 
 export const BooksGrid = memo(function BooksGrid({
   books,
   onOpenBook,
+  onRenameBook,
   onImportClick,
 }: BooksGridProps) {
   if (books.length === 0) {
@@ -39,7 +41,12 @@ export const BooksGrid = memo(function BooksGrid({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
       {books.map((book) => (
-        <BookCard key={book.bookHash} book={book} onOpenBook={onOpenBook} />
+        <BookCard
+          key={book.bookHash}
+          book={book}
+          onOpenBook={onOpenBook}
+          onRenameBook={onRenameBook}
+        />
       ))}
     </div>
   );

@@ -216,3 +216,23 @@ export function TrashIcon({ className = 'h-4 w-4', ...props }: SVGProps<SVGSVGEl
     </svg>
   );
 }
+
+export function PencilIcon({ className = 'h-4 w-4', ...props }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      className={className}
+      {...props}
+    >
+      <title>Edit</title>
+      <path
+        d="m14.2 3.8 2 2-9.7 9.7H4.5v-2l9.7-9.7ZM12.7 5.3l2 2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}

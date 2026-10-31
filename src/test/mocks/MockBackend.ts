@@ -105,6 +105,20 @@ export class MockBackend implements BackendService {
     return updated;
   }
 
+  public async renameBook(bookHash: string, newTitle: string): Promise<BookMetadata> {
+    const existing = this.books.get(bookHash);
+    if (!existing) {
+      throw new Error(`Book not found: ${bookHash}`);
+    }
+    const updated: BookMetadata = {
+      ...existing,
+      title: newTitle,
+      updatedAt: new Date(),
+    };
+    this.books.set(bookHash, updated);
+    return updated;
+  }
+
   public async loadBookHighlights(bookHash: string): Promise<Highlight[]> {
     return Array.from(this.highlights.values()).filter((h) => h.bookHash === bookHash);
   }

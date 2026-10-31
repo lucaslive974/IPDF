@@ -56,6 +56,19 @@ vi.mock('@tauri-apps/api/core', () => ({
       storedBooks.set(bookHash, updated);
       return updated as unknown as T;
     }
+    if (cmd === 'rename_book') {
+      const bookHash = String(args.bookHash);
+      const newTitle = String(args.newTitle);
+      const existing = storedBooks.get(bookHash);
+      if (!existing) throw new Error(`Book not found: ${bookHash}`);
+      const updated: SerializedBookMetadata = {
+        ...existing,
+        title: newTitle,
+        updatedAtMs: 1_700_000_200_000,
+      };
+      storedBooks.set(bookHash, updated);
+      return updated as unknown as T;
+    }
     if (cmd === 'save_highlight') {
       const dto = args.highlight as SerializedHighlight;
       storedDtos.set(dto.id, dto);
@@ -115,6 +128,10 @@ describe('TauriBackend (Direct Tauri IPC)', () => {
 
     const updated = await backend.updateBookProgress('sha256-imported-book', 10, 100);
     expect(updated.percentage).toBe(10);
+
+    const renamed = await backend.renameBook('sha256-imported-book', 'Renamed Tauri Book');
+    expect(renamed.title).toBe('Renamed Tauri Book');
+    expect(renamed.bookHash).toBe('sha256-imported-book');
 
     const highlight = new Highlight(
       'hl-direct',
@@ -190,6 +207,9 @@ describe('MockBackend (In-Memory Test Double)', () => {
 
     const updated = await mock.updateBookProgress(imported.bookHash, 20, 320);
     expect(updated.currentPage).toBe(20);
+
+    const renamedMock = await mock.renameBook(imported.bookHash, 'Renamed Mock Book');
+    expect(renamedMock.title).toBe('Renamed Mock Book');
 
     const pages = await mock.getBookPages(imported.bookHash, 1, 3);
     expect(pages).toHaveLength(3);

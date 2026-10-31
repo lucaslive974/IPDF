@@ -92,4 +92,24 @@ describe('useLibraryStore', () => {
     expect(useLibraryStore.getState().books[0]?.currentPage).toBe(10);
     expect(useLibraryStore.getState().books[0]?.percentage).toBe(20);
   });
+
+  it('renames a book in place using renameBook', () => {
+    const b1: BookMetadata = {
+      bookHash: 'h1',
+      title: 'Original Title',
+      author: 'A1',
+      format: 'epub',
+      currentPage: 1,
+      totalPages: 50,
+      percentage: 2,
+      lastReadAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    useLibraryStore.getState().setBooks([b1]);
+    useLibraryStore.getState().renameBook('h1', 'Renamed Document Title');
+
+    expect(useLibraryStore.getState().books[0]?.title).toBe('Renamed Document Title');
+    expect(useLibraryStore.getState().books[0]?.bookHash).toBe('h1');
+  });
 });

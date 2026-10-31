@@ -1,14 +1,15 @@
 import { memo } from 'react';
 import type { BookMetadata } from '../../../core/domain/BookMetadata';
-import { Badge, Button, Card, ProgressBar } from '../ui';
+import { Badge, Button, Card, IconButton, PencilIcon, ProgressBar } from '../ui';
 import { BookCover, isValidAuthor } from './BookCover';
 
 export interface BookCardProps {
   readonly book: BookMetadata;
   readonly onOpenBook: (book: BookMetadata) => void;
+  readonly onRenameBook?: (book: BookMetadata) => void;
 }
 
-export const BookCard = memo(function BookCard({ book, onOpenBook }: BookCardProps) {
+export const BookCard = memo(function BookCard({ book, onOpenBook, onRenameBook }: BookCardProps) {
   const showAuthor = isValidAuthor(book.author);
 
   return (
@@ -21,9 +22,25 @@ export const BookCard = memo(function BookCard({ book, onOpenBook }: BookCardPro
         <BookCover title={book.title} author={book.author} coverImageUrl={book.coverImageUrl} />
 
         <div className="flex items-center justify-between">
-          <Badge variant="neutral" size="xs">
-            {book.format}
-          </Badge>
+          <div className="flex items-center gap-1.5">
+            <Badge variant="neutral" size="xs">
+              {book.format}
+            </Badge>
+            {onRenameBook && (
+              <IconButton
+                variant="ghost"
+                size="xs"
+                label="Rename document"
+                className="opacity-0 group-hover:opacity-100 transition-opacity text-tx-muted hover:text-tx-main"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRenameBook(book);
+                }}
+              >
+                <PencilIcon className="h-3 w-3" />
+              </IconButton>
+            )}
+          </div>
           <span className="text-[0.68rem] font-mono text-tx-muted">
             {Math.round(book.percentage)}%
           </span>
