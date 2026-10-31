@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { useNavigation } from '../../hooks/useNavigation';
 import { useReader } from '../../hooks/useReader';
 import { useReaderUI } from '../../hooks/useReaderUI';
+import { useTypographyStore } from '../../stores/useTypographyStore';
 import { ArrowLeftIcon, Button, IconButton, SettingsIcon } from '../ui';
 
 export interface ReaderHeaderProps {
@@ -12,6 +13,7 @@ export const ReaderHeader = memo(function ReaderHeader({ onClose }: ReaderHeader
   const reader = useReader();
   const navigation = useNavigation();
   const { isChromeVisible } = useReaderUI();
+  const toggleAppearancePopover = useTypographyStore((s) => s.toggleAppearancePopover);
 
   return (
     <header
@@ -40,12 +42,20 @@ export const ReaderHeader = memo(function ReaderHeader({ onClose }: ReaderHeader
         </div>
       </div>
 
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2">
         <div className="flex items-center gap-2 rounded-full border border-line-subtle/70 bg-surface/60 px-3 py-0.5 text-xs text-tx-secondary">
           <span className="font-mono text-[0.68rem] text-tx-muted">
             Page {reader.currentPage} of {reader.totalPages}
           </span>
         </div>
+        <IconButton
+          variant="ghost"
+          size="xs"
+          label="Appearance & Typography"
+          onClick={toggleAppearancePopover}
+        >
+          <span className="font-serif font-semibold text-xs tracking-tighter">AA</span>
+        </IconButton>
         <IconButton variant="ghost" size="xs" label="Settings" onClick={navigation.openSettings}>
           <SettingsIcon className="h-4 w-4" />
         </IconButton>

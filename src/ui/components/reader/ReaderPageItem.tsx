@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import type { Highlight } from '../../../core/domain/Highlight';
 import type { DocumentPage } from '../../../core/ports/BackendService';
+import { FONT_FAMILY_DEFINITIONS, useTypographyStore } from '../../stores/useTypographyStore';
 
 export interface TextChunk {
   readonly text: string;
@@ -85,6 +86,14 @@ export const ReaderPageItem = memo(function ReaderPageItem({
   onHighlightClick,
   onHighlightContextMenu,
 }: ReaderPageItemProps) {
+  const fontSize = useTypographyStore((s) => s.fontSize);
+  const zoomLevel = useTypographyStore((s) => s.zoomLevel);
+  const fontFamily = useTypographyStore((s) => s.fontFamily);
+  const lineSpacing = useTypographyStore((s) => s.lineSpacing);
+
+  const def = FONT_FAMILY_DEFINITIONS[fontFamily];
+  const effectiveFontSize = fontSize * zoomLevel;
+
   return (
     <article
       data-page-number={page.pageNumber}
@@ -123,7 +132,10 @@ export const ReaderPageItem = memo(function ReaderPageItem({
 
       {/* Chapter Heading & Page Indicator */}
       <div className="text-center mb-4">
-        <h2 className="text-xl font-serif font-semibold text-tx-main sm:text-2xl tracking-tight">
+        <h2
+          className="text-xl font-semibold text-tx-main sm:text-2xl tracking-tight"
+          style={{ fontFamily: def.cssFontFamily }}
+        >
           {page.chapterTitle}
         </h2>
         <p className="mt-1.5 text-[0.65rem] text-tx-muted tracking-wider uppercase font-medium">
@@ -131,8 +143,15 @@ export const ReaderPageItem = memo(function ReaderPageItem({
         </p>
       </div>
 
-      {/* Paragraphs with tokenized inline highlights */}
-      <div className="space-y-6 text-lg sm:text-xl leading-[1.85] text-tx-main font-serif tracking-normal">
+      {/* Paragraphs with tokenized inline highlights and dynamic typography */}
+      <div
+        className="space-y-6 text-tx-main tracking-normal"
+        style={{
+          fontFamily: def.cssFontFamily,
+          fontSize: `${effectiveFontSize}px`,
+          lineHeight: lineSpacing,
+        }}
+      >
         {page.paragraphs.map((paragraph, pIdx) => {
           const chunks = tokenizeTextWithHighlights(paragraph, highlights);
 

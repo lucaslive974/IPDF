@@ -3,6 +3,7 @@ import type { Highlight } from '../../../core/domain/Highlight';
 import type { DocumentPage } from '../../../core/ports/BackendService';
 import { useReader } from '../../hooks/useReader';
 import { useReaderUI } from '../../hooks/useReaderUI';
+import { useTypographyStore } from '../../stores/useTypographyStore';
 import { ReaderPageItem } from './ReaderPageItem';
 
 export interface ReaderStreamProps {
@@ -14,6 +15,10 @@ export const ReaderStream = memo(function ReaderStream({
 }: ReaderStreamProps) {
   const reader = useReader();
   const { setContextMenu, openHighlightPopover } = useReaderUI();
+
+  const increaseZoom = useTypographyStore((s) => s.increaseZoom);
+  const decreaseZoom = useTypographyStore((s) => s.decreaseZoom);
+  const setZoomLevel = useTypographyStore((s) => s.setZoomLevel);
 
   const contentAreaRef = useRef<HTMLDivElement>(null);
   const bottomSentinelRef = useRef<HTMLDivElement>(null);
@@ -69,7 +74,72 @@ export const ReaderStream = memo(function ReaderStream({
     };
   }, [reader.currentPage, setContextMenu]);
 
-  // 2. Infinite Scroll Sentinel Observer (Loads 5 pages ahead on demand)
+  // 2. Ctrl + Scroll / Cmd + Scroll to Zoom
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        if (e.deltaY < 0) {
+          increaseZoom(0.04);
+        } else {
+          decreaseZoom(0.04);
+        }
+      }
+    };
+
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      window.removeEventListener('wheel', handleWheel);
+    };
+  }, [increaseZoom, decreaseZoom]);
+
+  // 3. Pinch-to-Zoom on Mobile / Touch Devices
+  useEffect(() => {
+    let initialPinchDistance: number | null = null;
+    let initialPinchZoom = 1.0;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        if (t1 && t2) {
+          initialPinchDistance = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+          initialPinchZoom = useTypographyStore.getState().zoomLevel;
+        }
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && initialPinchDistance !== null && initialPinchDistance > 0) {
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        if (t1 && t2) {
+          e.preventDefault();
+          const currentDistance = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+          const ratio = currentDistance / initialPinchDistance;
+          setZoomLevel(initialPinchZoom * ratio);
+        }
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        initialPinchDistance = null;
+      }
+    };
+
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [setZoomLevel]);
+
+  // 4. Infinite Scroll Sentinel Observer (Loads 5 pages ahead on demand)
   useEffect(() => {
     const sentinel = bottomSentinelRef.current;
     if (!sentinel) return;
@@ -109,7 +179,7 @@ export const ReaderStream = memo(function ReaderStream({
     };
   }, [reader]);
 
-  // 3. Dynamic Page Focal Tracker (Tracks active page at 60fps based on reading line)
+  // 5. Dynamic Page Focal Tracker (Tracks active page at 60fps based on reading line)
   useEffect(() => {
     let ticking = false;
 

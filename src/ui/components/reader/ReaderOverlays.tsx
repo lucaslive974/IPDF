@@ -1,12 +1,14 @@
 import { memo } from 'react';
 import { useReader } from '../../hooks/useReader';
 import { useReaderUI } from '../../hooks/useReaderUI';
+import { useTypographyStore } from '../../stores/useTypographyStore';
 import { ExplainDialog } from '../ExplainDialog';
 import { HighlightDetailModal } from '../HighlightDetailModal';
 import { HighlightPopover } from '../HighlightPopover';
 import { NoteDialog } from '../NoteDialog';
 import { ReaderContextMenu } from '../ReaderContextMenu';
 import { TranslateDialog } from '../TranslateDialog';
+import { ReaderAppearancePopover } from './ReaderAppearancePopover';
 
 export const ReaderOverlays = memo(function ReaderOverlays() {
   const reader = useReader();
@@ -21,8 +23,22 @@ export const ReaderOverlays = memo(function ReaderOverlays() {
     setActiveTranslateDialog,
   } = useReaderUI();
 
+  const isAppearancePopoverOpen = useTypographyStore((s) => s.isAppearancePopoverOpen);
+  const setAppearancePopoverOpen = useTypographyStore((s) => s.setAppearancePopoverOpen);
+
+  const popoverX = typeof window !== 'undefined' ? Math.max(160, window.innerWidth - 170) : 800;
+
   return (
     <>
+      {/* 0. Apple Books Style Appearance & Typography Popover */}
+      {isAppearancePopoverOpen && (
+        <ReaderAppearancePopover
+          x={popoverX}
+          y={60}
+          onClose={() => setAppearancePopoverOpen(false)}
+        />
+      )}
+
       {/* 1. Right-Click Context Menu (Dropdown) */}
       {contextMenu && (
         <ReaderContextMenu
@@ -82,7 +98,7 @@ export const ReaderOverlays = memo(function ReaderOverlays() {
           onOpenStudio={() => {
             void reader
               .createHighlightWithColor(
-                '#eab308',
+                '#d97706',
                 activeNoteDialog.text,
                 '',
                 activeNoteDialog.pageNumber
@@ -104,7 +120,7 @@ export const ReaderOverlays = memo(function ReaderOverlays() {
           bookTitle={`${reader.document.bookTitle} (${reader.document.chapterTitle})`}
           onSaveAsAnnotation={(explanation) => {
             void reader.createHighlightWithColor(
-              '#a855f7',
+              '#7c3aed',
               activeExplainDialog.text,
               `[IA Explanation]: ${explanation}`,
               activeExplainDialog.pageNumber
@@ -122,7 +138,7 @@ export const ReaderOverlays = memo(function ReaderOverlays() {
           text={activeTranslateDialog.text}
           onSaveAsNote={(translation) => {
             void reader.createHighlightWithColor(
-              '#38bdf8',
+              '#0284c7',
               activeTranslateDialog.text,
               `[Tradução]: ${translation}`,
               activeTranslateDialog.pageNumber
