@@ -1,0 +1,327 @@
+use ipdf_core::adapters::configuration::{
+    FileConfigurationStore, LocalStorageConfigurationStore, SqliteConfigurationStore,
+};
+use ipdf_core::adapters::persistence::{SqliteBookRepository, SqliteHighlightRepository};
+use ipdf_core::adapters::platform::{
+    create_platform_environment, AndroidEnvironment, IosEnvironment, LinuxEnvironment,
+    WebEnvironment, WindowsEnvironment,
+};
+use ipdf_core::adapters::storage::LocalFolderStorageAdapter;
+use ipdf_core::core::domain::{BookFormat, BookMetadata, Highlight, HighlightAnchor, PlatformKind};
+use ipdf_core::core::ports::{
+    BookRepository, ConfigurationStore, HighlightRepository, PlatformEnvironment, StorageProvider,
+};
+use std::env;
+use std::fs;
+use std::path::PathBuf;
+
+#[test]
+fn test_platform_environments_path_resolution() {
+    let temp_base = env::temp_dir().join(format!("ipdf_env_test_{}", std::process::id()));
+    let _ = fs::remove_dir_all(&temp_base);
+
+    // 1. Linux with Flatpak .var path
+    let linux = LinuxEnvironment::new(Some(temp_base.join(".var/app/com.ipdf.reader")));
+    assert_eq!(linux.platform_kind(), PlatformKind::Linux);
+    let linux_data = linux.data_dir().unwrap();
+    let linux_cfg = linux.config_dir().unwrap();
+    let linux_cache = linux.cache_dir().unwrap();
+    assert!(linux_data
+        .to_string_lossy()
+        .contains(".var/app/com.ipdf.reader/data"));
+    assert!(linux_cfg
+        .to_string_lossy()
+        .contains(".var/app/com.ipdf.reader/config"));
+    assert!(linux_cache
+        .to_string_lossy()
+        .contains(".var/app/com.ipdf.reader/cache"));
+    assert!(linux
+        .resolve_database_path("ipdf.db")
+        .unwrap()
+        .ends_with("ipdf.db"));
+    assert!(linux
+        .resolve_highlights_path("sha256-book1")
+        .unwrap()
+        .to_string_lossy()
+        .ends_with("sha256-book1.highlights.json"));
+
+    let linux_default = LinuxEnvironment::default();
+    assert_eq!(linux_default.platform_kind(), PlatformKind::Linux);
+    assert!(linux_default.data_dir().is_ok());
+
+    // 2. Android (.var / files dir)
+    let android = AndroidEnvironment::new(Some(temp_base.join(".var/android/data")));
+    assert_eq!(android.platform_kind(), PlatformKind::Android);
+    assert!(android
+        .data_dir()
+        .unwrap()
+        .to_string_lossy()
+        .contains(".var/android/data/files"));
+    assert!(android
+        .config_dir()
+        .unwrap()
+        .to_string_lossy()
+        .contains(".var/android/data/shared_prefs"));
+    assert!(android
+        .cache_dir()
+        .unwrap()
+        .to_string_lossy()
+        .contains(".var/android/data/cache"));
+
+    let android_default = AndroidEnvironment::default();
+    assert_eq!(android_default.platform_kind(), PlatformKind::Android);
+    assert!(android_default.config_dir().is_ok());
+
+    // 3. Windows (AppData / LocalAppData)
+    let windows = WindowsEnvironment::new(Some(temp_base.join("Users/Test/AppData")));
+    assert_eq!(windows.platform_kind(), PlatformKind::Windows);
+    assert!(windows
+        .config_dir()
+        .unwrap()
+        .to_string_lossy()
+        .contains("Roaming/IPDF"));
+    assert!(windows
+        .data_dir()
+        .unwrap()
+        .to_string_lossy()
+        .contains("Local/IPDF/Data"));
+    assert!(windows
+        .cache_dir()
+        .unwrap()
+        .to_string_lossy()
+        .contains("Local/IPDF/Cache"));
+
+    let windows_default = WindowsEnvironment::default();
+    assert_eq!(windows_default.platform_kind(), PlatformKind::Windows);
+    assert!(windows_default.cache_dir().is_ok());
+
+    // 4. iOS (iPhone storage Documents / Application Support)
+    let ios = IosEnvironment::new(Some(
+        temp_base.join("var/mobile/Containers/Data/Application"),
+    ));
+    assert_eq!(ios.platform_kind(), PlatformKind::Ios);
+    assert!(ios
+        .data_dir()
+        .unwrap()
+        .to_string_lossy()
+        .contains("Documents"));
+    assert!(ios
+        .config_dir()
+        .unwrap()
+        .to_string_lossy()
+        .contains("Library/Application Support/IPDF"));
+    assert!(ios
+        .cache_dir()
+        .unwrap()
+        .to_string_lossy()
+        .contains("Library/Caches/IPDF"));
+
+    let ios_default = IosEnvironment::default();
+    assert_eq!(ios_default.platform_kind(), PlatformKind::Ios);
+    assert!(ios_default.data_dir().is_ok());
+
+    // 5. Web (LocalStorage / virtual path)
+    let web = WebEnvironment::new(Some("/local-storage/ipdf".into()));
+    assert_eq!(web.platform_kind(), PlatformKind::Web);
+    assert_eq!(
+        web.data_dir().unwrap(),
+        PathBuf::from("/local-storage/ipdf/data")
+    );
+    assert_eq!(
+        web.config_dir().unwrap(),
+        PathBuf::from("/local-storage/ipdf/config")
+    );
+    assert_eq!(
+        web.cache_dir().unwrap(),
+        PathBuf::from("/local-storage/ipdf/cache")
+    );
+
+    let web_default = WebEnvironment::default();
+    assert_eq!(web_default.platform_kind(), PlatformKind::Web);
+
+    // Factory with all PlatformKinds
+    for kind in [
+        PlatformKind::Linux,
+        PlatformKind::Android,
+        PlatformKind::Windows,
+        PlatformKind::Ios,
+        PlatformKind::Web,
+    ] {
+        let boxed = create_platform_environment(kind, Some(temp_base.join("custom")));
+        assert_eq!(boxed.platform_kind(), kind);
+    }
+
+    let _ = fs::remove_dir_all(&temp_base);
+}
+
+#[test]
+fn test_configuration_stores_file_localstorage_and_sqlite() {
+    let temp_base = env::temp_dir().join(format!("ipdf_cfg_test_{}", std::process::id()));
+    let _ = fs::remove_dir_all(&temp_base);
+
+    // 1. FileConfigurationStore
+    let cfg_file = temp_base.join("settings.json");
+    let mut file_store = FileConfigurationStore::new(&cfg_file).unwrap();
+    assert_eq!(file_store.get("theme").unwrap(), None);
+    file_store.set("theme", "dark").unwrap();
+    file_store.set("font_size", "16").unwrap();
+    assert_eq!(file_store.get("theme").unwrap(), Some("dark".to_string()));
+    assert_eq!(file_store.get("font_size").unwrap(), Some("16".to_string()));
+    assert_eq!(file_store.keys().unwrap().len(), 2);
+
+    file_store.remove("theme").unwrap();
+    assert_eq!(file_store.get("theme").unwrap(), None);
+    assert_eq!(file_store.keys().unwrap().len(), 1);
+
+    // Reopen from disk to verify persistence
+    let mut file_store_reopened = FileConfigurationStore::new(&cfg_file).unwrap();
+    assert_eq!(
+        file_store_reopened.get("font_size").unwrap(),
+        Some("16".to_string())
+    );
+    file_store_reopened.clear().unwrap();
+    assert!(file_store_reopened.keys().unwrap().is_empty());
+
+    // 2. LocalStorageConfigurationStore (Web simulation)
+    let mut ls_store = LocalStorageConfigurationStore::new(Some("ipdf_"));
+    assert_eq!(ls_store.get("sync_provider").unwrap(), None);
+    ls_store.set("sync_provider", "google_drive").unwrap();
+    assert_eq!(
+        ls_store.get("sync_provider").unwrap(),
+        Some("google_drive".to_string())
+    );
+    assert_eq!(ls_store.keys().unwrap(), vec!["sync_provider".to_string()]);
+    ls_store.remove("sync_provider").unwrap();
+    assert_eq!(ls_store.get("sync_provider").unwrap(), None);
+    ls_store.set("k1", "v1").unwrap();
+    ls_store.clear().unwrap();
+    assert!(ls_store.keys().unwrap().is_empty());
+
+    let mut ls_default = LocalStorageConfigurationStore::default();
+    ls_default.set("bare_key", "value").unwrap();
+    assert_eq!(
+        ls_default.get("bare_key").unwrap(),
+        Some("value".to_string())
+    );
+    assert_eq!(ls_default.keys().unwrap(), vec!["bare_key".to_string()]);
+
+    // 3. SqliteConfigurationStore
+    let db_path = temp_base.join("config.db");
+    let mut sqlite_store = SqliteConfigurationStore::open_file(&db_path).unwrap();
+    sqlite_store.set("active_language", "pt-BR").unwrap();
+    sqlite_store.set("tts_speed", "1.2").unwrap();
+    assert_eq!(
+        sqlite_store.get("active_language").unwrap(),
+        Some("pt-BR".to_string())
+    );
+    assert_eq!(
+        sqlite_store.get("tts_speed").unwrap(),
+        Some("1.2".to_string())
+    );
+    assert_eq!(sqlite_store.keys().unwrap().len(), 2);
+
+    sqlite_store.remove("tts_speed").unwrap();
+    assert_eq!(sqlite_store.get("tts_speed").unwrap(), None);
+    assert_eq!(
+        sqlite_store.keys().unwrap(),
+        vec!["active_language".to_string()]
+    );
+
+    sqlite_store.clear().unwrap();
+    assert!(sqlite_store.keys().unwrap().is_empty());
+
+    let mut in_memory_sqlite = SqliteConfigurationStore::new_in_memory().unwrap();
+    in_memory_sqlite.set("mem_key", "mem_val").unwrap();
+    assert_eq!(
+        in_memory_sqlite.get("mem_key").unwrap(),
+        Some("mem_val".to_string())
+    );
+
+    let _ = fs::remove_dir_all(&temp_base);
+}
+
+#[test]
+fn test_repositories_and_storage_integration_with_platform_environment() {
+    let temp_base = env::temp_dir().join(format!("ipdf_integration_test_{}", std::process::id()));
+    let _ = fs::remove_dir_all(&temp_base);
+
+    // Use Linux Flatpak environment as representative
+    let env = LinuxEnvironment::new(Some(temp_base.join(".var/app/com.ipdf.reader")));
+
+    // 1. Open SQLite repositories directly for platform environment
+    let mut book_repo = SqliteBookRepository::open_for_platform(&env).unwrap();
+    let mut hl_repo = SqliteHighlightRepository::open_for_platform(&env).unwrap();
+
+    let book = BookMetadata {
+        book_hash: "sha256-tim-ferriss".to_string(),
+        title: "The 4-Hour Workweek".to_string(),
+        author: "Tim Ferriss".to_string(),
+        format: BookFormat::Epub,
+        current_page: 1,
+        total_pages: 300,
+        percentage: 0.33,
+        cover_image_url: None,
+        last_read_at_ms: 1000,
+        updated_at_ms: 1000,
+    };
+    book_repo.save(book.clone()).unwrap();
+    assert_eq!(
+        book_repo.find_by_id("sha256-tim-ferriss").unwrap().unwrap(),
+        book
+    );
+
+    let hl = Highlight::new(
+        "hl-1",
+        "sha256-tim-ferriss",
+        "Lifestyle design",
+        "#eab308",
+        HighlightAnchor {
+            format: BookFormat::Epub,
+            page_number: 1,
+            epub_cfi: Some("epubcfi(/6/2!/4/2)".to_string()),
+            pdf_rects: None,
+        },
+        "Focus on efficiency",
+        1000,
+    );
+    hl_repo.save(hl.clone()).unwrap();
+    assert_eq!(
+        hl_repo.find_by_id("hl-1").unwrap().unwrap().text,
+        "Lifestyle design"
+    );
+
+    // 2. Open LocalFolderStorageAdapter for platform environment
+    let mut storage = LocalFolderStorageAdapter::for_platform("platform-storage", &env).unwrap();
+    assert!(storage.initialize().unwrap());
+    storage
+        .write_book_binary(
+            "sha256-tim-ferriss",
+            b"epub-content".to_vec(),
+            BookFormat::Epub,
+        )
+        .unwrap();
+    assert!(storage.has_book_binary("sha256-tim-ferriss").unwrap());
+    assert_eq!(
+        storage.read_book_binary("sha256-tim-ferriss").unwrap(),
+        b"epub-content".to_vec()
+    );
+
+    // 3. Configuration Stores for platform environment
+    let mut config_store = FileConfigurationStore::for_platform(&env, "app_settings.json").unwrap();
+    config_store.set("reader_theme", "sepia").unwrap();
+    assert_eq!(
+        config_store.get("reader_theme").unwrap(),
+        Some("sepia".to_string())
+    );
+
+    let mut sqlite_config_store = SqliteConfigurationStore::for_platform(&env).unwrap();
+    sqlite_config_store
+        .set("platform_setting", "enabled")
+        .unwrap();
+    assert_eq!(
+        sqlite_config_store.get("platform_setting").unwrap(),
+        Some("enabled".to_string())
+    );
+
+    let _ = fs::remove_dir_all(&temp_base);
+}

@@ -1,11 +1,17 @@
+use ipdf_core::adapters::configuration::FileConfigurationStore;
 use ipdf_core::adapters::persistence::{SqliteBookRepository, SqliteHighlightRepository};
+#[allow(unused_imports)]
+use ipdf_core::adapters::platform::{
+    AndroidEnvironment, IosEnvironment, LinuxEnvironment, WindowsEnvironment,
+};
 use ipdf_core::adapters::storage::LocalFolderStorageAdapter;
 use ipdf_core::core::domain::{BookFormat, BookMetadata, HighlightAnchor};
-use ipdf_core::core::ports::{ReadingContext, StorageProvider};
+use ipdf_core::core::ports::{
+    ConfigurationStore, PlatformEnvironment, ReadingContext, StorageProvider,
+};
 use ipdf_core::core::services::{ImportBookInput, LibraryManager, PromptBuilder, Sha256BookHasher};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::env;
 use std::io::Cursor;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -43,22 +49,50 @@ pub struct IpcLlmRequestDto {
     pub max_tokens: u32,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IpcPlatformInfoDto {
+    pub platform: String,
+    pub config_dir: String,
+    pub data_dir: String,
+    pub cache_dir: String,
+    pub database_path: String,
+}
+
 pub struct BackendState {
     highlights: BTreeMap<String, IpcHighlightDto>,
     library: LibraryManager<SqliteBookRepository, LocalFolderStorageAdapter>,
     _highlight_repo: SqliteHighlightRepository,
+    config_store: FileConfigurationStore,
+    platform_env: Box<dyn PlatformEnvironment + Send>,
 }
 
 impl Default for BackendState {
     fn default() -> Self {
-        let storage_dir = env::temp_dir().join("ipdf-workspace-storage");
-        let mut storage = LocalFolderStorageAdapter::new("local-folder", storage_dir);
+        #[cfg(target_os = "windows")]
+        let platform: Box<dyn PlatformEnvironment + Send> = Box::new(WindowsEnvironment::default());
+        #[cfg(target_os = "ios")]
+        let platform: Box<dyn PlatformEnvironment + Send> = Box::new(IosEnvironment::default());
+        #[cfg(target_os = "android")]
+        let platform: Box<dyn PlatformEnvironment + Send> = Box::new(AndroidEnvironment::default());
+        #[cfg(not(any(target_os = "windows", target_os = "ios", target_os = "android")))]
+        let platform: Box<dyn PlatformEnvironment + Send> = Box::new(LinuxEnvironment::default());
+
+        let mut storage = LocalFolderStorageAdapter::for_platform("local-folder", &*platform)
+            .expect("Failed to init storage for platform");
         let _ = storage.initialize();
-        let book_repo =
-            SqliteBookRepository::new_in_memory().expect("Failed to init SQLite BookRepository");
-        let highlight_repo = SqliteHighlightRepository::new_in_memory()
-            .expect("Failed to init SQLite HighlightRepository");
+
+        let book_repo = SqliteBookRepository::open_for_platform(&*platform)
+            .unwrap_or_else(|_| SqliteBookRepository::new_in_memory().unwrap());
+        let highlight_repo = SqliteHighlightRepository::open_for_platform(&*platform)
+            .unwrap_or_else(|_| SqliteHighlightRepository::new_in_memory().unwrap());
         let mut library = LibraryManager::new(book_repo, storage);
+
+        let config_store = FileConfigurationStore::for_platform(&*platform, "settings.json")
+            .unwrap_or_else(|_| {
+                let fallback_path = std::env::temp_dir().join("ipdf_settings.json");
+                FileConfigurationStore::new(fallback_path).unwrap()
+            });
 
         let _ = library.import_book(ImportBookInput {
             raw_bytes: b"PK\x03\x04plato-republic-book-vii".to_vec(),
@@ -74,6 +108,8 @@ impl Default for BackendState {
             highlights: BTreeMap::new(),
             library,
             _highlight_repo: highlight_repo,
+            config_store,
+            platform_env: platform,
         }
     }
 }
@@ -226,6 +262,41 @@ fn sync_book_workspace(
     serde_json::to_string_pretty(&payload).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn get_platform_info(state: State<'_, Mutex<BackendState>>) -> Result<IpcPlatformInfoDto, String> {
+    let guard = state.lock().map_err(|e| e.to_string())?;
+    let env = &guard.platform_env;
+    Ok(IpcPlatformInfoDto {
+        platform: format!("{:?}", env.platform_kind()),
+        config_dir: env.config_dir()?.to_string_lossy().to_string(),
+        data_dir: env.data_dir()?.to_string_lossy().to_string(),
+        cache_dir: env.cache_dir()?.to_string_lossy().to_string(),
+        database_path: env
+            .resolve_database_path("ipdf.db")?
+            .to_string_lossy()
+            .to_string(),
+    })
+}
+
+#[tauri::command]
+fn get_app_setting(
+    key: String,
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<Option<String>, String> {
+    let guard = state.lock().map_err(|e| e.to_string())?;
+    guard.config_store.get(&key)
+}
+
+#[tauri::command]
+fn set_app_setting(
+    key: String,
+    value: String,
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<(), String> {
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    guard.config_store.set(&key, &value)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -240,7 +311,10 @@ pub fn run() {
             save_highlight,
             delete_highlight,
             build_term_lookup_prompt,
-            sync_book_workspace
+            sync_book_workspace,
+            get_platform_info,
+            get_app_setting,
+            set_app_setting
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

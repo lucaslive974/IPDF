@@ -1,7 +1,8 @@
 use crate::core::domain::{BookFormat, BookMetadata};
-use crate::core::ports::BookRepository;
+use crate::core::ports::{BookRepository, PlatformEnvironment};
 use rusqlite::{params, Connection, OptionalExtension};
 use std::fmt::Display;
+use std::fs;
 use std::path::Path;
 
 fn to_err<E: Display>(err: E) -> String {
@@ -25,8 +26,18 @@ impl SqliteBookRepository {
     }
 
     pub fn open_file<P: AsRef<Path>>(path: P) -> Result<Self, String> {
+        if let Some(parent) = path.as_ref().parent() {
+            if !parent.as_os_str().is_empty() && !parent.exists() {
+                fs::create_dir_all(parent).map_err(to_err)?;
+            }
+        }
         let conn = Connection::open(path).map_err(to_err)?;
         Self::new(conn)
+    }
+
+    pub fn open_for_platform<E: PlatformEnvironment + ?Sized>(env: &E) -> Result<Self, String> {
+        let db_path = env.resolve_database_path("ipdf.db")?;
+        Self::open_file(db_path)
     }
 
     fn initialize_schema(&self) -> Result<(), String> {

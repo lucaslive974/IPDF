@@ -1,15 +1,19 @@
+pub mod configuration_store;
 pub mod export_strategy;
 pub mod llm_provider;
+pub mod platform_environment;
 pub mod presence_provider;
 pub mod repository;
 pub mod storage_provider;
 pub mod system_bridge;
 pub mod tts_provider;
 
+pub use configuration_store::ConfigurationStore;
 pub use export_strategy::{
     ConflictResolution, ExportOptions, ExportStrategy, ImportReport, SyncPayload,
 };
 pub use llm_provider::{LlmRequest, ReadingContext};
+pub use platform_environment::PlatformEnvironment;
 pub use presence_provider::{PresenceProvider, ReadingActivity};
 pub use repository::{BookRepository, HighlightRepository};
 pub use storage_provider::{StorageEntry, StorageProvider};

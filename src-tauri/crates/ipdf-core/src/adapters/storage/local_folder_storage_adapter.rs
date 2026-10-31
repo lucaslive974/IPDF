@@ -1,5 +1,5 @@
 use crate::core::domain::BookFormat;
-use crate::core::ports::{StorageEntry, StorageProvider};
+use crate::core::ports::{PlatformEnvironment, StorageEntry, StorageProvider};
 use std::fmt::Display;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -33,6 +33,14 @@ impl LocalFolderStorageAdapter {
             root_dir: root_dir.as_ref().to_path_buf(),
             initialized: false,
         }
+    }
+
+    pub fn for_platform<E: PlatformEnvironment + ?Sized>(
+        provider_id: impl Into<String>,
+        env: &E,
+    ) -> Result<Self, String> {
+        let data_dir = env.data_dir()?;
+        Ok(Self::new(provider_id, data_dir))
     }
 
     fn resolve_book_path(&self, book_hash: &str) -> PathBuf {
