@@ -1,6 +1,7 @@
 import { type ReactNode, createContext, useCallback, useContext, useMemo, useState } from 'react';
 import type { BookMetadata } from '../../core/domain/BookMetadata';
-import type { AppViewMode } from '../hooks/studyWorkbenchTypes';
+
+export type AppViewMode = 'library' | 'reader' | 'settings';
 
 export interface NavigationContextValue {
   readonly currentView: AppViewMode;
