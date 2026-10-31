@@ -4,5 +4,7 @@ coverage/
 .tauri/
 src-tauri/target/
 src-tauri/crates/*/target/
+src-tauri/gen/
+.vscode/
 *.log
 .DS_Store
