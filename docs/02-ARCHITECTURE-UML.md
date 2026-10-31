@@ -30,17 +30,18 @@ O projeto utiliza **Clean Architecture / Hexagonal Architecture (Ports & Adapter
 │   │       ├── src/
 │   │       │   ├── core/
 │   │       │   │   ├── domain/           # types.rs, book_metadata.rs, rich_annotation.rs, highlight.rs
-│   │       │   │   ├── ports/            # repository.rs, storage_provider.rs, export_strategy.rs, llm_provider.rs, presence_provider.rs
-│   │       │   │   └── services/         # sha256_book_hasher.rs, highlight_manager.rs, data_portability_service.rs, cloudless_sync_engine.rs, prompt_builder.rs, rich_presence_manager.rs
+│   │       │   │   ├── ports/            # repository.rs, storage_provider.rs, export_strategy.rs, llm_provider.rs, presence_provider.rs, tts_provider.rs, system_bridge.rs
+│   │       │   │   └── services/         # sha256_book_hasher.rs, highlight_manager.rs, data_portability_service.rs, cloudless_sync_engine.rs, prompt_builder.rs, rich_presence_manager.rs, tts_session_manager.rs
 │   │       │   ├── adapters/
 │   │       │   │   └── storage/          # cached_storage_decorator.rs
 │   │       │   └── lib.rs
 │   │       └── tests/                    # Suíte de testes Rust modularizada
-│   │           ├── fakes/                # mod.rs (InMemoryBookRepo, InMemoryHighlightRepo, InMemoryStorage, SpyPresence)
+│   │           ├── fakes/                # mod.rs (InMemoryBookRepo, InMemoryHighlightRepo, InMemoryStorage, SpyPresence, SpyTtsProvider, SpyMediaControls, SpyPowerBlocker)
 │   │           ├── highlight_spec.rs
 │   │           ├── sha256_book_hasher_spec.rs
 │   │           ├── cloudless_sync_and_portability_spec.rs
-│   │           └── cached_storage_and_presence_spec.rs
+│   │           ├── cached_storage_and_presence_spec.rs
+│   │           └── tts_and_system_bridge_spec.rs
 │   └── src/
 │       └── lib.rs                        # Comandos IPC Tauri (#[tauri::command]) expondo o ipdf-core
 ├── src/
@@ -53,9 +54,7 @@ O projeto utiliza **Clean Architecture / Hexagonal Architecture (Ports & Adapter
 │   │   ├── ports/
 │   │   │   ├── IBackendGateway.ts        # Porta IPC unificada conectando o Frontend ao ipdf-core em Rust
 │   │   │   ├── IDocumentViewer.ts        # Contrato de renderização DOM/Canvas (EPUB/PDF)
-│   │   │   ├── IAnnotationStrategy.ts    # Contratos Strategy para editores visuais a 60fps (Texto Assistido, tldraw, draw.io)
-│   │   │   ├── ITTSProvider.ts           # Contrato de síntese de voz
-│   │   │   └── ISystemBridge.ts          # Contratos de integração WebView/SO
+│   │   │   └── IAnnotationStrategy.ts    # Contratos Strategy para editores visuais a 60fps (Texto Assistido, tldraw, draw.io)
 │   │   └── services/
 │   │       └── AnnotationWorkbenchService.ts # Orquestrador de edição 60fps (Command Dispatch + Visitor) persistindo via IBackendGateway
 │   ├── adapters/

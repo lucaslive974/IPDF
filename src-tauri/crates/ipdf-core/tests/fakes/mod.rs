@@ -2,8 +2,9 @@
 
 use ipdf_core::core::domain::{AnnotationVisitor, BookFormat, BookMetadata, Highlight};
 use ipdf_core::core::ports::{
-    BookRepository, ExportStrategy, HighlightRepository, PresenceProvider, ReadingActivity,
-    StorageEntry, StorageProvider, SyncPayload,
+    BookRepository, ExportStrategy, HighlightRepository, MediaControlService, MediaMetadata,
+    PlaybackState, PowerSaveBlocker, PresenceProvider, ReadingActivity, SpeakOptions, StorageEntry,
+    StorageProvider, SyncPayload, TtsProvider,
 };
 use std::collections::BTreeMap;
 
@@ -210,6 +211,81 @@ impl PresenceProvider for SpyPresence {
     }
     fn clear_activity(&mut self) -> Result<(), String> {
         self.published.clear();
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct SpyTtsProvider {
+    pub initialized: bool,
+    pub spoken_ids: Vec<String>,
+    pub prefetched_ids: Vec<String>,
+    pub paused: bool,
+    pub stopped: bool,
+}
+
+impl TtsProvider for SpyTtsProvider {
+    fn initialize(&mut self) -> Result<(), String> {
+        self.initialized = true;
+        Ok(())
+    }
+    fn speak(
+        &mut self,
+        sentence_id: &str,
+        _text: &str,
+        _options: &SpeakOptions,
+    ) -> Result<(), String> {
+        self.spoken_ids.push(sentence_id.to_string());
+        Ok(())
+    }
+    fn prefetch(
+        &mut self,
+        sentence_id: &str,
+        _text: &str,
+        _options: &SpeakOptions,
+    ) -> Result<(), String> {
+        self.prefetched_ids.push(sentence_id.to_string());
+        Ok(())
+    }
+    fn pause(&mut self) -> Result<(), String> {
+        self.paused = true;
+        Ok(())
+    }
+    fn resume(&mut self) -> Result<(), String> {
+        self.paused = false;
+        Ok(())
+    }
+    fn stop(&mut self) -> Result<(), String> {
+        self.stopped = true;
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct SpyMediaControls {
+    pub last_metadata: Option<MediaMetadata>,
+    pub states: Vec<PlaybackState>,
+}
+
+impl MediaControlService for SpyMediaControls {
+    fn set_metadata(&mut self, metadata: &MediaMetadata) -> Result<(), String> {
+        self.last_metadata = Some(metadata.clone());
+        Ok(())
+    }
+    fn set_playback_state(&mut self, state: PlaybackState) -> Result<(), String> {
+        self.states.push(state);
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct SpyPowerBlocker {
+    pub awake_history: Vec<bool>,
+}
+
+impl PowerSaveBlocker for SpyPowerBlocker {
+    fn keep_screen_awake(&mut self, enable: bool) -> Result<(), String> {
+        self.awake_history.push(enable);
         Ok(())
     }
 }
