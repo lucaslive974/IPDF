@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import { type ReactNode, createContext, useContext, useRef } from 'react';
 import { AssistedRichTextStrategy } from '../../adapters/annotations/AssistedRichTextStrategy';
 import {
@@ -17,15 +18,20 @@ export interface ServiceContainer {
   readonly annotationWorkbench: AnnotationWorkbenchService;
 }
 
-function createBrowserFallbackInvoke(): TauriInvokeFn {
+export function createHybridInvoke(): TauriInvokeFn {
   const highlightsByBook = new Map<string, Map<string, SerializedHighlight>>();
 
   return async <T,>(cmd: string, args: Record<string, unknown> = {}): Promise<T> => {
-    const tauriWindow = globalThis as unknown as {
-      __TAURI_INTERNALS__?: { invoke: TauriInvokeFn };
-    };
-    if (tauriWindow.__TAURI_INTERNALS__?.invoke) {
-      return tauriWindow.__TAURI_INTERNALS__.invoke<T>(cmd, args);
+    const hasTauriInternals =
+      typeof globalThis !== 'undefined' &&
+      '__TAURI_INTERNALS__' in (globalThis as Record<string, unknown>);
+
+    if (hasTauriInternals) {
+      try {
+        return await invoke<T>(cmd, args);
+      } catch {
+        // Fallback to in-memory handler if native command is unavailable
+      }
     }
 
     if (cmd === 'load_book_highlights') {
@@ -56,8 +62,17 @@ function createBrowserFallbackInvoke(): TauriInvokeFn {
     if (cmd === 'build_term_lookup_prompt') {
       return {
         systemPrompt: `Rust ipdf-core PromptBuilder (${String(args.targetLanguage ?? 'en')})`,
-        userPrompt: `Book: "${String(args.bookTitle ?? '')}" | Selected: "${String(args.selectedText ?? '')}"`,
-        temperature: 0.3,
+        userPrompt: [
+          `Book Title: ${String(args.bookTitle ?? '')}`,
+          `Author: ${String(args.bookAuthor ?? 'Unknown')}`,
+          args.chapterTitle ? `Chapter: ${String(args.chapterTitle)}` : null,
+          `Surrounding Paragraph: "${String(args.surroundingContext ?? '')}"`,
+          `Selected Text: "${String(args.selectedText ?? '')}"`,
+          `Task: Define the selected term "${String(args.selectedText ?? '')}" in ${String(args.targetLanguage ?? 'en')} within this specific work's context.`,
+        ]
+          .filter(Boolean)
+          .join('\n'),
+        temperature: 0.2,
         maxTokens: 500,
       } as unknown as T;
     }
@@ -67,9 +82,10 @@ function createBrowserFallbackInvoke(): TauriInvokeFn {
       const highlights = Array.from(highlightsByBook.get(bookHash)?.values() ?? []);
       return JSON.stringify(
         {
-          version: '1.0',
-          engine: 'ipdf-core (Rust LWW)',
+          schemaVersion: 1,
+          engine: 'ipdf-core (In-Memory LWW Sync)',
           bookHash,
+          highlightsCount: highlights.length,
           highlights,
         },
         null,
@@ -82,7 +98,7 @@ function createBrowserFallbackInvoke(): TauriInvokeFn {
 }
 
 export function createDefaultServiceContainer(customGateway?: IBackendGateway): ServiceContainer {
-  const backendGateway = customGateway ?? new TauriBackendGateway(createBrowserFallbackInvoke());
+  const backendGateway = customGateway ?? new TauriBackendGateway(createHybridInvoke());
   const annotationWorkbench = new AnnotationWorkbenchService(backendGateway, [
     new AssistedRichTextStrategy(),
     new TldrawAnnotationStrategy(),

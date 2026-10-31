@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Highlight } from '../../core/domain/Highlight';
 import type { IAnnotationVisitor } from '../../core/domain/RichAnnotation';
 import type { TextFormatStyle } from '../../core/domain/types';
@@ -23,6 +23,12 @@ const DEFAULT_DOCUMENT: StudyDocumentDescriptor = {
     'and necks chained so that they cannot move, and can only see before them, being prevented by ' +
     'the chains from turning round their heads (noesis vs. doxa).',
 };
+
+const FALLBACK_PASSAGE_EXCERPTS = [
+  'human beings living in an underground den',
+  'mouth open towards the light and reaching all along the den',
+  'prevented by the chains from turning round their heads',
+];
 
 const createEmptyRect = (): DOMRect =>
   ({
@@ -62,6 +68,9 @@ export function useStudyWorkbenchViewModel(
 
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selectedIdRef = useRef<string | null>(null);
+  const excerptCounterRef = useRef<number>(0);
+
   const [noteInput, setNoteInput] = useState('');
   const [selectionRange, setSelectionRange] = useState<{ start: number; end: number }>({
     start: 0,
@@ -76,12 +85,14 @@ export function useStudyWorkbenchViewModel(
       const pageHighlights = annotationWorkbench.getForPage(1);
       setHighlights([...pageHighlights]);
 
-      const targetId = activeHighlightId ?? selectedId ?? pageHighlights[0]?.id ?? null;
+      const targetId = activeHighlightId ?? selectedIdRef.current ?? pageHighlights[0]?.id ?? null;
       if (!targetId) {
         return;
       }
 
+      selectedIdRef.current = targetId;
       setSelectedId(targetId);
+
       const found = pageHighlights.find((h) => h.id === targetId);
       if (found) {
         setNoteInput(found.note);
@@ -94,12 +105,16 @@ export function useStudyWorkbenchViewModel(
         setVisitorOutput(annotationWorkbench.visitHighlightAnnotations(targetId, visitor));
       }
     },
-    [annotationWorkbench, selectedId]
+    [annotationWorkbench]
   );
 
   useEffect(() => {
+    let cancelled = false;
     const initializeBookSession = async () => {
       await annotationWorkbench.loadBookHighlights(document.bookHash);
+      if (cancelled) {
+        return;
+      }
       const existing = annotationWorkbench.getForPage(1);
       if (existing.length === 0) {
         const created = await annotationWorkbench.createFromSelection(
@@ -113,12 +128,17 @@ export function useStudyWorkbenchViewModel(
           '#eab308',
           'Transition from sensory opinion to pure intellection'
         );
-        await refreshState(created.id);
-      } else {
-        await refreshState(existing[0].id);
+        if (!cancelled) {
+          await refreshState(created.id);
+        }
+      } else if (!cancelled) {
+        await refreshState(existing[0]?.id);
       }
     };
     void initializeBookSession();
+    return () => {
+      cancelled = true;
+    };
   }, [annotationWorkbench, document, refreshState]);
 
   const selectHighlight = useCallback(
@@ -128,9 +148,32 @@ export function useStudyWorkbenchViewModel(
     [refreshState]
   );
 
-  const updateNoteDraft = useCallback((value: string) => {
-    setNoteInput(value);
-  }, []);
+  const updateNoteDraft = useCallback(
+    (value: string) => {
+      setNoteInput(value);
+      const currentId = selectedIdRef.current;
+      if (currentId) {
+        void annotationWorkbench
+          .interactWithAnnotation(currentId, 'assisted-markdown', {
+            target: 'assisted-markdown',
+            action: 'replace-text',
+            text: value,
+          })
+          .then(() => {
+            const visitor: IAnnotationVisitor<string> = {
+              visitAssistedText: (node) => `[Assisted Text] ${node.rawData}`,
+              visitTldrawBoard: (node) =>
+                `[tldraw Board] ${node.rawData} | SVG: ${node.svgPreview}`,
+              visitDrawioDiagram: (node) =>
+                `[draw.io Diagram] ${node.rawData} | SVG: ${node.svgPreview}`,
+            };
+            setVisitorOutput(annotationWorkbench.visitHighlightAnnotations(currentId, visitor));
+            setHighlights([...annotationWorkbench.getForPage(1)]);
+          });
+      }
+    },
+    [annotationWorkbench]
+  );
 
   const updateSelectionRange = useCallback((start: number, end: number) => {
     setSelectionRange({ start, end });
@@ -138,11 +181,14 @@ export function useStudyWorkbenchViewModel(
 
   const createHighlightFromCurrentSelection = useCallback(
     async (color: string) => {
-      const browserSel = window.getSelection()?.toString().trim();
-      const textToHighlight =
-        browserSel && browserSel.length > 0
-          ? browserSel
-          : 'human beings living in an underground den';
+      const browserSel =
+        typeof window !== 'undefined' ? window.getSelection()?.toString().trim() : '';
+      const fallbackExcerpt =
+        FALLBACK_PASSAGE_EXCERPTS[excerptCounterRef.current % FALLBACK_PASSAGE_EXCERPTS.length] ??
+        'human beings living in an underground den';
+      excerptCounterRef.current += 1;
+
+      const textToHighlight = browserSel && browserSel.length > 0 ? browserSel : fallbackExcerpt;
 
       const created = await annotationWorkbench.createFromSelection(
         document.bookHash,
@@ -152,13 +198,16 @@ export function useStudyWorkbenchViewModel(
           anchor: {
             format: 'epub',
             pageNumber: 1,
-            epubCfi: `epubcfi(/6/14!/4/2/${Date.now()})`,
+            epubCfi: `epubcfi(/6/14!/4/2/${Date.now()}_${excerptCounterRef.current})`,
           },
           clientRect: createEmptyRect(),
         },
         color,
         'New section study annotation'
       );
+      if (typeof window !== 'undefined') {
+        window.getSelection()?.removeAllRanges();
+      }
       await refreshState(created.id);
     },
     [annotationWorkbench, document, refreshState]
@@ -166,10 +215,11 @@ export function useStudyWorkbenchViewModel(
 
   const applyAssistedFormat = useCallback(
     async (style: TextFormatStyle) => {
-      if (!selectedId) {
+      const activeId = selectedIdRef.current;
+      if (!activeId) {
         return;
       }
-      await annotationWorkbench.interactWithAnnotation(selectedId, 'assisted-markdown', {
+      await annotationWorkbench.interactWithAnnotation(activeId, 'assisted-markdown', {
         target: 'assisted-markdown',
         action: 'replace-text',
         text: noteInput,
@@ -180,31 +230,33 @@ export function useStudyWorkbenchViewModel(
           ? selectionRange
           : { start: 0, end: noteInput.length };
 
-      await annotationWorkbench.interactWithAnnotation(selectedId, 'assisted-markdown', {
+      await annotationWorkbench.interactWithAnnotation(activeId, 'assisted-markdown', {
         target: 'assisted-markdown',
         action: 'apply-format',
         selectionRange: range,
         formatStyle: style,
       });
-      await refreshState(selectedId);
+      setSelectionRange({ start: 0, end: 0 });
+      await refreshState(activeId);
     },
-    [annotationWorkbench, noteInput, refreshState, selectedId, selectionRange]
+    [annotationWorkbench, noteInput, refreshState, selectionRange]
   );
 
   const attachVisualBoard = useCallback(
     async (kind: 'tldraw' | 'drawio') => {
-      if (!selectedId) {
+      const activeId = selectedIdRef.current;
+      if (!activeId) {
         return;
       }
       if (kind === 'tldraw') {
-        await annotationWorkbench.interactWithAnnotation(selectedId, 'tldraw', {
+        await annotationWorkbench.interactWithAnnotation(activeId, 'tldraw', {
           target: 'tldraw',
           action: 'save-snapshot',
           snapshotJson: '{"shapes":[{"type":"arrow","from":"Doxa","to":"Noesis"}]}',
           svgPreview: '<svg viewBox="0 0 120 40"><text>tldraw: Doxa -> Noesis</text></svg>',
         });
       } else {
-        await annotationWorkbench.interactWithAnnotation(selectedId, 'drawio', {
+        await annotationWorkbench.interactWithAnnotation(activeId, 'drawio', {
           target: 'drawio',
           action: 'save-diagram',
           xmlOrJsonDiagram:
@@ -212,13 +264,14 @@ export function useStudyWorkbenchViewModel(
           svgPreview: '<svg viewBox="0 0 120 40"><text>draw.io: Divided Line</text></svg>',
         });
       }
-      await refreshState(selectedId);
+      await refreshState(activeId);
     },
-    [annotationWorkbench, refreshState, selectedId]
+    [annotationWorkbench, refreshState]
   );
 
   const generateContextualPrompt = useCallback(async () => {
-    const active = highlights.find((h) => h.id === selectedId);
+    const activeId = selectedIdRef.current;
+    const active = highlights.find((h) => h.id === activeId);
     const req = await backendGateway.buildTermLookupRequest(
       {
         bookTitle: document.bookTitle,
@@ -230,7 +283,7 @@ export function useStudyWorkbenchViewModel(
       'en'
     );
     setLlmPromptPreview(JSON.stringify(req, null, 2));
-  }, [backendGateway, document, highlights, selectedId]);
+  }, [backendGateway, document, highlights]);
 
   const runCloudlessSync = useCallback(async () => {
     const exportedJson = await backendGateway.syncBookWorkspace(document.bookHash);
