@@ -21,7 +21,7 @@ function StudyWorkbenchView() {
 
         <SectionAnnotationPanel
           noteInput={vm.noteInput}
-          visitorOutput={vm.visitorOutput}
+          formattedAnnotations={vm.formattedAnnotations}
           llmPromptPreview={vm.llmPromptPreview}
           syncExportPreview={vm.syncExportPreview}
           onNoteChange={vm.updateNoteDraft}

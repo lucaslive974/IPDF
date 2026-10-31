@@ -1,12 +1,9 @@
-mod fakes;
-
-use fakes::TestVisitor;
 use ipdf_core::core::domain::{
     BookFormat, BoundingBox, Highlight, HighlightAnchor, RichAnnotation, RichAnnotationType,
 };
 
 #[test]
-fn test_highlight_overlap_and_visitor_double_dispatch() {
+fn test_highlight_overlap_and_pattern_matching() {
     let mut hl = Highlight::new(
         "hl-1",
         "book-1",
@@ -93,9 +90,23 @@ fn test_highlight_overlap_and_visitor_double_dispatch() {
     assert_eq!(hl.note, "**Plato**");
     assert_eq!(hl.updated_at_ms, 2700);
 
-    let visited = hl.accept_visitor(&TestVisitor);
+    // Native pattern matching in Rust
+    let formatted: Vec<String> = hl
+        .annotations
+        .values()
+        .map(|ann| match ann {
+            RichAnnotation::AssistedMarkdown { raw_data, .. } => format!("MD:{raw_data}"),
+            RichAnnotation::Tldraw { svg_preview, .. } => {
+                format!("TLDRAW:{}", svg_preview.as_deref().unwrap_or_default())
+            }
+            RichAnnotation::Drawio { svg_preview, .. } => {
+                format!("DRAWIO:{}", svg_preview.as_deref().unwrap_or_default())
+            }
+        })
+        .collect();
+
     assert_eq!(
-        visited,
+        formatted,
         vec![
             "MD:**Plato**",
             "TLDRAW:<svg>board</svg>",

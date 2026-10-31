@@ -23,7 +23,7 @@ O sistema opera sob os princípios **Offline-First** e **BYOC (Bring Your Own Cl
 | **Linguagem Principal** | **TypeScript (Strict Mode)** | `strict: true`, proibição de `any`, uso exclusivo de `Uint8Array` / `ArrayBuffer` (sem `Node.js Buffer`). |
 | **Renderizador EPUB** | `epub.js` ou `foliate-js` | Baseado em DOM dinâmico e *Canonical Fragment Identifier* (**CFI**). |
 | **Renderizador PDF** | `pdfjs-dist` (Mozilla PDF.js) | Renderização em Canvas + TextLayer com coordenadas cartesianas normalizadas (`BoundingBox`). |
-| **Anotações Ricas (Strategy + Visitor)** | Editor WYSIWYG Assistido + `tldraw` + `draw.io` | Formatação de texto assistida (negrito, sublinhado, cores, listas sem exigir conhecimento de sintaxe Markdown), quadro branco livre (`tldraw`) e diagramas (`draw.io`) abstraídos via *Strategy* e *Visitor Pattern* compondo o `HighlightManager`. |
+| **Anotações Ricas (Strategy + Discriminated Unions)** | Editor WYSIWYG Assistido + `tldraw` + `draw.io` | Formatação de texto assistida (negrito, sublinhado, cores, listas sem exigir conhecimento de sintaxe Markdown), quadro branco livre (`tldraw`) e diagramas (`draw.io`) abstraídos via *Strategy Pattern* e *Discriminated Unions/Handler Maps* compondo o `AnnotationWorkbenchService`. |
 | **Persistência Local** | **SQLite** + **Local FS** | `@tauri-apps/plugin-sql` para metadados/grifos/anotações e `@tauri-apps/plugin-fs` para binários de livros. |
 | **Identidade de Obras** | **SHA-256 (`bookHash`)** | Calculado sobre o `ArrayBuffer` binário do arquivo, garantindo identidade única entre dispositivos independente do nome do arquivo. |
 | **Qualidade & Testes** | **Vitest (+ Coverage v8)** + **Biome** + **TSC** | Pipeline bloqueante via `npm run verify` (`format` + `lint` + `typecheck` + `test --coverage` com **meta mínima obrigatória de 80% de cobertura**). |
@@ -37,12 +37,12 @@ O sistema opera sob os princípios **Offline-First** e **BYOC (Bring Your Own Cl
    - **`StandaloneFileStorageAdapter`:** Abertura direta de arquivos `.epub` ou `.pdf` avulsos do sistema operacional, mapeados internamente pelo `bookHash` SHA-256.
    - **`LocalFolderStorageAdapter`:** Operação direta sobre uma pasta local escolhida pelo usuário (ou sincronizada via Syncthing/iCloud/Dropbox).
    - **`GoogleDriveStorageAdapter` + `CachedStorageDecorator` (Decorator Pattern):** Sincronização remota sob demanda (*On-Demand Caching*) transparente para o Core.
-2. **Marca-Texto Polimórfico & Anotações Ricas de Seção (Strategy + Visitor):**
+2. **Marca-Texto Polimórfico & Anotações Ricas de Seção (Strategy + Discriminated Unions):**
    - Seleção de texto com grifos em múltiplas cores e notas pessoais associadas, persistidos por `epubCfi` (no EPUB) ou array de `BoundingBox` (no PDF), com detecção de colisão/sobreposição geométrica (AABB no PDF e igualdade de CFI no EPUB).
    - **Anotações Assistidas e Gráficas na Seção/Trecho:** O usuário pode deixar anotações ricas na seção ou grifo sem precisar conhecer sintaxe técnica:
      - **Texto Rico Assistido (Markdown Transparente):** Barra de ferramentas visual pronta com comandos de **negrito, itálico, sublinhado, tachado, cores de texto/fundo, listas e títulos**, gerando Markdown/HTML estruturado nos bastidores.
      - **Desenhos e Diagramas (`tldraw` e `draw.io`):** Quadros brancos livres e diagramas estruturados vinculados diretamente à seção.
-     - **Desacoplamento via Strategy & Visitor:** Cada modalidade de anotação (`AssistedRichTextStrategy`, `TldrawAnnotationStrategy`, `DrawioAnnotationStrategy`) implementa contratos próprios que compõem o `HighlightManager` e sabem interagir com a entidade `Highlight` (Double Dispatch / Visitor), mantendo o domínio 100% agnóstico das bibliotecas gráficas.
+     - **Desacoplamento via Strategy & Discriminated Unions:** Cada modalidade de anotação (`AssistedRichTextStrategy`, `TldrawAnnotationStrategy`, `DrawioAnnotationStrategy`) implementa contratos próprios com Command Handlers que atualizam a entidade `Highlight`, mantendo o domínio 100% agnóstico das bibliotecas gráficas e formatável via mapas canônicos.
 3. **Tradução In-Place & Dicionário Filosófico/Contextual:**
    Ao selecionar um termo (ex.: conceitos gregos transliterados em Platão) ou uma frase em outro idioma, o sistema consulta uma LLM injetando o contexto da obra e exibe o significado diretamente sobre a linha (usando tag `<ruby>` no EPUB ou *overlay badge* no PDF) ou via Popover.
 4. **Tutor LLM Contextual:**

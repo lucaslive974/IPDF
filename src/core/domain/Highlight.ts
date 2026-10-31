@@ -1,4 +1,8 @@
-import type { IAnnotationVisitor, IRichAnnotation } from './RichAnnotation';
+import {
+  type AnnotationFormatterMap,
+  type IRichAnnotation,
+  formatRichAnnotation,
+} from './RichAnnotation';
 import type { HighlightAnchor, RichAnnotationType } from './types';
 
 export class Highlight {
@@ -32,6 +36,9 @@ export class Highlight {
 
   public setRichAnnotation(annotation: IRichAnnotation): void {
     this.annotationsMap.set(annotation.type, annotation);
+    if (annotation.type === 'assisted-markdown') {
+      this.note = annotation.rawData.trim();
+    }
     this.updatedAt = new Date();
   }
 
@@ -49,8 +56,10 @@ export class Highlight {
     }
   }
 
-  public acceptAnnotationVisitor<R>(visitor: IAnnotationVisitor<R>): R[] {
-    return this.getAllRichAnnotations().map((annotation) => annotation.accept(visitor));
+  public formatAnnotations<R>(formatterMap: AnnotationFormatterMap<R>): R[] {
+    return this.getAllRichAnnotations().map((annotation) =>
+      formatRichAnnotation(annotation, formatterMap)
+    );
   }
 
   public overlapsWith(otherAnchor: HighlightAnchor): boolean {

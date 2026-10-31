@@ -5,9 +5,9 @@ import {
 } from '../../../adapters/ipc/TauriBackendGateway';
 import { Highlight } from '../../../core/domain/Highlight';
 import {
-  AssistedTextAnnotation,
-  DrawioDiagramAnnotation,
-  TldrawBoardAnnotation,
+  createAssistedTextAnnotation,
+  createDrawioDiagramAnnotation,
+  createTldrawBoardAnnotation,
 } from '../../../core/domain/RichAnnotation';
 
 describe('TauriBackendGateway (Rust IPC Bridge)', () => {
@@ -53,9 +53,9 @@ describe('TauriBackendGateway (Rust IPC Bridge)', () => {
       new Date('2026-01-01T00:00:00.000Z'),
       new Date('2026-01-02T00:00:00.000Z'),
       [
-        new AssistedTextAnnotation('**Space and Time**'),
-        new TldrawBoardAnnotation('{"shapes":[]}', '<svg>board</svg>'),
-        new DrawioDiagramAnnotation('<mxGraphModel/>', '<svg>diagram</svg>'),
+        createAssistedTextAnnotation('**Space and Time**'),
+        createTldrawBoardAnnotation('{"shapes":[]}', '<svg>board</svg>'),
+        createDrawioDiagramAnnotation('<mxGraphModel/>', '<svg>diagram</svg>'),
       ]
     );
 

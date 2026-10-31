@@ -1,72 +1,76 @@
-import type { Highlight } from './Highlight';
 import type { RichAnnotationType } from './types';
 
-export interface IAnnotationVisitor<R = void> {
-  visitAssistedText(annotation: AssistedTextAnnotation): R;
-  visitTldrawBoard(annotation: TldrawBoardAnnotation): R;
-  visitDrawioDiagram(annotation: DrawioDiagramAnnotation): R;
+export interface AssistedTextAnnotationData {
+  readonly type: 'assisted-markdown';
+  readonly rawData: string;
+  readonly svgPreview?: undefined;
+  readonly updatedAt: Date;
 }
 
-export interface IRichAnnotation {
-  readonly type: RichAnnotationType;
+export interface TldrawBoardAnnotationData {
+  readonly type: 'tldraw';
   readonly rawData: string;
   readonly svgPreview?: string;
   readonly updatedAt: Date;
-  accept<R>(visitor: IAnnotationVisitor<R>): R;
-  attachTo(highlight: Highlight): void;
 }
 
-export class AssistedTextAnnotation implements IRichAnnotation {
-  public readonly type = 'assisted-markdown' as const;
-  public readonly svgPreview?: string;
-
-  constructor(
-    public readonly rawData: string,
-    public readonly updatedAt: Date = new Date()
-  ) {}
-
-  public accept<R>(visitor: IAnnotationVisitor<R>): R {
-    return visitor.visitAssistedText(this);
-  }
-
-  public attachTo(highlight: Highlight): void {
-    highlight.setRichAnnotation(this);
-    highlight.updateNote(this.rawData);
-  }
+export interface DrawioDiagramAnnotationData {
+  readonly type: 'drawio';
+  readonly rawData: string;
+  readonly svgPreview?: string;
+  readonly updatedAt: Date;
 }
 
-export class TldrawBoardAnnotation implements IRichAnnotation {
-  public readonly type = 'tldraw' as const;
+export type IRichAnnotation =
+  | AssistedTextAnnotationData
+  | TldrawBoardAnnotationData
+  | DrawioDiagramAnnotationData;
 
-  constructor(
-    public readonly rawData: string,
-    public readonly svgPreview?: string,
-    public readonly updatedAt: Date = new Date()
-  ) {}
-
-  public accept<R>(visitor: IAnnotationVisitor<R>): R {
-    return visitor.visitTldrawBoard(this);
-  }
-
-  public attachTo(highlight: Highlight): void {
-    highlight.setRichAnnotation(this);
-  }
+export function createAssistedTextAnnotation(
+  rawData: string,
+  updatedAt: Date = new Date()
+): AssistedTextAnnotationData {
+  return {
+    type: 'assisted-markdown',
+    rawData,
+    updatedAt,
+  };
 }
 
-export class DrawioDiagramAnnotation implements IRichAnnotation {
-  public readonly type = 'drawio' as const;
+export function createTldrawBoardAnnotation(
+  rawData: string,
+  svgPreview?: string,
+  updatedAt: Date = new Date()
+): TldrawBoardAnnotationData {
+  return {
+    type: 'tldraw',
+    rawData,
+    svgPreview,
+    updatedAt,
+  };
+}
 
-  constructor(
-    public readonly rawData: string,
-    public readonly svgPreview?: string,
-    public readonly updatedAt: Date = new Date()
-  ) {}
+export function createDrawioDiagramAnnotation(
+  rawData: string,
+  svgPreview?: string,
+  updatedAt: Date = new Date()
+): DrawioDiagramAnnotationData {
+  return {
+    type: 'drawio',
+    rawData,
+    svgPreview,
+    updatedAt,
+  };
+}
 
-  public accept<R>(visitor: IAnnotationVisitor<R>): R {
-    return visitor.visitDrawioDiagram(this);
-  }
+export type AnnotationFormatterMap<R> = {
+  readonly [K in RichAnnotationType]: (annotation: Extract<IRichAnnotation, { type: K }>) => R;
+};
 
-  public attachTo(highlight: Highlight): void {
-    highlight.setRichAnnotation(this);
-  }
+export function formatRichAnnotation<R>(
+  annotation: IRichAnnotation,
+  formatterMap: AnnotationFormatterMap<R>
+): R {
+  const formatter = formatterMap[annotation.type] as (ann: IRichAnnotation) => R;
+  return formatter(annotation);
 }

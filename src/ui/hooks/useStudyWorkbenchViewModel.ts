@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Highlight } from '../../core/domain/Highlight';
-import type { IAnnotationVisitor } from '../../core/domain/RichAnnotation';
+import type { AnnotationFormatterMap } from '../../core/domain/RichAnnotation';
 import type { TextFormatStyle } from '../../core/domain/types';
 import { useServiceContainer } from '../providers/ServiceContainerContext';
 
@@ -43,12 +43,18 @@ const createEmptyRect = (): DOMRect =>
     toJSON: () => ({}),
   }) as DOMRect;
 
+const ANNOTATION_FORMATTERS: AnnotationFormatterMap<string> = {
+  'assisted-markdown': (node) => `[Assisted Text] ${node.rawData}`,
+  tldraw: (node) => `[tldraw Board] ${node.rawData} | SVG: ${node.svgPreview}`,
+  drawio: (node) => `[draw.io Diagram] ${node.rawData} | SVG: ${node.svgPreview}`,
+};
+
 export interface StudyWorkbenchViewModel {
   readonly document: StudyDocumentDescriptor;
   readonly highlights: Highlight[];
   readonly selectedId: string | null;
   readonly noteInput: string;
-  readonly visitorOutput: string[];
+  readonly formattedAnnotations: string[];
   readonly llmPromptPreview: string;
   readonly syncExportPreview: string;
   selectHighlight(highlightId: string): Promise<void>;
@@ -76,7 +82,7 @@ export function useStudyWorkbenchViewModel(
     start: 0,
     end: 0,
   });
-  const [visitorOutput, setVisitorOutput] = useState<string[]>([]);
+  const [formattedAnnotations, setFormattedAnnotations] = useState<string[]>([]);
   const [syncExportPreview, setSyncExportPreview] = useState<string>('');
   const [llmPromptPreview, setLlmPromptPreview] = useState<string>('');
 
@@ -96,13 +102,9 @@ export function useStudyWorkbenchViewModel(
       const found = pageHighlights.find((h) => h.id === targetId);
       if (found) {
         setNoteInput(found.note);
-        const visitor: IAnnotationVisitor<string> = {
-          visitAssistedText: (node) => `[Assisted Text] ${node.rawData}`,
-          visitTldrawBoard: (node) => `[tldraw Board] ${node.rawData} | SVG: ${node.svgPreview}`,
-          visitDrawioDiagram: (node) =>
-            `[draw.io Diagram] ${node.rawData} | SVG: ${node.svgPreview}`,
-        };
-        setVisitorOutput(annotationWorkbench.visitHighlightAnnotations(targetId, visitor));
+        setFormattedAnnotations(
+          annotationWorkbench.formatHighlightAnnotations(targetId, ANNOTATION_FORMATTERS)
+        );
       }
     },
     [annotationWorkbench]
@@ -160,14 +162,9 @@ export function useStudyWorkbenchViewModel(
             text: value,
           })
           .then(() => {
-            const visitor: IAnnotationVisitor<string> = {
-              visitAssistedText: (node) => `[Assisted Text] ${node.rawData}`,
-              visitTldrawBoard: (node) =>
-                `[tldraw Board] ${node.rawData} | SVG: ${node.svgPreview}`,
-              visitDrawioDiagram: (node) =>
-                `[draw.io Diagram] ${node.rawData} | SVG: ${node.svgPreview}`,
-            };
-            setVisitorOutput(annotationWorkbench.visitHighlightAnnotations(currentId, visitor));
+            setFormattedAnnotations(
+              annotationWorkbench.formatHighlightAnnotations(currentId, ANNOTATION_FORMATTERS)
+            );
             setHighlights([...annotationWorkbench.getForPage(1)]);
           });
       }
@@ -295,7 +292,7 @@ export function useStudyWorkbenchViewModel(
     highlights,
     selectedId,
     noteInput,
-    visitorOutput,
+    formattedAnnotations,
     llmPromptPreview,
     syncExportPreview,
     selectHighlight,

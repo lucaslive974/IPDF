@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Highlight } from '../../../core/domain/Highlight';
 import {
-  AssistedTextAnnotation,
-  DrawioDiagramAnnotation,
-  type IAnnotationVisitor,
-  TldrawBoardAnnotation,
+  type AnnotationFormatterMap,
+  createAssistedTextAnnotation,
+  createDrawioDiagramAnnotation,
+  createTldrawBoardAnnotation,
 } from '../../../core/domain/RichAnnotation';
 
 describe('Highlight & RichAnnotation Domain Entities', () => {
@@ -34,7 +34,7 @@ describe('Highlight & RichAnnotation Domain Entities', () => {
     expect(afterColorTime).toBeGreaterThan(afterNoteTime);
 
     vi.advanceTimersByTime(5000);
-    const tldrawAnnotation = new TldrawBoardAnnotation('{"shapes":[]}', '<svg>board</svg>');
+    const tldrawAnnotation = createTldrawBoardAnnotation('{"shapes":[]}', '<svg>board</svg>');
     highlight.setRichAnnotation(tldrawAnnotation);
     const afterSetAnnotationTime = highlight.updatedAt.getTime();
     expect(afterSetAnnotationTime).toBeGreaterThan(afterColorTime);
@@ -47,32 +47,32 @@ describe('Highlight & RichAnnotation Domain Entities', () => {
     vi.useRealTimers();
   });
 
-  it('supports Double Dispatch (attachTo) and Visitor Pattern (acceptAnnotationVisitor) without switch/case', () => {
+  it('supports Discriminated Union annotations and Handler Map formatting', () => {
     const highlight = new Highlight('h-2', 'hash-123', 'Allegory of the Cave', '#3b82f6', {
       format: 'epub',
       pageNumber: 42,
       epubCfi: 'epubcfi(/6/8!/4/2/1:0)',
     });
 
-    const textAnnotation = new AssistedTextAnnotation('**Plato** _Republic_ Book VII');
-    const tldrawAnnotation = new TldrawBoardAnnotation('{"store":{}}', '<svg>tldraw</svg>');
-    const drawioAnnotation = new DrawioDiagramAnnotation('<mxGraphModel/>', '<svg>drawio</svg>');
+    const textAnnotation = createAssistedTextAnnotation('**Plato** _Republic_ Book VII');
+    const tldrawAnnotation = createTldrawBoardAnnotation('{"store":{}}', '<svg>tldraw</svg>');
+    const drawioAnnotation = createDrawioDiagramAnnotation('<mxGraphModel/>', '<svg>drawio</svg>');
 
-    textAnnotation.attachTo(highlight);
-    tldrawAnnotation.attachTo(highlight);
-    drawioAnnotation.attachTo(highlight);
+    highlight.setRichAnnotation(textAnnotation);
+    highlight.setRichAnnotation(tldrawAnnotation);
+    highlight.setRichAnnotation(drawioAnnotation);
 
     expect(highlight.note).toBe('**Plato** _Republic_ Book VII');
     expect(highlight.getAllRichAnnotations()).toHaveLength(3);
 
-    const visitor: IAnnotationVisitor<string> = {
-      visitAssistedText: (node) => `MD:${node.rawData}`,
-      visitTldrawBoard: (node) => `TLDRAW:${node.svgPreview}`,
-      visitDrawioDiagram: (node) => `DRAWIO:${node.svgPreview}`,
+    const formatterMap: AnnotationFormatterMap<string> = {
+      'assisted-markdown': (node) => `MD:${node.rawData}`,
+      tldraw: (node) => `TLDRAW:${node.svgPreview}`,
+      drawio: (node) => `DRAWIO:${node.svgPreview}`,
     };
 
-    const visitedResults = highlight.acceptAnnotationVisitor(visitor);
-    expect(visitedResults).toEqual([
+    const formattedResults = highlight.formatAnnotations(formatterMap);
+    expect(formattedResults).toEqual([
       'MD:**Plato** _Republic_ Book VII',
       'TLDRAW:<svg>tldraw</svg>',
       'DRAWIO:<svg>drawio</svg>',
@@ -118,7 +118,6 @@ describe('Highlight & RichAnnotation Domain Entities', () => {
       pdfRects: [{ x: 100, y: 200, width: 150, height: 20 }],
     });
 
-    // Intersecting rectangle on same page
     expect(
       highlight.overlapsWith({
         format: 'pdf',
@@ -127,7 +126,6 @@ describe('Highlight & RichAnnotation Domain Entities', () => {
       })
     ).toBe(true);
 
-    // Non-intersecting rectangle on same page
     expect(
       highlight.overlapsWith({
         format: 'pdf',
@@ -136,7 +134,6 @@ describe('Highlight & RichAnnotation Domain Entities', () => {
       })
     ).toBe(false);
 
-    // Same coordinates but different page
     expect(
       highlight.overlapsWith({
         format: 'pdf',

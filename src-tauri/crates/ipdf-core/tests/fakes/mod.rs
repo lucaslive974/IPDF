@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use ipdf_core::core::domain::{AnnotationVisitor, BookFormat, BookMetadata, Highlight};
+use ipdf_core::core::domain::{BookFormat, BookMetadata, Highlight};
 use ipdf_core::core::ports::{
     BookRepository, ExportStrategy, HighlightRepository, MediaControlService, MediaMetadata,
     PlaybackState, PowerSaveBlocker, PresenceProvider, ReadingActivity, SpeakOptions, StorageEntry,
@@ -163,30 +163,6 @@ impl ExportStrategy for ExportStrategyImpl {
 }
 
 pub type ExportStrategyImpl = JsonExport;
-
-pub struct TestVisitor;
-
-impl AnnotationVisitor<String> for TestVisitor {
-    fn visit_assisted_text(&self, raw_data: &str, _updated_at_ms: i64) -> String {
-        format!("MD:{raw_data}")
-    }
-    fn visit_tldraw_board(
-        &self,
-        _raw_data: &str,
-        svg_preview: Option<&str>,
-        _updated_at_ms: i64,
-    ) -> String {
-        format!("TLDRAW:{}", svg_preview.unwrap_or_default())
-    }
-    fn visit_drawio_diagram(
-        &self,
-        _raw_data: &str,
-        svg_preview: Option<&str>,
-        _updated_at_ms: i64,
-    ) -> String {
-        format!("DRAWIO:{}", svg_preview.unwrap_or_default())
-    }
-}
 
 pub struct SpyPresence {
     pub id: String,

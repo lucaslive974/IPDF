@@ -4,7 +4,7 @@ import { CodeInspectorBox } from './CodeInspectorBox';
 
 export interface SectionAnnotationPanelProps {
   readonly noteInput: string;
-  readonly visitorOutput: string[];
+  readonly formattedAnnotations: string[];
   readonly llmPromptPreview: string;
   readonly syncExportPreview: string;
   readonly onNoteChange: (value: string) => void;
@@ -15,7 +15,7 @@ export interface SectionAnnotationPanelProps {
 
 export function SectionAnnotationPanel({
   noteInput,
-  visitorOutput,
+  formattedAnnotations,
   llmPromptPreview,
   syncExportPreview,
   onNoteChange,
@@ -27,7 +27,7 @@ export function SectionAnnotationPanel({
     <section className="flex flex-col gap-4 rounded-xl border border-slate-800 bg-slate-900/90 p-5 shadow-lg">
       <div className="flex items-center justify-between border-b border-slate-800 pb-3">
         <h3 className="text-lg font-semibold text-slate-100">
-          Section Annotations (Strategy + Visitor / Double Dispatch)
+          Section Annotations (Discriminated Union &amp; Strategy Handlers)
         </h3>
       </div>
 
@@ -67,10 +67,12 @@ export function SectionAnnotationPanel({
       </div>
 
       <CodeInspectorBox
-        title="Visitor Pattern Output"
-        codeSymbol="acceptAnnotationVisitor"
+        title="Discriminated Union Format Map Output"
+        codeSymbol="formatAnnotations"
         content={
-          visitorOutput.length > 0 ? visitorOutput.join('\n') : 'No rich annotations attached yet.'
+          formattedAnnotations.length > 0
+            ? formattedAnnotations.join('\n')
+            : 'No rich annotations attached yet.'
         }
       />
 

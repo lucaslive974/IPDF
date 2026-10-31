@@ -1,9 +1,9 @@
 import { Highlight } from '../../core/domain/Highlight';
 import {
-  AssistedTextAnnotation,
-  DrawioDiagramAnnotation,
   type IRichAnnotation,
-  TldrawBoardAnnotation,
+  createAssistedTextAnnotation,
+  createDrawioDiagramAnnotation,
+  createTldrawBoardAnnotation,
 } from '../../core/domain/RichAnnotation';
 import type { HighlightAnchor, RichAnnotationType } from '../../core/domain/types';
 import type { IBackendGateway, LLMRequest, ReadingContext } from '../../core/ports/IBackendGateway';
@@ -32,10 +32,11 @@ export interface SerializedHighlight {
 type AnnotationDeserializer = (dto: SerializedRichAnnotation) => IRichAnnotation;
 
 const ANNOTATION_DESERIALIZERS: Record<RichAnnotationType, AnnotationDeserializer> = {
-  'assisted-markdown': (dto) => new AssistedTextAnnotation(dto.rawData, new Date(dto.updatedAt)),
-  tldraw: (dto) => new TldrawBoardAnnotation(dto.rawData, dto.svgPreview, new Date(dto.updatedAt)),
+  'assisted-markdown': (dto) => createAssistedTextAnnotation(dto.rawData, new Date(dto.updatedAt)),
+  tldraw: (dto) =>
+    createTldrawBoardAnnotation(dto.rawData, dto.svgPreview, new Date(dto.updatedAt)),
   drawio: (dto) =>
-    new DrawioDiagramAnnotation(dto.rawData, dto.svgPreview, new Date(dto.updatedAt)),
+    createDrawioDiagramAnnotation(dto.rawData, dto.svgPreview, new Date(dto.updatedAt)),
 };
 
 export class TauriBackendGateway implements IBackendGateway {

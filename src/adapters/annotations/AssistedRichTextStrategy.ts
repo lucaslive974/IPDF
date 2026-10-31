@@ -1,5 +1,8 @@
 import type { Highlight } from '../../core/domain/Highlight';
-import { AssistedTextAnnotation, type IRichAnnotation } from '../../core/domain/RichAnnotation';
+import {
+  type IRichAnnotation,
+  createAssistedTextAnnotation,
+} from '../../core/domain/RichAnnotation';
 import type {
   AnnotationCommand,
   AssistedMarkdownCommand,
@@ -84,8 +87,8 @@ export class AssistedRichTextStrategy implements IAssistedTextFormattingStrategy
     const currentText = existing ? existing.rawData : highlight.note;
     const nextContent = this.dispatchCommand(currentText, command);
 
-    const annotation = new AssistedTextAnnotation(nextContent, new Date());
-    annotation.attachTo(highlight);
+    const annotation = createAssistedTextAnnotation(nextContent, new Date());
+    highlight.setRichAnnotation(annotation);
     return annotation;
   }
 
@@ -94,7 +97,7 @@ export class AssistedRichTextStrategy implements IAssistedTextFormattingStrategy
   }
 
   public deserialize(rawData: string, updatedAt: Date = new Date()): IRichAnnotation {
-    return new AssistedTextAnnotation(rawData, updatedAt);
+    return createAssistedTextAnnotation(rawData, updatedAt);
   }
 
   private dispatchCommand<K extends ActionKind>(

@@ -1,5 +1,5 @@
 import { Highlight } from '../domain/Highlight';
-import type { IAnnotationVisitor } from '../domain/RichAnnotation';
+import type { AnnotationFormatterMap } from '../domain/RichAnnotation';
 import type { AnnotationCommand, RichAnnotationType, TextSelection } from '../domain/types';
 import type { IAnnotationToolStrategy } from '../ports/IAnnotationStrategy';
 import type { IBackendGateway } from '../ports/IBackendGateway';
@@ -101,12 +101,15 @@ export class AnnotationWorkbenchService {
     return highlight;
   }
 
-  public visitHighlightAnnotations<R>(highlightId: string, visitor: IAnnotationVisitor<R>): R[] {
+  public formatHighlightAnnotations<R>(
+    highlightId: string,
+    formatterMap: AnnotationFormatterMap<R>
+  ): R[] {
     const highlight = this.activeHighlights.get(highlightId);
     if (!highlight) {
       throw new Error(`Highlight not found: ${highlightId}`);
     }
-    return highlight.acceptAnnotationVisitor(visitor);
+    return highlight.formatAnnotations(formatterMap);
   }
 
   public async removeHighlight(id: string): Promise<void> {

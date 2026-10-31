@@ -21,22 +21,6 @@ pub enum RichAnnotation {
     },
 }
 
-pub trait AnnotationVisitor<R> {
-    fn visit_assisted_text(&self, raw_data: &str, updated_at_ms: i64) -> R;
-    fn visit_tldraw_board(
-        &self,
-        raw_data: &str,
-        svg_preview: Option<&str>,
-        updated_at_ms: i64,
-    ) -> R;
-    fn visit_drawio_diagram(
-        &self,
-        raw_data: &str,
-        svg_preview: Option<&str>,
-        updated_at_ms: i64,
-    ) -> R;
-}
-
 impl RichAnnotation {
     pub fn annotation_type(&self) -> RichAnnotationType {
         match self {
@@ -51,25 +35,6 @@ impl RichAnnotation {
             RichAnnotation::AssistedMarkdown { updated_at_ms, .. }
             | RichAnnotation::Tldraw { updated_at_ms, .. }
             | RichAnnotation::Drawio { updated_at_ms, .. } => *updated_at_ms,
-        }
-    }
-
-    pub fn accept<R>(&self, visitor: &dyn AnnotationVisitor<R>) -> R {
-        match self {
-            RichAnnotation::AssistedMarkdown {
-                raw_data,
-                updated_at_ms,
-            } => visitor.visit_assisted_text(raw_data, *updated_at_ms),
-            RichAnnotation::Tldraw {
-                raw_data,
-                svg_preview,
-                updated_at_ms,
-            } => visitor.visit_tldraw_board(raw_data, svg_preview.as_deref(), *updated_at_ms),
-            RichAnnotation::Drawio {
-                raw_data,
-                svg_preview,
-                updated_at_ms,
-            } => visitor.visit_drawio_diagram(raw_data, svg_preview.as_deref(), *updated_at_ms),
         }
     }
 

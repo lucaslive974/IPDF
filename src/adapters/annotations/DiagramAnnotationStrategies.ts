@@ -1,8 +1,8 @@
 import type { Highlight } from '../../core/domain/Highlight';
 import {
-  DrawioDiagramAnnotation,
   type IRichAnnotation,
-  TldrawBoardAnnotation,
+  createDrawioDiagramAnnotation,
+  createTldrawBoardAnnotation,
 } from '../../core/domain/RichAnnotation';
 import type { AnnotationCommand, DrawioCommand, TldrawCommand } from '../../core/domain/types';
 import type { IAnnotationToolStrategy } from '../../core/ports/IAnnotationStrategy';
@@ -32,8 +32,8 @@ export class TldrawAnnotationStrategy implements IAnnotationToolStrategy {
     }
 
     const rawData = this.dispatchCommand(command);
-    const annotation = new TldrawBoardAnnotation(rawData, command.svgPreview, new Date());
-    annotation.attachTo(highlight);
+    const annotation = createTldrawBoardAnnotation(rawData, command.svgPreview, new Date());
+    highlight.setRichAnnotation(annotation);
     return annotation;
   }
 
@@ -46,7 +46,7 @@ export class TldrawAnnotationStrategy implements IAnnotationToolStrategy {
     updatedAt: Date = new Date(),
     svgPreview?: string
   ): IRichAnnotation {
-    return new TldrawBoardAnnotation(rawData, svgPreview, updatedAt);
+    return createTldrawBoardAnnotation(rawData, svgPreview, updatedAt);
   }
 
   private dispatchCommand<K extends TldrawCommand['action']>(
@@ -74,8 +74,8 @@ export class DrawioAnnotationStrategy implements IAnnotationToolStrategy {
     }
 
     const rawData = this.dispatchCommand(command);
-    const annotation = new DrawioDiagramAnnotation(rawData, command.svgPreview, new Date());
-    annotation.attachTo(highlight);
+    const annotation = createDrawioDiagramAnnotation(rawData, command.svgPreview, new Date());
+    highlight.setRichAnnotation(annotation);
     return annotation;
   }
 
@@ -88,7 +88,7 @@ export class DrawioAnnotationStrategy implements IAnnotationToolStrategy {
     updatedAt: Date = new Date(),
     svgPreview?: string
   ): IRichAnnotation {
-    return new DrawioDiagramAnnotation(rawData, svgPreview, updatedAt);
+    return createDrawioDiagramAnnotation(rawData, svgPreview, updatedAt);
   }
 
   private dispatchCommand<K extends DrawioCommand['action']>(

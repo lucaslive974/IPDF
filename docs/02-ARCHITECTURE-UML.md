@@ -48,15 +48,15 @@ O projeto utiliza **Clean Architecture / Hexagonal Architecture (Ports & Adapter
 │   ├── core/
 │   │   ├── domain/
 │   │   │   ├── types.ts                  # Value Objects (BoundingBox, HighlightAnchor, AnnotationCommand, etc.)
-│   │   │   ├── Highlight.ts              # Entidade/DTO Highlight para colisão e Visitor a 60fps na UI
-│   │   │   ├── RichAnnotation.ts         # Hierarquia polimórfica de anotações (AssistedText, Tldraw, Drawio) + Visitor
+│   │   │   ├── Highlight.ts              # Entidade/DTO Highlight para colisão e formatação a 60fps na UI
+│   │   │   ├── RichAnnotation.ts         # Discriminated Unions de anotações (AssistedText, Tldraw, Drawio) + FormatterMap
 │   │   │   └── BookMetadata.ts           # Estrutura de metadados do livro
 │   │   ├── ports/
 │   │   │   ├── IBackendGateway.ts        # Porta IPC unificada conectando o Frontend ao ipdf-core em Rust
 │   │   │   ├── IDocumentViewer.ts        # Contrato de renderização DOM/Canvas (EPUB/PDF)
 │   │   │   └── IAnnotationStrategy.ts    # Contratos Strategy para editores visuais a 60fps (Texto Assistido, tldraw, draw.io)
 │   │   └── services/
-│   │       └── AnnotationWorkbenchService.ts # Orquestrador de edição 60fps (Command Dispatch + Visitor) persistindo via IBackendGateway
+│   │       └── AnnotationWorkbenchService.ts # Orquestrador de edição 60fps (Command Dispatch + Formatters) persistindo via IBackendGateway
 │   ├── adapters/
 │   │   ├── ipc/
 │   │   │   └── TauriBackendGateway.ts    # Implementação de IBackendGateway via Tauri invoke()
@@ -121,7 +121,7 @@ classDiagram
         +loadBookHighlights(bookHash: string) Promise~Highlight[]~
         +createFromSelection(bookHash: string, sel: TextSelection, color: string, note?: string) Promise~Highlight~
         +interactWithAnnotation(highlightId: string, type: RichAnnotationType, action: AnnotationCommand) Promise~Highlight~
-        +visitHighlightAnnotations~R~(highlightId: string, visitor: IAnnotationVisitor~R~) R[]
+        +formatHighlightAnnotations~R~(highlightId: string, formatterMap: AnnotationFormatterMap~R~) R[]
         +getForPage(pageNumber: number) Highlight[]
     }
 
@@ -131,13 +131,6 @@ classDiagram
         +applyToHighlight(highlight: Highlight, command: AnnotationCommand) Promise~void~
         +serialize(annotation: IRichAnnotation) string
         +deserialize(rawData: string, updatedAt: Date) IRichAnnotation
-    }
-
-    class IAnnotationVisitor~R~ {
-        <<interface>>
-        +visitAssistedText(node: AssistedTextAnnotation) R
-        +visitTldrawBoard(node: TldrawBoardAnnotation) R
-        +visitDrawioDiagram(node: DrawioDiagramAnnotation) R
     }
 
     class DataPortabilityService {
@@ -193,7 +186,6 @@ classDiagram
     ReaderController --> IDocumentViewer
     ReaderController --> HighlightManager
     HighlightManager --> IAnnotationToolStrategy
-    HighlightManager ..> IAnnotationVisitor
     ReaderController --> ContextualAssistant
     ReaderController --> SystemBridge
     ReaderController --> RichPresenceManager

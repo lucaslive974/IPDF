@@ -1,4 +1,4 @@
-use crate::core::domain::rich_annotation::{AnnotationVisitor, RichAnnotation};
+use crate::core::domain::rich_annotation::RichAnnotation;
 use crate::core::domain::types::{BookFormat, HighlightAnchor, RichAnnotationType};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -66,13 +66,6 @@ impl Highlight {
             self.updated_at_ms = timestamp_ms;
         }
         removed
-    }
-
-    pub fn accept_visitor<R>(&self, visitor: &dyn AnnotationVisitor<R>) -> Vec<R> {
-        self.annotations
-            .values()
-            .map(|ann| ann.accept(visitor))
-            .collect()
     }
 
     pub fn overlaps_with(&self, other: &HighlightAnchor) -> bool {

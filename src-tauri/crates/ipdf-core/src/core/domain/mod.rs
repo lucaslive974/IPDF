@@ -5,5 +5,5 @@ pub mod types;
 
 pub use book_metadata::BookMetadata;
 pub use highlight::Highlight;
-pub use rich_annotation::{AnnotationVisitor, RichAnnotation};
+pub use rich_annotation::RichAnnotation;
 pub use types::{BookFormat, BoundingBox, HighlightAnchor, RichAnnotationType};

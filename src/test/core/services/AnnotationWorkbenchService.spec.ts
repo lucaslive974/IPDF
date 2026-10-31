@@ -4,7 +4,7 @@ import {
   DrawioAnnotationStrategy,
   TldrawAnnotationStrategy,
 } from '../../../adapters/annotations/DiagramAnnotationStrategies';
-import type { IAnnotationVisitor } from '../../../core/domain/RichAnnotation';
+import type { AnnotationFormatterMap } from '../../../core/domain/RichAnnotation';
 import { AnnotationWorkbenchService } from '../../../core/services/AnnotationWorkbenchService';
 import { FakeBackendGateway } from '../../fakes/FakeBackendGateway';
 
@@ -21,7 +21,7 @@ const createEmptyRect = (): DOMRect =>
     toJSON: () => ({}),
   }) as DOMRect;
 
-describe('AnnotationWorkbenchService (60fps Frontend Strategy + Visitor + IPC Gateway)', () => {
+describe('AnnotationWorkbenchService (60fps Frontend Strategy + IPC Gateway)', () => {
   let gateway: FakeBackendGateway;
   let service: AnnotationWorkbenchService;
 
@@ -165,14 +165,18 @@ describe('AnnotationWorkbenchService (60fps Frontend Strategy + Visitor + IPC Ga
       svgPreview: '<svg>drawio</svg>',
     });
 
-    const visitor: IAnnotationVisitor<string> = {
-      visitAssistedText: (n) => `TEXT:${n.rawData.length > 0}`,
-      visitTldrawBoard: (n) => `TLDRAW:${n.svgPreview}`,
-      visitDrawioDiagram: (n) => `DRAWIO:${n.svgPreview}`,
+    const formatterMap: AnnotationFormatterMap<string> = {
+      'assisted-markdown': (n) => `TEXT:${n.rawData.length > 0}`,
+      tldraw: (n) => `TLDRAW:${n.svgPreview}`,
+      drawio: (n) => `DRAWIO:${n.svgPreview}`,
     };
 
-    const visited = service.visitHighlightAnnotations(hl.id, visitor);
-    expect(visited).toEqual(['TEXT:true', 'TLDRAW:<svg>tldraw</svg>', 'DRAWIO:<svg>drawio</svg>']);
+    const formatted = service.formatHighlightAnnotations(hl.id, formatterMap);
+    expect(formatted).toEqual([
+      'TEXT:true',
+      'TLDRAW:<svg>tldraw</svg>',
+      'DRAWIO:<svg>drawio</svg>',
+    ]);
 
     await service.interactWithAnnotation(hl.id, 'tldraw', {
       target: 'tldraw',
