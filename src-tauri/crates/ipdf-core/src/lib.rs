@@ -1,3 +1,4 @@
-pub mod domain;
-pub mod ports;
-pub mod services;
+pub mod adapters;
+pub mod core;
+
+pub use core::{domain, ports, services};

@@ -19,6 +19,7 @@ O sistema opera sob os princípios **Offline-First** e **BYOC (Bring Your Own Cl
 | Camada | Tecnologia / Biblioteca | Detalhes e Decisões Técnicas |
 | :--- | :--- | :--- |
 | **Runtime Multiplataforma** | **Tauri v2 (Backend-Heavy em Rust)** | Core pesado de dados, Storage, SHA-256 em *streaming*, Sync LWW, ZIP, SQLite, Discord IPC e HTTP em **Rust (`src-tauri/crates/ipdf-core`)** + UI MVVC e Renderizadores DOM em **TypeScript/React**. |
+| **Paridade de Modularização (TS & Rust)** | **Arquitetura Hexagonal Simétrica** | Proibido usar "super arquivos" tanto em TypeScript quanto em Rust. O crate `ipdf-core` segue exatamente a mesma divisão granular em pastas (`core/domain/`, `core/ports/`, `core/services/`, `adapters/` e `tests/`) de 1 arquivo por entidade/porta/serviço. |
 | **Linguagem Principal** | **TypeScript (Strict Mode)** | `strict: true`, proibição de `any`, uso exclusivo de `Uint8Array` / `ArrayBuffer` (sem `Node.js Buffer`). |
 | **Renderizador EPUB** | `epub.js` ou `foliate-js` | Baseado em DOM dinâmico e *Canonical Fragment Identifier* (**CFI**). |
 | **Renderizador PDF** | `pdfjs-dist` (Mozilla PDF.js) | Renderização em Canvas + TextLayer com coordenadas cartesianas normalizadas (`BoundingBox`). |

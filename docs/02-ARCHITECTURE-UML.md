@@ -26,14 +26,21 @@ O projeto utiliza **Clean Architecture / Hexagonal Architecture (Ports & Adapter
 ```text
 ├── src-tauri/
 │   ├── crates/
-│   │   └── ipdf-core/                    # Crate Rust pura (Domínio, Storage Unificado, LWW Sync, SHA-256 Streaming)
+│   │   └── ipdf-core/                    # Crate Rust pura modularizada (espelhando a arquitetura Hexagonal)
 │   │       ├── src/
-│   │       │   ├── domain.rs             # Highlight, BookMetadata, RichAnnotation + AnnotationVisitor
-│   │       │   ├── ports.rs              # Traits BookRepository, HighlightRepository, StorageProvider, PresenceProvider
-│   │       │   ├── services.rs           # Sha256BookHasher, HighlightManager, DataPortabilityService, CloudlessSyncEngine, CachedStorageDecorator, PromptBuilder, RichPresenceManager
+│   │       │   ├── core/
+│   │       │   │   ├── domain/           # types.rs, book_metadata.rs, rich_annotation.rs, highlight.rs
+│   │       │   │   ├── ports/            # repository.rs, storage_provider.rs, export_strategy.rs, llm_provider.rs, presence_provider.rs
+│   │       │   │   └── services/         # sha256_book_hasher.rs, highlight_manager.rs, data_portability_service.rs, cloudless_sync_engine.rs, prompt_builder.rs, rich_presence_manager.rs
+│   │       │   ├── adapters/
+│   │       │   │   └── storage/          # cached_storage_decorator.rs
 │   │       │   └── lib.rs
-│   │       └── tests/
-│   │           └── core_tests.rs         # Suíte de testes de integração Rust
+│   │       └── tests/                    # Suíte de testes Rust modularizada
+│   │           ├── fakes/                # mod.rs (InMemoryBookRepo, InMemoryHighlightRepo, InMemoryStorage, SpyPresence)
+│   │           ├── highlight_spec.rs
+│   │           ├── sha256_book_hasher_spec.rs
+│   │           ├── cloudless_sync_and_portability_spec.rs
+│   │           └── cached_storage_and_presence_spec.rs
 │   └── src/
 │       └── lib.rs                        # Comandos IPC Tauri (#[tauri::command]) expondo o ipdf-core
 ├── src/

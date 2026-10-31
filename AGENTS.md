@@ -21,6 +21,12 @@ Este repositório segue uma arquitetura **Hexagonal (Ports & Adapters)** estrita
 - **Código e Comentários 100% em Inglês:** Todo código-fonte (`src/` e `src-tauri/`), nomes de símbolos, mensagens de erro e comentários/JSDoc (quando estritamente necessários) devem ser escritos **exclusivamente em inglês**. Evite comentários óbvios nas estruturas de dados.
 - **Portabilidade Desktop + iOS (`WKWebView`):** Nunca utilize `Buffer` do Node.js em `src/core/`. Utilize sempre `Uint8Array` ou `ArrayBuffer`.
 - **Injeção de Dependência Pura:** Nenhuma classe em `src/core/` ou `ipdf-core` pode acessar singletons globais, `window` diretamente, banco de dados físico ou rede. Tudo entra via `constructor` / traits tipados pelas portas.
+- **Paridade de Modularização Estrita (TypeScript & Rust):** É terminantemente proibido concentrar múltiplas entidades, portas, serviços ou testes em "super arquivos" monolíticos (como um único `domain.rs`, `ports.rs` ou `services.rs`). O backend Rust (`src-tauri/crates/ipdf-core/src/`) **DEVE** espelhar a mesma organização modular de um arquivo por responsabilidade usada no TypeScript:
+  - `core/domain/` (`types.rs`, `book_metadata.rs`, `rich_annotation.rs`, `highlight.rs`),
+  - `core/ports/` (`repository.rs`, `storage_provider.rs`, `export_strategy.rs`, `llm_provider.rs`, `presence_provider.rs`),
+  - `core/services/` (`sha256_book_hasher.rs`, `highlight_manager.rs`, `data_portability_service.rs`, `cloudless_sync_engine.rs`, `prompt_builder.rs`, `rich_presence_manager.rs`),
+  - `adapters/` (`storage/cached_storage_decorator.rs`, etc.),
+  - `tests/` (`fakes/mod.rs` e arquivos `*_spec.rs` dedicados por domínio/serviço).
 - **Frontend MVVC / MVVM Modular (`src/ui/`):** Proibido misturar IoC, gerenciamento de estado/regras e JSX em "super arquivos". Separe estritamente em:
   1. `src/ui/providers/` (Inversão de Controle / Contextos de DI),
   2. `src/ui/hooks/` (ViewModels / Custom Hooks concentrando estado e casos de uso),
