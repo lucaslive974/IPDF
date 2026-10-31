@@ -143,14 +143,9 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
   const [chapterTitle, setChapterTitle] = useState<string>(document.chapterTitle);
   const [paragraphs, setParagraphs] = useState<string[]>([document.sampleParagraph]);
 
-  const [loadedPages, setLoadedPages] = useState<DocumentPage[]>([
-    {
-      pageNumber: book?.currentPage || 1,
-      chapterTitle: document.chapterTitle,
-      paragraphs: [document.sampleParagraph],
-      cfiBase: 'epubcfi(/6/14!/4/2',
-    },
-  ]);
+  const [loadedPages, setLoadedPages] = useState<DocumentPage[]>([]);
+  const loadedPagesRef = useRef<DocumentPage[]>([]);
+  loadedPagesRef.current = loadedPages;
 
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -270,31 +265,34 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
       isLoadingMoreRef.current = true;
 
       try {
+        const currentPages = loadedPagesRef.current;
         if (direction === 'next') {
-          const lastPageNum = loadedPages[loadedPages.length - 1]?.pageNumber ?? 0;
+          const lastPageNum =
+            currentPages.length > 0 ? Math.max(...currentPages.map((p) => p.pageNumber)) : 0;
           if (lastPageNum >= totalPages) return;
           const nextPages = await services.getBookPages(document.bookHash, lastPageNum + 1, 5);
           if (nextPages.length === 0) return;
           setLoadedPages((prev) => {
-            const combined = [...prev, ...nextPages];
-            if (combined.length > 25) {
-              return combined.slice(combined.length - 25);
-            }
-            return combined;
+            const pageMap = new Map<number, DocumentPage>();
+            for (const p of prev) pageMap.set(p.pageNumber, p);
+            for (const p of nextPages) pageMap.set(p.pageNumber, p);
+            const sorted = Array.from(pageMap.values()).sort((a, b) => a.pageNumber - b.pageNumber);
+            return sorted;
           });
         } else {
-          const firstPageNum = loadedPages[0]?.pageNumber ?? 1;
+          const firstPageNum =
+            currentPages.length > 0 ? Math.min(...currentPages.map((p) => p.pageNumber)) : 1;
           if (firstPageNum <= 1) return;
           const prevStart = Math.max(1, firstPageNum - 5);
           const prevCount = firstPageNum - prevStart;
           const prevPages = await services.getBookPages(document.bookHash, prevStart, prevCount);
           if (prevPages.length === 0) return;
           setLoadedPages((prev) => {
-            const combined = [...prevPages, ...prev];
-            if (combined.length > 25) {
-              return combined.slice(0, 25);
-            }
-            return combined;
+            const pageMap = new Map<number, DocumentPage>();
+            for (const p of prev) pageMap.set(p.pageNumber, p);
+            for (const p of prevPages) pageMap.set(p.pageNumber, p);
+            const sorted = Array.from(pageMap.values()).sort((a, b) => a.pageNumber - b.pageNumber);
+            return sorted;
           });
         }
       } catch (err) {
@@ -303,20 +301,20 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
         isLoadingMoreRef.current = false;
       }
     },
-    [services, document.bookHash, loadedPages, totalPages]
+    [services, document.bookHash, totalPages]
   );
 
   const onPageVisible = useCallback(
     (pageNumber: number) => {
       if (pageNumber === currentPage) return;
       setCurrentPage(pageNumber);
-      const visible = loadedPages.find((p) => p.pageNumber === pageNumber);
+      const visible = loadedPagesRef.current.find((p) => p.pageNumber === pageNumber);
       if (visible?.chapterTitle) {
         setChapterTitle(visible.chapterTitle);
       }
       void services.updateBookProgress(document.bookHash, pageNumber, totalPages);
     },
-    [services, currentPage, document.bookHash, loadedPages, totalPages]
+    [services, currentPage, document.bookHash, totalPages]
   );
 
   const getHighlightsForPage = useCallback(
@@ -330,19 +328,25 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
     async (targetPage: number) => {
       const next = Math.max(1, Math.min(totalPages, targetPage));
       setCurrentPage(next);
-      const exists = loadedPages.some((p) => p.pageNumber === next);
+      const exists = loadedPagesRef.current.some((p) => p.pageNumber === next);
       if (!exists) {
         const start = Math.max(1, next - 2);
-        const pages = await services.getBookPages(document.bookHash, start, 5);
+        const count = Math.min(5, totalPages - start + 1);
+        const pages = await services.getBookPages(document.bookHash, start, count);
         if (pages.length > 0) {
-          setLoadedPages(pages);
+          setLoadedPages((prev) => {
+            const pageMap = new Map<number, DocumentPage>();
+            for (const p of prev) pageMap.set(p.pageNumber, p);
+            for (const p of pages) pageMap.set(p.pageNumber, p);
+            return Array.from(pageMap.values()).sort((a, b) => a.pageNumber - b.pageNumber);
+          });
           const active = pages.find((p) => p.pageNumber === next) ?? pages[0];
           if (active?.chapterTitle) {
             setChapterTitle(active.chapterTitle);
           }
         }
       } else {
-        const active = loadedPages.find((p) => p.pageNumber === next);
+        const active = loadedPagesRef.current.find((p) => p.pageNumber === next);
         if (active?.chapterTitle) {
           setChapterTitle(active.chapterTitle);
         }
@@ -350,7 +354,7 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
       await services.updateBookProgress(document.bookHash, next, totalPages);
       await refreshState(null, next);
     },
-    [services, document.bookHash, loadedPages, refreshState, totalPages]
+    [services, document.bookHash, refreshState, totalPages]
   );
 
   const navigatePage = useCallback(

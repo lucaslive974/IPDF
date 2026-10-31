@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Highlight } from '../../core/domain/Highlight';
+import type { DocumentPage } from '../../core/ports/BackendService';
 import { useNavigation } from '../hooks/useNavigation';
 import { useReader } from '../hooks/useReader';
 import { ExplainDialog } from './ExplainDialog';
@@ -268,14 +269,23 @@ export function ReaderView() {
 
       reader.onPageVisible(target);
 
+      if (target === 1) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+
       const el = document.querySelector(`article[data-page-number="${target}"]`);
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } else {
         void reader.goToPage(target).then(() => {
           window.requestAnimationFrame(() => {
-            const newEl = document.querySelector(`article[data-page-number="${target}"]`);
-            newEl?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (target === 1) {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+              const newEl = document.querySelector(`article[data-page-number="${target}"]`);
+              newEl?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
           });
         });
       }
@@ -305,6 +315,14 @@ export function ReaderView() {
     }
     setIsChromeVisible((prev) => !prev);
   };
+
+  const sortedPages = useMemo(() => {
+    const pageMap = new Map<number, DocumentPage>();
+    for (const page of reader.loadedPages) {
+      pageMap.set(page.pageNumber, page);
+    }
+    return Array.from(pageMap.values()).sort((a, b) => a.pageNumber - b.pageNumber);
+  }, [reader.loadedPages]);
 
   return (
     <section
@@ -363,7 +381,7 @@ export function ReaderView() {
           <div ref={topSentinelRef} className="h-4 w-full pointer-events-none" />
 
           {/* Render loaded pages seamlessly in continuous streaming scroll */}
-          {reader.loadedPages.map((page) => {
+          {sortedPages.map((page) => {
             const pageHighlights = reader.getHighlightsForPage(page.pageNumber);
 
             return (
