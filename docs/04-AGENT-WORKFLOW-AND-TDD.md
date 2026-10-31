@@ -14,7 +14,12 @@ Este documento define as regras operacionais obrigatórias para qualquer agente 
    O uso de `any` é estritamente proibido. Utilize tipos estritos, Generics ou `unknown` com *type guards*.
 4. **English-Only Source Code & Comments Policy:**
    Todo o código-fonte em `src/`, `src-tauri/` e `test/` (incluindo nomes de tipos, variáveis, funções, strings técnicas e quaisquer comentários) deve ser escrito **100% em inglês**. Não adicione comentários em português ou comentários redundantes em estruturas de dados autoexplicativas.
-5. **Meta Mínima de Cobertura de Testes (>= 80%):**
+5. **Frontend MVVC & Modular Components (`src/ui/`):**
+   Nunca crie "super arquivos" React que misturem instanciação de dependências (IoC), gerenciamento de estado (`useState`/`useEffect`), chamadas de serviços e marcação JSX extensa. Todo recurso visual deve ser dividido em:
+   - **IoC Provider (`src/ui/providers/`):** Injeção do container de serviços via Context.
+   - **ViewModel Hook (`src/ui/hooks/`):** Custom Hook isolando toda a lógica de estado e interação com `src/core/services/`.
+   - **Reusable Presentational Components (`src/ui/components/`):** Componentes pequenos, desacoplados e orientados a `props` (sem valores hardcoded fixos quando puderem receber configuração por props).
+6. **Meta Mínima de Cobertura de Testes (>= 80%):**
    É obrigatório manter **pelo menos 80% de cobertura de testes** (`lines >= 80%`, `functions >= 80%`, `branches >= 80%`, `statements >= 80%`) em `src/core/` e `src/adapters/`. O Vitest (`@vitest/coverage-v8`) está configurado com *thresholds* bloqueantes: se a cobertura cair abaixo de 80%, `npm run test` e `npm run verify` falharão automaticamente.
 
 ---

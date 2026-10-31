@@ -18,6 +18,10 @@ Este repositório segue uma arquitetura **Hexagonal (Ports & Adapters)** estrita
 - **Código e Comentários 100% em Inglês:** Todo código-fonte (`src/` e `test/`), nomes de símbolos, mensagens de erro e comentários/JSDoc (quando estritamente necessários) devem ser escritos **exclusivamente em inglês**. Evite comentários óbvios nas estruturas de dados.
 - **Portabilidade Desktop + iOS (`WKWebView`):** Nunca utilize `Buffer` do Node.js em `src/core/`. Utilize sempre `Uint8Array` ou `ArrayBuffer`.
 - **Injeção de Dependência Pura:** Nenhuma classe em `src/core/` pode acessar singletons globais, `window` diretamente, banco de dados físico ou rede. Tudo entra via `constructor` tipado pelas interfaces de `src/core/ports/`.
+- **Frontend MVVC / MVVM Modular (`src/ui/`):** Proibido misturar IoC, gerenciamento de estado/regras e JSX em "super arquivos". Separe estritamente em:
+  1. `src/ui/providers/` (Inversão de Controle / Contextos de DI),
+  2. `src/ui/hooks/` (ViewModels / Custom Hooks concentrando estado e casos de uso),
+  3. `src/ui/components/` (Componentes visuais puros, pequenos e reutilizáveis recebendo dados via props).
 - **Zero `any` Policy:** Proibido usar `any`.
 - **Cobertura de Testes Mínima (>= 80%):** Todo código em `src/core/` e `src/adapters/` deve manter no mínimo **80% de cobertura** em *lines*, *functions*, *branches* e *statements* (validado automaticamente pelo `@vitest/coverage-v8`).
 - **Quality Gate Bloqueante:** Nenhum commit pode ser realizado sem que `npm run verify` (`format` + `lint` + `typecheck` + `test --coverage`) retorne `exit code 0`.

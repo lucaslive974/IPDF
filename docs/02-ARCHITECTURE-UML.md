@@ -8,6 +8,10 @@ O projeto utiliza **Clean Architecture / Hexagonal Architecture (Ports & Adapter
 - **Portas (`src/core/ports/`):** Interfaces TypeScript estritas que definem os contratos de entrada e saída (`IDocumentViewer`, `IRepository`, `IHighlightRepository`, `ITTSProvider`, `ILLMProvider`, `IPresenceProvider`, `IRemoteStorageProvider`, `ISystemBridge`).
 - **Serviços de Aplicação (`src/core/services/`):** Orquestradores de casos de uso (`ReaderController`, `HighlightManager`, `LibraryManager`, `ContextualAssistant`, `PromptBuilder`, `DataPortabilityService`, `RichPresenceManager`, `CloudlessSyncEngine`, `SystemBridge`). Dependem exclusivamente das entidades de `domain/` e interfaces em `ports/`.
 - **Adaptadores (`src/adapters/`):** Implementações concretas (`EpubViewerAdapter`, `PdfViewerAdapter`, `SQLiteHighlightRepository`, `OllamaLocalLLMProvider`, `CloudAPILLMProvider`, `GoogleDriveStorageProvider`, `DiscordIPCProvider`, `CustomWebhookProvider`, `PiperLocalTTS`, `NativeSystemTTS`).
+- **Frontend UI — Padrão MVVC / MVVM (`src/ui/`):**
+  - `src/ui/providers/`: *Composition Root* e provedores React Context (`ServiceContainerContext.tsx`) responsáveis exclusivamente pela Inversão de Controle (DI).
+  - `src/ui/hooks/`: *ViewModels / ViewControllers* implementados como Custom Hooks (`useStudyWorkbenchViewModel.ts`), encapsulando todo o estado de tela e invocação dos serviços do Core.
+  - `src/ui/components/`: Componentes visuais puramente declarativos, modulares e reutilizáveis (`PassageReaderPanel`, `SectionAnnotationPanel`, `AssistedFormattingToolbar`, `HighlightCard`, `CodeInspectorBox`), sem lógica de negócio ou instanciação de serviços.
 - **Testes e Dublês (`test/` na raiz):** Todos os arquivos `*.spec.ts` ficam fora de `src/`, na pasta raiz `test/` espelhando exatamente a árvore de `src/` (`test/core/domain/`, `test/core/services/`, `test/adapters/`), junto com `test/fakes/` (*In-Memory*, *Mocks* e *Spies*).
 
 ---
@@ -48,7 +52,11 @@ O projeto utiliza **Clean Architecture / Hexagonal Architecture (Ports & Adapter
 │   │   ├── llm/                          # CloudAPILLMProvider.ts, OllamaLocalLLMProvider.ts
 │   │   ├── tts/                          # PiperLocalTTS.ts, NativeSystemTTS.ts
 │   │   └── presence/                     # DiscordIPCProvider.ts, CustomWebhookProvider.ts
-│   └── ui/                               # Componentes React puramente visuais
+│   └── ui/                               # Camada de Apresentação em Arquitetura MVVC
+│       ├── providers/                    # IoC / Injeção de Dependências (ServiceContainerContext.tsx)
+│       ├── hooks/                        # ViewModels / ViewControllers (Custom Hooks)
+│       ├── components/                   # Componentes React reutilizáveis e puramente visuais
+│       └── App.tsx                       # Composição declarativa de alto nível
 └── test/                                 # Espelha a estrutura de src/ (NENHUM arquivo .spec.ts dentro de src/)
     ├── core/
     │   ├── domain/                       # Highlight.spec.ts
