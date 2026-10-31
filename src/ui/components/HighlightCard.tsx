@@ -9,7 +9,9 @@ export interface HighlightCardProps {
 export function HighlightCard({ highlight, isActive, onSelect }: HighlightCardProps) {
   return (
     <div
-      className={`highlight-card ${isActive ? 'active' : ''}`}
+      className={`cursor-pointer rounded-lg border border-slate-800 border-l-[5px] bg-slate-950 p-3.5 transition hover:border-slate-700 ${
+        isActive ? 'ring-2 ring-sky-400' : ''
+      }`}
       style={{ borderLeftColor: highlight.color }}
       onClick={() => onSelect(highlight.id)}
       onKeyDown={(event) => {
@@ -18,10 +20,8 @@ export function HighlightCard({ highlight, isActive, onSelect }: HighlightCardPr
         }
       }}
     >
-      <strong>“{highlight.text}”</strong>
-      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
-        Note: {highlight.note || '(empty)'}
-      </div>
+      <strong className="text-sm font-semibold text-slate-100">“{highlight.text}”</strong>
+      <div className="mt-1 text-xs text-slate-400">Note: {highlight.note || '(empty)'}</div>
     </div>
   );
 }

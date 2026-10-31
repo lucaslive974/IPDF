@@ -24,19 +24,23 @@ export function SectionAnnotationPanel({
   onAttachBoard,
 }: SectionAnnotationPanelProps) {
   return (
-    <section className="panel">
-      <div className="header-bar">
-        <h3 style={{ margin: 0 }}>Section Annotations (Strategy + Visitor / Double Dispatch)</h3>
+    <section className="flex flex-col gap-4 rounded-xl border border-slate-800 bg-slate-900/90 p-5 shadow-lg">
+      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 className="text-lg font-semibold text-slate-100">
+          Section Annotations (Strategy + Visitor / Double Dispatch)
+        </h3>
       </div>
 
-      <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-        Assisted Rich Formatting (<code>AssistedRichTextStrategy</code>) — select text in the note
-        box below or apply formatting directly without writing Markdown syntax:
+      <p className="text-sm text-slate-400">
+        Assisted Rich Formatting (
+        <code className="font-mono text-slate-300">AssistedRichTextStrategy</code>) — select text in
+        the note box below or apply formatting directly without writing Markdown syntax:
       </p>
 
       <AssistedFormattingToolbar onApplyFormat={onApplyFormat} />
 
       <textarea
+        className="min-h-[96px] w-full rounded-lg border border-slate-700 bg-slate-950 p-3 text-sm text-slate-100 focus:border-sky-400 focus:outline-none"
         value={noteInput}
         onChange={(event) => onNoteChange(event.target.value)}
         onSelect={(event) => {
@@ -45,11 +49,19 @@ export function SectionAnnotationPanel({
         }}
       />
 
-      <div className="toolbar">
-        <button type="button" className="primary" onClick={() => onAttachBoard('tldraw')}>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className="cursor-pointer rounded-md border border-sky-400 bg-sky-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-sky-500"
+          onClick={() => onAttachBoard('tldraw')}
+        >
           + Attach Whiteboard (tldraw Strategy)
         </button>
-        <button type="button" className="primary" onClick={() => onAttachBoard('drawio')}>
+        <button
+          type="button"
+          className="cursor-pointer rounded-md border border-sky-400 bg-sky-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-sky-500"
+          onClick={() => onAttachBoard('drawio')}
+        >
           + Attach Diagram (draw.io Strategy)
         </button>
       </div>

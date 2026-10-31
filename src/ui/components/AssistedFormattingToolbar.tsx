@@ -29,9 +29,14 @@ export function AssistedFormattingToolbar({
   onApplyFormat,
 }: AssistedFormattingToolbarProps) {
   return (
-    <div className="toolbar">
+    <div className="flex flex-wrap gap-1.5">
       {actions.map((action) => (
-        <button key={action.id} type="button" onClick={() => onApplyFormat(action.style)}>
+        <button
+          key={action.id}
+          type="button"
+          className="cursor-pointer rounded-md border border-slate-600 bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-slate-700"
+          onClick={() => onApplyFormat(action.style)}
+        >
           {action.label}
         </button>
       ))}

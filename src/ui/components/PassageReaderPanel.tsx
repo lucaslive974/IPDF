@@ -37,54 +37,74 @@ export function PassageReaderPanel({
   onSyncBook,
 }: PassageReaderPanelProps) {
   return (
-    <section className="panel">
-      <div className="header-bar">
+    <section className="flex flex-col gap-4 rounded-xl border border-slate-800 bg-slate-900/90 p-5 shadow-lg">
+      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
         <div>
-          <h2 style={{ margin: 0 }}>
+          <h2 className="text-lg font-semibold text-slate-100">
             {document.bookAuthor} — {document.bookTitle} ({document.chapterTitle})
           </h2>
-          <small style={{ color: 'var(--text-muted)' }}>
-            SHA-256 Hash: <code>{document.bookHash}</code>
+          <small className="text-xs text-slate-400">
+            SHA-256 Hash: <code className="font-mono text-sky-400">{document.bookHash}</code>
           </small>
         </div>
-        <span className="badge">Phase 1 Core Workbench</span>
+        <span className="rounded-full border border-sky-400/35 bg-sky-400/15 px-3 py-1 text-xs font-semibold text-sky-400">
+          Phase 1 Core Workbench
+        </span>
       </div>
 
-      <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+      <p className="text-sm text-slate-400">
         Select any passage below (or click a color button) to create a polymorphic highlight managed
-        by <code>HighlightManager</code>:
+        by <code className="font-mono text-slate-300">AnnotationWorkbenchService</code>:
       </p>
 
-      <div className="book-passage">{document.sampleParagraph}</div>
+      <div className="rounded-lg border border-slate-800 bg-slate-950 p-5 text-[1.05rem] leading-relaxed text-slate-200">
+        {document.sampleParagraph}
+      </div>
 
-      <div className="toolbar">
+      <div className="flex flex-wrap gap-2">
         {colorOptions.map((option) => (
           <button
             key={option.id}
             type="button"
-            className={option.isPrimary ? 'primary' : undefined}
+            className={
+              option.isPrimary
+                ? 'cursor-pointer rounded-md border border-sky-400 bg-sky-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-sky-500'
+                : 'cursor-pointer rounded-md border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-slate-700'
+            }
             onClick={() => onCreateHighlight(option.colorHex)}
           >
             {option.label}
           </button>
         ))}
-        <button type="button" onClick={onGeneratePrompt}>
+        <button
+          type="button"
+          className="cursor-pointer rounded-md border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-slate-700"
+          onClick={onGeneratePrompt}
+        >
           Generate Contextual Prompt (LLM)
         </button>
-        <button type="button" onClick={onSyncBook}>
+        <button
+          type="button"
+          className="cursor-pointer rounded-md border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-slate-700"
+          onClick={onSyncBook}
+        >
           Sync LWW (CloudlessSyncEngine)
         </button>
       </div>
 
-      <h3 style={{ margin: '0.5rem 0 0 0' }}>Page 1 Highlights ({highlights.length})</h3>
-      {highlights.map((highlight) => (
-        <HighlightCard
-          key={highlight.id}
-          highlight={highlight}
-          isActive={highlight.id === selectedHighlightId}
-          onSelect={onSelectHighlight}
-        />
-      ))}
+      <h3 className="mt-1 text-sm font-semibold uppercase tracking-wider text-slate-400">
+        Page 1 Highlights ({highlights.length})
+      </h3>
+      <div className="flex flex-col gap-2.5">
+        {highlights.map((highlight) => (
+          <HighlightCard
+            key={highlight.id}
+            highlight={highlight}
+            isActive={highlight.id === selectedHighlightId}
+            onSelect={onSelectHighlight}
+          />
+        ))}
+      </div>
     </section>
   );
 }
