@@ -1,4 +1,4 @@
-import type { IPresenceProvider, ReadingActivity } from '../../core/ports/IPresenceProvider';
+import type { IPresenceProvider, ReadingActivity } from '../../src/core/ports/IPresenceProvider';
 
 export class SpyPresenceProvider implements IPresenceProvider {
   public isEnabled = true;

@@ -1,13 +1,13 @@
-import type { BookMetadata } from '../../core/domain/BookMetadata';
-import { Highlight } from '../../core/domain/Highlight';
+import type { BookMetadata } from '../../src/core/domain/BookMetadata';
+import { Highlight } from '../../src/core/domain/Highlight';
 import {
   AssistedTextAnnotation,
   DrawioDiagramAnnotation,
   type IRichAnnotation,
   TldrawBoardAnnotation,
-} from '../../core/domain/RichAnnotation';
-import type { HighlightAnchor, RichAnnotationType } from '../../core/domain/types';
-import type { IExportStrategy, SyncPayload } from '../../core/ports/IRemoteStorageProvider';
+} from '../../src/core/domain/RichAnnotation';
+import type { HighlightAnchor, RichAnnotationType } from '../../src/core/domain/types';
+import type { IExportStrategy, SyncPayload } from '../../src/core/ports/IRemoteStorageProvider';
 
 interface SerializedAnnotation {
   type: RichAnnotationType;

@@ -55,7 +55,7 @@ O sistema opera sob os princípios **Offline-First** e **BYOC (Bring Your Own Cl
 ## 4. Roadmap de Implementação (Milestones para os Agentes)
 
 - **Fase 1 (Foundation & Core Contracts):**
-  Setup do Tauri v2 + TypeScript + Vitest + Biome. Criação de todas as interfaces em `src/core/`, implementação das entidades (`Highlight`, `BookMetadata`), serviços de domínio (`HighlightManager`, `DataPortabilityService`, `PromptBuilder`, `ContextualAssistant`, `RichPresenceManager`, `CloudlessSyncEngine`) e dublês de teste *In-Memory* / *Spies* em `src/test/fakes/`.
+  Setup do Tauri v2 + TypeScript + Vitest + Biome. Criação de todas as interfaces em `src/core/`, implementação das entidades (`Highlight`, `BookMetadata`), serviços de domínio (`HighlightManager`, `DataPortabilityService`, `PromptBuilder`, `ContextualAssistant`, `RichPresenceManager`, `CloudlessSyncEngine`) e suíte de testes + dublês *In-Memory* / *Spies* na pasta raiz `test/` espelhando `src/`.
 - **Fase 2 (Library & EPUB Viewer):**
   Cálculo de hash SHA-256, extração de capa para `Uint8Array`, `LibraryManager`, repositórios SQLite e `EpubViewerAdapter` com suporte completo a CFI e grifos.
 - **Fase 3 (Contextual Assistant & In-Place Translation):**

@@ -1,5 +1,5 @@
-import type { BookMetadata } from '../../core/domain/BookMetadata';
-import type { IBookRepository } from '../../core/ports/IRepository';
+import type { BookMetadata } from '../../src/core/domain/BookMetadata';
+import type { IBookRepository } from '../../src/core/ports/IRepository';
 
 export class InMemoryBookRepository implements IBookRepository {
   private readonly store = new Map<string, BookMetadata>();

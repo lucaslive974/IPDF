@@ -1,4 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { InMemoryBookRepository } from '../../test/fakes/InMemoryBookRepository';
+import { InMemoryFileStorage } from '../../test/fakes/InMemoryFileStorage';
+import { InMemoryHighlightRepository } from '../../test/fakes/InMemoryHighlightRepository';
+import { InMemoryRemoteStorageProvider } from '../../test/fakes/InMemoryRemoteStorageProvider';
+import { JsonExportStrategy } from '../../test/fakes/JsonExportStrategy';
 import { AssistedRichTextStrategy } from '../adapters/annotations/AssistedRichTextStrategy';
 import {
   DrawioAnnotationStrategy,
@@ -11,11 +16,6 @@ import { CloudlessSyncEngine } from '../core/services/CloudlessSyncEngine';
 import { DataPortabilityService } from '../core/services/DataPortabilityService';
 import { HighlightManager } from '../core/services/HighlightManager';
 import { PromptBuilder } from '../core/services/PromptBuilder';
-import { InMemoryBookRepository } from '../test/fakes/InMemoryBookRepository';
-import { InMemoryFileStorage } from '../test/fakes/InMemoryFileStorage';
-import { InMemoryHighlightRepository } from '../test/fakes/InMemoryHighlightRepository';
-import { InMemoryRemoteStorageProvider } from '../test/fakes/InMemoryRemoteStorageProvider';
-import { JsonExportStrategy } from '../test/fakes/JsonExportStrategy';
 
 const BOOK_HASH = 'sha256-plato-republic-book-vii';
 const SAMPLE_PARAGRAPH =

@@ -1,5 +1,5 @@
-import type { Highlight } from '../../core/domain/Highlight';
-import type { IHighlightRepository } from '../../core/ports/IRepository';
+import type { Highlight } from '../../src/core/domain/Highlight';
+import type { IHighlightRepository } from '../../src/core/ports/IRepository';
 
 export class InMemoryHighlightRepository implements IHighlightRepository {
   private readonly store = new Map<string, Highlight>();

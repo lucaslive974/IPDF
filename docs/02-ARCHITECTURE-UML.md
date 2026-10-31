@@ -8,49 +8,53 @@ O projeto utiliza **Clean Architecture / Hexagonal Architecture (Ports & Adapter
 - **Portas (`src/core/ports/`):** Interfaces TypeScript estritas que definem os contratos de entrada e saída (`IDocumentViewer`, `IRepository`, `IHighlightRepository`, `ITTSProvider`, `ILLMProvider`, `IPresenceProvider`, `IRemoteStorageProvider`, `ISystemBridge`).
 - **Serviços de Aplicação (`src/core/services/`):** Orquestradores de casos de uso (`ReaderController`, `HighlightManager`, `LibraryManager`, `ContextualAssistant`, `PromptBuilder`, `DataPortabilityService`, `RichPresenceManager`, `CloudlessSyncEngine`, `SystemBridge`). Dependem exclusivamente das entidades de `domain/` e interfaces em `ports/`.
 - **Adaptadores (`src/adapters/`):** Implementações concretas (`EpubViewerAdapter`, `PdfViewerAdapter`, `SQLiteHighlightRepository`, `OllamaLocalLLMProvider`, `CloudAPILLMProvider`, `GoogleDriveStorageProvider`, `DiscordIPCProvider`, `CustomWebhookProvider`, `PiperLocalTTS`, `NativeSystemTTS`).
-- **Dublês de Teste (`src/test/fakes/`):** Implementações *In-Memory*, *Mocks* e *Spies* para execução ultrarrápida de testes unitários no Vitest sem I/O externo.
+- **Testes e Dublês (`test/` na raiz):** Todos os arquivos `*.spec.ts` ficam fora de `src/`, na pasta raiz `test/` espelhando exatamente a árvore de `src/` (`test/core/domain/`, `test/core/services/`, `test/adapters/`), junto com `test/fakes/` (*In-Memory*, *Mocks* e *Spies*).
 
 ---
 
 ## 2. Estrutura de Diretórios Obrigatória
 
 ```text
-src/
-├── core/
-│   ├── domain/
-│   │   ├── types.ts                  # Value Objects (BoundingBox, HighlightAnchor, PageInfo, etc.)
-│   │   ├── Highlight.ts              # Entidade rica Highlight com regras de negócio, colisão e suporte a Visitor
-│   │   ├── RichAnnotation.ts         # Hierarquia polimórfica de anotações (AssistedText, Tldraw, Drawio) + Visitor
-│   │   └── BookMetadata.ts           # Estrutura e tipos de metadados do livro
-│   ├── ports/
-│   │   ├── IDocumentViewer.ts        # Contrato de renderização (EPUB/PDF)
-│   │   ├── IAnnotationStrategy.ts    # Contratos Strategy + Visitor para editores de anotação (Texto Assistido, tldraw, draw.io)
-│   │   ├── IRepository.ts            # Contratos genéricos e específicos de persistência
-│   │   ├── ITTSProvider.ts           # Contrato de síntese de voz
-│   │   ├── ILLMProvider.ts           # Contrato de inferência de IA e Structured Outputs
-│   │   ├── IPresenceProvider.ts      # Contrato para Discord RPC e Webhooks
-│   │   ├── IRemoteStorageProvider.ts # Contrato BYOC (Google Drive, WebDAV) e Portabilidade
-│   │   └── ISystemBridge.ts          # Contratos nativos de SO (Mídia, Notificações, FS, Energia)
-│   └── services/
-│       ├── ReaderController.ts       # Orquestrador central da sessão de leitura
-│       ├── HighlightManager.ts       # Gerenciamento de grifos, cache por página e composição de IAnnotationToolStrategy
-│       ├── LibraryManager.ts         # Gestão da biblioteca local e remota
-│       ├── ContextualAssistant.ts    # Serviço de tradução in-place e explicação com LLM
-│       ├── PromptBuilder.ts          # Construção determinística de prompts com contexto literário
-│       ├── DataPortabilityService.ts # Exportação, importação e merge LWW
-│       ├── CloudlessSyncEngine.ts    # Sincronização serverless via pasta remota (Google Drive)
-│       ├── RichPresenceManager.ts    # Pub-Sub com Debounce para presença social
-│       └── SystemBridge.ts           # Classe composta de recursos do sistema operacional
-├── adapters/
-│   ├── viewers/                      # EpubViewerAdapter.ts, PdfViewerAdapter.ts
-│   ├── annotations/                  # AssistedRichTextStrategy.ts, TldrawAnnotationStrategy.ts, DrawioAnnotationStrategy.ts
-│   ├── storage/                      # SQLite repositories, GoogleDriveStorageProvider.ts
-│   ├── llm/                          # CloudAPILLMProvider.ts, OllamaLocalLLMProvider.ts
-│   ├── tts/                          # PiperLocalTTS.ts, NativeSystemTTS.ts
-│   └── presence/                     # DiscordIPCProvider.ts, CustomWebhookProvider.ts
-├── test/
-│   └── fakes/                        # Implementações In-Memory e Spies para testes unitários rápidos
-└── ui/                               # Componentes React puramente visuais
+├── src/
+│   ├── core/
+│   │   ├── domain/
+│   │   │   ├── types.ts                  # Value Objects (BoundingBox, HighlightAnchor, PageInfo, etc.)
+│   │   │   ├── Highlight.ts              # Entidade rica Highlight com regras de negócio, colisão e suporte a Visitor
+│   │   │   ├── RichAnnotation.ts         # Hierarquia polimórfica de anotações (AssistedText, Tldraw, Drawio) + Visitor
+│   │   │   └── BookMetadata.ts           # Estrutura e tipos de metadados do livro
+│   │   ├── ports/
+│   │   │   ├── IDocumentViewer.ts        # Contrato de renderização (EPUB/PDF)
+│   │   │   ├── IAnnotationStrategy.ts    # Contratos Strategy + Visitor para editores de anotação (Texto Assistido, tldraw, draw.io)
+│   │   │   ├── IRepository.ts            # Contratos genéricos e específicos de persistência
+│   │   │   ├── ITTSProvider.ts           # Contrato de síntese de voz
+│   │   │   ├── ILLMProvider.ts           # Contrato de inferência de IA e Structured Outputs
+│   │   │   ├── IPresenceProvider.ts      # Contrato para Discord RPC e Webhooks
+│   │   │   ├── IRemoteStorageProvider.ts # Contrato BYOC (Google Drive, WebDAV) e Portabilidade
+│   │   │   └── ISystemBridge.ts          # Contratos nativos de SO (Mídia, Notificações, FS, Energia)
+│   │   └── services/
+│   │       ├── ReaderController.ts       # Orquestrador central da sessão de leitura
+│   │       ├── HighlightManager.ts       # Gerenciamento de grifos, cache por página e composição de IAnnotationToolStrategy
+│   │       ├── LibraryManager.ts         # Gestão da biblioteca local e remota
+│   │       ├── ContextualAssistant.ts    # Serviço de tradução in-place e explicação com LLM
+│   │       ├── PromptBuilder.ts          # Construção determinística de prompts com contexto literário
+│   │       ├── DataPortabilityService.ts # Exportação, importação e merge LWW
+│   │       ├── CloudlessSyncEngine.ts    # Sincronização serverless via pasta remota (Google Drive)
+│   │       ├── RichPresenceManager.ts    # Pub-Sub com Debounce para presença social
+│   │       └── SystemBridge.ts           # Classe composta de recursos do sistema operacional
+│   ├── adapters/
+│   │   ├── viewers/                      # EpubViewerAdapter.ts, PdfViewerAdapter.ts
+│   │   ├── annotations/                  # AssistedRichTextStrategy.ts, DiagramAnnotationStrategies.ts
+│   │   ├── storage/                      # SQLite repositories, GoogleDriveStorageProvider.ts
+│   │   ├── llm/                          # CloudAPILLMProvider.ts, OllamaLocalLLMProvider.ts
+│   │   ├── tts/                          # PiperLocalTTS.ts, NativeSystemTTS.ts
+│   │   └── presence/                     # DiscordIPCProvider.ts, CustomWebhookProvider.ts
+│   └── ui/                               # Componentes React puramente visuais
+└── test/                                 # Espelha a estrutura de src/ (NENHUM arquivo .spec.ts dentro de src/)
+    ├── core/
+    │   ├── domain/                       # Highlight.spec.ts
+    │   └── services/                     # HighlightManager.spec.ts, DataPortabilityService.spec.ts, etc.
+    ├── adapters/                         # Testes de adaptadores
+    └── fakes/                            # Implementações In-Memory e Spies para testes unitários rápidos
 ```
 
 ---

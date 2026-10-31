@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { AssistedRichTextStrategy } from '../../adapters/annotations/AssistedRichTextStrategy';
+import { AssistedRichTextStrategy } from '../../../src/adapters/annotations/AssistedRichTextStrategy';
 import {
   DrawioAnnotationStrategy,
   TldrawAnnotationStrategy,
-} from '../../adapters/annotations/DiagramAnnotationStrategies';
-import { InMemoryHighlightRepository } from '../../test/fakes/InMemoryHighlightRepository';
-import { Highlight } from '../domain/Highlight';
-import type { IAnnotationVisitor } from '../domain/RichAnnotation';
-import type { TextSelection } from '../domain/types';
-import { HighlightManager } from './HighlightManager';
+} from '../../../src/adapters/annotations/DiagramAnnotationStrategies';
+import { Highlight } from '../../../src/core/domain/Highlight';
+import type { IAnnotationVisitor } from '../../../src/core/domain/RichAnnotation';
+import type { TextSelection } from '../../../src/core/domain/types';
+import { HighlightManager } from '../../../src/core/services/HighlightManager';
+import { InMemoryHighlightRepository } from '../../fakes/InMemoryHighlightRepository';
 
 const makeMockRect = (): DOMRect =>
   ({

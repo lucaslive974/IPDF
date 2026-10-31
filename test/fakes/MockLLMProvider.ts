@@ -1,4 +1,4 @@
-import type { ILLMProvider, LLMRequest } from '../../core/ports/ILLMProvider';
+import type { ILLMProvider, LLMRequest } from '../../src/core/ports/ILLMProvider';
 
 export class MockLLMProvider implements ILLMProvider {
   public readonly providerName = 'MockLLMProvider';

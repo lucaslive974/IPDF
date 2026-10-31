@@ -1,7 +1,7 @@
 import type {
   IRemoteStorageProvider,
   RemoteFileEntry,
-} from '../../core/ports/IRemoteStorageProvider';
+} from '../../src/core/ports/IRemoteStorageProvider';
 
 interface StoredRemoteFile {
   entry: RemoteFileEntry;

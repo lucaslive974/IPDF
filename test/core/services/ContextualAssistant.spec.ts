@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { MockLLMProvider } from '../../test/fakes/MockLLMProvider';
-import type { ReadingContext, TermDefinition } from '../ports/ILLMProvider';
-import { ContextualAssistant } from './ContextualAssistant';
-import { PromptBuilder } from './PromptBuilder';
+import type { ReadingContext, TermDefinition } from '../../../src/core/ports/ILLMProvider';
+import { ContextualAssistant } from '../../../src/core/services/ContextualAssistant';
+import { PromptBuilder } from '../../../src/core/services/PromptBuilder';
+import { MockLLMProvider } from '../../fakes/MockLLMProvider';
 
 describe('PromptBuilder & ContextualAssistant', () => {
   const sampleContext: ReadingContext = {

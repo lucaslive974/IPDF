@@ -22,8 +22,9 @@ Este documento define as regras operacionais obrigatórias para qualquer agente 
 O agente tem autonomia para avançar nas tarefas e realizar commits no Git, mas **DEVE** cumprir estritamente os 4 passos abaixo para cada classe ou funcionalidade criada:
 
 ### Passo 1: Teste Primeiro (Red)
-- Crie os dublês de teste necessários (`InMemoryRepository`, `FakeProvider`, `Spy`) em `src/test/fakes/`.
-- Escreva o arquivo de teste unitário (`*.spec.ts`) validando tanto o caminho feliz quanto os casos de borda listados na Matriz de Cenários abaixo, garantindo cobertura >= 80%.
+- **Separação Estrita `src/` vs `test/`:** NUNCA crie arquivos `*.spec.ts` ou dublês dentro de `src/`. Todos os testes devem residir na pasta raiz `test/` espelhando a estrutura de `src/` (ex.: `src/core/services/Foo.ts` -> `test/core/services/Foo.spec.ts`).
+- Crie os dublês de teste necessários (`InMemoryRepository`, `FakeProvider`, `Spy`) em `test/fakes/`.
+- Escreva o arquivo de teste unitário (`test/**/*.spec.ts`) validando tanto o caminho feliz quanto os casos de borda listados na Matriz de Cenários abaixo, garantindo cobertura >= 80%.
 
 ### Passo 2: Implementação Limpa (Green)
 - Escreva o código de produção seguindo os contratos definidos em `docs/03-CORE-CONTRACTS.md`.
@@ -36,8 +37,8 @@ npm run verify
 ```
 
 O comando `npm run verify` executa em sequência:
-1. `npm run format` (`biome format --write ./src`)
-2. `npm run lint` (`biome check ./src`)
+1. `npm run format` (`biome format --write ./src ./test`)
+2. `npm run lint` (`biome check ./src ./test`)
 3. `npm run typecheck` (`tsc --noEmit`)
 4. `npm run test` (`vitest run --coverage`, exigindo >= 80% em lines, functions, branches e statements)
 
@@ -58,7 +59,7 @@ Com o `npm run verify` 100% verde, faça um commit pequeno, atômico e focado ex
 
 ## 3. Matriz de Cenários que DEVEM Possuir Testes Unitários (`Vitest`)
 
-| Serviço / Entidade | Dublê de Teste (`src/test/fakes/`) | Asserções Obrigatórias no `.spec.ts` |
+| Serviço / Entidade | Dublê de Teste (`test/fakes/`) | Asserções Obrigatórias no `.spec.ts` (`test/`) |
 | :--- | :--- | :--- |
 | **`Highlight` & `RichAnnotation`** | N/A (Entidades Puras + Visitor) | 1. `updateNote`, `changeColor`, `setRichAnnotation` e `removeRichAnnotation` atualizam `updatedAt`.<br>2. Double Dispatch (`annotation.attachTo(highlight)`) e Visitor (`highlight.acceptAnnotationVisitor(visitor)`) despacham corretamente para `visitAssistedText`, `visitTldrawBoard` e `visitDrawioDiagram` sem `switch/case`.<br>3. `overlapsWith` detecta colisão exata de CFI (EPUB) e intersecção geométrica AABB de `BoundingBox` (PDF). |
 | **`HighlightManager` + Strategies** | `InMemoryHighlightRepository`, `AssistedRichTextStrategy`, `FakeDiagramStrategy` | 1. Carrega grifos do livro no cache interno e filtra por página via `getForPage(n)`.<br>2. Composição de `IAnnotationToolStrategy`: delega comandos de formatação assistida (negrito, sublinhado, cores, listas sem exigir sintaxe Markdown do usuário) e diagramas (`tldraw`/`draw.io`) para a estratégia registrada e persiste no repositório. |

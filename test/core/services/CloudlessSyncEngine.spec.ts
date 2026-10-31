@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { InMemoryBookRepository } from '../../test/fakes/InMemoryBookRepository';
-import { InMemoryFileStorage } from '../../test/fakes/InMemoryFileStorage';
-import { InMemoryHighlightRepository } from '../../test/fakes/InMemoryHighlightRepository';
-import { InMemoryRemoteStorageProvider } from '../../test/fakes/InMemoryRemoteStorageProvider';
-import { JsonExportStrategy } from '../../test/fakes/JsonExportStrategy';
-import { Highlight } from '../domain/Highlight';
-import { CloudlessSyncEngine } from './CloudlessSyncEngine';
-import { DataPortabilityService } from './DataPortabilityService';
+import { Highlight } from '../../../src/core/domain/Highlight';
+import { CloudlessSyncEngine } from '../../../src/core/services/CloudlessSyncEngine';
+import { DataPortabilityService } from '../../../src/core/services/DataPortabilityService';
+import { InMemoryBookRepository } from '../../fakes/InMemoryBookRepository';
+import { InMemoryFileStorage } from '../../fakes/InMemoryFileStorage';
+import { InMemoryHighlightRepository } from '../../fakes/InMemoryHighlightRepository';
+import { InMemoryRemoteStorageProvider } from '../../fakes/InMemoryRemoteStorageProvider';
+import { JsonExportStrategy } from '../../fakes/JsonExportStrategy';
 
 describe('CloudlessSyncEngine', () => {
   it('downloads <bookHash>.highlights.json, merges via DataPortabilityService (LWW), and uploads the updated JSON', async () => {

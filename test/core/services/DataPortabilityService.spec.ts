@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { InMemoryBookRepository } from '../../test/fakes/InMemoryBookRepository';
-import { InMemoryFileStorage } from '../../test/fakes/InMemoryFileStorage';
-import { InMemoryHighlightRepository } from '../../test/fakes/InMemoryHighlightRepository';
-import { JsonExportStrategy } from '../../test/fakes/JsonExportStrategy';
-import type { BookMetadata } from '../domain/BookMetadata';
-import { Highlight } from '../domain/Highlight';
-import { DataPortabilityService } from './DataPortabilityService';
+import type { BookMetadata } from '../../../src/core/domain/BookMetadata';
+import { Highlight } from '../../../src/core/domain/Highlight';
+import { DataPortabilityService } from '../../../src/core/services/DataPortabilityService';
+import { InMemoryBookRepository } from '../../fakes/InMemoryBookRepository';
+import { InMemoryFileStorage } from '../../fakes/InMemoryFileStorage';
+import { InMemoryHighlightRepository } from '../../fakes/InMemoryHighlightRepository';
+import { JsonExportStrategy } from '../../fakes/JsonExportStrategy';
 
 const makeBook = (hash: string, page: number, updatedAt: Date): BookMetadata => ({
   bookHash: hash,

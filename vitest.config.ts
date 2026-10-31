@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['src/**/*.spec.ts'],
+    include: ['test/**/*.spec.ts'],
     globals: false,
     coverage: {
       provider: 'v8',
@@ -11,7 +11,6 @@ export default defineConfig({
       reporter: ['text', 'html', 'json-summary'],
       include: ['src/core/**/*.ts', 'src/adapters/**/*.ts'],
       exclude: [
-        'src/**/*.spec.ts',
         'src/core/ports/**/*.ts',
         'src/core/domain/types.ts',
         'src/core/domain/BookMetadata.ts',

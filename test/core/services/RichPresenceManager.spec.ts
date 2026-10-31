@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { SpyPresenceProvider } from '../../test/fakes/SpyPresenceProvider';
-import type { ReadingActivity } from '../ports/IPresenceProvider';
-import { RichPresenceManager } from './RichPresenceManager';
+import type { ReadingActivity } from '../../../src/core/ports/IPresenceProvider';
+import { RichPresenceManager } from '../../../src/core/services/RichPresenceManager';
+import { SpyPresenceProvider } from '../../fakes/SpyPresenceProvider';
 
 const makeActivity = (page: number): ReadingActivity => ({
   bookHash: 'hash-symposium',
