@@ -108,6 +108,9 @@ export function ReaderView() {
   const onPageVisibleRef = useRef(reader.onPageVisible);
   onPageVisibleRef.current = reader.onPageVisible;
 
+  const isProgrammaticScrollRef = useRef(false);
+  const programmaticScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [pageInputValue, setPageInputValue] = useState<string>(String(reader.currentPage));
   const isPageInputFocusedRef = useRef(false);
 
@@ -200,8 +203,17 @@ export function ReaderView() {
     let ticking = false;
 
     const handleScroll = () => {
+      if (isProgrammaticScrollRef.current) {
+        return;
+      }
+
       if (!ticking) {
         window.requestAnimationFrame(() => {
+          if (isProgrammaticScrollRef.current) {
+            ticking = false;
+            return;
+          }
+
           const articles = document.querySelectorAll<HTMLElement>('article[data-page-number]');
           if (articles.length === 0) {
             ticking = false;
@@ -246,15 +258,25 @@ export function ReaderView() {
   const scrollToPage = useCallback(
     (pageNum: number) => {
       const target = Math.max(1, Math.min(reader.totalPages, pageNum));
+      isProgrammaticScrollRef.current = true;
+      if (programmaticScrollTimeoutRef.current) {
+        clearTimeout(programmaticScrollTimeoutRef.current);
+      }
+      programmaticScrollTimeoutRef.current = setTimeout(() => {
+        isProgrammaticScrollRef.current = false;
+      }, 900);
+
+      reader.onPageVisible(target);
+
       const el = document.querySelector(`article[data-page-number="${target}"]`);
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } else {
         void reader.goToPage(target).then(() => {
-          setTimeout(() => {
+          window.requestAnimationFrame(() => {
             const newEl = document.querySelector(`article[data-page-number="${target}"]`);
             newEl?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }, 100);
+          });
         });
       }
     },
@@ -468,14 +490,17 @@ export function ReaderView() {
         <div className="flex items-center gap-2 rounded-full border border-line-subtle bg-surface/95 px-4 py-1.5 shadow-xl backdrop-blur-md text-xs font-semibold">
           <span className="text-tx-muted">Page</span>
           <input
-            type="number"
-            min={1}
-            max={reader.totalPages}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
             value={pageInputValue}
             onFocus={() => {
               isPageInputFocusedRef.current = true;
             }}
-            onChange={(e) => setPageInputValue(e.target.value)}
+            onChange={(e) => {
+              const cleanDigits = e.target.value.replace(/\D/g, '');
+              setPageInputValue(cleanDigits);
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 const target = Number.parseInt(pageInputValue, 10);
@@ -496,7 +521,7 @@ export function ReaderView() {
                 setPageInputValue(String(reader.currentPage));
               }
             }}
-            className="w-16 rounded-md border border-line-subtle bg-surface-subtle px-2 py-0.5 text-center font-mono text-xs font-bold text-tx-main focus:border-brand outline-none"
+            className="w-16 rounded-md border border-line-subtle bg-surface-subtle px-2 py-0.5 text-center font-mono text-xs font-bold text-tx-main focus:border-brand outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             aria-label="Direct page number jump"
           />
           <span className="text-tx-muted font-mono">of {reader.totalPages}</span>

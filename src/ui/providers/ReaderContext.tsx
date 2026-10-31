@@ -197,10 +197,11 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
 
   useEffect(() => {
     let cancelled = false;
+    const initialPage = book?.currentPage || 1;
 
     const bootstrapReader = async () => {
       try {
-        const pages = await services.getBookPages(document.bookHash, currentPage, 5);
+        const pages = await services.getBookPages(document.bookHash, initialPage, 5);
         if (!cancelled && pages.length > 0) {
           setLoadedPages(pages);
           const first = pages[0];
@@ -222,7 +223,7 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
                 ? globalThis.document.createElement('div')
                 : ({ innerHTML: '' } as unknown as HTMLElement);
             await epubViewer.render(container, rawBytes.buffer as ArrayBuffer);
-            const chunk = epubViewer.getPagesChunk(currentPage, 5);
+            const chunk = epubViewer.getPagesChunk(initialPage, 5);
             if (chunk.length > 0) {
               setLoadedPages(chunk);
               setParagraphs(chunk[0]?.paragraphs ?? []);
@@ -240,8 +241,8 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
       await annotationWorkbench.loadBookHighlights(document.bookHash);
       if (cancelled) return;
 
-      const existing = annotationWorkbench.getForPage(currentPage);
-      await refreshState(existing[0]?.id ?? null, currentPage);
+      const existing = annotationWorkbench.getForPage(initialPage);
+      setHighlights([...existing]);
     };
 
     void bootstrapReader();
@@ -252,12 +253,16 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
   }, [
     annotationWorkbench,
     services,
+    book?.currentPage,
     book?.totalPages,
-    currentPage,
-    document,
+    document.bookHash,
     epubViewer,
-    refreshState,
   ]);
+
+  useEffect(() => {
+    const existing = annotationWorkbench.getForPage(currentPage);
+    setHighlights([...existing]);
+  }, [annotationWorkbench, currentPage]);
 
   const loadMorePages = useCallback(
     async (direction: 'next' | 'prev') => {
