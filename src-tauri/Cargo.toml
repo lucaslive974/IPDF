@@ -1,0 +1,18 @@
+[package]
+name = "ipdf-active-study-reader"
+version = "0.1.0"
+description = "Active Study Book Reader (EPUB & PDF) with Hexagonal Architecture"
+authors = ["lucaslive974"]
+edition = "2021"
+
+[lib]
+name = "ipdf_active_study_reader_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

@@ -1,0 +1,431 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AssistedRichTextStrategy } from '../adapters/annotations/AssistedRichTextStrategy';
+import {
+  DrawioAnnotationStrategy,
+  TldrawAnnotationStrategy,
+} from '../adapters/annotations/DiagramAnnotationStrategies';
+import type { Highlight } from '../core/domain/Highlight';
+import type { IAnnotationVisitor } from '../core/domain/RichAnnotation';
+import type { TextFormatStyle } from '../core/domain/types';
+import { CloudlessSyncEngine } from '../core/services/CloudlessSyncEngine';
+import { DataPortabilityService } from '../core/services/DataPortabilityService';
+import { HighlightManager } from '../core/services/HighlightManager';
+import { PromptBuilder } from '../core/services/PromptBuilder';
+import { InMemoryBookRepository } from '../test/fakes/InMemoryBookRepository';
+import { InMemoryFileStorage } from '../test/fakes/InMemoryFileStorage';
+import { InMemoryHighlightRepository } from '../test/fakes/InMemoryHighlightRepository';
+import { InMemoryRemoteStorageProvider } from '../test/fakes/InMemoryRemoteStorageProvider';
+import { JsonExportStrategy } from '../test/fakes/JsonExportStrategy';
+
+const BOOK_HASH = 'sha256-plato-republic-book-vii';
+const SAMPLE_PARAGRAPH =
+  'Imagina homens numa morada subterrânea, em forma de caverna, com uma entrada aberta para a luz; ' +
+  'esses homens estão aí desde a infância, de pernas e pescoço acorrentados, de modo que só podem ver ' +
+  'o que está diante deles, projetado pelas sombras do fogo na parede da caverna (noesis vs. doxa).';
+
+export function App() {
+  const servicesRef = useRef<{
+    highlightManager: HighlightManager;
+    syncEngine: CloudlessSyncEngine;
+    portability: DataPortabilityService;
+    jsonStrategy: JsonExportStrategy;
+    promptBuilder: PromptBuilder;
+  } | null>(null);
+
+  if (!servicesRef.current) {
+    const bookRepo = new InMemoryBookRepository();
+    const highlightRepo = new InMemoryHighlightRepository();
+    const fileStorage = new InMemoryFileStorage();
+    const remoteStorage = new InMemoryRemoteStorageProvider();
+    const jsonStrategy = new JsonExportStrategy();
+
+    const highlightManager = new HighlightManager(highlightRepo, [
+      new AssistedRichTextStrategy(),
+      new TldrawAnnotationStrategy(),
+      new DrawioAnnotationStrategy(),
+    ]);
+
+    const portability = new DataPortabilityService(bookRepo, highlightRepo, fileStorage);
+    const syncEngine = new CloudlessSyncEngine(remoteStorage, portability, jsonStrategy);
+
+    servicesRef.current = {
+      highlightManager,
+      syncEngine,
+      portability,
+      jsonStrategy,
+      promptBuilder: new PromptBuilder(),
+    };
+  }
+
+  const [highlights, setHighlights] = useState<Highlight[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [noteInput, setNoteInput] = useState('');
+  const [selectionRange, setSelectionRange] = useState<{ start: number; end: number }>({
+    start: 0,
+    end: 0,
+  });
+  const [visitorOutput, setVisitorOutput] = useState<string[]>([]);
+  const [syncExportPreview, setSyncExportPreview] = useState<string>('');
+  const [llmPromptPreview, setLlmPromptPreview] = useState<string>('');
+
+  const refreshState = useCallback(
+    async (activeHighlightId?: string | null) => {
+      const svc = servicesRef.current;
+      if (!svc) {
+        return;
+      }
+      const pageHighlights = svc.highlightManager.getForPage(1);
+      setHighlights([...pageHighlights]);
+
+      const targetId = activeHighlightId ?? selectedId ?? pageHighlights[0]?.id ?? null;
+      if (targetId) {
+        setSelectedId(targetId);
+        const found = pageHighlights.find((h) => h.id === targetId);
+        if (found) {
+          setNoteInput(found.note);
+          const visitor: IAnnotationVisitor<string> = {
+            visitAssistedText: (node) => `[Texto Assistido] ${node.rawData}`,
+            visitTldrawBoard: (node) => `[Quadro tldraw] ${node.rawData} | SVG: ${node.svgPreview}`,
+            visitDrawioDiagram: (node) =>
+              `[Diagrama draw.io] ${node.rawData} | SVG: ${node.svgPreview}`,
+          };
+          setVisitorOutput(svc.highlightManager.visitHighlightAnnotations(targetId, visitor));
+        }
+      }
+    },
+    [selectedId]
+  );
+
+  useEffect(() => {
+    const init = async () => {
+      const svc = servicesRef.current;
+      if (!svc) {
+        return;
+      }
+      await svc.highlightManager.loadBookHighlights(BOOK_HASH);
+      const existing = svc.highlightManager.getForPage(1);
+      if (existing.length === 0) {
+        const created = await svc.highlightManager.createFromSelection(
+          BOOK_HASH,
+          {
+            text: 'noesis vs. doxa',
+            surroundingContext: SAMPLE_PARAGRAPH,
+            anchor: { format: 'epub', pageNumber: 1, epubCfi: 'epubcfi(/6/14!/4/2/1:120)' },
+            clientRect: {
+              x: 0,
+              y: 0,
+              width: 120,
+              height: 20,
+              top: 0,
+              right: 120,
+              bottom: 20,
+              left: 0,
+              toJSON: () => ({}),
+            } as DOMRect,
+          },
+          '#eab308',
+          'Transição da opinião sensível para a intelecção pura'
+        );
+        await refreshState(created.id);
+      } else {
+        await refreshState(existing[0].id);
+      }
+    };
+    void init();
+  }, [refreshState]);
+
+  const handleCreateHighlightFromSelection = async (color: string) => {
+    const svc = servicesRef.current;
+    if (!svc) {
+      return;
+    }
+    const browserSel = window.getSelection()?.toString().trim();
+    const textToHighlight =
+      browserSel && browserSel.length > 0
+        ? browserSel
+        : 'homens numa morada subterrânea, em forma de caverna';
+
+    const created = await svc.highlightManager.createFromSelection(
+      BOOK_HASH,
+      {
+        text: textToHighlight,
+        surroundingContext: SAMPLE_PARAGRAPH,
+        anchor: {
+          format: 'epub',
+          pageNumber: 1,
+          epubCfi: `epubcfi(/6/14!/4/2/${Date.now()})`,
+        },
+        clientRect: {
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 20,
+          top: 0,
+          right: 100,
+          bottom: 20,
+          left: 0,
+          toJSON: () => ({}),
+        } as DOMRect,
+      },
+      color,
+      'Nova anotação de estudo na seção'
+    );
+    await refreshState(created.id);
+  };
+
+  const handleApplyAssistedFormat = async (style: TextFormatStyle) => {
+    const svc = servicesRef.current;
+    if (!svc || !selectedId) {
+      return;
+    }
+    await svc.highlightManager.interactWithAnnotation(selectedId, 'assisted-markdown', {
+      target: 'assisted-markdown',
+      action: 'replace-text',
+      text: noteInput,
+    });
+
+    const range =
+      selectionRange.end > selectionRange.start
+        ? selectionRange
+        : { start: 0, end: noteInput.length };
+
+    await svc.highlightManager.interactWithAnnotation(selectedId, 'assisted-markdown', {
+      target: 'assisted-markdown',
+      action: 'apply-format',
+      selectionRange: range,
+      formatStyle: style,
+    });
+    await refreshState(selectedId);
+  };
+
+  const handleAttachVisualBoard = async (kind: 'tldraw' | 'drawio') => {
+    const svc = servicesRef.current;
+    if (!svc || !selectedId) {
+      return;
+    }
+    if (kind === 'tldraw') {
+      await svc.highlightManager.interactWithAnnotation(selectedId, 'tldraw', {
+        target: 'tldraw',
+        action: 'save-snapshot',
+        snapshotJson: '{"shapes":[{"type":"arrow","from":"Doxa","to":"Noesis"}]}',
+        svgPreview: '<svg viewBox="0 0 120 40"><text>tldraw: Doxa → Noesis</text></svg>',
+      });
+    } else {
+      await svc.highlightManager.interactWithAnnotation(selectedId, 'drawio', {
+        target: 'drawio',
+        action: 'save-diagram',
+        xmlOrJsonDiagram:
+          '<mxGraphModel><root><mxCell id="mundo-inteligivel"/></root></mxGraphModel>',
+        svgPreview: '<svg viewBox="0 0 120 40"><text>draw.io: Linha Dividida</text></svg>',
+      });
+    }
+    await refreshState(selectedId);
+  };
+
+  const handleGeneratePrompt = () => {
+    const svc = servicesRef.current;
+    if (!svc) {
+      return;
+    }
+    const active = highlights.find((h) => h.id === selectedId);
+    const req = svc.promptBuilder.buildTermLookupRequest(
+      {
+        bookTitle: 'A República',
+        bookAuthor: 'Platão',
+        chapterTitle: 'Livro VII — Alegoria da Caverna',
+        selectedText: active?.text ?? 'noesis',
+        surroundingContext: SAMPLE_PARAGRAPH,
+      },
+      'pt-BR'
+    );
+    setLlmPromptPreview(JSON.stringify(req, null, 2));
+  };
+
+  const handleRunCloudlessSync = async () => {
+    const svc = servicesRef.current;
+    if (!svc) {
+      return;
+    }
+    await svc.syncEngine.syncBookState(BOOK_HASH);
+    const exported = await svc.portability.exportData(
+      { bookHashes: [BOOK_HASH], includeBookFiles: false, format: 'json-only' },
+      svc.jsonStrategy
+    );
+    setSyncExportPreview(
+      typeof exported === 'string'
+        ? JSON.stringify(JSON.parse(exported), null, 2)
+        : 'Binary Uint8Array'
+    );
+  };
+
+  return (
+    <div className="app-layout">
+      <section className="panel">
+        <div className="header-bar">
+          <div>
+            <h2 style={{ margin: 0 }}>Platão — A República (Livro VII)</h2>
+            <small style={{ color: 'var(--text-muted)' }}>
+              Hash SHA-256: <code>{BOOK_HASH}</code>
+            </small>
+          </div>
+          <span className="badge">Fase 1 Core Workbench</span>
+        </div>
+
+        <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+          Selecione qualquer trecho do texto abaixo (ou clique diretamente num botão de cor) para
+          criar um grifo polimórfico gerenciado pelo <code>HighlightManager</code>:
+        </p>
+
+        <div className="book-passage">{SAMPLE_PARAGRAPH}</div>
+
+        <div className="toolbar">
+          <button
+            type="button"
+            className="primary"
+            onClick={() => void handleCreateHighlightFromSelection('#eab308')}
+          >
+            + Grifar Amarelo
+          </button>
+          <button type="button" onClick={() => void handleCreateHighlightFromSelection('#22c55e')}>
+            + Grifar Verde
+          </button>
+          <button type="button" onClick={() => void handleCreateHighlightFromSelection('#38bdf8')}>
+            + Grifar Azul
+          </button>
+          <button type="button" onClick={handleGeneratePrompt}>
+            Gerar Prompt Contextual (LLM)
+          </button>
+          <button type="button" onClick={() => void handleRunCloudlessSync()}>
+            Sincronizar LWW (CloudlessSyncEngine)
+          </button>
+        </div>
+
+        <h3 style={{ margin: '0.5rem 0 0 0' }}>Grifos na Página 1 ({highlights.length})</h3>
+        {highlights.map((hl) => (
+          <div
+            key={hl.id}
+            className={`highlight-card ${hl.id === selectedId ? 'active' : ''}`}
+            style={{ borderLeftColor: hl.color }}
+            onClick={() => void refreshState(hl.id)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                void refreshState(hl.id);
+              }
+            }}
+          >
+            <strong>“{hl.text}”</strong>
+            <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
+              Nota: {hl.note || '(sem nota)'}
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <section className="panel">
+        <div className="header-bar">
+          <h3 style={{ margin: 0 }}>Anotações da Seção (Strategy + Visitor / Double Dispatch)</h3>
+        </div>
+
+        <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+          Formatação Assistida (<code>AssistedRichTextStrategy</code>) — selecione parte da nota no
+          campo abaixo ou aplique diretamente sem precisar digitar sintaxe Markdown:
+        </p>
+
+        <div className="toolbar">
+          <button type="button" onClick={() => void handleApplyAssistedFormat({ kind: 'bold' })}>
+            <strong>B</strong> Negrito
+          </button>
+          <button type="button" onClick={() => void handleApplyAssistedFormat({ kind: 'italic' })}>
+            <em>I</em> Itálico
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleApplyAssistedFormat({ kind: 'underline' })}
+          >
+            <u>U</u> Sublinhado
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              void handleApplyAssistedFormat({ kind: 'textColor', colorHex: '#38bdf8' })
+            }
+          >
+            Cor Azul
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              void handleApplyAssistedFormat({ kind: 'backgroundColor', colorHex: '#ca8a04' })
+            }
+          >
+            Marca-Texto
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleApplyAssistedFormat({ kind: 'blockquote' })}
+          >
+            ❝ Citação
+          </button>
+        </div>
+
+        <textarea
+          value={noteInput}
+          onChange={(e) => setNoteInput(e.target.value)}
+          onSelect={(e) => {
+            const target = e.currentTarget;
+            setSelectionRange({
+              start: target.selectionStart,
+              end: target.selectionEnd,
+            });
+          }}
+        />
+
+        <div className="toolbar">
+          <button
+            type="button"
+            className="primary"
+            onClick={() => void handleAttachVisualBoard('tldraw')}
+          >
+            + Anexar Quadro Branco (tldraw Strategy)
+          </button>
+          <button
+            type="button"
+            className="primary"
+            onClick={() => void handleAttachVisualBoard('drawio')}
+          >
+            + Anexar Diagrama (draw.io Strategy)
+          </button>
+        </div>
+
+        <div>
+          <strong>
+            Saída do Visitor Pattern (<code>acceptAnnotationVisitor</code>):
+          </strong>
+          <pre className="code-box">
+            {visitorOutput.length > 0
+              ? visitorOutput.join('\n')
+              : 'Nenhuma anotação rica anexada ainda.'}
+          </pre>
+        </div>
+
+        {llmPromptPreview && (
+          <div>
+            <strong>
+              Prompt Gerado (<code>PromptBuilder</code>):
+            </strong>
+            <pre className="code-box">{llmPromptPreview}</pre>
+          </div>
+        )}
+
+        {syncExportPreview && (
+          <div>
+            <strong>
+              Payload LWW Sincronizado (<code>CloudlessSyncEngine</code>):
+            </strong>
+            <pre className="code-box">{syncExportPreview}</pre>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
