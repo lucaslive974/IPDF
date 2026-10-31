@@ -17,6 +17,11 @@ export interface LibraryContextValue {
   loadBooks(): Promise<BookMetadata[]>;
   importBookFile(file: File): Promise<BookMetadata>;
   importSampleBook(): Promise<void>;
+  updateBookProgress(
+    bookHash: string,
+    currentPage: number,
+    totalPages: number
+  ): Promise<BookMetadata>;
 }
 
 export const LibraryContext = createContext<LibraryContextValue | null>(null);
@@ -72,6 +77,21 @@ export function LibraryProvider({ children }: LibraryProviderProps) {
     await loadBooks();
   }, [loadBooks]);
 
+  const updateBookProgress = useCallback(
+    async (bookHash: string, currentPage: number, totalPages: number): Promise<BookMetadata> => {
+      const updated = await services.updateBookProgress(bookHash, currentPage, totalPages);
+      setBooks((prev) => {
+        const found = prev.some((b) => b.bookHash === bookHash);
+        if (found) {
+          return prev.map((b) => (b.bookHash === bookHash ? updated : b));
+        }
+        return [updated, ...prev];
+      });
+      return updated;
+    },
+    [services]
+  );
+
   useEffect(() => {
     void loadBooks();
   }, [loadBooks]);
@@ -83,8 +103,9 @@ export function LibraryProvider({ children }: LibraryProviderProps) {
       loadBooks,
       importBookFile,
       importSampleBook,
+      updateBookProgress,
     }),
-    [books, isLoading, loadBooks, importBookFile, importSampleBook]
+    [books, isLoading, loadBooks, importBookFile, importSampleBook, updateBookProgress]
   );
 
   return <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>;

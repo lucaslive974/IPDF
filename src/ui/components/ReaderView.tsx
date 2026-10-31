@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Highlight } from '../../core/domain/Highlight';
 import type { DocumentPage } from '../../core/ports/BackendService';
+import { useLibrary } from '../hooks/useLibrary';
 import { useNavigation } from '../hooks/useNavigation';
 import { useReader } from '../hooks/useReader';
 import { ExplainDialog } from './ExplainDialog';
@@ -76,8 +77,70 @@ function tokenizeTextWithHighlights(
 export function ReaderView() {
   const reader = useReader();
   const navigation = useNavigation();
+  const library = useLibrary();
 
   const [isChromeVisible, setIsChromeVisible] = useState<boolean>(false);
+
+  // Sync reading progress to library and backend on departure
+  const lastSavedStateRef = useRef<{
+    bookHash: string;
+    currentPage: number;
+    totalPages: number;
+  } | null>(null);
+
+  const saveProgress = useCallback(
+    async (bookHash: string, currentPage: number, totalPages: number) => {
+      if (
+        !bookHash ||
+        (lastSavedStateRef.current &&
+          lastSavedStateRef.current.bookHash === bookHash &&
+          lastSavedStateRef.current.currentPage === currentPage &&
+          lastSavedStateRef.current.totalPages === totalPages)
+      ) {
+        return;
+      }
+      lastSavedStateRef.current = { bookHash, currentPage, totalPages };
+      try {
+        await library.updateBookProgress(bookHash, currentPage, totalPages);
+      } catch (err) {
+        console.warn('Failed to notify library of book progress:', err);
+      }
+    },
+    [library]
+  );
+
+  const lastStateRef = useRef({
+    bookHash: reader.document.bookHash,
+    currentPage: reader.currentPage,
+    totalPages: reader.totalPages,
+  });
+
+  useEffect(() => {
+    lastStateRef.current = {
+      bookHash: reader.document.bookHash,
+      currentPage: reader.currentPage,
+      totalPages: reader.totalPages,
+    };
+  }, [reader.document.bookHash, reader.currentPage, reader.totalPages]);
+
+  useEffect(() => {
+    return () => {
+      const { bookHash, currentPage, totalPages } = lastStateRef.current;
+      if (bookHash) {
+        void saveProgress(bookHash, currentPage, totalPages);
+      }
+    };
+  }, [saveProgress]);
+
+  const handleCloseReader = useCallback(async () => {
+    try {
+      if (reader.document.bookHash) {
+        await saveProgress(reader.document.bookHash, reader.currentPage, reader.totalPages);
+      }
+    } finally {
+      navigation.closeReader();
+    }
+  }, [navigation, reader.currentPage, reader.document.bookHash, reader.totalPages, saveProgress]);
 
   // Dropdown Context Menu and Dedicated Feature Dialogs
   const [contextMenu, setContextMenu] = useState<{
@@ -344,7 +407,7 @@ export function ReaderView() {
         }`}
       >
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" iconLeft="←" onClick={navigation.closeReader}>
+          <Button variant="outline" size="sm" iconLeft="←" onClick={handleCloseReader}>
             Library
           </Button>
           <div className="hidden sm:flex flex-col">
