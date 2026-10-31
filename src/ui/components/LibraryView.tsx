@@ -97,8 +97,9 @@ export function LibraryView({
         {/* Quick action buttons */}
         <div className="flex items-center gap-2">
           <Button
-            variant="primary"
+            variant="ghost"
             size="sm"
+            className="text-tx-main"
             iconLeft={<PlusIcon className="h-3.5 w-3.5" />}
             onClick={handleOpenFileInput}
           >
