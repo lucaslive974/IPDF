@@ -58,5 +58,4 @@ pub enum PlatformKind {
     Android,
     Windows,
     Ios,
-    Web,
 }

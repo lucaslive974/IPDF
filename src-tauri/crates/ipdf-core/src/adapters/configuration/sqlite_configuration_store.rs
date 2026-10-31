@@ -35,7 +35,7 @@ impl SqliteConfigurationStore {
     }
 
     pub fn for_platform<E: PlatformEnvironment + ?Sized>(env: &E) -> Result<Self, String> {
-        let path = env.resolve_database_path("ipdf_config.db")?;
+        let path = env.resolve_database_path("ipdf.db")?;
         Self::open_file(path)
     }
 

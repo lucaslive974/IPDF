@@ -1,4 +1,4 @@
-use ipdf_core::adapters::configuration::FileConfigurationStore;
+use ipdf_core::adapters::configuration::SqliteConfigurationStore;
 use ipdf_core::adapters::persistence::SqliteHighlightRepository;
 #[allow(unused_imports)]
 use ipdf_core::adapters::platform::{
@@ -13,7 +13,6 @@ use ipdf_core::core::ports::{
 };
 use ipdf_core::core::services::{ImportBookInput, LibraryManager, PromptBuilder, Sha256BookHasher};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use std::io::Cursor;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -62,12 +61,10 @@ pub struct IpcPlatformInfoDto {
 }
 
 pub struct BackendState {
-    highlights: BTreeMap<String, IpcHighlightDto>,
     library: LibraryManager<LocalFolderStorageAdapter>,
     highlight_repo: SqliteHighlightRepository,
-    config_store: FileConfigurationStore,
+    config_store: SqliteConfigurationStore,
     platform_env: Box<dyn PlatformEnvironment + Send>,
-    book_binaries: BTreeMap<String, Vec<u8>>,
     startup_book: Option<BookMetadata>,
 }
 
@@ -108,29 +105,22 @@ impl Default for BackendState {
         let mut library = LibraryManager::new(storage);
         let _ = library.initialize();
 
-        let config_store = FileConfigurationStore::for_platform(&*platform, "settings.json")
-            .unwrap_or_else(|_| {
-                let fallback_path = std::env::temp_dir().join("ipdf_settings.json");
-                FileConfigurationStore::new(fallback_path).unwrap()
-            });
+        let config_store = SqliteConfigurationStore::for_platform(&*platform)
+            .unwrap_or_else(|_| SqliteConfigurationStore::new_in_memory().unwrap());
 
         let mut startup_book = None;
-        let mut book_binaries = BTreeMap::new();
         let args: Vec<String> = std::env::args().collect();
         if let Some(path) = find_file_argument(&args) {
-            if let Ok((metadata, bytes)) = library.open_book_from_path(&path) {
-                book_binaries.insert(metadata.book_hash.clone(), bytes);
+            if let Ok((metadata, _bytes)) = library.open_book_from_path(&path) {
                 startup_book = Some(metadata);
             }
         }
 
         Self {
-            highlights: BTreeMap::new(),
             library,
             highlight_repo,
             config_store,
             platform_env: platform,
-            book_binaries,
             startup_book,
         }
     }
@@ -166,10 +156,7 @@ fn open_book_file(
 ) -> Result<BookMetadata, String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
     let path = std::path::Path::new(&file_path);
-    let (metadata, bytes) = guard.library.open_book_from_path(path)?;
-    guard
-        .book_binaries
-        .insert(metadata.book_hash.clone(), bytes);
+    let (metadata, _bytes) = guard.library.open_book_from_path(path)?;
     Ok(metadata)
 }
 
@@ -192,7 +179,6 @@ fn import_library_book(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<BookMetadata, String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
-    let cloned_bytes = raw_bytes.clone();
     let meta = guard.library.import_book(ImportBookInput {
         raw_bytes,
         title,
@@ -202,9 +188,6 @@ fn import_library_book(
         cover_image_url,
         now_ms: current_epoch_ms(),
     })?;
-    guard
-        .book_binaries
-        .insert(meta.book_hash.clone(), cloned_bytes);
     Ok(meta)
 }
 
@@ -214,9 +197,6 @@ fn read_book_binary(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<Vec<u8>, String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
-    if let Some(bytes) = guard.book_binaries.get(&book_hash) {
-        return Ok(bytes.clone());
-    }
     guard.library.open_book_binary(&book_hash)
 }
 
@@ -304,18 +284,7 @@ fn load_book_highlights(
 ) -> Result<Vec<IpcHighlightDto>, String> {
     let guard = state.lock().map_err(|e| e.to_string())?;
     let domain_highlights = guard.highlight_repo.find_by_book(&book_hash)?;
-
-    if !domain_highlights.is_empty() {
-        return Ok(domain_highlights.into_iter().map(domain_to_ipc_highlight).collect());
-    }
-
-    let list = guard
-        .highlights
-        .values()
-        .filter(|h| h.book_hash == book_hash)
-        .cloned()
-        .collect();
-    Ok(list)
+    Ok(domain_highlights.into_iter().map(domain_to_ipc_highlight).collect())
 }
 
 #[tauri::command]
@@ -357,7 +326,6 @@ fn save_highlight(
     }
 
     guard.highlight_repo.save(domain)?;
-    guard.highlights.insert(highlight.id.clone(), highlight);
     Ok(())
 }
 
@@ -367,9 +335,7 @@ fn delete_highlight(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<(), String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
-    let _ = guard.highlight_repo.delete(&highlight_id);
-    guard.highlights.remove(&highlight_id);
-    Ok(())
+    guard.highlight_repo.delete(&highlight_id)
 }
 
 #[tauri::command]
@@ -406,27 +372,11 @@ fn sync_book_workspace(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<String, String> {
     let guard = state.lock().map_err(|e| e.to_string())?;
-    let highlights: Vec<IpcHighlightDto> = if let Ok(domain_highlights) =
-        guard.highlight_repo.find_by_book(&book_hash)
-    {
-        if !domain_highlights.is_empty() {
-            domain_highlights.into_iter().map(domain_to_ipc_highlight).collect()
-        } else {
-            guard
-                .highlights
-                .values()
-                .filter(|h| h.book_hash == book_hash)
-                .cloned()
-                .collect()
-        }
-    } else {
-        guard
-            .highlights
-            .values()
-            .filter(|h| h.book_hash == book_hash)
-            .cloned()
-            .collect()
-    };
+    let domain_highlights = guard.highlight_repo.find_by_book(&book_hash)?;
+    let highlights: Vec<IpcHighlightDto> = domain_highlights
+        .into_iter()
+        .map(domain_to_ipc_highlight)
+        .collect();
 
     let payload = serde_json::json!({
         "schemaVersion": 1,
@@ -487,10 +437,7 @@ pub fn run() {
             if let Some(path) = find_file_argument(&args) {
                 if let Some(state) = app.try_state::<Mutex<BackendState>>() {
                     if let Ok(mut guard) = state.lock() {
-                        if let Ok((metadata, bytes)) = guard.library.open_book_from_path(&path) {
-                            guard
-                                .book_binaries
-                                .insert(metadata.book_hash.clone(), bytes);
+                        if let Ok((metadata, _bytes)) = guard.library.open_book_from_path(&path) {
                             let _ = app.emit("open-book-from-system", &metadata);
                         }
                     }

@@ -1,13 +1,11 @@
 pub mod android_environment;
 pub mod ios_environment;
 pub mod linux_environment;
-pub mod web_environment;
 pub mod windows_environment;
 
 pub use android_environment::AndroidEnvironment;
 pub use ios_environment::IosEnvironment;
 pub use linux_environment::LinuxEnvironment;
-pub use web_environment::WebEnvironment;
 pub use windows_environment::WindowsEnvironment;
 
 use crate::core::domain::PlatformKind;
@@ -23,6 +21,5 @@ pub fn create_platform_environment(
         PlatformKind::Android => Box::new(AndroidEnvironment::new(custom_root)),
         PlatformKind::Windows => Box::new(WindowsEnvironment::new(custom_root)),
         PlatformKind::Ios => Box::new(IosEnvironment::new(custom_root)),
-        PlatformKind::Web => Box::new(WebEnvironment::new(custom_root)),
     }
 }

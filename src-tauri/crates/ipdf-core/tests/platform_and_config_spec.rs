@@ -1,10 +1,8 @@
-use ipdf_core::adapters::configuration::{
-    FileConfigurationStore, LocalStorageConfigurationStore, SqliteConfigurationStore,
-};
+use ipdf_core::adapters::configuration::SqliteConfigurationStore;
 use ipdf_core::adapters::persistence::SqliteHighlightRepository;
 use ipdf_core::adapters::platform::{
     create_platform_environment, AndroidEnvironment, IosEnvironment, LinuxEnvironment,
-    WebEnvironment, WindowsEnvironment,
+    WindowsEnvironment,
 };
 use ipdf_core::adapters::storage::LocalFolderStorageAdapter;
 use ipdf_core::core::domain::{BookFormat, Highlight, HighlightAnchor, PlatformKind};
@@ -14,7 +12,6 @@ use ipdf_core::core::ports::{
 use ipdf_core::core::services::LibraryManager;
 use std::env;
 use std::fs;
-use std::path::PathBuf;
 
 #[test]
 fn test_platform_environments_path_resolution() {
@@ -121,32 +118,12 @@ fn test_platform_environments_path_resolution() {
     assert_eq!(ios_default.platform_kind(), PlatformKind::Ios);
     assert!(ios_default.data_dir().is_ok());
 
-    // 5. Web (LocalStorage / virtual path)
-    let web = WebEnvironment::new(Some("/local-storage/ipdf".into()));
-    assert_eq!(web.platform_kind(), PlatformKind::Web);
-    assert_eq!(
-        web.data_dir().unwrap(),
-        PathBuf::from("/local-storage/ipdf/data")
-    );
-    assert_eq!(
-        web.config_dir().unwrap(),
-        PathBuf::from("/local-storage/ipdf/config")
-    );
-    assert_eq!(
-        web.cache_dir().unwrap(),
-        PathBuf::from("/local-storage/ipdf/cache")
-    );
-
-    let web_default = WebEnvironment::default();
-    assert_eq!(web_default.platform_kind(), PlatformKind::Web);
-
-    // Factory with all PlatformKinds
+    // Factory with supported PlatformKinds
     for kind in [
         PlatformKind::Linux,
         PlatformKind::Android,
         PlatformKind::Windows,
         PlatformKind::Ios,
-        PlatformKind::Web,
     ] {
         let boxed = create_platform_environment(kind, Some(temp_base.join("custom")));
         assert_eq!(boxed.platform_kind(), kind);
@@ -156,59 +133,14 @@ fn test_platform_environments_path_resolution() {
 }
 
 #[test]
-fn test_configuration_stores_file_localstorage_and_sqlite() {
+fn test_configuration_store_sqlite() {
     let temp_base = env::temp_dir().join(format!("ipdf_cfg_test_{}", std::process::id()));
     let _ = fs::remove_dir_all(&temp_base);
 
-    // 1. FileConfigurationStore
-    let cfg_file = temp_base.join("settings.json");
-    let mut file_store = FileConfigurationStore::new(&cfg_file).unwrap();
-    assert_eq!(file_store.get("theme").unwrap(), None);
-    file_store.set("theme", "dark").unwrap();
-    file_store.set("font_size", "16").unwrap();
-    assert_eq!(file_store.get("theme").unwrap(), Some("dark".to_string()));
-    assert_eq!(file_store.get("font_size").unwrap(), Some("16".to_string()));
-    assert_eq!(file_store.keys().unwrap().len(), 2);
-
-    file_store.remove("theme").unwrap();
-    assert_eq!(file_store.get("theme").unwrap(), None);
-    assert_eq!(file_store.keys().unwrap().len(), 1);
-
-    // Reopen from disk to verify persistence
-    let mut file_store_reopened = FileConfigurationStore::new(&cfg_file).unwrap();
-    assert_eq!(
-        file_store_reopened.get("font_size").unwrap(),
-        Some("16".to_string())
-    );
-    file_store_reopened.clear().unwrap();
-    assert!(file_store_reopened.keys().unwrap().is_empty());
-
-    // 2. LocalStorageConfigurationStore (Web simulation)
-    let mut ls_store = LocalStorageConfigurationStore::new(Some("ipdf_"));
-    assert_eq!(ls_store.get("sync_provider").unwrap(), None);
-    ls_store.set("sync_provider", "google_drive").unwrap();
-    assert_eq!(
-        ls_store.get("sync_provider").unwrap(),
-        Some("google_drive".to_string())
-    );
-    assert_eq!(ls_store.keys().unwrap(), vec!["sync_provider".to_string()]);
-    ls_store.remove("sync_provider").unwrap();
-    assert_eq!(ls_store.get("sync_provider").unwrap(), None);
-    ls_store.set("k1", "v1").unwrap();
-    ls_store.clear().unwrap();
-    assert!(ls_store.keys().unwrap().is_empty());
-
-    let mut ls_default = LocalStorageConfigurationStore::default();
-    ls_default.set("bare_key", "value").unwrap();
-    assert_eq!(
-        ls_default.get("bare_key").unwrap(),
-        Some("value".to_string())
-    );
-    assert_eq!(ls_default.keys().unwrap(), vec!["bare_key".to_string()]);
-
-    // 3. SqliteConfigurationStore
+    // 1. File-backed SqliteConfigurationStore with persistence verification
     let db_path = temp_base.join("config.db");
     let mut sqlite_store = SqliteConfigurationStore::open_file(&db_path).unwrap();
+    assert_eq!(sqlite_store.get("active_language").unwrap(), None);
     sqlite_store.set("active_language", "pt-BR").unwrap();
     sqlite_store.set("tts_speed", "1.2").unwrap();
     assert_eq!(
@@ -221,22 +153,41 @@ fn test_configuration_stores_file_localstorage_and_sqlite() {
     );
     assert_eq!(sqlite_store.keys().unwrap().len(), 2);
 
-    sqlite_store.remove("tts_speed").unwrap();
-    assert_eq!(sqlite_store.get("tts_speed").unwrap(), None);
+    // Reopen file to verify on-disk persistence
+    let mut reopened_store = SqliteConfigurationStore::open_file(&db_path).unwrap();
     assert_eq!(
-        sqlite_store.keys().unwrap(),
+        reopened_store.get("active_language").unwrap(),
+        Some("pt-BR".to_string())
+    );
+    assert_eq!(
+        reopened_store.get("tts_speed").unwrap(),
+        Some("1.2".to_string())
+    );
+
+    reopened_store.remove("tts_speed").unwrap();
+    assert_eq!(reopened_store.get("tts_speed").unwrap(), None);
+    assert_eq!(
+        reopened_store.keys().unwrap(),
         vec!["active_language".to_string()]
     );
 
-    sqlite_store.clear().unwrap();
-    assert!(sqlite_store.keys().unwrap().is_empty());
+    reopened_store.clear().unwrap();
+    assert!(reopened_store.keys().unwrap().is_empty());
 
+    // 2. In-memory SqliteConfigurationStore
     let mut in_memory_sqlite = SqliteConfigurationStore::new_in_memory().unwrap();
+    assert_eq!(in_memory_sqlite.get("mem_key").unwrap(), None);
     in_memory_sqlite.set("mem_key", "mem_val").unwrap();
     assert_eq!(
         in_memory_sqlite.get("mem_key").unwrap(),
         Some("mem_val".to_string())
     );
+    assert_eq!(
+        in_memory_sqlite.keys().unwrap(),
+        vec!["mem_key".to_string()]
+    );
+    in_memory_sqlite.remove("mem_key").unwrap();
+    assert_eq!(in_memory_sqlite.get("mem_key").unwrap(), None);
 
     let _ = fs::remove_dir_all(&temp_base);
 }
@@ -291,14 +242,7 @@ fn test_repositories_and_storage_integration_with_platform_environment() {
         b"epub-content".to_vec()
     );
 
-    // 3. Configuration Stores for platform environment
-    let mut config_store = FileConfigurationStore::for_platform(&env, "app_settings.json").unwrap();
-    config_store.set("reader_theme", "sepia").unwrap();
-    assert_eq!(
-        config_store.get("reader_theme").unwrap(),
-        Some("sepia".to_string())
-    );
-
+    // 3. Configuration Store for platform environment (SqliteConfigurationStore in ipdf.db)
     let mut sqlite_config_store = SqliteConfigurationStore::for_platform(&env).unwrap();
     sqlite_config_store
         .set("platform_setting", "enabled")

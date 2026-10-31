@@ -1,7 +1,3 @@
-pub mod file_configuration_store;
-pub mod local_storage_configuration_store;
 pub mod sqlite_configuration_store;
 
-pub use file_configuration_store::FileConfigurationStore;
-pub use local_storage_configuration_store::LocalStorageConfigurationStore;
 pub use sqlite_configuration_store::SqliteConfigurationStore;

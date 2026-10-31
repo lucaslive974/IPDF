@@ -1,6 +1,6 @@
 use crate::core::domain::{Highlight, HighlightAnchor, RichAnnotation};
 use crate::core::ports::{HighlightRepository, PlatformEnvironment};
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{params, Connection, OptionalExtension, Row};
 use std::fmt::Display;
 use std::fs;
 use std::path::Path;
@@ -8,6 +8,36 @@ use std::path::Path;
 fn to_err<E: Display>(err: E) -> String {
     err.to_string()
 }
+
+// Centralized SQL queries
+const INIT_SCHEMA_SQL: &str = "
+    CREATE TABLE IF NOT EXISTS highlights (
+        id TEXT PRIMARY KEY,
+        book_hash TEXT NOT NULL,
+        page_number INTEGER NOT NULL,
+        text TEXT NOT NULL,
+        color TEXT NOT NULL,
+        anchor_json TEXT NOT NULL,
+        note TEXT NOT NULL,
+        created_at_ms INTEGER NOT NULL,
+        updated_at_ms INTEGER NOT NULL,
+        annotations_json TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_highlights_book_page
+        ON highlights (book_hash, page_number);
+";
+
+const UPSERT_SQL: &str = "
+    INSERT OR REPLACE INTO highlights (
+        id, book_hash, page_number, text, color, anchor_json,
+        note, created_at_ms, updated_at_ms, annotations_json
+    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+";
+
+const FIND_BY_ID_SQL: &str = "SELECT id, book_hash, text, color, anchor_json, note, created_at_ms, updated_at_ms, annotations_json FROM highlights WHERE id = ?1";
+const DELETE_BY_ID_SQL: &str = "DELETE FROM highlights WHERE id = ?1";
+const FIND_BY_BOOK_SQL: &str = "SELECT id, book_hash, text, color, anchor_json, note, created_at_ms, updated_at_ms, annotations_json FROM highlights WHERE book_hash = ?1 ORDER BY created_at_ms ASC";
+const FIND_BY_BOOK_AND_PAGE_SQL: &str = "SELECT id, book_hash, text, color, anchor_json, note, created_at_ms, updated_at_ms, annotations_json FROM highlights WHERE book_hash = ?1 AND page_number = ?2 ORDER BY created_at_ms ASC";
 
 pub struct SqliteHighlightRepository {
     conn: Connection,
@@ -41,36 +71,19 @@ impl SqliteHighlightRepository {
     }
 
     fn initialize_schema(&self) -> Result<(), String> {
-        self.conn
-            .execute_batch(
-                "CREATE TABLE IF NOT EXISTS highlights (
-                    id TEXT PRIMARY KEY,
-                    book_hash TEXT NOT NULL,
-                    page_number INTEGER NOT NULL,
-                    text TEXT NOT NULL,
-                    color TEXT NOT NULL,
-                    anchor_json TEXT NOT NULL,
-                    note TEXT NOT NULL,
-                    created_at_ms INTEGER NOT NULL,
-                    updated_at_ms INTEGER NOT NULL,
-                    annotations_json TEXT NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_highlights_book_page
-                    ON highlights (book_hash, page_number);",
-            )
-            .map_err(to_err)
+        self.conn.execute_batch(INIT_SCHEMA_SQL).map_err(to_err)
     }
 
-    fn row_to_highlight(row: &rusqlite::Row<'_>) -> rusqlite::Result<Result<Highlight, String>> {
-        let id: String = row.get(0)?;
-        let book_hash: String = row.get(1)?;
-        let text: String = row.get(2)?;
-        let color: String = row.get(3)?;
-        let anchor_json: String = row.get(4)?;
-        let note: String = row.get(5)?;
-        let created_at_ms: i64 = row.get(6)?;
-        let updated_at_ms: i64 = row.get(7)?;
-        let annotations_json: String = row.get(8)?;
+    fn row_to_highlight(row: &Row<'_>) -> rusqlite::Result<Result<Highlight, String>> {
+        let id: String = row.get("id")?;
+        let book_hash: String = row.get("book_hash")?;
+        let text: String = row.get("text")?;
+        let color: String = row.get("color")?;
+        let anchor_json: String = row.get("anchor_json")?;
+        let note: String = row.get("note")?;
+        let created_at_ms: i64 = row.get("created_at_ms")?;
+        let updated_at_ms: i64 = row.get("updated_at_ms")?;
+        let annotations_json: String = row.get("annotations_json")?;
 
         let anchor: HighlightAnchor = match serde_json::from_str(&anchor_json) {
             Ok(a) => a,
@@ -99,10 +112,7 @@ impl HighlightRepository for SqliteHighlightRepository {
 
         self.conn
             .execute(
-                "INSERT OR REPLACE INTO highlights (
-                    id, book_hash, page_number, text, color, anchor_json,
-                    note, created_at_ms, updated_at_ms, annotations_json
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                UPSERT_SQL,
                 params![
                     highlight.id,
                     highlight.book_hash,
@@ -121,14 +131,7 @@ impl HighlightRepository for SqliteHighlightRepository {
     }
 
     fn find_by_id(&self, id: &str) -> Result<Option<Highlight>, String> {
-        let mut stmt = self
-            .conn
-            .prepare(
-                "SELECT id, book_hash, text, color, anchor_json, note,
-                        created_at_ms, updated_at_ms, annotations_json
-                 FROM highlights WHERE id = ?1",
-            )
-            .map_err(to_err)?;
+        let mut stmt = self.conn.prepare(FIND_BY_ID_SQL).map_err(to_err)?;
 
         let raw = stmt
             .query_row(params![id], Self::row_to_highlight)
@@ -147,20 +150,13 @@ impl HighlightRepository for SqliteHighlightRepository {
 
     fn delete(&mut self, id: &str) -> Result<(), String> {
         self.conn
-            .execute("DELETE FROM highlights WHERE id = ?1", params![id])
+            .execute(DELETE_BY_ID_SQL, params![id])
             .map_err(to_err)?;
         Ok(())
     }
 
     fn find_by_book(&self, book_hash: &str) -> Result<Vec<Highlight>, String> {
-        let mut stmt = self
-            .conn
-            .prepare(
-                "SELECT id, book_hash, text, color, anchor_json, note,
-                        created_at_ms, updated_at_ms, annotations_json
-                 FROM highlights WHERE book_hash = ?1 ORDER BY created_at_ms ASC",
-            )
-            .map_err(to_err)?;
+        let mut stmt = self.conn.prepare(FIND_BY_BOOK_SQL).map_err(to_err)?;
 
         let rows = stmt
             .query_map(params![book_hash], Self::row_to_highlight)
@@ -180,13 +176,7 @@ impl HighlightRepository for SqliteHighlightRepository {
     ) -> Result<Vec<Highlight>, String> {
         let mut stmt = self
             .conn
-            .prepare(
-                "SELECT id, book_hash, text, color, anchor_json, note,
-                        created_at_ms, updated_at_ms, annotations_json
-                 FROM highlights
-                 WHERE book_hash = ?1 AND page_number = ?2
-                 ORDER BY created_at_ms ASC",
-            )
+            .prepare(FIND_BY_BOOK_AND_PAGE_SQL)
             .map_err(to_err)?;
 
         let rows = stmt
