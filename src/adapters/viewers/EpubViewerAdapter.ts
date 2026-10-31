@@ -5,7 +5,7 @@ import type {
   SentenceNode,
   TextSelection,
 } from '../../core/domain/types';
-import type { IDocumentViewer } from '../../core/ports/IDocumentViewer';
+import type { DocumentPage, IDocumentViewer } from '../../core/ports/IDocumentViewer';
 
 export interface EpubChapterDescriptor {
   readonly title: string;
@@ -40,6 +40,7 @@ const createDefaultClientRect = (): DOMRect =>
 export class EpubViewerAdapter implements IDocumentViewer {
   private container: HTMLElement | null = null;
   private chapters: EpubChapterDescriptor[] = [];
+  private pages: DocumentPage[] = [];
   private currentPageIndex = 0;
   private renderedHighlights = new Map<string, Highlight>();
   private inlineAnnotations: InlineAnnotationEntry[] = [];
@@ -124,9 +125,28 @@ export class EpubViewerAdapter implements IDocumentViewer {
   public async render(container: HTMLElement, fileData: ArrayBuffer): Promise<void> {
     this.container = container;
     this.chapters = await this.parseEpubChapters(fileData);
+    this.pages = this.paginateChapters(this.chapters);
     this.currentPageIndex = 0;
     this.flushDom();
     this.emitPageChanged();
+  }
+
+  public setPages(pages: DocumentPage[]): void {
+    this.pages = pages;
+    this.flushDom();
+    this.emitPageChanged();
+  }
+
+  public getPage(pageNumber: number): DocumentPage | null {
+    if (pageNumber < 1 || pageNumber > this.pages.length) {
+      return null;
+    }
+    return this.pages[pageNumber - 1] ?? null;
+  }
+
+  public getPagesChunk(startPage: number, count: number): DocumentPage[] {
+    const startIndex = Math.max(0, startPage - 1);
+    return this.pages.slice(startIndex, startIndex + count);
   }
 
   public getChapters(): EpubChapterDescriptor[] {
@@ -134,6 +154,11 @@ export class EpubViewerAdapter implements IDocumentViewer {
   }
 
   public getParagraphsForChapter(index = this.currentPageIndex): string[] {
+    const page = this.pages[index];
+    if (page && page.paragraphs.length > 0) {
+      return page.paragraphs;
+    }
+
     const chapter = this.chapters[index];
     if (!chapter) return [];
 
@@ -189,6 +214,7 @@ export class EpubViewerAdapter implements IDocumentViewer {
     }
     this.container = null;
     this.chapters = [];
+    this.pages = [];
     this.renderedHighlights.clear();
     this.inlineAnnotations = [];
     this.activeTtsSentenceId = null;
@@ -231,17 +257,61 @@ export class EpubViewerAdapter implements IDocumentViewer {
   }
 
   public getCurrentPage(): PageInfo {
-    const totalPages = Math.max(1, this.chapters.length);
-    const currentPage = this.currentPageIndex + 1;
+    const totalPages = Math.max(1, this.pages.length || this.chapters.length);
+    const currentPage = Math.max(1, Math.min(totalPages, this.currentPageIndex + 1));
+    const page = this.pages[currentPage - 1];
     const chapter = this.chapters[this.currentPageIndex];
     const percentage = Math.round((currentPage / totalPages) * 100);
 
     return {
       currentPage,
       totalPages,
-      chapterTitle: chapter?.title,
+      chapterTitle: page?.chapterTitle || chapter?.title,
       percentage,
     };
+  }
+
+  private paginateChapters(chapters: EpubChapterDescriptor[]): DocumentPage[] {
+    const pages: DocumentPage[] = [];
+    let pageNum = 1;
+
+    for (let cIdx = 0; cIdx < chapters.length; cIdx += 1) {
+      const ch = chapters[cIdx];
+      if (!ch) continue;
+      const paragraphs = this.getParagraphsForChapter(cIdx);
+      if (paragraphs.length <= 14) {
+        pages.push({
+          pageNumber: pageNum,
+          chapterTitle: ch.title,
+          paragraphs: paragraphs.length > 0 ? paragraphs : ['Empty chapter'],
+          cfiBase: `${ch.cfiBase}/1:0`,
+        });
+        pageNum += 1;
+      } else {
+        const chunks = Math.ceil(paragraphs.length / 14);
+        for (let i = 0; i < chunks; i += 1) {
+          const slice = paragraphs.slice(i * 14, (i + 1) * 14);
+          pages.push({
+            pageNumber: pageNum,
+            chapterTitle: ch.title,
+            paragraphs: slice,
+            cfiBase: `${ch.cfiBase}/${i + 1}:0`,
+          });
+          pageNum += 1;
+        }
+      }
+    }
+
+    return pages.length > 0
+      ? pages
+      : [
+          {
+            pageNumber: 1,
+            chapterTitle: 'Chapter 1',
+            paragraphs: ['Empty document'],
+            cfiBase: 'epubcfi(/6/2!/4/2/1:0)',
+          },
+        ];
   }
 
   public getSelection(): TextSelection | null {

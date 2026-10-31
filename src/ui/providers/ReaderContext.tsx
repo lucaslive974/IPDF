@@ -12,6 +12,7 @@ import type { BookMetadata } from '../../core/domain/BookMetadata';
 import type { Highlight } from '../../core/domain/Highlight';
 import type { AnnotationFormatterMap } from '../../core/domain/RichAnnotation';
 import type { TextFormatStyle } from '../../core/domain/types';
+import type { DocumentPage } from '../../core/ports/IBackendGateway';
 import { useServiceContainer } from './ServiceContainerContext';
 
 export interface StudyDocumentDescriptor {
@@ -73,6 +74,7 @@ export interface ReaderContextValue {
   readonly totalPages: number;
   readonly chapterTitle: string;
   readonly paragraphs: string[];
+  readonly loadedPages: DocumentPage[];
   readonly highlights: Highlight[];
   readonly selectedId: string | null;
   readonly noteInput: string;
@@ -82,6 +84,10 @@ export interface ReaderContextValue {
   readonly expandedHighlight: Highlight | null;
   readonly llmPromptPreview: string;
   navigatePage(delta: number): Promise<void>;
+  goToPage(targetPage: number): Promise<void>;
+  loadMorePages(direction: 'next' | 'prev'): Promise<void>;
+  onPageVisible(pageNumber: number): void;
+  getHighlightsForPage(pageNumber: number): Highlight[];
   selectHighlight(id: string): Promise<void>;
   setSelectionPopover(state: SelectionPopoverState | null): void;
   openHighlightPopover(highlight: Highlight, coords: { x: number; y: number }): void;
@@ -91,7 +97,8 @@ export interface ReaderContextValue {
   createHighlightWithColor(
     colorHex: string,
     overrideText?: string,
-    initialNote?: string
+    initialNote?: string,
+    pageNumber?: number
   ): Promise<Highlight | null>;
   createHighlightFromCurrentSelection(colorHex: string): Promise<void>;
   changeHighlightColor(highlightId: string, colorHex: string): Promise<void>;
@@ -130,9 +137,18 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
   });
 
   const [currentPage, setCurrentPage] = useState<number>(book?.currentPage || 1);
-  const [totalPages, setTotalPages] = useState<number>(book?.totalPages || 15);
+  const [totalPages, setTotalPages] = useState<number>(book?.totalPages || 320);
   const [chapterTitle, setChapterTitle] = useState<string>(document.chapterTitle);
   const [paragraphs, setParagraphs] = useState<string[]>([document.sampleParagraph]);
+
+  const [loadedPages, setLoadedPages] = useState<DocumentPage[]>([
+    {
+      pageNumber: book?.currentPage || 1,
+      chapterTitle: document.chapterTitle,
+      paragraphs: [document.sampleParagraph],
+      cfiBase: 'epubcfi(/6/14!/4/2',
+    },
+  ]);
 
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -151,6 +167,7 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
 
   const selectedIdRef = useRef<string | null>(null);
   const excerptCounterRef = useRef<number>(0);
+  const isLoadingMoreRef = useRef<boolean>(false);
 
   const refreshState = useCallback(
     async (activeHighlightId?: string | null, pageNum = currentPage) => {
@@ -181,29 +198,41 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
 
     const bootstrapReader = async () => {
       try {
-        const rawBytes = await backendGateway.readBookBinary(document.bookHash);
-        if (!cancelled && rawBytes.length > 0) {
-          const container =
-            typeof globalThis !== 'undefined' && globalThis.document?.createElement
-              ? globalThis.document.createElement('div')
-              : ({ innerHTML: '' } as unknown as HTMLElement);
-          await epubViewer.render(container, rawBytes.buffer as ArrayBuffer);
-          const pageInfo = epubViewer.getCurrentPage();
-          if (pageInfo.totalPages > 0) {
-            setTotalPages(pageInfo.totalPages);
+        const pages = await backendGateway.getBookPages(document.bookHash, currentPage, 5);
+        if (!cancelled && pages.length > 0) {
+          setLoadedPages(pages);
+          const first = pages[0];
+          if (first?.chapterTitle) {
+            setChapterTitle(first.chapterTitle);
           }
-          await epubViewer.goToPage(currentPage);
-          const currentInfo = epubViewer.getCurrentPage();
-          if (currentInfo.chapterTitle) {
-            setChapterTitle(currentInfo.chapterTitle);
+          if (first?.paragraphs) {
+            setParagraphs(first.paragraphs);
           }
-          const loadedParagraphs = epubViewer.getParagraphsForChapter(currentPage - 1);
-          if (loadedParagraphs.length > 0) {
-            setParagraphs(loadedParagraphs);
+          epubViewer.setPages(pages);
+          if (book?.totalPages) {
+            setTotalPages(book.totalPages);
+          }
+        } else {
+          const rawBytes = await backendGateway.readBookBinary(document.bookHash);
+          if (!cancelled && rawBytes.length > 0) {
+            const container =
+              typeof globalThis !== 'undefined' && globalThis.document?.createElement
+                ? globalThis.document.createElement('div')
+                : ({ innerHTML: '' } as unknown as HTMLElement);
+            await epubViewer.render(container, rawBytes.buffer as ArrayBuffer);
+            const chunk = epubViewer.getPagesChunk(currentPage, 5);
+            if (chunk.length > 0) {
+              setLoadedPages(chunk);
+              setParagraphs(chunk[0]?.paragraphs ?? []);
+            }
+            const info = epubViewer.getCurrentPage();
+            if (info.totalPages > 0) {
+              setTotalPages(info.totalPages);
+            }
           }
         }
       } catch (err) {
-        console.warn('Failed to load book binary in reader:', err);
+        console.warn('Failed to load book pages in reader:', err);
       }
 
       await annotationWorkbench.loadBookHighlights(document.bookHash);
@@ -218,25 +247,119 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
     return () => {
       cancelled = true;
     };
-  }, [annotationWorkbench, backendGateway, currentPage, document, epubViewer, refreshState]);
+  }, [
+    annotationWorkbench,
+    backendGateway,
+    book?.totalPages,
+    currentPage,
+    document,
+    epubViewer,
+    refreshState,
+  ]);
 
-  const navigatePage = useCallback(
-    async (delta: number) => {
-      const next = Math.max(1, Math.min(totalPages, currentPage + delta));
-      setCurrentPage(next);
-      await epubViewer.goToPage(next);
-      const pageInfo = epubViewer.getCurrentPage();
-      if (pageInfo.chapterTitle) {
-        setChapterTitle(pageInfo.chapterTitle);
+  const loadMorePages = useCallback(
+    async (direction: 'next' | 'prev') => {
+      if (isLoadingMoreRef.current) return;
+      isLoadingMoreRef.current = true;
+
+      try {
+        if (direction === 'next') {
+          const lastPageNum = loadedPages[loadedPages.length - 1]?.pageNumber ?? 0;
+          if (lastPageNum >= totalPages) return;
+          const nextPages = await backendGateway.getBookPages(
+            document.bookHash,
+            lastPageNum + 1,
+            5
+          );
+          if (nextPages.length === 0) return;
+          setLoadedPages((prev) => {
+            const combined = [...prev, ...nextPages];
+            if (combined.length > 25) {
+              return combined.slice(combined.length - 25);
+            }
+            return combined;
+          });
+        } else {
+          const firstPageNum = loadedPages[0]?.pageNumber ?? 1;
+          if (firstPageNum <= 1) return;
+          const prevStart = Math.max(1, firstPageNum - 5);
+          const prevCount = firstPageNum - prevStart;
+          const prevPages = await backendGateway.getBookPages(
+            document.bookHash,
+            prevStart,
+            prevCount
+          );
+          if (prevPages.length === 0) return;
+          setLoadedPages((prev) => {
+            const combined = [...prevPages, ...prev];
+            if (combined.length > 25) {
+              return combined.slice(0, 25);
+            }
+            return combined;
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to load more pages:', err);
+      } finally {
+        isLoadingMoreRef.current = false;
       }
-      const loadedParagraphs = epubViewer.getParagraphsForChapter(next - 1);
-      if (loadedParagraphs.length > 0) {
-        setParagraphs(loadedParagraphs);
+    },
+    [backendGateway, document.bookHash, loadedPages, totalPages]
+  );
+
+  const onPageVisible = useCallback(
+    (pageNumber: number) => {
+      if (pageNumber === currentPage) return;
+      setCurrentPage(pageNumber);
+      const visible = loadedPages.find((p) => p.pageNumber === pageNumber);
+      if (visible?.chapterTitle) {
+        setChapterTitle(visible.chapterTitle);
+      }
+      void backendGateway.updateBookProgress(document.bookHash, pageNumber, totalPages);
+    },
+    [backendGateway, currentPage, document.bookHash, loadedPages, totalPages]
+  );
+
+  const getHighlightsForPage = useCallback(
+    (pageNumber: number): Highlight[] => {
+      return annotationWorkbench.getForPage(pageNumber);
+    },
+    [annotationWorkbench]
+  );
+
+  const goToPage = useCallback(
+    async (targetPage: number) => {
+      const next = Math.max(1, Math.min(totalPages, targetPage));
+      setCurrentPage(next);
+      const exists = loadedPages.some((p) => p.pageNumber === next);
+      if (!exists) {
+        const start = Math.max(1, next - 2);
+        const pages = await backendGateway.getBookPages(document.bookHash, start, 5);
+        if (pages.length > 0) {
+          setLoadedPages(pages);
+          const active = pages.find((p) => p.pageNumber === next) ?? pages[0];
+          if (active?.chapterTitle) {
+            setChapterTitle(active.chapterTitle);
+          }
+        }
+      } else {
+        const active = loadedPages.find((p) => p.pageNumber === next);
+        if (active?.chapterTitle) {
+          setChapterTitle(active.chapterTitle);
+        }
       }
       await backendGateway.updateBookProgress(document.bookHash, next, totalPages);
       await refreshState(null, next);
     },
-    [backendGateway, currentPage, document.bookHash, epubViewer, refreshState, totalPages]
+    [backendGateway, document.bookHash, loadedPages, refreshState, totalPages]
+  );
+
+  const navigatePage = useCallback(
+    async (delta: number) => {
+      const next = Math.max(1, Math.min(totalPages, currentPage + delta));
+      await goToPage(next);
+    },
+    [currentPage, goToPage, totalPages]
   );
 
   const selectHighlight = useCallback(
@@ -307,7 +430,8 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
     async (
       colorHex: string,
       overrideText?: string,
-      initialNote?: string
+      initialNote?: string,
+      pageNumber = currentPage
     ): Promise<Highlight | null> => {
       const selected =
         overrideText?.trim() ||
@@ -328,7 +452,7 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
           surroundingContext: document.sampleParagraph,
           anchor: {
             format: 'epub',
-            pageNumber: currentPage,
+            pageNumber,
             epubCfi: `epubcfi(/6/14!/4/2/${Date.now()}_${excerptCounterRef.current})`,
           },
           clientRect: createEmptyRect(),
@@ -343,7 +467,7 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
         window.getSelection()?.removeAllRanges();
       }
       setSelectionPopover(null);
-      await refreshState(created.id, currentPage);
+      await refreshState(created.id, pageNumber);
       return created;
     },
     [annotationWorkbench, currentPage, document, refreshState, selectionPopover]
@@ -478,6 +602,7 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
       totalPages,
       chapterTitle,
       paragraphs,
+      loadedPages,
       highlights,
       selectedId,
       noteInput,
@@ -487,6 +612,10 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
       expandedHighlight,
       llmPromptPreview,
       navigatePage,
+      goToPage,
+      loadMorePages,
+      onPageVisible,
+      getHighlightsForPage,
       selectHighlight,
       setSelectionPopover,
       openHighlightPopover,
@@ -509,6 +638,7 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
       totalPages,
       chapterTitle,
       paragraphs,
+      loadedPages,
       highlights,
       selectedId,
       noteInput,
@@ -518,6 +648,10 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
       expandedHighlight,
       llmPromptPreview,
       navigatePage,
+      goToPage,
+      loadMorePages,
+      onPageVisible,
+      getHighlightsForPage,
       selectHighlight,
       openHighlightPopover,
       closeHighlightPopover,

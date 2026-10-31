@@ -79,6 +79,16 @@ describe('TauriBackendGateway (Rust IPC Bridge)', () => {
         if (cmd === 'read_book_binary') {
           return [1, 2, 3, 4] as unknown as T;
         }
+        if (cmd === 'get_book_pages') {
+          return [
+            {
+              pageNumber: Number(args.startPage),
+              chapterTitle: 'Chapter 1',
+              paragraphs: ['First paragraph of page'],
+              cfiBase: 'epubcfi(/6/2!/4/2)',
+            },
+          ] as unknown as T;
+        }
         if (cmd === 'sync_book_workspace') {
           return `synced:${String(args.bookHash)}` as unknown as T;
         }
@@ -142,6 +152,11 @@ describe('TauriBackendGateway (Rust IPC Bridge)', () => {
 
     const syncReport = await gateway.syncBookWorkspace('book_sha256');
     expect(syncReport).toBe('synced:book_sha256');
+
+    const pages = await gateway.getBookPages('book_sha256', 1, 5);
+    expect(pages).toHaveLength(1);
+    expect(pages[0]?.pageNumber).toBe(1);
+    expect(pages[0]?.paragraphs).toEqual(['First paragraph of page']);
 
     await gateway.deleteHighlight('hl_ipc_1');
     const afterDelete = await gateway.loadBookHighlights('book_sha256');

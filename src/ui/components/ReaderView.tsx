@@ -77,50 +77,33 @@ export function ReaderView() {
   const navigation = useNavigation();
 
   const [isChromeVisible, setIsChromeVisible] = useState<boolean>(false);
-  const [touchOffset, setTouchOffset] = useState<number>(0);
-  const [isAnimating, setIsAnimating] = useState<boolean>(false);
 
   // Dropdown Context Menu and Dedicated Feature Dialogs
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
     text: string;
+    pageNumber: number;
   } | null>(null);
 
   const [activeNoteDialog, setActiveNoteDialog] = useState<{
     text: string;
+    pageNumber: number;
   } | null>(null);
 
   const [activeExplainDialog, setActiveExplainDialog] = useState<{
     text: string;
+    pageNumber: number;
   } | null>(null);
 
   const [activeTranslateDialog, setActiveTranslateDialog] = useState<{
     text: string;
+    pageNumber: number;
   } | null>(null);
 
-  const touchStartXRef = useRef<number>(0);
-  const touchStartYRef = useRef<number>(0);
-  const isSwipingRef = useRef<boolean>(false);
-  const wheelAccumulatorRef = useRef<number>(0);
-  const wheelLockRef = useRef<boolean>(false);
-
   const contentAreaRef = useRef<HTMLDivElement>(null);
-
-  const turnPage = useCallback(
-    async (delta: number) => {
-      if (isAnimating) return;
-      if (delta < 0 && reader.currentPage <= 1) return;
-      if (delta > 0 && reader.currentPage >= reader.totalPages) return;
-
-      setIsAnimating(true);
-      await reader.navigatePage(delta);
-      setTimeout(() => {
-        setIsAnimating(false);
-      }, 300);
-    },
-    [isAnimating, reader]
-  );
+  const bottomSentinelRef = useRef<HTMLDivElement>(null);
+  const topSentinelRef = useRef<HTMLDivElement>(null);
 
   // 1. Right Click Context Menu (Dropdown) Handler
   useEffect(() => {
@@ -134,11 +117,18 @@ export function ReaderView() {
         return;
       }
 
+      const target = e.target as HTMLElement | null;
+      const article = target?.closest('article[data-page-number]');
+      const pageNumber = article
+        ? Number(article.getAttribute('data-page-number'))
+        : reader.currentPage;
+
       e.preventDefault();
       setContextMenu({
         text,
         x: e.clientX,
         y: e.clientY,
+        pageNumber: pageNumber || reader.currentPage,
       });
     };
 
@@ -151,117 +141,97 @@ export function ReaderView() {
         container.removeEventListener('contextmenu', handleContextMenu);
       }
     };
-  }, []);
+  }, [reader.currentPage]);
 
-  // 2. Mouse Wheel Scroll (Continuous Scroll / Infinite Turn Feeling)
+  // 2. Infinite Scroll Sentinel Observer (Loads 5 pages ahead on demand)
   useEffect(() => {
-    const handleWheel = (e: WheelEvent) => {
-      if (reader.expandedHighlight) return;
+    const sentinel = bottomSentinelRef.current;
+    if (!sentinel) return;
 
-      wheelAccumulatorRef.current += e.deltaY;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          void reader.loadMorePages('next');
+        }
+      },
+      { rootMargin: '600px' }
+    );
 
-      if (wheelLockRef.current) return;
-
-      const threshold = 60;
-      if (wheelAccumulatorRef.current > threshold) {
-        wheelLockRef.current = true;
-        wheelAccumulatorRef.current = 0;
-        void turnPage(1);
-        setTimeout(() => {
-          wheelLockRef.current = false;
-        }, 350);
-      } else if (wheelAccumulatorRef.current < -threshold) {
-        wheelLockRef.current = true;
-        wheelAccumulatorRef.current = 0;
-        void turnPage(-1);
-        setTimeout(() => {
-          wheelLockRef.current = false;
-        }, 350);
-      }
-    };
-
-    window.addEventListener('wheel', handleWheel, { passive: true });
+    observer.observe(sentinel);
     return () => {
-      window.removeEventListener('wheel', handleWheel);
+      observer.disconnect();
     };
-  }, [reader.expandedHighlight, turnPage]);
+  }, [reader]);
 
-  // 3. Touch Drag / Swipe Gestures on Mobile & Touchscreens
-  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    const touch = e.touches[0];
-    if (!touch) return;
-    touchStartXRef.current = touch.clientX;
-    touchStartYRef.current = touch.clientY;
-    isSwipingRef.current = false;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    const touch = e.touches[0];
-    if (!touch) return;
-    const deltaX = touch.clientX - touchStartXRef.current;
-    const deltaY = touch.clientY - touchStartYRef.current;
-
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
-      isSwipingRef.current = true;
-      setTouchOffset(deltaX * 0.4);
-    }
-  };
-
-  const handleTouchEnd = () => {
-    const currentOffset = touchOffset;
-    setTouchOffset(0);
-
-    if (!isSwipingRef.current) return;
-
-    const swipeThreshold = 40;
-    if (currentOffset < -swipeThreshold) {
-      void turnPage(1);
-    } else if (currentOffset > swipeThreshold) {
-      void turnPage(-1);
-    }
-  };
-
-  // 4. Keyboard Navigation
+  // Top Sentinel for upward infinite scroll
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        reader.expandedHighlight ||
-        reader.activeHighlightPopover ||
-        contextMenu ||
-        activeNoteDialog ||
-        activeExplainDialog ||
-        activeTranslateDialog
-      ) {
-        return;
-      }
-      if (e.key === 'Escape') {
-        setIsChromeVisible((prev) => !prev);
-      } else if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
-        e.preventDefault();
-        void turnPage(1);
-      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
-        e.preventDefault();
-        void turnPage(-1);
-      }
-    };
+    const sentinel = topSentinelRef.current;
+    if (!sentinel) return;
 
-    window.addEventListener('keydown', handleKeyDown);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && reader.currentPage > 1) {
+          void reader.loadMorePages('prev');
+        }
+      },
+      { rootMargin: '200px' }
+    );
+
+    observer.observe(sentinel);
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      observer.disconnect();
     };
-  }, [
-    activeExplainDialog,
-    activeNoteDialog,
-    activeTranslateDialog,
-    contextMenu,
-    reader.activeHighlightPopover,
-    reader.expandedHighlight,
-    turnPage,
-  ]);
+  }, [reader]);
+
+  // 3. Dynamic Page Focal Observer (Tracks active page and updates progress during scroll)
+  useEffect(() => {
+    const articles = document.querySelectorAll('article[data-page-number]');
+    if (articles.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const pageNum = Number(entry.target.getAttribute('data-page-number'));
+            if (pageNum > 0) {
+              reader.onPageVisible(pageNum);
+            }
+          }
+        }
+      },
+      { rootMargin: '-15% 0px -55% 0px', threshold: 0.1 }
+    );
+
+    for (const article of articles) {
+      observer.observe(article);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [reader]);
+
+  // 4. Smooth Page Scrolling Navigation for buttons
+  const scrollToPage = useCallback(
+    (pageNum: number) => {
+      const target = Math.max(1, Math.min(reader.totalPages, pageNum));
+      const el = document.querySelector(`article[data-page-number="${target}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        void reader.goToPage(target).then(() => {
+          setTimeout(() => {
+            const newEl = document.querySelector(`article[data-page-number="${target}"]`);
+            newEl?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 100);
+        });
+      }
+    },
+    [reader]
+  );
 
   // 5. Immersive Click / Tap Toggle for Chrome
   const handleViewportClick = (e: React.MouseEvent<HTMLElement>) => {
-    // If popovers or dialogs are active, ignore toggle to prevent unwanted chrome transitions
     if (
       contextMenu ||
       activeNoteDialog ||
@@ -285,9 +255,6 @@ export function ReaderView() {
 
   const percentage = Math.round((reader.currentPage / reader.totalPages) * 100);
 
-  const paragraphs =
-    reader.paragraphs.length > 0 ? reader.paragraphs : [reader.document.sampleParagraph];
-
   return (
     <section
       aria-label="Book Reader Document"
@@ -298,9 +265,6 @@ export function ReaderView() {
           setIsChromeVisible((prev) => !prev);
         }
       }}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
     >
       {/* 1. Immersive Auto-Hiding Top Navigation */}
       <header
@@ -343,77 +307,96 @@ export function ReaderView() {
         </div>
       </header>
 
-      {/* 2. Full-Screen Book Reading Surface (100% Immersive) */}
-      <main className="flex-1 flex justify-center items-center px-4 sm:px-12 py-12 sm:py-20">
-        <div
-          ref={contentAreaRef}
-          className="w-full max-w-2xl flex flex-col gap-8 transition-transform duration-200 ease-out"
-          style={{
-            transform: `translateX(${touchOffset}px)`,
-          }}
-        >
-          {/* Chapter Heading */}
-          <div className="text-center mb-2">
-            <h1 className="text-2xl font-serif font-bold text-tx-main sm:text-3xl tracking-tight">
-              {reader.chapterTitle || reader.document.chapterTitle}
-            </h1>
-            <p className="mt-1 text-xs text-tx-muted tracking-wider uppercase font-semibold">
-              {reader.document.bookAuthor} &bull; {reader.document.bookTitle}
-            </p>
-          </div>
+      {/* 2. Full-Screen Streaming Book Surface with Infinite On-Demand Virtual Scroll */}
+      <main className="flex-1 w-full flex flex-col items-center px-4 sm:px-12 py-12 sm:py-20">
+        <div ref={contentAreaRef} className="w-full max-w-2xl flex flex-col gap-12">
+          {/* Top sentinel for reverse scrolling */}
+          <div ref={topSentinelRef} className="h-4 w-full pointer-events-none" />
 
-          {/* Book Page Content with Inline Highlights directly over text */}
-          <div className="space-y-6 text-lg sm:text-xl leading-relaxed text-tx-main font-serif tracking-normal">
-            {paragraphs.map((paragraph, pIdx) => {
-              const chunks = tokenizeTextWithHighlights(paragraph, reader.highlights);
+          {/* Render loaded pages seamlessly in continuous streaming scroll */}
+          {reader.loadedPages.map((page) => {
+            const pageHighlights = reader.getHighlightsForPage(page.pageNumber);
 
-              return (
-                <p key={`p-${pIdx + 1}`} className="indent-6 text-justify">
-                  {chunks.map((chunk, cIdx) => {
-                    if (!chunk.highlight) {
-                      return <span key={`c-${cIdx + 1}`}>{chunk.text}</span>;
-                    }
+            return (
+              <article
+                key={`page-${page.pageNumber}`}
+                data-page-number={page.pageNumber}
+                className="w-full flex flex-col gap-6 py-6 border-b border-line-subtle/25"
+              >
+                {/* Chapter Heading & Page Indicator */}
+                <div className="text-center mb-2">
+                  <h2 className="text-xl font-serif font-bold text-tx-main sm:text-2xl tracking-tight">
+                    {page.chapterTitle}
+                  </h2>
+                  <p className="mt-1 text-[0.68rem] text-tx-muted tracking-wider uppercase font-semibold">
+                    {reader.document.bookAuthor} &bull; Page {page.pageNumber} of{' '}
+                    {reader.totalPages}
+                  </p>
+                </div>
 
-                    const hl = chunk.highlight;
+                {/* Paragraphs with tokenized inline highlights */}
+                <div className="space-y-6 text-lg sm:text-xl leading-relaxed text-tx-main font-serif tracking-normal">
+                  {page.paragraphs.map((paragraph, pIdx) => {
+                    const chunks = tokenizeTextWithHighlights(paragraph, pageHighlights);
+
                     return (
-                      <button
-                        key={`hl-${hl.id}-${cIdx + 1}`}
-                        type="button"
-                        className="inline cursor-pointer rounded-xs px-0.5 text-inherit transition duration-150 select-text hover:brightness-110 active:opacity-80"
-                        style={{
-                          backgroundColor: `${hl.color}44`,
-                          borderBottom: `2px solid ${hl.color}`,
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          reader.openHighlightPopover(hl, {
-                            x: rect.left + rect.width / 2,
-                            y: rect.top,
-                          });
-                        }}
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setContextMenu({
-                            text: hl.text,
-                            x: e.clientX,
-                            y: e.clientY,
-                          });
-                        }}
-                      >
-                        {chunk.text}
-                      </button>
+                      <p key={`p-${page.pageNumber}-${pIdx + 1}`} className="indent-6 text-justify">
+                        {chunks.map((chunk, cIdx) => {
+                          if (!chunk.highlight) {
+                            return <span key={`c-${cIdx + 1}`}>{chunk.text}</span>;
+                          }
+
+                          const hl = chunk.highlight;
+                          return (
+                            <button
+                              key={`hl-${hl.id}-${cIdx + 1}`}
+                              type="button"
+                              className="inline cursor-pointer rounded-xs px-0.5 text-inherit transition duration-150 select-text hover:brightness-110 active:opacity-80"
+                              style={{
+                                backgroundColor: `${hl.color}44`,
+                                borderBottom: `2px solid ${hl.color}`,
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                reader.openHighlightPopover(hl, {
+                                  x: rect.left + rect.width / 2,
+                                  y: rect.top,
+                                });
+                              }}
+                              onContextMenu={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setContextMenu({
+                                  text: hl.text,
+                                  x: e.clientX,
+                                  y: e.clientY,
+                                  pageNumber: page.pageNumber,
+                                });
+                              }}
+                            >
+                              {chunk.text}
+                            </button>
+                          );
+                        })}
+                      </p>
                     );
                   })}
-                </p>
-              );
-            })}
+                </div>
+              </article>
+            );
+          })}
+
+          {/* Bottom sentinel: triggers next 5 pages on demand before reaching bottom */}
+          <div ref={bottomSentinelRef} className="h-16 w-full flex items-center justify-center">
+            {reader.currentPage < reader.totalPages && (
+              <span className="text-xs text-tx-faint animate-pulse">Loading next pages...</span>
+            )}
           </div>
         </div>
       </main>
 
-      {/* 3. Immersive Bottom Controller (Shows on click / tap) */}
+      {/* 3. Immersive Bottom Controller */}
       <footer
         className={`fixed bottom-4 inset-x-0 z-40 flex justify-center px-4 transition-all duration-300 ease-in-out ${
           isChromeVisible
@@ -426,7 +409,7 @@ export function ReaderView() {
             variant="ghost"
             size="xs"
             disabled={reader.currentPage <= 1}
-            onClick={() => void turnPage(-1)}
+            onClick={() => scrollToPage(reader.currentPage - 1)}
           >
             &larr; Prev
           </Button>
@@ -443,7 +426,7 @@ export function ReaderView() {
             variant="ghost"
             size="xs"
             disabled={reader.currentPage >= reader.totalPages}
-            onClick={() => void turnPage(1)}
+            onClick={() => scrollToPage(reader.currentPage + 1)}
           >
             Next &rarr;
           </Button>
@@ -465,16 +448,30 @@ export function ReaderView() {
           y={contextMenu.y}
           isOpen={true}
           onHighlightColor={(color) => {
-            void reader.createHighlightWithColor(color, contextMenu.text);
+            void reader.createHighlightWithColor(
+              color,
+              contextMenu.text,
+              undefined,
+              contextMenu.pageNumber
+            );
           }}
           onOpenNoteDialog={() => {
-            setActiveNoteDialog({ text: contextMenu.text });
+            setActiveNoteDialog({
+              text: contextMenu.text,
+              pageNumber: contextMenu.pageNumber,
+            });
           }}
           onOpenExplainDialog={() => {
-            setActiveExplainDialog({ text: contextMenu.text });
+            setActiveExplainDialog({
+              text: contextMenu.text,
+              pageNumber: contextMenu.pageNumber,
+            });
           }}
           onOpenTranslateDialog={() => {
-            setActiveTranslateDialog({ text: contextMenu.text });
+            setActiveTranslateDialog({
+              text: contextMenu.text,
+              pageNumber: contextMenu.pageNumber,
+            });
           }}
           onCopyText={() => {
             if (typeof navigator !== 'undefined') {
@@ -491,12 +488,22 @@ export function ReaderView() {
           isOpen={true}
           text={activeNoteDialog.text}
           onSave={(color, note) => {
-            void reader.createHighlightWithColor(color, activeNoteDialog.text, note);
+            void reader.createHighlightWithColor(
+              color,
+              activeNoteDialog.text,
+              note,
+              activeNoteDialog.pageNumber
+            );
             setActiveNoteDialog(null);
           }}
           onOpenStudio={() => {
             void reader
-              .createHighlightWithColor('#eab308', activeNoteDialog.text, '')
+              .createHighlightWithColor(
+                '#eab308',
+                activeNoteDialog.text,
+                '',
+                activeNoteDialog.pageNumber
+              )
               .then((hl) => {
                 if (hl) reader.openExpandedStudio(hl);
               });
@@ -516,7 +523,8 @@ export function ReaderView() {
             void reader.createHighlightWithColor(
               '#a855f7',
               activeExplainDialog.text,
-              `[IA Explanation]: ${explanation}`
+              `[IA Explanation]: ${explanation}`,
+              activeExplainDialog.pageNumber
             );
             setActiveExplainDialog(null);
           }}
@@ -533,7 +541,8 @@ export function ReaderView() {
             void reader.createHighlightWithColor(
               '#38bdf8',
               activeTranslateDialog.text,
-              `[Tradução]: ${translation}`
+              `[Tradução]: ${translation}`,
+              activeTranslateDialog.pageNumber
             );
             setActiveTranslateDialog(null);
           }}

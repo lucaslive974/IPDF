@@ -34,6 +34,15 @@ pub struct HighlightAnchor {
     pub pdf_rects: Option<Vec<BoundingBox>>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BookPagePayload {
+    pub page_number: u32,
+    pub chapter_title: String,
+    pub paragraphs: Vec<String>,
+    pub cfi_base: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum RichAnnotationType {

@@ -26,9 +26,17 @@ export interface ImportLibraryBookInput {
   readonly coverImageUrl?: string;
 }
 
+export interface DocumentPage {
+  readonly pageNumber: number;
+  readonly chapterTitle: string;
+  readonly paragraphs: string[];
+  readonly cfiBase: string;
+}
+
 export interface IBackendGateway {
   listLibraryBooks(): Promise<BookMetadata[]>;
   readBookBinary(bookHash: string): Promise<Uint8Array>;
+  getBookPages(bookHash: string, startPage: number, count: number): Promise<DocumentPage[]>;
   importLibraryBook(input: ImportLibraryBookInput): Promise<BookMetadata>;
   updateBookProgress(
     bookHash: string,

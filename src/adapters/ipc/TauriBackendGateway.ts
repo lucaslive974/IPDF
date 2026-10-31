@@ -9,6 +9,7 @@ import {
 } from '../../core/domain/RichAnnotation';
 import type { BookFormat, HighlightAnchor, RichAnnotationType } from '../../core/domain/types';
 import type {
+  DocumentPage,
   IBackendGateway,
   ImportLibraryBookInput,
   LLMRequest,
@@ -77,6 +78,18 @@ export class TauriBackendGateway implements IBackendGateway {
   public async readBookBinary(bookHash: string): Promise<Uint8Array> {
     const bytes = await this.call<number[]>('read_book_binary', { bookHash });
     return new Uint8Array(bytes);
+  }
+
+  public async getBookPages(
+    bookHash: string,
+    startPage: number,
+    count: number
+  ): Promise<DocumentPage[]> {
+    return this.call<DocumentPage[]>('get_book_pages', {
+      bookHash,
+      startPage,
+      count,
+    });
   }
 
   public async importLibraryBook(input: ImportLibraryBookInput): Promise<BookMetadata> {

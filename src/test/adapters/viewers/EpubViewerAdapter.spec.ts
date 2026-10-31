@@ -95,6 +95,23 @@ describe('EpubViewerAdapter (EPUB CFI, Highlights, Inline Ruby & Cover Extractio
     await viewer.goToPage(1);
     expect(viewer.getCurrentPage().currentPage).toBe(1);
     expect(pageEvents.length).toBeGreaterThanOrEqual(4);
+
+    const page1 = viewer.getPage(1);
+    expect(page1).not.toBeNull();
+    expect(page1?.pageNumber).toBe(1);
+
+    const chunk = viewer.getPagesChunk(1, 2);
+    expect(chunk).toHaveLength(2);
+
+    viewer.setPages([
+      {
+        pageNumber: 1,
+        chapterTitle: 'Custom Chapter',
+        paragraphs: ['Custom content'],
+        cfiBase: 'cfi-1',
+      },
+    ]);
+    expect(viewer.getPage(1)?.chapterTitle).toBe('Custom Chapter');
   });
 
   it('renders highlights, erases highlights, injects ruby annotations, and handles TTS sentences', async () => {

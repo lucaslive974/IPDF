@@ -183,6 +183,17 @@ fn read_book_binary(
 }
 
 #[tauri::command]
+fn get_book_pages(
+    book_hash: String,
+    start_page: u32,
+    count: u32,
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<Vec<ipdf_core::core::domain::BookPagePayload>, String> {
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    guard.library.get_book_pages(&book_hash, start_page, count)
+}
+
+#[tauri::command]
 fn update_book_progress(
     book_hash: String,
     current_page: u32,
@@ -434,7 +445,8 @@ pub fn run() {
             get_platform_info,
             get_app_setting,
             set_app_setting,
-            read_book_binary
+            read_book_binary,
+            get_book_pages
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

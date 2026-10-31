@@ -1,5 +1,8 @@
 import type { Highlight } from '../domain/Highlight';
 import type { HighlightAnchor, PageInfo, SentenceNode, TextSelection } from '../domain/types';
+import type { DocumentPage } from './IBackendGateway';
+
+export type { DocumentPage };
 
 export interface IDocumentViewer {
   render(container: HTMLElement, fileData: ArrayBuffer): Promise<void>;
@@ -10,6 +13,10 @@ export interface IDocumentViewer {
   prevPage(): Promise<void>;
   getCurrentPage(): PageInfo;
   getParagraphsForChapter(index?: number): string[];
+
+  getPage(pageNumber: number): DocumentPage | null;
+  getPagesChunk(startPage: number, count: number): DocumentPage[];
+  setPages(pages: DocumentPage[]): void;
 
   getSelection(): TextSelection | null;
   clearSelection(): void;

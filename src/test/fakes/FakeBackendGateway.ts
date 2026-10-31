@@ -1,6 +1,7 @@
 import type { BookMetadata } from '../../core/domain/BookMetadata';
 import type { Highlight } from '../../core/domain/Highlight';
 import type {
+  DocumentPage,
   IBackendGateway,
   ImportLibraryBookInput,
   LLMRequest,
@@ -31,6 +32,26 @@ export class FakeBackendGateway implements IBackendGateway {
         ],
       })
     );
+  }
+
+  public async getBookPages(
+    _bookHash: string,
+    startPage: number,
+    count: number
+  ): Promise<DocumentPage[]> {
+    const pages: DocumentPage[] = [];
+    for (let i = 0; i < count; i += 1) {
+      const pageNum = startPage + i;
+      pages.push({
+        pageNumber: pageNum,
+        chapterTitle: 'Book VII — Allegory of the Cave',
+        paragraphs: [
+          'Behold! human beings living in an underground den, which has a mouth open towards the light and reaching all along the den; here they have been from their childhood, and have their legs and necks chained so that they cannot move, and can only see before them, being prevented by the chains from turning round their heads (noesis vs. doxa).',
+        ],
+        cfiBase: `epubcfi(/6/14!/4/2/${pageNum})`,
+      });
+    }
+    return pages;
   }
 
   public async importLibraryBook(input: ImportLibraryBookInput): Promise<BookMetadata> {

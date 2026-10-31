@@ -206,3 +206,27 @@ fn test_local_folder_storage_adapter() {
 
     let _ = fs::remove_dir_all(&temp_dir);
 }
+
+#[test]
+fn test_library_manager_get_book_pages_on_demand() {
+    use ipdf_core::core::services::library_manager::DEFAULT_ASSET_HASH;
+
+    let storage = InMemoryStorage::new("local-memory");
+    let mut library = LibraryManager::new(storage);
+    library.initialize().unwrap();
+
+    let pages = library.get_book_pages(DEFAULT_ASSET_HASH, 1, 5).unwrap();
+    assert_eq!(pages.len(), 5);
+    assert_eq!(pages[0].page_number, 1);
+    assert_eq!(pages[4].page_number, 5);
+    assert!(!pages[0].paragraphs.is_empty());
+    assert!(!pages[0].chapter_title.is_empty());
+
+    let last_pages = library.get_book_pages(DEFAULT_ASSET_HASH, 318, 5).unwrap();
+    assert_eq!(last_pages.len(), 3);
+    assert_eq!(last_pages[2].page_number, 320);
+
+    // Out of range
+    let empty = library.get_book_pages(DEFAULT_ASSET_HASH, 400, 5).unwrap();
+    assert!(empty.is_empty());
+}
