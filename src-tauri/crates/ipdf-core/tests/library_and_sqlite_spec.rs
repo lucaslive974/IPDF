@@ -213,6 +213,29 @@ fn test_local_folder_storage_adapter() {
         .unwrap();
     assert_eq!(entry_bytes, b"{\"highlights\":[]}");
 
+    // Test rename_entry success and error
+    adapter
+        .rename_entry(
+            "hash-meditations.highlights.json",
+            "hash-meditations.renamed.json",
+        )
+        .unwrap();
+    assert!(adapter
+        .read_entry("hash-meditations.highlights.json")
+        .unwrap()
+        .is_none());
+    assert_eq!(
+        adapter
+            .read_entry("hash-meditations.renamed.json")
+            .unwrap()
+            .unwrap(),
+        b"{\"highlights\":[]}"
+    );
+
+    assert!(adapter
+        .rename_entry("nonexistent.json", "target.json")
+        .is_err());
+
     let _ = fs::remove_dir_all(&temp_dir);
 }
 
@@ -238,4 +261,101 @@ fn test_library_manager_get_book_pages_on_demand() {
     // Out of range
     let empty = library.get_book_pages(DEFAULT_ASSET_HASH, 400, 5).unwrap();
     assert!(empty.is_empty());
+}
+
+#[test]
+fn test_library_manager_rename_book_preserves_highlights() {
+    let storage = InMemoryStorage::new("local-memory");
+    let mut library = LibraryManager::new(storage);
+    library.initialize().unwrap();
+
+    let mut sqlite_repo = SqliteHighlightRepository::new_in_memory().unwrap();
+
+    let raw_bytes = b"PK\x03\x04epub-clean-code-content".to_vec();
+    let imported = library
+        .import_book(ImportBookInput {
+            raw_bytes,
+            title: "Original Draft Title".to_string(),
+            author: "Robert C. Martin".to_string(),
+            format: BookFormat::Epub,
+            total_pages: 450,
+            cover_image_url: None,
+            now_ms: 10_000,
+        })
+        .unwrap();
+
+    let hash = imported.book_hash.clone();
+    assert_eq!(imported.title, "Original Draft Title");
+
+    // Add highlights for this book
+    let hl1 = Highlight::new(
+        "hl-1",
+        &hash,
+        "Clean code reads like well-written prose.",
+        "#22c55e",
+        HighlightAnchor {
+            format: BookFormat::Epub,
+            page_number: 15,
+            epub_cfi: Some("epubcfi(/6/4[chap1]!/4/2/10:0)".to_string()),
+            pdf_rects: None,
+        },
+        "Key insight on readability",
+        10_500,
+    );
+    let hl2 = Highlight::new(
+        "hl-2",
+        &hash,
+        "Leave the campground cleaner than you found it.",
+        "#3b82f6",
+        HighlightAnchor {
+            format: BookFormat::Epub,
+            page_number: 18,
+            epub_cfi: Some("epubcfi(/6/4[chap1]!/4/2/25:0)".to_string()),
+            pdf_rects: None,
+        },
+        "Boy scout rule",
+        11_000,
+    );
+
+    sqlite_repo.save(hl1).unwrap();
+    sqlite_repo.save(hl2).unwrap();
+
+    // Verify initial highlights count
+    let initial_hls = sqlite_repo.find_by_book(&hash).unwrap();
+    assert_eq!(initial_hls.len(), 2);
+
+    // Rename the book
+    let renamed = library
+        .rename_book(&hash, "Clean Code: A Handbook")
+        .unwrap();
+    assert_eq!(renamed.book_hash, hash);
+    assert_eq!(renamed.title, "Clean Code: A Handbook");
+
+    // Verify metadata updated in list_books
+    let current_meta = library.get_book(&hash).unwrap().unwrap();
+    assert_eq!(current_meta.title, "Clean Code: A Handbook");
+
+    // CRITICAL: Highlights remain 100% intact because book_hash is unchanged
+    let preserved_hls = sqlite_repo.find_by_book(&hash).unwrap();
+    assert_eq!(preserved_hls.len(), 2);
+    assert_eq!(preserved_hls[0].id, "hl-1");
+    assert_eq!(
+        preserved_hls[0].text,
+        "Clean code reads like well-written prose."
+    );
+    assert_eq!(preserved_hls[0].note, "Key insight on readability");
+    assert_eq!(preserved_hls[1].id, "hl-2");
+    assert_eq!(
+        preserved_hls[1].text,
+        "Leave the campground cleaner than you found it."
+    );
+
+    // Validation: empty or whitespace title fails
+    assert!(library.rename_book(&hash, "").is_err());
+    assert!(library.rename_book(&hash, "   \n\t  ").is_err());
+
+    // Validation: nonexistent hash fails
+    assert!(library
+        .rename_book("nonexistent-hash", "New Title")
+        .is_err());
 }

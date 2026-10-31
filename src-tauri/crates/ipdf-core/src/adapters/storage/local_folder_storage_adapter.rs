@@ -168,4 +168,18 @@ impl StorageProvider for LocalFolderStorageAdapter {
             modified_at_ms: modified_ms_for_path(&path),
         })
     }
+
+    fn rename_entry(&mut self, old_name: &str, new_name: &str) -> Result<(), String> {
+        let old_path = self.root_dir.join(old_name);
+        if !old_path.exists() {
+            return Err(format!("Entry not found: {old_name}"));
+        }
+        let new_path = self.root_dir.join(new_name);
+        if let Some(parent) = new_path.parent() {
+            if !parent.exists() {
+                fs::create_dir_all(parent).map_err(to_err)?;
+            }
+        }
+        fs::rename(&old_path, &new_path).map_err(to_err)
+    }
 }

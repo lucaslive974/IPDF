@@ -32,4 +32,5 @@ pub trait StorageProvider {
         data: &[u8],
         mime_type: &str,
     ) -> Result<StorageEntry, String>;
+    fn rename_entry(&mut self, old_name: &str, new_name: &str) -> Result<(), String>;
 }

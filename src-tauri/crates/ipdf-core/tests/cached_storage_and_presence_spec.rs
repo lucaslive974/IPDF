@@ -43,6 +43,16 @@ fn test_cached_storage_decorator_and_presence_debounce() {
         .write_entry("notes.json", b"[]", "application/json")
         .unwrap();
 
+    // Test rename_entry through CachedStorageDecorator
+    decorated
+        .rename_entry("notes.json", "renamed_notes.json")
+        .unwrap();
+    assert_eq!(
+        decorated.read_entry("renamed_notes.json").unwrap().unwrap(),
+        b"[]"
+    );
+    assert!(decorated.rename_entry("missing.json", "new.json").is_err());
+
     let mut presence = RichPresenceManager::new(3000);
     presence.register_provider(SpyPresence {
         id: "failing".to_string(),

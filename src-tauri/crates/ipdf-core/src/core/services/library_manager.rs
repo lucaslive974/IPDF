@@ -422,6 +422,41 @@ impl<S: StorageProvider> LibraryManager<S> {
         })
     }
 
+    pub fn rename_book(
+        &mut self,
+        book_hash: &str,
+        new_title: &str,
+    ) -> Result<BookMetadata, String> {
+        let trimmed_title = new_title.trim();
+        if trimmed_title.is_empty() {
+            return Err("Book title cannot be empty".to_string());
+        }
+
+        let mut progress = self
+            .progress_map
+            .get(book_hash)
+            .cloned()
+            .ok_or_else(|| format!("Book not found: {book_hash}"))?;
+
+        progress.title = trimmed_title.to_string();
+        self.progress_map
+            .insert(book_hash.to_string(), progress.clone());
+        self.persist_progress_cache()?;
+
+        Ok(BookMetadata {
+            book_hash: book_hash.to_string(),
+            title: progress.title,
+            author: progress.author,
+            format: progress.format,
+            current_page: progress.current_page,
+            total_pages: progress.total_pages,
+            percentage: progress.percentage,
+            cover_image_url: progress.cover_image_url,
+            last_read_at_ms: progress.last_read_at_ms,
+            updated_at_ms: progress.last_read_at_ms,
+        })
+    }
+
     pub fn get_book_pages(
         &mut self,
         book_hash: &str,

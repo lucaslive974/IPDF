@@ -209,6 +209,16 @@ fn update_book_progress(
     )
 }
 
+#[tauri::command]
+fn rename_book(
+    book_hash: String,
+    new_title: String,
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<BookMetadata, String> {
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    guard.library.rename_book(&book_hash, &new_title)
+}
+
 fn domain_to_ipc_highlight(h: Highlight) -> IpcHighlightDto {
     let mut annots = Vec::new();
     for (k, v) in &h.annotations {
@@ -437,6 +447,7 @@ pub fn run() {
             open_book_file,
             import_library_book,
             update_book_progress,
+            rename_book,
             load_book_highlights,
             save_highlight,
             delete_highlight,

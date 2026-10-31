@@ -99,4 +99,12 @@ impl<L: StorageProvider, P: StorageProvider> StorageProvider for CachedStorageDe
         }
         Ok(local_res)
     }
+
+    fn rename_entry(&mut self, old_name: &str, new_name: &str) -> Result<(), String> {
+        let cache_res = self.local_cache.rename_entry(old_name, new_name);
+        if self.primary_storage.is_available() {
+            return self.primary_storage.rename_entry(old_name, new_name);
+        }
+        cache_res
+    }
 }

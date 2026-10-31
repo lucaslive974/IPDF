@@ -133,6 +133,15 @@ impl StorageProvider for InMemoryStorage {
             .insert(name.to_string(), (entry.clone(), data.to_vec()));
         Ok(entry)
     }
+    fn rename_entry(&mut self, old_name: &str, new_name: &str) -> Result<(), String> {
+        let (mut entry, data) = self
+            .entries
+            .remove(old_name)
+            .ok_or_else(|| format!("Entry not found: {old_name}"))?;
+        entry.name = new_name.to_string();
+        self.entries.insert(new_name.to_string(), (entry, data));
+        Ok(())
+    }
 }
 
 pub struct JsonExport;
