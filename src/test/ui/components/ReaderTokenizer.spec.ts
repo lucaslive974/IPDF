@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Highlight } from '../../../core/domain/Highlight';
+import { isValidAuthor } from '../../../ui/components/library/BookCover';
 import {
   findHighlightMatchesInParagraph,
   getExpandedWordSelection,
@@ -79,6 +80,24 @@ describe('ReaderTokenizer & UI Constants', () => {
   it('provides default highlight color options', () => {
     expect(DEFAULT_HIGHLIGHT_COLORS.length).toBeGreaterThan(0);
     expect(DEFAULT_HIGHLIGHT_COLORS[0]?.value).toBe('#FFEB3B');
+  });
+
+  describe('isValidAuthor', () => {
+    it('returns false for absent or placeholder authors', () => {
+      expect(isValidAuthor(null)).toBe(false);
+      expect(isValidAuthor(undefined)).toBe(false);
+      expect(isValidAuthor('')).toBe(false);
+      expect(isValidAuthor('   ')).toBe(false);
+      expect(isValidAuthor('Unknown')).toBe(false);
+      expect(isValidAuthor('Unknown Author')).toBe(false);
+      expect(isValidAuthor('Local File')).toBe(false);
+    });
+
+    it('returns true for legitimate authors', () => {
+      expect(isValidAuthor('Plato')).toBe(true);
+      expect(isValidAuthor('Machiavelli')).toBe(true);
+      expect(isValidAuthor('J.R.R. Tolkien')).toBe(true);
+    });
   });
 
   describe('getExpandedWordSelection', () => {

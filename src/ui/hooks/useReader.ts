@@ -4,6 +4,7 @@ import type { Highlight } from '../../core/domain/Highlight';
 import type { AnnotationFormatterMap } from '../../core/domain/RichAnnotation';
 import type { TextFormatStyle } from '../../core/domain/types';
 import type { DocumentPage } from '../../core/ports/BackendService';
+import { isValidAuthor } from '../components/library/BookCover';
 import { getExpandedWordSelection } from '../components/reader/ReaderPageParagraphs';
 import { useNavigation } from '../hooks/useNavigation';
 import { useServiceContainer } from '../providers/ServiceContainerContext';
@@ -187,7 +188,9 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
           sampleParagraph:
             book.bookHash === DEFAULT_BOOK_HASH
               ? DEFAULT_DOCUMENT.sampleParagraph
-              : `Reading "${book.title}" by ${book.author}. Select any passage in the text to create persistent highlights, add margin notes, or consult AI explanations.`,
+              : isValidAuthor(book.author)
+                ? `Reading "${book.title}" by ${book.author}. Select any passage in the text to create persistent highlights, add margin notes, or consult AI explanations.`
+                : `Reading "${book.title}". Select any passage in the text to create persistent highlights, add margin notes, or consult AI explanations.`,
           coverImageUrl: book.coverImageUrl,
         }
       : DEFAULT_DOCUMENT;

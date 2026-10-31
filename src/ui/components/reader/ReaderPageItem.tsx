@@ -12,7 +12,7 @@ export interface ReaderPageItemProps {
   readonly page: DocumentPage;
   readonly totalPages: number;
   readonly bookTitle: string;
-  readonly bookAuthor: string;
+  readonly bookAuthor?: string;
   readonly coverImageUrl?: string;
   readonly highlights: readonly Highlight[];
   readonly onHighlightClick: (highlight: Highlight, coords: { x: number; y: number }) => void;

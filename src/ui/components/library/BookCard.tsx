@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import type { BookMetadata } from '../../../core/domain/BookMetadata';
 import { Badge, Button, Card, ProgressBar } from '../ui';
-import { BookCover } from './BookCover';
+import { BookCover, isValidAuthor } from './BookCover';
 
 export interface BookCardProps {
   readonly book: BookMetadata;
@@ -9,6 +9,8 @@ export interface BookCardProps {
 }
 
 export const BookCard = memo(function BookCard({ book, onOpenBook }: BookCardProps) {
+  const showAuthor = isValidAuthor(book.author);
+
   return (
     <Card
       variant="interactive"
@@ -31,7 +33,9 @@ export const BookCard = memo(function BookCard({ book, onOpenBook }: BookCardPro
           <h3 className="text-xs font-semibold text-tx-main group-hover:text-tx-secondary transition line-clamp-2">
             {book.title}
           </h3>
-          <p className="mt-0.5 text-[0.72rem] text-tx-muted font-normal">{book.author}</p>
+          {showAuthor && (
+            <p className="mt-0.5 text-[0.72rem] text-tx-muted font-normal">{book.author}</p>
+          )}
         </div>
       </div>
 

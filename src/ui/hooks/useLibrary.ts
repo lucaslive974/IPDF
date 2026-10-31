@@ -53,7 +53,7 @@ export function useLibrary(): LibraryViewModel {
         const book = await services.importLibraryBook({
           rawBytes,
           title: cleanTitle,
-          author: 'Unknown Author',
+          author: '',
           format,
           totalPages: 0,
         });

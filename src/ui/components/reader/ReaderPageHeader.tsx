@@ -1,8 +1,9 @@
 import { memo } from 'react';
+import { isValidAuthor } from '../library/BookCover';
 
 export interface ReaderPageHeaderProps {
   readonly chapterTitle: string;
-  readonly bookAuthor: string;
+  readonly bookAuthor?: string;
   readonly pageNumber: number;
   readonly totalPages: number;
   readonly cssFontFamily: string;
@@ -15,6 +16,8 @@ export const ReaderPageHeader = memo(function ReaderPageHeader({
   totalPages,
   cssFontFamily,
 }: ReaderPageHeaderProps) {
+  const authorPrefix = isValidAuthor(bookAuthor) ? `${bookAuthor} \u2022 ` : '';
+
   return (
     <div className="text-center mb-4">
       <h2
@@ -24,7 +27,7 @@ export const ReaderPageHeader = memo(function ReaderPageHeader({
         {chapterTitle}
       </h2>
       <p className="mt-1.5 text-[0.65rem] text-tx-muted tracking-wider uppercase font-medium">
-        {bookAuthor} &bull; Page {pageNumber} of {totalPages}
+        {authorPrefix}Page {pageNumber} of {totalPages}
       </p>
     </div>
   );

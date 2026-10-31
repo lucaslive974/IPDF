@@ -1,8 +1,9 @@
 import { memo } from 'react';
+import { isValidAuthor } from '../library/BookCover';
 
 export interface ReaderPageCoverProps {
   readonly bookTitle: string;
-  readonly bookAuthor: string;
+  readonly bookAuthor?: string;
   readonly coverImageUrl?: string;
 }
 
@@ -31,7 +32,9 @@ export const ReaderPageCover = memo(function ReaderPageCover({
             <h1 className="font-serif text-2xl font-bold text-tx-main tracking-tight">
               {bookTitle}
             </h1>
-            <p className="mt-2 text-xs font-normal text-tx-muted tracking-wide">{bookAuthor}</p>
+            {isValidAuthor(bookAuthor) && (
+              <p className="mt-2 text-xs font-normal text-tx-muted tracking-wide">{bookAuthor}</p>
+            )}
           </div>
           <div className="border-t border-line-subtle/50 pt-3 text-center">
             <p className="text-[0.62rem] font-mono text-tx-faint">Page 1</p>

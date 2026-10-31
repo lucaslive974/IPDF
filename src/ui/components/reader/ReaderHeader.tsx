@@ -3,6 +3,7 @@ import { useNavigation } from '../../hooks/useNavigation';
 import { useReader } from '../../hooks/useReader';
 import { useReaderUI } from '../../hooks/useReaderUI';
 import { useTypographyStore } from '../../stores/useTypographyStore';
+import { isValidAuthor } from '../library/BookCover';
 import { ArrowLeftIcon, Button, IconButton, SettingsIcon } from '../ui';
 
 export interface ReaderHeaderProps {
@@ -34,7 +35,9 @@ export const ReaderHeader = memo(function ReaderHeader({ onClose }: ReaderHeader
         </Button>
         <div className="hidden sm:flex flex-col">
           <span className="text-xs font-medium text-tx-main">
-            {reader.document.bookAuthor} &mdash; {reader.document.bookTitle}
+            {isValidAuthor(reader.document.bookAuthor)
+              ? `${reader.document.bookAuthor} \u2014 ${reader.document.bookTitle}`
+              : reader.document.bookTitle}
           </span>
           <span className="text-[0.68rem] text-tx-muted">
             {reader.chapterTitle || reader.document.chapterTitle}

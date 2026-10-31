@@ -47,7 +47,7 @@ export const LibraryHeader = memo(function LibraryHeader({
       <div className="flex-1 max-w-sm">
         <Input
           iconLeft={<SearchIcon className="h-3.5 w-3.5" />}
-          placeholder="Search titles, authors..."
+          placeholder="Search library..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           onClear={() => onSearchChange('')}

@@ -57,11 +57,12 @@ export function LibraryView({
     }
   };
 
-  const filteredBooks = books.filter(
-    (b) =>
-      b.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      b.author.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredBooks = books.filter((b) => {
+    const q = searchQuery.toLowerCase();
+    return (
+      b.title.toLowerCase().includes(q) || (Boolean(b.author) && b.author.toLowerCase().includes(q))
+    );
+  });
 
   const tabOptions: readonly SegmentedControlOption<LibraryTabId>[] = [
     { id: 'recents', label: 'Recents' },

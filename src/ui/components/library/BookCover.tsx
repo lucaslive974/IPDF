@@ -1,9 +1,17 @@
 import { memo } from 'react';
 import { BookIcon } from '../ui';
 
+export function isValidAuthor(author?: string | null): boolean {
+  if (!author) return false;
+  const trimmed = author.trim();
+  if (trimmed.length === 0) return false;
+  const lower = trimmed.toLowerCase();
+  return lower !== 'unknown' && lower !== 'unknown author' && lower !== 'local file';
+}
+
 export interface BookCoverProps {
   readonly title: string;
-  readonly author: string;
+  readonly author?: string;
   readonly coverImageUrl?: string;
   readonly className?: string;
 }
@@ -38,7 +46,7 @@ export const BookCover = memo(function BookCover({
       </span>
       <div>
         <p className="font-serif font-bold text-sm text-tx-main line-clamp-2">{title}</p>
-        <p className="text-xs text-tx-muted mt-1">{author}</p>
+        {isValidAuthor(author) && <p className="text-xs text-tx-muted mt-1">{author}</p>}
       </div>
       <BookIcon className="h-4 w-4 text-tx-faint" />
     </div>
