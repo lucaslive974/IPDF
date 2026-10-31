@@ -8,7 +8,7 @@ function StudyWorkbenchView() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-5">
-      <div className="mx-auto max-w-[1440px] grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-5">
+      <div className="mx-auto max-w-360 grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-5">
         <PassageReaderPanel
           document={vm.document}
           highlights={vm.highlights}

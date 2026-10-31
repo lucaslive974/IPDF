@@ -40,7 +40,7 @@ export function SectionAnnotationPanel({
       <AssistedFormattingToolbar onApplyFormat={onApplyFormat} />
 
       <textarea
-        className="min-h-[96px] w-full rounded-lg border border-slate-700 bg-slate-950 p-3 text-sm text-slate-100 focus:border-sky-400 focus:outline-none"
+        className="min-h-24 w-full rounded-lg border border-slate-700 bg-slate-950 p-3 text-sm text-slate-100 focus:border-sky-400 focus:outline-none"
         value={noteInput}
         onChange={(event) => onNoteChange(event.target.value)}
         onSelect={(event) => {

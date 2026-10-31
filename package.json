@@ -11,7 +11,7 @@
     "format:frontend": "biome format --write ./src",
     "format:backend": "cargo fmt --manifest-path src-tauri/crates/ipdf-core/Cargo.toml",
     "format": "npm run format:frontend && npm run format:backend",
-    "lint:frontend": "biome check ./src",
+    "lint:frontend": "biome check ./src && node scripts/lint-tailwind.mjs",
     "lint:backend": "cargo fmt --manifest-path src-tauri/crates/ipdf-core/Cargo.toml --check && cargo clippy --manifest-path src-tauri/crates/ipdf-core/Cargo.toml --all-targets -- -D warnings",
     "lint": "npm run lint:frontend && npm run lint:backend",
     "typecheck:frontend": "tsc --noEmit",
