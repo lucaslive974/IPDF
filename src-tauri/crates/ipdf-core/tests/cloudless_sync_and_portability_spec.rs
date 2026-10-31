@@ -1,10 +1,10 @@
 mod fakes;
 
-use fakes::{InMemoryBookRepo, InMemoryHighlightRepo, InMemoryStorage, JsonExport};
+use fakes::{InMemoryHighlightRepo, InMemoryStorage, JsonExport};
 use ipdf_core::core::domain::{BookFormat, BookMetadata, Highlight, HighlightAnchor};
 use ipdf_core::core::ports::{
-    BookRepository, ConflictResolution, ExportOptions, ExportStrategy, HighlightRepository,
-    StorageProvider, SyncPayload,
+    ConflictResolution, ExportOptions, ExportStrategy, HighlightRepository, StorageProvider,
+    SyncPayload,
 };
 use ipdf_core::core::services::{
     CloudlessSyncEngine, CreateHighlightInput, DataPortabilityService, HighlightManager,
@@ -13,25 +13,9 @@ use std::collections::BTreeMap;
 
 #[test]
 fn test_highlight_manager_and_cloudless_sync_lww() {
-    let mut book_repo = InMemoryBookRepo::default();
     let mut hl_repo = InMemoryHighlightRepo::default();
     let mut storage = InMemoryStorage::new("local-folder");
     let json_strategy = JsonExport;
-
-    book_repo
-        .save(BookMetadata {
-            book_hash: "book-phaedo".to_string(),
-            title: "Phaedo".to_string(),
-            author: "Plato".to_string(),
-            format: BookFormat::Epub,
-            current_page: 20,
-            total_pages: 100,
-            percentage: 20.0,
-            cover_image_url: None,
-            last_read_at_ms: 2000,
-            updated_at_ms: 2000,
-        })
-        .unwrap();
 
     let mut manager = HighlightManager::new(hl_repo);
     manager
@@ -138,11 +122,10 @@ fn test_highlight_manager_and_cloudless_sync_lww() {
     let portability = DataPortabilityService::new("desktop");
     let full_export = portability
         .export_data(
-            &book_repo,
             &hl_repo,
             &mut storage,
             &ExportOptions {
-                book_hashes: None,
+                book_hashes: Some(vec!["book-phaedo".to_string()]),
                 include_book_files: true,
                 exported_at_ms: 2500,
             },
@@ -153,7 +136,6 @@ fn test_highlight_manager_and_cloudless_sync_lww() {
 
     let _ = portability
         .import_data(
-            &mut book_repo,
             &mut hl_repo,
             &mut storage,
             &raw_incoming,
@@ -166,7 +148,6 @@ fn test_highlight_manager_and_cloudless_sync_lww() {
     sync_engine
         .sync_book_state(
             "book-phaedo",
-            &mut book_repo,
             &mut hl_repo,
             &mut storage,
             &json_strategy,
@@ -175,13 +156,7 @@ fn test_highlight_manager_and_cloudless_sync_lww() {
         .unwrap();
 
     sync_engine
-        .sync_library_index(
-            &mut book_repo,
-            &mut hl_repo,
-            &mut storage,
-            &json_strategy,
-            3600,
-        )
+        .sync_library_index(&mut hl_repo, &mut storage, &json_strategy, 3600)
         .unwrap();
 
     let kept_local = hl_repo.find_by_id("hl-local").unwrap().unwrap();

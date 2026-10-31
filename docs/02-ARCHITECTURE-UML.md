@@ -6,7 +6,7 @@ O projeto utiliza **Clean Architecture / Hexagonal Architecture (Ports & Adapter
 
 - **Core Nativo em Rust (`src-tauri/crates/ipdf-core/`):**
   - Isolado como uma crate pura (sem dependência direta de janelas/WebKit, permitindo rodar `cargo test` e `cargo clippy` instantaneamente em qualquer ambiente).
-  - Concentra o domínio (`Highlight`, `BookMetadata`, `RichAnnotation`), as traits de portas (`BookRepository`, `HighlightRepository`, `StorageProvider`, `ExportStrategy`, `PresenceProvider`), o cálculo de hash SHA-256 em *streaming* de 64 KB (`Sha256BookHasher`), o merge *Last-Write-Wins* (`DataPortabilityService`), o `CloudlessSyncEngine`, o `CachedStorageDecorator`, o `PromptBuilder` e o `RichPresenceManager`.
+  - Concentra o domínio (`Highlight`, `BookMetadata`, `RichAnnotation`), as traits de portas (`HighlightRepository`, `StorageProvider`, `ExportStrategy`, `PresenceProvider`), o cálculo de hash SHA-256 em *streaming* de 64 KB (`Sha256BookHasher`), o gerenciamento de biblioteca baseado em arquivos e storage (`LibraryManager`), o merge *Last-Write-Wins* (`DataPortabilityService`), o `CloudlessSyncEngine`, o `CachedStorageDecorator`, o `PromptBuilder` e o `RichPresenceManager`.
 - **Shell Tauri v2 (`src-tauri/src/`):**
   - Expõe comandos IPC (`#[tauri::command]`) conectando a WebView à crate `ipdf-core` e aos plugins/recursos do sistema operacional.
 - **Domínio, Portas e Adaptadores de WebView em TypeScript (`src/core/` e `src/adapters/`):**
@@ -36,7 +36,7 @@ O projeto utiliza **Clean Architecture / Hexagonal Architecture (Ports & Adapter
 │   │       │   │   └── storage/          # cached_storage_decorator.rs
 │   │       │   └── lib.rs
 │   │       └── tests/                    # Suíte de testes Rust modularizada
-│   │           ├── fakes/                # mod.rs (InMemoryBookRepo, InMemoryHighlightRepo, InMemoryStorage, SpyPresence, SpyTtsProvider, SpyMediaControls, SpyPowerBlocker)
+│   │           ├── fakes/                # mod.rs (InMemoryHighlightRepo, InMemoryStorage, SpyPresence, SpyTtsProvider, SpyMediaControls, SpyPowerBlocker)
 │   │           ├── highlight_spec.rs
 │   │           ├── sha256_book_hasher_spec.rs
 │   │           ├── cloudless_sync_and_portability_spec.rs
@@ -135,7 +135,6 @@ classDiagram
     }
 
     class DataPortabilityService {
-        -IBookRepository bookRepo
         -IHighlightRepository highlightRepo
         -IStorageProvider storage
         +exportData(options: ExportOptions, strategy: IExportStrategy) Promise~Uint8Array | string~

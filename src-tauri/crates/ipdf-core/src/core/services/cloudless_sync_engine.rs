@@ -1,6 +1,5 @@
 use crate::core::ports::{
-    BookRepository, ConflictResolution, ExportOptions, ExportStrategy, HighlightRepository,
-    StorageProvider,
+    ConflictResolution, ExportOptions, ExportStrategy, HighlightRepository, StorageProvider,
 };
 use crate::core::services::data_portability_service::DataPortabilityService;
 
@@ -15,17 +14,15 @@ impl CloudlessSyncEngine {
         Self { portability }
     }
 
-    pub fn sync_book_state<B, H, S, E>(
+    pub fn sync_book_state<H, S, E>(
         &self,
         book_hash: &str,
-        book_repo: &mut B,
         highlight_repo: &mut H,
         storage: &mut S,
         strategy: &E,
         now_ms: i64,
     ) -> Result<(), String>
     where
-        B: BookRepository,
         H: HighlightRepository,
         S: StorageProvider,
         E: ExportStrategy,
@@ -37,7 +34,6 @@ impl CloudlessSyncEngine {
         let file_name = format!("{book_hash}.highlights.json");
         if let Some(existing_bytes) = storage.read_entry(&file_name)? {
             self.portability.import_data(
-                book_repo,
                 highlight_repo,
                 storage,
                 &existing_bytes,
@@ -51,24 +47,22 @@ impl CloudlessSyncEngine {
             include_book_files: false,
             exported_at_ms: now_ms,
         };
-        let merged =
-            self.portability
-                .export_data(book_repo, highlight_repo, storage, &options, strategy)?;
+        let merged = self
+            .portability
+            .export_data(highlight_repo, storage, &options, strategy)?;
 
         storage.write_entry(&file_name, &merged, "application/json")?;
         Ok(())
     }
 
-    pub fn sync_library_index<B, H, S, E>(
+    pub fn sync_library_index<H, S, E>(
         &self,
-        book_repo: &mut B,
         highlight_repo: &mut H,
         storage: &mut S,
         strategy: &E,
         now_ms: i64,
     ) -> Result<(), String>
     where
-        B: BookRepository,
         H: HighlightRepository,
         S: StorageProvider,
         E: ExportStrategy,
@@ -79,7 +73,6 @@ impl CloudlessSyncEngine {
 
         if let Some(existing_bytes) = storage.read_entry(Self::LIBRARY_INDEX_FILE)? {
             self.portability.import_data(
-                book_repo,
                 highlight_repo,
                 storage,
                 &existing_bytes,
@@ -93,9 +86,9 @@ impl CloudlessSyncEngine {
             include_book_files: false,
             exported_at_ms: now_ms,
         };
-        let updated =
-            self.portability
-                .export_data(book_repo, highlight_repo, storage, &options, strategy)?;
+        let updated = self
+            .portability
+            .export_data(highlight_repo, storage, &options, strategy)?;
 
         storage.write_entry(Self::LIBRARY_INDEX_FILE, &updated, "application/json")?;
         Ok(())

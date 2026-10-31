@@ -1,14 +1,12 @@
 use ipdf_core::adapters::configuration::FileConfigurationStore;
-use ipdf_core::adapters::persistence::{SqliteBookRepository, SqliteHighlightRepository};
+use ipdf_core::adapters::persistence::SqliteHighlightRepository;
 #[allow(unused_imports)]
 use ipdf_core::adapters::platform::{
     AndroidEnvironment, IosEnvironment, LinuxEnvironment, WindowsEnvironment,
 };
 use ipdf_core::adapters::storage::LocalFolderStorageAdapter;
 use ipdf_core::core::domain::{BookFormat, BookMetadata, HighlightAnchor};
-use ipdf_core::core::ports::{
-    ConfigurationStore, PlatformEnvironment, ReadingContext, StorageProvider,
-};
+use ipdf_core::core::ports::{ConfigurationStore, PlatformEnvironment, ReadingContext};
 use ipdf_core::core::services::{ImportBookInput, LibraryManager, PromptBuilder, Sha256BookHasher};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -61,7 +59,7 @@ pub struct IpcPlatformInfoDto {
 
 pub struct BackendState {
     highlights: BTreeMap<String, IpcHighlightDto>,
-    library: LibraryManager<SqliteBookRepository, LocalFolderStorageAdapter>,
+    library: LibraryManager<LocalFolderStorageAdapter>,
     _highlight_repo: SqliteHighlightRepository,
     config_store: FileConfigurationStore,
     platform_env: Box<dyn PlatformEnvironment + Send>,
@@ -78,31 +76,19 @@ impl Default for BackendState {
         #[cfg(not(any(target_os = "windows", target_os = "ios", target_os = "android")))]
         let platform: Box<dyn PlatformEnvironment + Send> = Box::new(LinuxEnvironment::default());
 
-        let mut storage = LocalFolderStorageAdapter::for_platform("local-folder", &*platform)
+        let storage = LocalFolderStorageAdapter::for_platform("local-folder", &*platform)
             .expect("Failed to init storage for platform");
-        let _ = storage.initialize();
 
-        let book_repo = SqliteBookRepository::open_for_platform(&*platform)
-            .unwrap_or_else(|_| SqliteBookRepository::new_in_memory().unwrap());
         let highlight_repo = SqliteHighlightRepository::open_for_platform(&*platform)
             .unwrap_or_else(|_| SqliteHighlightRepository::new_in_memory().unwrap());
-        let mut library = LibraryManager::new(book_repo, storage);
+        let mut library = LibraryManager::new(storage);
+        let _ = library.initialize();
 
         let config_store = FileConfigurationStore::for_platform(&*platform, "settings.json")
             .unwrap_or_else(|_| {
                 let fallback_path = std::env::temp_dir().join("ipdf_settings.json");
                 FileConfigurationStore::new(fallback_path).unwrap()
             });
-
-        let _ = library.import_book(ImportBookInput {
-            raw_bytes: b"PK\x03\x04plato-republic-book-vii".to_vec(),
-            title: "The Republic".to_string(),
-            author: "Plato".to_string(),
-            format: BookFormat::Epub,
-            total_pages: 320,
-            cover_image_url: None,
-            now_ms: current_epoch_ms(),
-        });
 
         Self {
             highlights: BTreeMap::new(),
@@ -133,8 +119,19 @@ fn compute_book_sha256(bytes: Vec<u8>) -> Result<String, String> {
 
 #[tauri::command]
 fn list_library_books(state: State<'_, Mutex<BackendState>>) -> Result<Vec<BookMetadata>, String> {
-    let guard = state.lock().map_err(|e| e.to_string())?;
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
     guard.library.list_books()
+}
+
+#[tauri::command]
+fn open_book_file(
+    file_path: String,
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<BookMetadata, String> {
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    let path = std::path::Path::new(&file_path);
+    let (metadata, _) = guard.library.open_book_from_path(path)?;
+    Ok(metadata)
 }
 
 #[tauri::command]
@@ -305,6 +302,7 @@ pub fn run() {
             healthcheck,
             compute_book_sha256,
             list_library_books,
+            open_book_file,
             import_library_book,
             update_book_progress,
             load_book_highlights,

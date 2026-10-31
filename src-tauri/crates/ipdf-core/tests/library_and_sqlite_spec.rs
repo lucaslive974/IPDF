@@ -1,21 +1,27 @@
 mod fakes;
 
-use fakes::{InMemoryBookRepo, InMemoryStorage};
-use ipdf_core::adapters::persistence::{SqliteBookRepository, SqliteHighlightRepository};
+use fakes::InMemoryStorage;
+use ipdf_core::adapters::persistence::SqliteHighlightRepository;
 use ipdf_core::adapters::storage::LocalFolderStorageAdapter;
 use ipdf_core::core::domain::{
-    BookFormat, BookMetadata, BoundingBox, Highlight, HighlightAnchor, RichAnnotation,
+    BookFormat, BoundingBox, Highlight, HighlightAnchor, RichAnnotation,
 };
-use ipdf_core::core::ports::{BookRepository, HighlightRepository, StorageProvider};
+use ipdf_core::core::ports::{HighlightRepository, StorageProvider};
 use ipdf_core::core::services::{ImportBookInput, LibraryManager, Sha256BookHasher};
 use std::env;
 use std::fs;
 
 #[test]
 fn test_library_manager_import_progress_and_sorting() {
-    let book_repo = InMemoryBookRepo::default();
     let storage = InMemoryStorage::new("local-memory");
-    let mut library = LibraryManager::new(book_repo, storage);
+    let mut library = LibraryManager::new(storage);
+    assert!(library.initialize().unwrap());
+
+    // Bundled asset "republic-plato.epub" is deployed on first initialization
+    let initial_books = library.list_books().unwrap();
+    assert_eq!(initial_books.len(), 1);
+    assert_eq!(initial_books[0].title, "The Republic");
+    assert_eq!(initial_books[0].author, "Plato");
 
     let raw_epub_bytes = b"PK\x03\x04epub-republic-binary-payload".to_vec();
     let expected_hash = Sha256BookHasher::hash_bytes(&raw_epub_bytes).unwrap();
@@ -23,7 +29,7 @@ fn test_library_manager_import_progress_and_sorting() {
     let imported = library
         .import_book(ImportBookInput {
             raw_bytes: raw_epub_bytes.clone(),
-            title: "The Republic".to_string(),
+            title: "The Republic (User Edition)".to_string(),
             author: "Plato".to_string(),
             format: BookFormat::Epub,
             total_pages: 320,
@@ -75,57 +81,31 @@ fn test_library_manager_import_progress_and_sorting() {
         .unwrap();
 
     let all_books = library.list_books().unwrap();
-    assert_eq!(all_books.len(), 2);
+    assert_eq!(all_books.len(), 3);
     assert_eq!(all_books[0].book_hash, second_book.book_hash);
-    assert_eq!(all_books[1].book_hash, expected_hash);
 
-    library.delete_book(&second_book.book_hash).unwrap();
-    assert!(library.get_book(&second_book.book_hash).unwrap().is_none());
+    // Direct filesystem opening (System handler / Open with / Default app)
+    let temp_file = env::temp_dir().join(format!("external_book_{}.epub", std::process::id()));
+    fs::write(&temp_file, b"PK\x03\x04external-standalone-file").unwrap();
+
+    let (opened_meta, opened_bytes) = library.open_book_from_path(&temp_file).unwrap();
+    assert_eq!(opened_bytes, b"PK\x03\x04external-standalone-file");
+    assert_eq!(opened_meta.format, BookFormat::Epub);
+
+    let _ = fs::remove_file(&temp_file);
     assert!(library
-        .update_reading_progress("missing-book", 1, 10, 6000)
+        .open_book_from_path(&std::path::PathBuf::from("/nonexistent/file.epub"))
         .is_err());
 }
 
 #[test]
-fn test_sqlite_book_and_highlight_repositories() {
+fn test_sqlite_highlight_repository() {
     let db_path = env::temp_dir().join(format!("ipdf_sqlite_test_{}.db", std::process::id()));
     let _ = fs::remove_file(&db_path);
-    let _file_book_repo = SqliteBookRepository::open_file(&db_path).unwrap();
     let _file_hl_repo = SqliteHighlightRepository::open_file(&db_path).unwrap();
     let _ = fs::remove_file(&db_path);
 
-    let mut book_repo = SqliteBookRepository::new_in_memory().unwrap();
     let mut hl_repo = SqliteHighlightRepository::new_in_memory().unwrap();
-
-    let book = BookMetadata {
-        book_hash: "sha256-ethics-spinoza".to_string(),
-        title: "Ethics".to_string(),
-        author: "Baruch Spinoza".to_string(),
-        format: BookFormat::Epub,
-        current_page: 12,
-        total_pages: 240,
-        percentage: 5.0,
-        cover_image_url: Some("cover://spinoza.png".to_string()),
-        last_read_at_ms: 10_000,
-        updated_at_ms: 10_000,
-    };
-
-    book_repo.save(book.clone()).unwrap();
-    let loaded_book = book_repo
-        .find_by_id("sha256-ethics-spinoza")
-        .unwrap()
-        .expect("Book should exist in SQLite");
-    assert_eq!(loaded_book, book);
-
-    let mut updated_book = book.clone();
-    updated_book.current_page = 48;
-    updated_book.percentage = 20.0;
-    updated_book.updated_at_ms = 20_000;
-    book_repo.update(updated_book.clone()).unwrap();
-
-    let all_books = book_repo.find_all().unwrap();
-    assert_eq!(all_books.len(), 1);
-    assert_eq!(all_books[0].current_page, 48);
 
     let mut hl = Highlight::new(
         "hl-spinoza-1",
@@ -181,12 +161,6 @@ fn test_sqlite_book_and_highlight_repositories() {
 
     hl_repo.delete("hl-spinoza-1").unwrap();
     assert!(hl_repo.find_by_id("hl-spinoza-1").unwrap().is_none());
-
-    book_repo.delete("sha256-ethics-spinoza").unwrap();
-    assert!(book_repo
-        .find_by_id("sha256-ethics-spinoza")
-        .unwrap()
-        .is_none());
 }
 
 #[test]

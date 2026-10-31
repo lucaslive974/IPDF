@@ -1,12 +1,4 @@
-use crate::core::domain::{BookMetadata, Highlight};
-
-pub trait BookRepository {
-    fn save(&mut self, book: BookMetadata) -> Result<(), String>;
-    fn find_by_id(&self, book_hash: &str) -> Result<Option<BookMetadata>, String>;
-    fn update(&mut self, book: BookMetadata) -> Result<(), String>;
-    fn delete(&mut self, book_hash: &str) -> Result<(), String>;
-    fn find_all(&self) -> Result<Vec<BookMetadata>, String>;
-}
+use crate::core::domain::Highlight;
 
 pub trait HighlightRepository {
     fn save(&mut self, highlight: Highlight) -> Result<(), String>;

@@ -1,16 +1,17 @@
 use ipdf_core::adapters::configuration::{
     FileConfigurationStore, LocalStorageConfigurationStore, SqliteConfigurationStore,
 };
-use ipdf_core::adapters::persistence::{SqliteBookRepository, SqliteHighlightRepository};
+use ipdf_core::adapters::persistence::SqliteHighlightRepository;
 use ipdf_core::adapters::platform::{
     create_platform_environment, AndroidEnvironment, IosEnvironment, LinuxEnvironment,
     WebEnvironment, WindowsEnvironment,
 };
 use ipdf_core::adapters::storage::LocalFolderStorageAdapter;
-use ipdf_core::core::domain::{BookFormat, BookMetadata, Highlight, HighlightAnchor, PlatformKind};
+use ipdf_core::core::domain::{BookFormat, Highlight, HighlightAnchor, PlatformKind};
 use ipdf_core::core::ports::{
-    BookRepository, ConfigurationStore, HighlightRepository, PlatformEnvironment, StorageProvider,
+    ConfigurationStore, HighlightRepository, PlatformEnvironment, StorageProvider,
 };
+use ipdf_core::core::services::LibraryManager;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
@@ -248,27 +249,11 @@ fn test_repositories_and_storage_integration_with_platform_environment() {
     // Use Linux Flatpak environment as representative
     let env = LinuxEnvironment::new(Some(temp_base.join(".var/app/com.ipdf.reader")));
 
-    // 1. Open SQLite repositories directly for platform environment
-    let mut book_repo = SqliteBookRepository::open_for_platform(&env).unwrap();
+    // 1. Open SQLite highlight repository and storage for platform environment
     let mut hl_repo = SqliteHighlightRepository::open_for_platform(&env).unwrap();
-
-    let book = BookMetadata {
-        book_hash: "sha256-tim-ferriss".to_string(),
-        title: "The 4-Hour Workweek".to_string(),
-        author: "Tim Ferriss".to_string(),
-        format: BookFormat::Epub,
-        current_page: 1,
-        total_pages: 300,
-        percentage: 0.33,
-        cover_image_url: None,
-        last_read_at_ms: 1000,
-        updated_at_ms: 1000,
-    };
-    book_repo.save(book.clone()).unwrap();
-    assert_eq!(
-        book_repo.find_by_id("sha256-tim-ferriss").unwrap().unwrap(),
-        book
-    );
+    let storage = LocalFolderStorageAdapter::for_platform("flatpak-storage", &env).unwrap();
+    let mut library = LibraryManager::new(storage);
+    assert!(library.initialize().unwrap());
 
     let hl = Highlight::new(
         "hl-1",
@@ -276,7 +261,7 @@ fn test_repositories_and_storage_integration_with_platform_environment() {
         "Lifestyle design",
         "#eab308",
         HighlightAnchor {
-            format: BookFormat::Epub,
+            format: ipdf_core::core::domain::BookFormat::Epub,
             page_number: 1,
             epub_cfi: Some("epubcfi(/6/2!/4/2)".to_string()),
             pdf_rects: None,

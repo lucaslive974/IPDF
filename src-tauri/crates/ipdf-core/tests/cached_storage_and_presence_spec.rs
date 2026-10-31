@@ -34,7 +34,7 @@ fn test_cached_storage_decorator_and_presence_debounce() {
     decorated
         .write_book_binary("hash-2", vec![9, 9], BookFormat::Pdf)
         .unwrap();
-    assert_eq!(decorated.list_entries(None).unwrap().len(), 1);
+    assert_eq!(decorated.list_entries(None).unwrap().len(), 3);
 
     let entry_bytes = decorated.read_entry("index.json").unwrap().unwrap();
     assert_eq!(entry_bytes, b"{\"ok\":true}");

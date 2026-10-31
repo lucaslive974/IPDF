@@ -1,38 +1,12 @@
 #![allow(dead_code)]
 
-use ipdf_core::core::domain::{BookFormat, BookMetadata, Highlight};
+use ipdf_core::core::domain::{BookFormat, Highlight};
 use ipdf_core::core::ports::{
-    BookRepository, ExportStrategy, HighlightRepository, MediaControlService, MediaMetadata,
-    PlaybackState, PowerSaveBlocker, PresenceProvider, ReadingActivity, SpeakOptions, StorageEntry,
+    ExportStrategy, HighlightRepository, MediaControlService, MediaMetadata, PlaybackState,
+    PowerSaveBlocker, PresenceProvider, ReadingActivity, SpeakOptions, StorageEntry,
     StorageProvider, SyncPayload, TtsProvider,
 };
 use std::collections::BTreeMap;
-
-#[derive(Default)]
-pub struct InMemoryBookRepo {
-    pub store: BTreeMap<String, BookMetadata>,
-}
-
-impl BookRepository for InMemoryBookRepo {
-    fn save(&mut self, book: BookMetadata) -> Result<(), String> {
-        self.store.insert(book.book_hash.clone(), book);
-        Ok(())
-    }
-    fn find_by_id(&self, book_hash: &str) -> Result<Option<BookMetadata>, String> {
-        Ok(self.store.get(book_hash).cloned())
-    }
-    fn update(&mut self, book: BookMetadata) -> Result<(), String> {
-        self.store.insert(book.book_hash.clone(), book);
-        Ok(())
-    }
-    fn delete(&mut self, book_hash: &str) -> Result<(), String> {
-        self.store.remove(book_hash);
-        Ok(())
-    }
-    fn find_all(&self) -> Result<Vec<BookMetadata>, String> {
-        Ok(self.store.values().cloned().collect())
-    }
-}
 
 #[derive(Default)]
 pub struct InMemoryHighlightRepo {
@@ -122,8 +96,18 @@ impl StorageProvider for InMemoryStorage {
         &mut self,
         book_hash: &str,
         data: Vec<u8>,
-        _format: BookFormat,
+        format: BookFormat,
     ) -> Result<(), String> {
+        let ext = match format {
+            BookFormat::Epub => "epub",
+            BookFormat::Pdf => "pdf",
+        };
+        let file_name = format!("{book_hash}.{ext}");
+        let mime_type = match format {
+            BookFormat::Epub => "application/epub+zip",
+            BookFormat::Pdf => "application/pdf",
+        };
+        let _ = self.write_entry(&file_name, &data, mime_type)?;
         self.binaries.insert(book_hash.to_string(), data);
         Ok(())
     }
