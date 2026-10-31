@@ -1,3 +1,4 @@
+import type { BookMetadata } from '../domain/BookMetadata';
 import type { Highlight } from '../domain/Highlight';
 
 export interface IRepository<T, ID = string> {
@@ -5,6 +6,10 @@ export interface IRepository<T, ID = string> {
   findById(id: ID): Promise<T | null>;
   update(entity: T): Promise<void>;
   delete(id: ID): Promise<void>;
+}
+
+export interface IBookRepository extends IRepository<BookMetadata, string> {
+  findAll(): Promise<BookMetadata[]>;
 }
 
 export interface IHighlightRepository extends IRepository<Highlight, string> {
