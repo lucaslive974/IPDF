@@ -24,7 +24,6 @@ export const ReaderZoomControl = memo(function ReaderZoomControl({
           type="button"
           className="flex-1 text-center py-1 rounded-md text-xs font-medium text-tx-secondary hover:text-tx-main hover:bg-surface transition cursor-pointer select-none active:scale-95"
           onClick={onDecrease}
-          title="Zoom Out"
           aria-label="Zoom Out"
         >
           &minus;
@@ -36,7 +35,6 @@ export const ReaderZoomControl = memo(function ReaderZoomControl({
           type="button"
           className="flex-1 text-center py-1 rounded-md text-xs font-medium text-tx-secondary hover:text-tx-main hover:bg-surface transition cursor-pointer select-none active:scale-95"
           onClick={onIncrease}
-          title="Zoom In"
           aria-label="Zoom In"
         >
           &#43;

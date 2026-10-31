@@ -1,5 +1,6 @@
 import type { ChangeEvent, RefObject } from 'react';
 import { memo } from 'react';
+import type { LibraryTabId } from '../LibraryView';
 import {
   Button,
   IconButton,
@@ -7,11 +8,16 @@ import {
   MoonIcon,
   PlusIcon,
   SearchIcon,
+  SegmentedControl,
+  type SegmentedControlOption,
   SettingsIcon,
   SunIcon,
 } from '../ui';
 
 export interface LibraryHeaderProps {
+  readonly activeTab: LibraryTabId;
+  readonly onTabChange: (tab: LibraryTabId) => void;
+  readonly tabOptions: readonly SegmentedControlOption<LibraryTabId>[];
   readonly searchQuery: string;
   readonly onSearchChange: (query: string) => void;
   readonly onImportClick: () => void;
@@ -23,6 +29,9 @@ export interface LibraryHeaderProps {
 }
 
 export const LibraryHeader = memo(function LibraryHeader({
+  activeTab,
+  onTabChange,
+  tabOptions,
   searchQuery,
   onSearchChange,
   onImportClick,
@@ -33,28 +42,27 @@ export const LibraryHeader = memo(function LibraryHeader({
   onOpenSettings,
 }: LibraryHeaderProps) {
   return (
-    <header className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-4 border-b border-line-subtle bg-canvas/80 px-6 py-3.5 backdrop-blur-md">
-      <div className="flex items-center gap-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-line-subtle bg-surface text-xs font-semibold tracking-wider text-tx-main shadow-2xs">
-          IP
-        </div>
-        <div>
-          <h1 className="text-sm font-semibold text-tx-main tracking-tight">Library</h1>
-          <p className="text-[0.65rem] text-tx-muted font-normal">Active Study</p>
-        </div>
-      </div>
-
-      <div className="flex-1 max-w-sm">
-        <Input
-          iconLeft={<SearchIcon className="h-3.5 w-3.5" />}
-          placeholder="Search library..."
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          onClear={() => onSearchChange('')}
+    <header className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 border-b border-line-subtle bg-canvas/80 px-6 py-2.5 backdrop-blur-md">
+      <div className="flex items-center">
+        <SegmentedControl
+          options={tabOptions}
+          value={activeTab}
+          onChange={onTabChange}
+          ariaLabel="Library navigation tabs"
         />
       </div>
 
       <div className="flex items-center gap-2">
+        <div className="w-48 sm:w-60">
+          <Input
+            iconLeft={<SearchIcon className="h-3.5 w-3.5" />}
+            placeholder="Search books..."
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            onClear={() => onSearchChange('')}
+          />
+        </div>
+
         <Button
           variant="ghost"
           size="sm"

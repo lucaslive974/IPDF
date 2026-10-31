@@ -21,7 +21,6 @@ export const ReaderFontSizeControl = memo(function ReaderFontSizeControl({
           type="button"
           className="flex-1 text-center py-1 rounded-md text-xs font-serif font-medium text-tx-secondary hover:text-tx-main hover:bg-surface transition cursor-pointer select-none active:scale-95"
           onClick={onDecrease}
-          title="Decrease Font Size"
           aria-label="Decrease Font Size"
         >
           A &minus;
@@ -33,7 +32,6 @@ export const ReaderFontSizeControl = memo(function ReaderFontSizeControl({
           type="button"
           className="flex-1 text-center py-1 rounded-md text-xs font-serif font-bold text-tx-secondary hover:text-tx-main hover:bg-surface transition cursor-pointer select-none active:scale-95"
           onClick={onIncrease}
-          title="Increase Font Size"
           aria-label="Increase Font Size"
         >
           A &#43;

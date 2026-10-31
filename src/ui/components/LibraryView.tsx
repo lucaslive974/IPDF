@@ -7,7 +7,7 @@ import { BooksGrid } from './library/BooksGrid';
 import { LibraryAnnotationsTab } from './library/LibraryAnnotationsTab';
 import { LibraryCollectionsTab } from './library/LibraryCollectionsTab';
 import { LibraryHeader } from './library/LibraryHeader';
-import { SegmentedControl, type SegmentedControlOption } from './ui';
+import type { SegmentedControlOption } from './ui';
 
 export type LibraryTabId = 'recents' | 'all' | 'highlights' | 'lists';
 
@@ -74,6 +74,9 @@ export function LibraryView({
   return (
     <div className="min-h-screen bg-canvas text-tx-main flex flex-col font-sans selection:bg-tx-main selection:text-canvas">
       <LibraryHeader
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        tabOptions={tabOptions}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onImportClick={handleOpenFileInput}
@@ -84,20 +87,7 @@ export function LibraryView({
         onOpenSettings={onOpenSettings}
       />
 
-      <main className="flex-1 mx-auto w-full max-w-5xl px-6 py-8 flex flex-col gap-6">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line-subtle pb-3">
-          <SegmentedControl
-            options={tabOptions}
-            value={activeTab}
-            onChange={setActiveTab}
-            ariaLabel="Library navigation tabs"
-          />
-
-          <span className="text-xs text-tx-muted font-mono font-medium">
-            {filteredBooks.length} {filteredBooks.length === 1 ? 'work' : 'works'}
-          </span>
-        </div>
-
+      <main className="flex-1 mx-auto w-full max-w-5xl px-6 py-6 flex flex-col gap-6">
         {(activeTab === 'recents' || activeTab === 'all') && (
           <BooksGrid
             books={filteredBooks}

@@ -7,6 +7,7 @@ export interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement>
   readonly variant?: IconButtonVariant;
   readonly size?: IconButtonSize;
   readonly label?: string;
+  readonly showTooltip?: boolean;
   readonly children: ReactNode;
 }
 
@@ -29,6 +30,7 @@ export function IconButton({
   variant = 'outline',
   size = 'md',
   label,
+  showTooltip = false,
   children,
   className = '',
   type = 'button',
@@ -41,7 +43,7 @@ export function IconButton({
     <button
       type={type}
       aria-label={label}
-      title={label}
+      title={showTooltip ? label : undefined}
       className={`inline-flex items-center justify-center transition active:scale-[0.96] cursor-pointer disabled:opacity-40 ${sizeClass} ${variantClass} ${className}`.trim()}
       {...rest}
     >
