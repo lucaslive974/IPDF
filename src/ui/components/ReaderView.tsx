@@ -158,7 +158,7 @@ export function ReaderView() {
   return (
     <section
       aria-label="Book Reader Document"
-      className="relative min-h-screen w-full bg-canvas text-tx-main flex flex-col justify-between overflow-x-hidden select-text transition-colors duration-200 outline-none"
+      className="relative min-h-screen w-full bg-canvas text-tx-main flex flex-col justify-between overflow-x-auto select-text transition-colors duration-200 outline-none"
       onClick={handleViewportClick}
       onKeyDown={(e) => {
         if (e.key === 'Escape') {

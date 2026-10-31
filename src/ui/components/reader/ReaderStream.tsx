@@ -75,24 +75,43 @@ export const ReaderStream = memo(function ReaderStream({
     };
   }, [reader.currentPage, setContextMenu]);
 
-  // 2. Ctrl + Scroll / Cmd + Scroll to Zoom
+  // 2. Ctrl + Scroll / Cmd + Scroll & Keyboard (+/-/0) to Zoom
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
+        const delta = Math.abs(e.deltaY);
+        const step = Math.min(0.25, Math.max(0.04, delta * 0.005));
         if (e.deltaY < 0) {
-          increaseZoom(0.04);
+          increaseZoom(step);
         } else {
-          decreaseZoom(0.04);
+          decreaseZoom(step);
+        }
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === '=' || e.key === '+') {
+          e.preventDefault();
+          increaseZoom(0.1);
+        } else if (e.key === '-' || e.key === '_') {
+          e.preventDefault();
+          decreaseZoom(0.1);
+        } else if (e.key === '0') {
+          e.preventDefault();
+          setZoomLevel(1.0);
         }
       }
     };
 
     window.addEventListener('wheel', handleWheel, { passive: false });
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [increaseZoom, decreaseZoom]);
+  }, [increaseZoom, decreaseZoom, setZoomLevel]);
 
   // 3. Pinch-to-Zoom on Mobile / Touch Devices
   useEffect(() => {
@@ -256,11 +275,14 @@ export const ReaderStream = memo(function ReaderStream({
   );
 
   return (
-    <main className="flex-1 w-full flex flex-col items-center px-4 sm:px-12 py-12 sm:py-20">
+    <main className="flex-1 w-full py-12 sm:py-20 px-4 sm:px-8">
       <div
         ref={contentAreaRef}
-        className="w-full max-w-2xl flex flex-col gap-12"
-        style={{ zoom: zoomLevel }}
+        className="mx-auto flex flex-col gap-12"
+        style={{
+          zoom: zoomLevel,
+          width: 'min(calc(100vw - 2rem), 42rem)',
+        }}
       >
         {/* Top sentinel for reverse scrolling */}
         <div ref={topSentinelRef} className="h-4 w-full pointer-events-none" />

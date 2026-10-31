@@ -44,8 +44,8 @@ const STORAGE_KEY = 'ipdf_typography_settings';
 
 export const MIN_FONT_SIZE = 12;
 export const MAX_FONT_SIZE = 36;
-export const MIN_ZOOM = 0.7;
-export const MAX_ZOOM = 2.5;
+export const MIN_ZOOM = 0.5;
+export const MAX_ZOOM = 5.0;
 
 function getDefaultFontSize(): number {
   if (typeof window !== 'undefined' && window.innerWidth < 640) {
