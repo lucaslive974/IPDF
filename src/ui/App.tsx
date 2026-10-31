@@ -19,9 +19,10 @@ import { PromptBuilder } from '../core/services/PromptBuilder';
 
 const BOOK_HASH = 'sha256-plato-republic-book-vii';
 const SAMPLE_PARAGRAPH =
-  'Imagina homens numa morada subterrânea, em forma de caverna, com uma entrada aberta para a luz; ' +
-  'esses homens estão aí desde a infância, de pernas e pescoço acorrentados, de modo que só podem ver ' +
-  'o que está diante deles, projetado pelas sombras do fogo na parede da caverna (noesis vs. doxa).';
+  'Behold! human beings living in an underground den, which has a mouth open towards the light ' +
+  'and reaching all along the den; here they have been from their childhood, and have their legs ' +
+  'and necks chained so that they cannot move, and can only see before them, being prevented by ' +
+  'the chains from turning round their heads (noesis vs. doxa).';
 
 export function App() {
   const servicesRef = useRef<{
@@ -84,10 +85,10 @@ export function App() {
         if (found) {
           setNoteInput(found.note);
           const visitor: IAnnotationVisitor<string> = {
-            visitAssistedText: (node) => `[Texto Assistido] ${node.rawData}`,
-            visitTldrawBoard: (node) => `[Quadro tldraw] ${node.rawData} | SVG: ${node.svgPreview}`,
+            visitAssistedText: (node) => `[Assisted Text] ${node.rawData}`,
+            visitTldrawBoard: (node) => `[tldraw Board] ${node.rawData} | SVG: ${node.svgPreview}`,
             visitDrawioDiagram: (node) =>
-              `[Diagrama draw.io] ${node.rawData} | SVG: ${node.svgPreview}`,
+              `[draw.io Diagram] ${node.rawData} | SVG: ${node.svgPreview}`,
           };
           setVisitorOutput(svc.highlightManager.visitHighlightAnnotations(targetId, visitor));
         }
@@ -124,7 +125,7 @@ export function App() {
             } as DOMRect,
           },
           '#eab308',
-          'Transição da opinião sensível para a intelecção pura'
+          'Transition from sensory opinion to pure intellection'
         );
         await refreshState(created.id);
       } else {
@@ -143,7 +144,7 @@ export function App() {
     const textToHighlight =
       browserSel && browserSel.length > 0
         ? browserSel
-        : 'homens numa morada subterrânea, em forma de caverna';
+        : 'human beings living in an underground den';
 
     const created = await svc.highlightManager.createFromSelection(
       BOOK_HASH,
@@ -168,7 +169,7 @@ export function App() {
         } as DOMRect,
       },
       color,
-      'Nova anotação de estudo na seção'
+      'New section study annotation'
     );
     await refreshState(created.id);
   };
@@ -208,15 +209,15 @@ export function App() {
         target: 'tldraw',
         action: 'save-snapshot',
         snapshotJson: '{"shapes":[{"type":"arrow","from":"Doxa","to":"Noesis"}]}',
-        svgPreview: '<svg viewBox="0 0 120 40"><text>tldraw: Doxa → Noesis</text></svg>',
+        svgPreview: '<svg viewBox="0 0 120 40"><text>tldraw: Doxa -> Noesis</text></svg>',
       });
     } else {
       await svc.highlightManager.interactWithAnnotation(selectedId, 'drawio', {
         target: 'drawio',
         action: 'save-diagram',
         xmlOrJsonDiagram:
-          '<mxGraphModel><root><mxCell id="mundo-inteligivel"/></root></mxGraphModel>',
-        svgPreview: '<svg viewBox="0 0 120 40"><text>draw.io: Linha Dividida</text></svg>',
+          '<mxGraphModel><root><mxCell id="intelligible-realm"/></root></mxGraphModel>',
+        svgPreview: '<svg viewBox="0 0 120 40"><text>draw.io: Divided Line</text></svg>',
       });
     }
     await refreshState(selectedId);
@@ -230,13 +231,13 @@ export function App() {
     const active = highlights.find((h) => h.id === selectedId);
     const req = svc.promptBuilder.buildTermLookupRequest(
       {
-        bookTitle: 'A República',
-        bookAuthor: 'Platão',
-        chapterTitle: 'Livro VII — Alegoria da Caverna',
+        bookTitle: 'The Republic',
+        bookAuthor: 'Plato',
+        chapterTitle: 'Book VII — Allegory of the Cave',
         selectedText: active?.text ?? 'noesis',
         surroundingContext: SAMPLE_PARAGRAPH,
       },
-      'pt-BR'
+      'en'
     );
     setLlmPromptPreview(JSON.stringify(req, null, 2));
   };
@@ -263,17 +264,17 @@ export function App() {
       <section className="panel">
         <div className="header-bar">
           <div>
-            <h2 style={{ margin: 0 }}>Platão — A República (Livro VII)</h2>
+            <h2 style={{ margin: 0 }}>Plato — The Republic (Book VII)</h2>
             <small style={{ color: 'var(--text-muted)' }}>
-              Hash SHA-256: <code>{BOOK_HASH}</code>
+              SHA-256 Hash: <code>{BOOK_HASH}</code>
             </small>
           </div>
-          <span className="badge">Fase 1 Core Workbench</span>
+          <span className="badge">Phase 1 Core Workbench</span>
         </div>
 
         <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-          Selecione qualquer trecho do texto abaixo (ou clique diretamente num botão de cor) para
-          criar um grifo polimórfico gerenciado pelo <code>HighlightManager</code>:
+          Select any passage below (or click a color button) to create a polymorphic highlight
+          managed by <code>HighlightManager</code>:
         </p>
 
         <div className="book-passage">{SAMPLE_PARAGRAPH}</div>
@@ -284,23 +285,23 @@ export function App() {
             className="primary"
             onClick={() => void handleCreateHighlightFromSelection('#eab308')}
           >
-            + Grifar Amarelo
+            + Highlight Yellow
           </button>
           <button type="button" onClick={() => void handleCreateHighlightFromSelection('#22c55e')}>
-            + Grifar Verde
+            + Highlight Green
           </button>
           <button type="button" onClick={() => void handleCreateHighlightFromSelection('#38bdf8')}>
-            + Grifar Azul
+            + Highlight Blue
           </button>
           <button type="button" onClick={handleGeneratePrompt}>
-            Gerar Prompt Contextual (LLM)
+            Generate Contextual Prompt (LLM)
           </button>
           <button type="button" onClick={() => void handleRunCloudlessSync()}>
-            Sincronizar LWW (CloudlessSyncEngine)
+            Sync LWW (CloudlessSyncEngine)
           </button>
         </div>
 
-        <h3 style={{ margin: '0.5rem 0 0 0' }}>Grifos na Página 1 ({highlights.length})</h3>
+        <h3 style={{ margin: '0.5rem 0 0 0' }}>Page 1 Highlights ({highlights.length})</h3>
         {highlights.map((hl) => (
           <div
             key={hl.id}
@@ -315,7 +316,7 @@ export function App() {
           >
             <strong>“{hl.text}”</strong>
             <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
-              Nota: {hl.note || '(sem nota)'}
+              Note: {hl.note || '(empty)'}
             </div>
           </div>
         ))}
@@ -323,26 +324,26 @@ export function App() {
 
       <section className="panel">
         <div className="header-bar">
-          <h3 style={{ margin: 0 }}>Anotações da Seção (Strategy + Visitor / Double Dispatch)</h3>
+          <h3 style={{ margin: 0 }}>Section Annotations (Strategy + Visitor / Double Dispatch)</h3>
         </div>
 
         <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-          Formatação Assistida (<code>AssistedRichTextStrategy</code>) — selecione parte da nota no
-          campo abaixo ou aplique diretamente sem precisar digitar sintaxe Markdown:
+          Assisted Rich Formatting (<code>AssistedRichTextStrategy</code>) — select text in the note
+          box below or apply formatting directly without writing Markdown syntax:
         </p>
 
         <div className="toolbar">
           <button type="button" onClick={() => void handleApplyAssistedFormat({ kind: 'bold' })}>
-            <strong>B</strong> Negrito
+            <strong>B</strong> Bold
           </button>
           <button type="button" onClick={() => void handleApplyAssistedFormat({ kind: 'italic' })}>
-            <em>I</em> Itálico
+            <em>I</em> Italic
           </button>
           <button
             type="button"
             onClick={() => void handleApplyAssistedFormat({ kind: 'underline' })}
           >
-            <u>U</u> Sublinhado
+            <u>U</u> Underline
           </button>
           <button
             type="button"
@@ -350,7 +351,7 @@ export function App() {
               void handleApplyAssistedFormat({ kind: 'textColor', colorHex: '#38bdf8' })
             }
           >
-            Cor Azul
+            Blue Text
           </button>
           <button
             type="button"
@@ -358,13 +359,13 @@ export function App() {
               void handleApplyAssistedFormat({ kind: 'backgroundColor', colorHex: '#ca8a04' })
             }
           >
-            Marca-Texto
+            Mark Fill
           </button>
           <button
             type="button"
             onClick={() => void handleApplyAssistedFormat({ kind: 'blockquote' })}
           >
-            ❝ Citação
+            ❝ Quote
           </button>
         </div>
 
@@ -386,32 +387,32 @@ export function App() {
             className="primary"
             onClick={() => void handleAttachVisualBoard('tldraw')}
           >
-            + Anexar Quadro Branco (tldraw Strategy)
+            + Attach Whiteboard (tldraw Strategy)
           </button>
           <button
             type="button"
             className="primary"
             onClick={() => void handleAttachVisualBoard('drawio')}
           >
-            + Anexar Diagrama (draw.io Strategy)
+            + Attach Diagram (draw.io Strategy)
           </button>
         </div>
 
         <div>
           <strong>
-            Saída do Visitor Pattern (<code>acceptAnnotationVisitor</code>):
+            Visitor Pattern Output (<code>acceptAnnotationVisitor</code>):
           </strong>
           <pre className="code-box">
             {visitorOutput.length > 0
               ? visitorOutput.join('\n')
-              : 'Nenhuma anotação rica anexada ainda.'}
+              : 'No rich annotations attached yet.'}
           </pre>
         </div>
 
         {llmPromptPreview && (
           <div>
             <strong>
-              Prompt Gerado (<code>PromptBuilder</code>):
+              Generated Prompt (<code>PromptBuilder</code>):
             </strong>
             <pre className="code-box">{llmPromptPreview}</pre>
           </div>
@@ -420,7 +421,7 @@ export function App() {
         {syncExportPreview && (
           <div>
             <strong>
-              Payload LWW Sincronizado (<code>CloudlessSyncEngine</code>):
+              LWW Synced Payload (<code>CloudlessSyncEngine</code>):
             </strong>
             <pre className="code-box">{syncExportPreview}</pre>
           </div>

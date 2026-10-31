@@ -1,7 +1,7 @@
 import type { BookFormat } from './types';
 
 export interface BookMetadata {
-  bookHash: string; // SHA-256 do binário
+  bookHash: string;
   title: string;
   author: string;
   format: BookFormat;
@@ -12,7 +12,7 @@ export interface BookMetadata {
   remoteFileId?: string;
   coverImageBuffer?: Uint8Array;
   coverMimeType?: 'image/webp' | 'image/png' | 'image/jpeg';
-  coverImageUrl?: string; // URL pública resolvida (para Discord RPC)
+  coverImageUrl?: string;
   lastReadAt: Date;
   updatedAt: Date;
 }

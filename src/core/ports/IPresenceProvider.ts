@@ -8,9 +8,9 @@ export interface ReadingActivity {
   percentage: number;
   state: 'reading' | 'listening_tts' | 'annotating' | 'paused';
   sessionStartedAt: Date;
-  coverImageBuffer?: Uint8Array; // Imagem da capa ou customizada pelo usuário
+  coverImageBuffer?: Uint8Array;
   coverMimeType?: 'image/webp' | 'image/png' | 'image/jpeg';
-  coverImageUrl?: string; // URL HTTPS pública para compatibilidade com Discord IPC
+  coverImageUrl?: string;
 }
 
 export interface IPresenceProvider {

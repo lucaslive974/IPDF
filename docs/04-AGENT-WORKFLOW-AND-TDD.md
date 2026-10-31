@@ -12,7 +12,9 @@ Este documento define as regras operacionais obrigatórias para qualquer agente 
    Nenhuma classe em `src/core/` pode acessar variáveis globais, `window` diretamente ou singletons importados estaticamente. Toda dependência deve entrar via `constructor`.
 3. **Zero `any` Policy:**
    O uso de `any` é estritamente proibido. Utilize tipos estritos, Generics ou `unknown` com *type guards*.
-4. **Meta Mínima de Cobertura de Testes (>= 80%):**
+4. **English-Only Source Code & Comments Policy:**
+   Todo o código-fonte em `src/`, `src-tauri/` e `test/` (incluindo nomes de tipos, variáveis, funções, strings técnicas e quaisquer comentários) deve ser escrito **100% em inglês**. Não adicione comentários em português ou comentários redundantes em estruturas de dados autoexplicativas.
+5. **Meta Mínima de Cobertura de Testes (>= 80%):**
    É obrigatório manter **pelo menos 80% de cobertura de testes** (`lines >= 80%`, `functions >= 80%`, `branches >= 80%`, `statements >= 80%`) em `src/core/` e `src/adapters/`. O Vitest (`@vitest/coverage-v8`) está configurado com *thresholds* bloqueantes: se a cobertura cair abaixo de 80%, `npm run test` e `npm run verify` falharão automaticamente.
 
 ---

@@ -15,6 +15,7 @@ Este repositório segue uma arquitetura **Hexagonal (Ports & Adapters)** estrita
 
 ## ⚡ Regras de Ouro Inegociáveis
 
+- **Código e Comentários 100% em Inglês:** Todo código-fonte (`src/` e `test/`), nomes de símbolos, mensagens de erro e comentários/JSDoc (quando estritamente necessários) devem ser escritos **exclusivamente em inglês**. Evite comentários óbvios nas estruturas de dados.
 - **Portabilidade Desktop + iOS (`WKWebView`):** Nunca utilize `Buffer` do Node.js em `src/core/`. Utilize sempre `Uint8Array` ou `ArrayBuffer`.
 - **Injeção de Dependência Pura:** Nenhuma classe em `src/core/` pode acessar singletons globais, `window` diretamente, banco de dados físico ou rede. Tudo entra via `constructor` tipado pelas interfaces de `src/core/ports/`.
 - **Zero `any` Policy:** Proibido usar `any`.

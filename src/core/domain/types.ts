@@ -10,15 +10,15 @@ export interface BoundingBox {
 export interface HighlightAnchor {
   format: BookFormat;
   pageNumber: number;
-  epubCfi?: string; // Obrigatório quando format === 'epub'
-  pdfRects?: BoundingBox[]; // Obrigatório quando format === 'pdf'
+  epubCfi?: string;
+  pdfRects?: BoundingBox[];
 }
 
 export interface TextSelection {
   text: string;
-  surroundingContext: string; // Parágrafo completo onde o trecho está inserido (para LLM)
+  surroundingContext: string;
   anchor: HighlightAnchor;
-  clientRect: DOMRect; // Coordenada de tela para ancorar Popover UI
+  clientRect: DOMRect;
 }
 
 export interface PageInfo {
@@ -36,10 +36,6 @@ export interface SentenceNode {
 
 export type RichAnnotationType = 'assisted-markdown' | 'tldraw' | 'drawio';
 
-/**
- * Comandos assistidos de formatação para que o usuário nunca precise digitar
- * sintaxe Markdown manualmente (negrito, sublinhado, cores, listas, etc.).
- */
 export type TextFormatStyle =
   | { kind: 'bold' }
   | { kind: 'italic' }

@@ -12,9 +12,7 @@ export interface IRichAnnotation {
   readonly rawData: string;
   readonly svgPreview?: string;
   readonly updatedAt: Date;
-  /** Visitor Pattern: permite exportar, renderizar ou indexar sem switch/case de tipos */
   accept<R>(visitor: IAnnotationVisitor<R>): R;
-  /** Double Dispatch: a própria classe de anotação sabe se vincular/atualizar no Highlight */
   attachTo(highlight: Highlight): void;
 }
 

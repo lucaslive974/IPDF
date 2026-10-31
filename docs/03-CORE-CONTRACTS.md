@@ -22,15 +22,15 @@ export interface BoundingBox {
 export interface HighlightAnchor {
   format: BookFormat;
   pageNumber: number;
-  epubCfi?: string;          // Obrigatório quando format === 'epub'
-  pdfRects?: BoundingBox[];  // Obrigatório quando format === 'pdf'
+  epubCfi?: string;
+  pdfRects?: BoundingBox[];
 }
 
 export interface TextSelection {
   text: string;
-  surroundingContext: string; // Parágrafo completo onde o trecho está inserido (para LLM)
+  surroundingContext: string;
   anchor: HighlightAnchor;
-  clientRect: DOMRect;        // Coordenada de tela para ancorar Popover UI
+  clientRect: DOMRect;
 }
 
 export interface PageInfo {
@@ -48,10 +48,6 @@ export interface SentenceNode {
 
 export type RichAnnotationType = 'assisted-markdown' | 'tldraw' | 'drawio';
 
-/**
- * Comandos assistidos de formatação para que o usuário nunca precise digitar
- * sintaxe Markdown manualmente (negrito, sublinhado, cores, listas, etc.).
- */
 export type TextFormatStyle =
   | { kind: 'bold' }
   | { kind: 'italic' }
@@ -96,7 +92,7 @@ export type AnnotationCommand =
 import type { BookFormat } from './types';
 
 export interface BookMetadata {
-  bookHash: string;          // SHA-256 do binário
+  bookHash: string;
   title: string;
   author: string;
   format: BookFormat;
@@ -107,7 +103,7 @@ export interface BookMetadata {
   remoteFileId?: string;
   coverImageBuffer?: Uint8Array;
   coverMimeType?: 'image/webp' | 'image/png' | 'image/jpeg';
-  coverImageUrl?: string;    // URL pública resolvida (para Discord RPC)
+  coverImageUrl?: string;
   lastReadAt: Date;
   updatedAt: Date;
 }
@@ -130,9 +126,7 @@ export interface IRichAnnotation {
   readonly rawData: string;
   readonly svgPreview?: string;
   readonly updatedAt: Date;
-  /** Visitor Pattern: permite exportar, renderizar ou indexar sem switch/case de tipos */
   accept<R>(visitor: IAnnotationVisitor<R>): R;
-  /** Double Dispatch: a própria classe de anotação sabe se vincular/atualizar no Highlight */
   attachTo(highlight: Highlight): void;
 }
 
@@ -280,29 +274,13 @@ import type { Highlight } from '../domain/Highlight';
 import type { IRichAnnotation } from '../domain/RichAnnotation';
 import type { AnnotationCommand, RichAnnotationType, TextFormatStyle } from '../domain/types';
 
-/**
- * Strategy Pattern que compõe o HighlightManager.
- * Cada implementação (AssistedRichTextStrategy, TldrawAnnotationStrategy, DrawioAnnotationStrategy)
- * encapsula as regras de formatação/desenho e interage com o Highlight via Double Dispatch.
- */
 export interface IAnnotationToolStrategy {
   readonly type: RichAnnotationType;
-
-  /**
-   * Processa um comando de alto nível (ex: aplicar negrito/sublinhado/cor sem saber Markdown,
-   * ou salvar um quadro tldraw/draw.io) e atualiza a anotação no Highlight.
-   */
   applyToHighlight(highlight: Highlight, command: AnnotationCommand): Promise<IRichAnnotation>;
-
   serialize(annotation: IRichAnnotation): string;
   deserialize(rawData: string, updatedAt?: Date, svgPreview?: string): IRichAnnotation;
 }
 
-/**
- * Contrato especializado para a estratégia de formatação assistida de texto.
- * Garante que o usuário disponha de ferramentas prontas (negrito, sublinhado, cores, títulos, listas)
- * sem precisar conhecer ou digitar sintaxe Markdown manualmente.
- */
 export interface IAssistedTextFormattingStrategy extends IAnnotationToolStrategy {
   readonly type: 'assisted-markdown';
   formatSelection(
@@ -453,9 +431,9 @@ export interface ReadingActivity {
   percentage: number;
   state: 'reading' | 'listening_tts' | 'annotating' | 'paused';
   sessionStartedAt: Date;
-  coverImageBuffer?: Uint8Array; // Imagem da capa ou customizada pelo usuário
+  coverImageBuffer?: Uint8Array;
   coverMimeType?: 'image/webp' | 'image/png' | 'image/jpeg';
-  coverImageUrl?: string;        // URL HTTPS pública para compatibilidade com Discord IPC
+  coverImageUrl?: string;
 }
 
 export interface IPresenceProvider {

@@ -65,14 +65,14 @@ describe('PromptBuilder & ContextualAssistant', () => {
     const mockLLM = new MockLLMProvider();
     mockLLM.structuredResponse = {
       originalText: 'noesis',
-      translatedText: 'intelecção pura',
-      translatorNotes: 'Conceito platônico do Livro VI',
+      translatedText: 'pure intellection',
+      translatorNotes: 'Platonic concept from Book VI',
     };
 
     const assistant = new ContextualAssistant(mockLLM);
-    const translation = await assistant.translateInPlace(sampleContext, 'pt-BR');
+    const translation = await assistant.translateInPlace(sampleContext, 'en');
 
-    expect(translation.translatedText).toBe('intelecção pura');
-    expect(mockLLM.lastRequest?.userPrompt).toContain('Translate the selected passage into pt-BR');
+    expect(translation.translatedText).toBe('pure intellection');
+    expect(mockLLM.lastRequest?.userPrompt).toContain('Translate the selected passage into en');
   });
 });
