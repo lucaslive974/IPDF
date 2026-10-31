@@ -22,7 +22,8 @@ function collectTsxFiles(dir) {
 
 function extractClassLiterals(source) {
   const literals = [];
-  const classAttrRegex = /className\s*=\s*(?:"([^"]*)"|'([^']*)'|\{`([\s\S]*?)`\}|\{([\s\S]*?)\})/g;
+  const classAttrRegex =
+    /className\s*=\s*(?:"([^"]*)"|'([^']*)'|\{`([\s\S]*?)`(?:\.trim\(\))?\}|\{([^}]*)\})/g;
   for (const match of source.matchAll(classAttrRegex)) {
     if (match[1] || match[2]) {
       // Direct string literal: className="foo bar"

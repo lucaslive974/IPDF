@@ -28,9 +28,11 @@ Este repositório segue uma arquitetura **Hexagonal (Ports & Adapters)** estrita
   - `adapters/` (`persistence/sqlite_book_repository.rs`, `persistence/sqlite_highlight_repository.rs`, `platform/` (`linux_environment.rs`, `android_environment.rs`, `windows_environment.rs`, `ios_environment.rs`, `web_environment.rs`), `configuration/` (`file_configuration_store.rs`, `local_storage_configuration_store.rs`, `sqlite_configuration_store.rs`), `storage/local_folder_storage_adapter.rs`, `storage/cached_storage_decorator.rs`),
   - `tests/` (`fakes/mod.rs` e arquivos `*_spec.rs` dedicados por domínio/serviço).
 - **Frontend MVVC / MVVM Modular (`src/ui/`):** Proibido misturar IoC, gerenciamento de estado/regras e JSX em "super arquivos". Separe estritamente em:
-  1. `src/ui/providers/` (Inversão de Controle / Contextos de DI),
+  1. `src/ui/providers/` (Inversão de Controle / Contextos de DI e Tema),
   2. `src/ui/hooks/` (ViewModels / Custom Hooks concentrando estado e casos de uso),
-  3. `src/ui/components/` (Componentes visuais puros, pequenos e reutilizáveis recebendo dados via props).
+  3. `src/ui/components/ui/` (Componentes atômicos do Design System: `Button`, `IconButton`, `Card`, `Badge`, `Input`, `Modal`, `Popover`),
+  4. `src/ui/components/` (Componentes visuais de alto nível e telas recebendo dados via props).
+- **Design System Obrigatório (Sem HTML Puro Repetitivo):** Toda a interface deve ser composta por componentes pré-estilizados do Design System (`src/ui/components/ui/`) e tokens semânticos do Tailwind (`styles.css`). É proibido escrever tags HTML cruas com classes repetidas de estilização inline (`<button className="...">`, `<div className="rounded-xl border...">`, `<input className="...">`) nos componentes de visão. A consistência visual e o suporte a temas (Light/Dark) dependem exclusivamente dessa camada de componentes reutilizáveis.
 - **Zero `any` Policy:** Proibido usar `any`.
 - **Cobertura de Testes Mínima (>= 80% em TypeScript & Rust + Coverage Gutters):** Todo código em `src/core/`, `src/adapters/` e `src-tauri/crates/ipdf-core/src/` deve manter no mínimo **80% de cobertura** (validado por `@vitest/coverage-v8` no TS e `llvm-cov` via `scripts/rust-coverage.mjs` no Rust), gerando LCOV unificado em `coverage/lcov.info` compatível com a extensão **Coverage Gutters**.
 - **Quality Gate Bloqueante:** Nenhum commit pode ser realizado sem que `npm run verify` (`format` + `lint` + `typecheck` + `test`, onde cada script executa tanto `:frontend` quanto `:backend`) retorne `exit code 0`.

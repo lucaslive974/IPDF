@@ -1,4 +1,5 @@
 import type { Highlight } from '../../core/domain/Highlight';
+import { Badge, Button, IconButton, Popover } from './ui';
 
 export interface HighlightPopoverProps {
   readonly highlight: Highlight;
@@ -34,39 +35,27 @@ export function HighlightPopover({
   const annotationsCount = highlight.getAllRichAnnotations().length;
 
   return (
-    <div
-      className="fixed z-50 flex w-76 -translate-x-1/2 flex-col gap-2.5 rounded-xl border border-line-subtle bg-surface/95 p-3.5 shadow-2xl backdrop-blur-md transition-all duration-200"
-      style={{
-        left: `${x}px`,
-        top: `${Math.max(16, y - 110)}px`,
-      }}
-    >
+    <Popover x={x} y={y}>
       <div className="flex items-center justify-between border-b border-line-subtle pb-2">
         <div className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-full" style={{ backgroundColor: highlight.color }} />
+          <span
+            className="h-3 w-3 rounded-full shrink-0"
+            style={{ backgroundColor: highlight.color }}
+          />
           <span className="text-xs font-semibold text-tx-main">Highlight</span>
           {annotationsCount > 0 && (
-            <span className="rounded bg-sky-500/20 px-1.5 py-0.5 text-[0.65rem] font-medium text-sky-600 dark:text-sky-400">
+            <Badge variant="brand" size="xs">
               {annotationsCount} rich
-            </span>
+            </Badge>
           )}
         </div>
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            className="rounded p-1 text-xs text-rose-500 hover:bg-rose-500/10 transition"
-            onClick={onDelete}
-            title="Delete Highlight"
-          >
+          <IconButton variant="danger" size="xs" label="Delete Highlight" onClick={onDelete}>
             🗑️
-          </button>
-          <button
-            type="button"
-            className="rounded p-1 text-xs text-tx-faint hover:bg-surface-subtle hover:text-tx-main"
-            onClick={onClose}
-          >
+          </IconButton>
+          <IconButton variant="ghost" size="xs" label="Close" onClick={onClose}>
             ✕
-          </button>
+          </IconButton>
         </div>
       </div>
 
@@ -80,7 +69,7 @@ export function HighlightPopover({
           <button
             key={c.hex}
             type="button"
-            className={`h-4 w-4 rounded-full ${c.classBg} transition hover:scale-125 ${
+            className={`h-4 w-4 rounded-full ${c.classBg} transition hover:scale-125 cursor-pointer ${
               highlight.color === c.hex ? 'ring-2 ring-brand ring-offset-1 ring-offset-surface' : ''
             }`}
             onClick={() => onChangeColor(c.hex)}
@@ -98,15 +87,10 @@ export function HighlightPopover({
 
       <div className="flex items-center justify-between pt-1">
         <span className="text-[0.65rem] text-tx-faint">Page {highlight.anchor.pageNumber}</span>
-        <button
-          type="button"
-          className="flex items-center gap-1 rounded-md bg-linear-to-r from-sky-600 to-indigo-600 px-2.5 py-1 text-xs font-semibold text-white shadow-md transition hover:from-sky-500 hover:to-indigo-500 active:scale-95"
-          onClick={onExpand}
-        >
-          <span>Studio Expand</span>
-          <span>↗</span>
-        </button>
+        <Button variant="primary" size="xs" iconRight="↗" onClick={onExpand}>
+          Studio Expand
+        </Button>
       </div>
-    </div>
+    </Popover>
   );
 }

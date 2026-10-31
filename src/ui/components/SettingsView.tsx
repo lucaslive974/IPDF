@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTheme } from '../hooks/useTheme';
+import { Badge, Button, Card, IconButton, Input } from './ui';
 
 export interface SettingsViewProps {
   readonly syncExportPreview: string;
@@ -44,14 +45,9 @@ export function SettingsView({
       {/* Header */}
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line-subtle bg-surface/80 px-6 py-4 backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            className="flex items-center gap-1.5 rounded-lg border border-line-subtle bg-surface px-3 py-1.5 text-xs font-semibold text-tx-secondary hover:bg-surface-subtle hover:text-tx-main transition active:scale-95"
-            onClick={onBackToLibrary}
-          >
-            <span>&larr;</span>
-            <span>Back to Library</span>
-          </button>
+          <Button variant="outline" size="sm" iconLeft="←" onClick={onBackToLibrary}>
+            Back to Library
+          </Button>
           <h1 className="text-base font-bold text-tx-main">Settings &amp; Preferences</h1>
         </div>
       </header>
@@ -59,7 +55,7 @@ export function SettingsView({
       {/* Main Content */}
       <main className="flex-1 mx-auto w-full max-w-4xl px-6 py-8 flex flex-col gap-8">
         {/* Appearance & Theme Section */}
-        <section className="flex flex-col gap-4 rounded-2xl border border-line-subtle bg-surface p-6 shadow-xs">
+        <Card variant="surface" padding="md" className="flex flex-col gap-4">
           <div>
             <h2 className="text-sm font-bold text-tx-main flex items-center gap-2">
               <span>🎨</span>
@@ -73,7 +69,7 @@ export function SettingsView({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
             <button
               type="button"
-              className={`flex items-center justify-between rounded-xl border p-3.5 text-xs font-semibold transition ${
+              className={`flex items-center justify-between rounded-xl border p-3.5 text-xs font-semibold transition cursor-pointer ${
                 theme === 'light'
                   ? 'border-brand bg-sky-50 dark:bg-sky-950/40 text-brand shadow-xs'
                   : 'border-line-subtle bg-surface-subtle text-tx-secondary hover:border-line-strong'
@@ -94,7 +90,7 @@ export function SettingsView({
 
             <button
               type="button"
-              className={`flex items-center justify-between rounded-xl border p-3.5 text-xs font-semibold transition ${
+              className={`flex items-center justify-between rounded-xl border p-3.5 text-xs font-semibold transition cursor-pointer ${
                 theme === 'dark'
                   ? 'border-brand bg-sky-50 dark:bg-sky-950/40 text-brand shadow-xs'
                   : 'border-line-subtle bg-surface-subtle text-tx-secondary hover:border-line-strong'
@@ -113,10 +109,10 @@ export function SettingsView({
               {theme === 'dark' && <span className="text-brand font-bold">✓</span>}
             </button>
           </div>
-        </section>
+        </Card>
 
         {/* 1. Book Folders Configuration */}
-        <section className="flex flex-col gap-4 rounded-2xl border border-line-subtle bg-surface p-6 shadow-xs">
+        <Card variant="surface" padding="md" className="flex flex-col gap-4">
           <div>
             <h2 className="text-sm font-bold text-tx-main flex items-center gap-2">
               <span>📁</span>
@@ -129,42 +125,41 @@ export function SettingsView({
 
           <div className="flex flex-col gap-2">
             {monitoredFolders.map((folder, idx) => (
-              <div
+              <Card
                 key={`folder-${idx + 1}`}
-                className="flex items-center justify-between rounded-xl border border-line-subtle bg-surface-subtle px-3.5 py-2.5 text-xs font-mono text-tx-secondary"
+                variant="subtle"
+                padding="sm"
+                rounded="xl"
+                className="flex items-center justify-between font-mono text-xs text-tx-secondary"
               >
                 <span>{folder}</span>
-                <button
-                  type="button"
-                  className="rounded px-2 py-1 text-tx-faint hover:bg-surface-hover hover:text-rose-500 transition"
+                <IconButton
+                  variant="ghost"
+                  size="xs"
+                  label="Remove folder"
                   onClick={() => handleRemoveFolder(idx)}
                 >
                   ✕
-                </button>
-              </div>
+                </IconButton>
+              </Card>
             ))}
           </div>
 
           <div className="flex gap-2">
-            <input
-              type="text"
-              className="flex-1 rounded-xl border border-line-subtle bg-surface-subtle px-3.5 py-2 text-xs text-tx-main placeholder:text-tx-faint focus:border-brand focus:outline-none"
+            <Input
+              containerClassName="flex-1"
               placeholder="e.g. /home/user/Ebooks or C:\Books"
               value={newFolderInput}
               onChange={(e) => setNewFolderInput(e.target.value)}
             />
-            <button
-              type="button"
-              className="rounded-xl bg-surface-subtle border border-line-subtle px-4 py-2 text-xs font-semibold text-tx-secondary hover:bg-surface-hover transition active:scale-95"
-              onClick={handleAddFolder}
-            >
+            <Button variant="secondary" size="md" onClick={handleAddFolder}>
               + Add Folder
-            </button>
+            </Button>
           </div>
-        </section>
+        </Card>
 
         {/* 2. Google Drive & Cloudless Sync */}
-        <section className="flex flex-col gap-4 rounded-2xl border border-line-subtle bg-surface p-6 shadow-xs">
+        <Card variant="surface" padding="md" className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-bold text-tx-main flex items-center gap-2">
@@ -176,18 +171,17 @@ export function SettingsView({
                 conflict resolution:
               </p>
             </div>
-            <span
-              className={`rounded-full px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-wider ${
-                isDriveConnected
-                  ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                  : 'border border-line-subtle bg-surface-subtle text-tx-muted'
-              }`}
-            >
+            <Badge variant={isDriveConnected ? 'success' : 'neutral'} size="xs">
               {isDriveConnected ? 'Drive Connected' : 'Disconnected'}
-            </span>
+            </Badge>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-xl border border-line-subtle bg-surface-subtle p-4">
+          <Card
+            variant="subtle"
+            padding="sm"
+            rounded="xl"
+            className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+          >
             <div>
               <span className="text-xs font-semibold text-tx-main block">
                 Target Folder: /IPDF_Sync/
@@ -197,22 +191,18 @@ export function SettingsView({
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className="rounded-lg bg-brand px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-brand-hover transition active:scale-95"
-                onClick={handleTriggerSync}
-              >
+              <Button variant="primary" size="sm" onClick={handleTriggerSync}>
                 Sync Now
-              </button>
-              <button
-                type="button"
-                className="rounded-lg border border-line-subtle bg-surface px-3 py-1.5 text-xs text-tx-secondary hover:bg-surface-hover transition"
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setIsDriveConnected((prev) => !prev)}
               >
                 {isDriveConnected ? 'Disconnect' : 'Connect'}
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
 
           {syncStatusMessage && (
             <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-600 dark:text-emerald-300 transition-opacity duration-200">
@@ -230,10 +220,10 @@ export function SettingsView({
               </pre>
             </div>
           )}
-        </section>
+        </Card>
 
         {/* 3. Data Portability (Import / Export) */}
-        <section className="flex flex-col gap-4 rounded-2xl border border-line-subtle bg-surface p-6 shadow-xs">
+        <Card variant="surface" padding="md" className="flex flex-col gap-4">
           <div>
             <h2 className="text-sm font-bold text-tx-main flex items-center gap-2">
               <span>📦</span>
@@ -246,32 +236,40 @@ export function SettingsView({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <button
-              type="button"
-              className="flex flex-col gap-1 rounded-xl border border-line-subtle bg-surface-subtle p-4 text-left transition hover:border-line-strong hover:bg-surface-hover active:scale-98"
+            <Card
+              variant="interactive"
+              padding="sm"
+              rounded="xl"
+              className="flex flex-col gap-1 text-left"
               onClick={handleTriggerSync}
             >
               <span className="text-xs font-bold text-tx-main">Export Highlights Backup</span>
               <span className="text-[0.7rem] text-tx-muted">
                 Exports all annotations as a portable JSON or ZIP bundle.
               </span>
-            </button>
+            </Card>
 
-            <button
-              type="button"
-              className="flex flex-col gap-1 rounded-xl border border-line-subtle bg-surface-subtle p-4 text-left transition hover:border-line-strong hover:bg-surface-hover active:scale-98"
+            <Card
+              variant="interactive"
+              padding="sm"
+              rounded="xl"
+              className="flex flex-col gap-1 text-left"
               onClick={handleTriggerSync}
             >
               <span className="text-xs font-bold text-tx-main">Import Highlights Backup</span>
               <span className="text-[0.7rem] text-tx-muted">
                 Merges external annotations using Last-Write-Wins rules.
               </span>
-            </button>
+            </Card>
           </div>
-        </section>
+        </Card>
 
         {/* 4. Danger Zone: Reset Data */}
-        <section className="flex flex-col gap-4 rounded-2xl border border-rose-500/20 bg-rose-500/5 p-6 shadow-xs">
+        <Card
+          variant="subtle"
+          padding="md"
+          className="border-rose-500/20 bg-rose-500/5 flex flex-col gap-4"
+        >
           <div>
             <h2 className="text-sm font-bold text-rose-600 dark:text-rose-400 flex items-center gap-2">
               <span>⚠️</span>
@@ -284,39 +282,31 @@ export function SettingsView({
 
           {!showResetConfirm ? (
             <div>
-              <button
-                type="button"
-                className="rounded-xl border border-rose-600/30 bg-rose-500/10 px-4 py-2 text-xs font-semibold text-rose-600 dark:text-rose-300 hover:bg-rose-500/20 transition active:scale-95"
-                onClick={() => setShowResetConfirm(true)}
-              >
+              <Button variant="danger-subtle" size="md" onClick={() => setShowResetConfirm(true)}>
                 Reset App Data &amp; Cache
-              </button>
+              </Button>
             </div>
           ) : (
             <div className="flex items-center gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4">
               <span className="text-xs text-rose-700 dark:text-rose-200 font-semibold flex-1">
                 Are you sure? This action will reset your local database.
               </span>
-              <button
-                type="button"
-                className="rounded-lg bg-rose-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-rose-500 transition"
+              <Button
+                variant="danger"
+                size="sm"
                 onClick={() => {
                   setShowResetConfirm(false);
                   alert('App data reset simulator triggered.');
                 }}
               >
                 Yes, Reset All
-              </button>
-              <button
-                type="button"
-                className="rounded-lg border border-line-subtle bg-surface px-3 py-1.5 text-xs text-tx-secondary hover:bg-surface-hover transition"
-                onClick={() => setShowResetConfirm(false)}
-              >
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setShowResetConfirm(false)}>
                 Cancel
-              </button>
+              </Button>
             </div>
           )}
-        </section>
+        </Card>
       </main>
     </div>
   );

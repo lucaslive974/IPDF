@@ -7,6 +7,7 @@ import type {
 } from '../hooks/studyWorkbenchTypes';
 import { HighlightPopover } from './HighlightPopover';
 import { SelectionActionMenu } from './SelectionActionMenu';
+import { Button, Card, IconButton } from './ui';
 
 export interface ReaderViewProps {
   readonly document: StudyDocumentDescriptor;
@@ -93,14 +94,9 @@ export function ReaderView({
       {/* 1. Minimal distraction-free Header */}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-line-subtle bg-surface/80 px-6 py-3 backdrop-blur-md transition-all">
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            className="flex items-center gap-1.5 rounded-lg border border-line-subtle bg-surface px-3 py-1.5 text-xs font-semibold text-tx-secondary transition hover:bg-surface-subtle hover:text-tx-main active:scale-95"
-            onClick={onBackToLibrary}
-          >
-            <span>&larr;</span>
-            <span>Library</span>
-          </button>
+          <Button variant="outline" size="sm" iconLeft="←" onClick={onBackToLibrary}>
+            Library
+          </Button>
           <div className="hidden sm:flex flex-col">
             <span className="text-xs font-semibold text-tx-main">
               {document.bookAuthor} &mdash; {document.bookTitle}
@@ -117,14 +113,9 @@ export function ReaderView({
               Page {currentPage} of {totalPages}
             </span>
           </div>
-          <button
-            type="button"
-            className="rounded-lg border border-line-subtle bg-surface p-2 text-xs text-tx-secondary hover:bg-surface-subtle hover:text-tx-main transition"
-            onClick={onOpenSettings}
-            title="Settings"
-          >
+          <IconButton variant="outline" size="sm" label="Settings" onClick={onOpenSettings}>
             ⚙️
-          </button>
+          </IconButton>
         </div>
       </header>
 
@@ -162,10 +153,10 @@ export function ReaderView({
                 </span>
                 <div className="flex flex-wrap gap-2">
                   {highlights.map((hl) => (
-                    <button
+                    <Button
                       key={hl.id}
-                      type="button"
-                      className="group flex items-center gap-1.5 rounded-lg border border-line-subtle bg-surface-subtle px-3 py-1.5 text-xs text-tx-secondary transition hover:border-line-strong hover:bg-surface-hover active:scale-95"
+                      variant="secondary"
+                      size="xs"
                       onClick={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
                         onHighlightClick(hl, {
@@ -180,7 +171,7 @@ export function ReaderView({
                       />
                       <span className="max-w-44 truncate italic">&ldquo;{hl.text}&rdquo;</span>
                       {hl.note && <span className="text-tx-muted">📝</span>}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>
@@ -192,15 +183,14 @@ export function ReaderView({
       {/* 3. Floating Bottom Navigation Controller */}
       <footer className="sticky bottom-4 z-20 flex justify-center px-4 pointer-events-none">
         <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-line-subtle bg-surface/90 px-5 py-2 shadow-xl backdrop-blur-md text-xs font-semibold">
-          <button
-            type="button"
-            className="flex items-center gap-1 text-tx-secondary hover:text-tx-main transition active:scale-95 disabled:opacity-40"
+          <Button
+            variant="ghost"
+            size="xs"
             disabled={currentPage <= 1}
             onClick={() => onNavigatePage(-1)}
           >
-            <span>&larr;</span>
-            <span>Prev</span>
-          </button>
+            &larr; Prev
+          </Button>
 
           <span className="text-tx-faint">|</span>
 
@@ -210,15 +200,14 @@ export function ReaderView({
 
           <span className="text-tx-faint">|</span>
 
-          <button
-            type="button"
-            className="flex items-center gap-1 text-tx-secondary hover:text-tx-main transition active:scale-95 disabled:opacity-40"
+          <Button
+            variant="ghost"
+            size="xs"
             disabled={currentPage >= totalPages}
             onClick={() => onNavigatePage(1)}
           >
-            <span>Next</span>
-            <span>&rarr;</span>
-          </button>
+            Next &rarr;
+          </Button>
         </div>
       </footer>
 

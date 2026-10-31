@@ -62,9 +62,10 @@ O projeto utiliza **Clean Architecture / Hexagonal Architecture (Ports & Adapter
 │   │   │   └── TauriBackendGateway.ts    # Implementação de IBackendGateway via Tauri invoke()
 │   │   └── annotations/                  # AssistedRichTextStrategy.ts, DiagramAnnotationStrategies.ts
 │   ├── ui/                               # Camada de Apresentação em Arquitetura MVVC
-│   │   ├── providers/                    # IoC / Injeção de Dependências (ServiceContainerContext.tsx)
+│   │   ├── providers/                    # IoC / Injeção de Dependências e Tema (ServiceContainerContext.tsx, ThemeContext.tsx)
 │   │   ├── hooks/                        # ViewModels / ViewControllers (Custom Hooks)
-│   │   ├── components/                   # Componentes React reutilizáveis e puramente visuais
+│   │   ├── components/                   # Telas e painéis visuais de alto nível
+│   │   │   └── ui/                       # Componentes atômicos do Design System (Button, Card, Badge, Input, Modal, Popover)
 │   │   └── App.tsx                       # Composição declarativa de alto nível
 │   └── test/                             # Testes TypeScript/UI espelhando a estrutura de src/
 │       ├── core/

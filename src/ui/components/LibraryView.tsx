@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { BookMetadata } from '../../core/domain/BookMetadata';
 import type { Highlight } from '../../core/domain/Highlight';
 import { useTheme } from '../hooks/useTheme';
+import { Badge, Button, Card, IconButton, Input } from './ui';
 
 export interface LibraryViewProps {
   readonly books: BookMetadata[];
@@ -43,52 +44,39 @@ export function LibraryView({
         </div>
 
         {/* Search bar */}
-        <div className="flex flex-1 max-w-md items-center rounded-xl border border-line-subtle bg-surface-subtle px-3 py-1.5 focus-within:border-brand transition">
-          <span className="text-tx-faint text-xs mr-2">🔍</span>
-          <input
-            type="text"
-            className="w-full bg-transparent text-xs text-tx-main placeholder:text-tx-faint focus:outline-none"
+        <div className="flex-1 max-w-md">
+          <Input
+            iconLeft="🔍"
             placeholder="Search titles, authors, or topics..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onClear={() => setSearchQuery('')}
           />
-          {searchQuery && (
-            <button
-              type="button"
-              className="text-xs text-tx-faint hover:text-tx-main"
-              onClick={() => setSearchQuery('')}
-            >
-              ✕
-            </button>
-          )}
         </div>
 
         {/* Quick action buttons */}
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="flex items-center gap-1.5 rounded-xl bg-brand px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-brand-hover active:scale-95"
-            onClick={onImportNewBook}
-          >
-            <span>+</span>
-            <span>Open eBook</span>
-          </button>
-          <button
-            type="button"
-            className="rounded-xl border border-line-subtle bg-surface p-2 text-sm text-tx-secondary hover:bg-surface-subtle transition active:scale-95"
+          <Button variant="primary" size="md" iconLeft="+" onClick={onImportNewBook}>
+            Open eBook
+          </Button>
+
+          <IconButton
+            variant="outline"
+            size="md"
+            label={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             onClick={toggleTheme}
-            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
             {theme === 'dark' ? '☀️' : '🌙'}
-          </button>
-          <button
-            type="button"
-            className="rounded-xl border border-line-subtle bg-surface p-2 text-sm text-tx-secondary hover:bg-surface-subtle transition active:scale-95"
+          </IconButton>
+
+          <IconButton
+            variant="outline"
+            size="md"
+            label="Settings & Directories"
             onClick={onOpenSettings}
-            title="Settings &amp; Directories"
           >
             ⚙️
-          </button>
+          </IconButton>
         </div>
       </header>
 
@@ -97,50 +85,34 @@ export function LibraryView({
         {/* Navigation Tabs */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line-subtle pb-3">
           <div className="flex items-center gap-1 rounded-xl bg-surface-subtle p-1 border border-line-subtle">
-            <button
-              type="button"
-              className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition ${
-                activeTab === 'recents'
-                  ? 'bg-surface text-tx-main shadow-xs border border-line-subtle'
-                  : 'text-tx-muted hover:text-tx-main'
-              }`}
+            <Button
+              variant={activeTab === 'recents' ? 'outline' : 'ghost'}
+              size="sm"
               onClick={() => setActiveTab('recents')}
             >
               🕒 Recents
-            </button>
-            <button
-              type="button"
-              className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition ${
-                activeTab === 'all'
-                  ? 'bg-surface text-tx-main shadow-xs border border-line-subtle'
-                  : 'text-tx-muted hover:text-tx-main'
-              }`}
+            </Button>
+            <Button
+              variant={activeTab === 'all' ? 'outline' : 'ghost'}
+              size="sm"
               onClick={() => setActiveTab('all')}
             >
               📚 All Books ({filteredBooks.length})
-            </button>
-            <button
-              type="button"
-              className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition ${
-                activeTab === 'highlights'
-                  ? 'bg-surface text-tx-main shadow-xs border border-line-subtle'
-                  : 'text-tx-muted hover:text-tx-main'
-              }`}
+            </Button>
+            <Button
+              variant={activeTab === 'highlights' ? 'outline' : 'ghost'}
+              size="sm"
               onClick={() => setActiveTab('highlights')}
             >
               🖍️ Bookmarks ({highlights.length})
-            </button>
-            <button
-              type="button"
-              className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition ${
-                activeTab === 'lists'
-                  ? 'bg-surface text-tx-main shadow-xs border border-line-subtle'
-                  : 'text-tx-muted hover:text-tx-main'
-              }`}
+            </Button>
+            <Button
+              variant={activeTab === 'lists' ? 'outline' : 'ghost'}
+              size="sm"
               onClick={() => setActiveTab('lists')}
             >
               📑 Reading Lists
-            </button>
+            </Button>
           </div>
 
           <span className="text-xs text-tx-muted font-mono">
@@ -152,15 +124,17 @@ export function LibraryView({
         {(activeTab === 'recents' || activeTab === 'all') && (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
             {filteredBooks.map((book) => (
-              <div
+              <Card
                 key={book.bookHash}
-                className="group relative flex flex-col justify-between rounded-2xl border border-line-subtle bg-surface p-5 shadow-xs transition hover:border-line-strong hover:shadow-md active:scale-[0.99]"
+                variant="interactive"
+                padding="md"
+                className="group flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400">
+                    <Badge variant="brand" size="xs">
                       {book.format}
-                    </span>
+                    </Badge>
                     <span className="text-[0.7rem] font-mono text-tx-muted">
                       {Math.round(book.percentage)}%
                     </span>
@@ -184,16 +158,12 @@ export function LibraryView({
                     <span>
                       Page {book.currentPage} / {book.totalPages}
                     </span>
-                    <button
-                      type="button"
-                      className="rounded-lg bg-surface-subtle px-3 py-1 font-semibold text-tx-secondary hover:bg-brand hover:text-white transition"
-                      onClick={() => onOpenBook(book)}
-                    >
+                    <Button variant="secondary" size="xs" onClick={() => onOpenBook(book)}>
                       Read &rarr;
-                    </button>
+                    </Button>
                   </div>
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         )}
@@ -202,14 +172,16 @@ export function LibraryView({
         {activeTab === 'highlights' && (
           <div className="flex flex-col gap-3">
             {highlights.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-line-subtle p-12 text-center text-sm text-tx-muted">
+              <Card variant="dashed" padding="lg" className="text-center text-sm text-tx-muted">
                 No highlights created yet. Open a book to start active study annotations!
-              </div>
+              </Card>
             ) : (
               highlights.map((hl) => (
-                <div
+                <Card
                   key={hl.id}
-                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-xl border border-line-subtle bg-surface p-4 transition hover:border-line-strong shadow-xs"
+                  variant="surface"
+                  padding="sm"
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
                 >
                   <div className="flex items-start gap-3">
                     <span
@@ -228,9 +200,10 @@ export function LibraryView({
                       </span>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    className="self-end sm:self-center shrink-0 rounded-lg border border-line-subtle bg-surface-subtle px-3 py-1.5 text-xs font-semibold text-tx-secondary hover:bg-surface-hover transition"
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="self-end sm:self-center shrink-0"
                     onClick={() => {
                       const book = books[0];
                       if (book) {
@@ -239,8 +212,8 @@ export function LibraryView({
                     }}
                   >
                     Open in Passage &rarr;
-                  </button>
-                </div>
+                  </Button>
+                </Card>
               ))
             )}
           </div>
@@ -249,21 +222,25 @@ export function LibraryView({
         {/* Tab 4: Reading Lists (Future Preview) */}
         {activeTab === 'lists' && (
           <div className="flex flex-col gap-4">
-            <div className="rounded-2xl border border-dashed border-line-subtle p-8 text-center flex flex-col items-center gap-3">
+            <Card
+              variant="dashed"
+              padding="lg"
+              className="text-center flex flex-col items-center gap-3"
+            >
               <span className="text-3xl">📚</span>
               <h3 className="text-base font-bold text-tx-main">Custom Reading Lists</h3>
               <p className="max-w-md text-xs text-tx-muted">
                 Curate custom active study tracks (e.g. &ldquo;Ancient Epistemology&rdquo;,
                 &ldquo;Modern Political Philosophy&rdquo;). Coming soon in Phase 6!
               </p>
-              <button
-                type="button"
-                className="mt-2 rounded-xl bg-surface-subtle border border-line-subtle px-4 py-2 text-xs font-semibold text-tx-secondary hover:bg-surface-hover transition"
+              <Button
+                variant="secondary"
+                size="md"
                 onClick={() => alert('Reading list curation planned for Phase 6!')}
               >
                 + Create Study List
-              </button>
-            </div>
+              </Button>
+            </Card>
           </div>
         )}
       </main>

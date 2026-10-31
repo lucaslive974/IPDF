@@ -1,4 +1,5 @@
 import type { TextFormatStyle } from '../../core/domain/types';
+import { Button } from './ui';
 
 export interface FormattingActionItem {
   readonly id: string;
@@ -31,14 +32,14 @@ export function AssistedFormattingToolbar({
   return (
     <div className="flex flex-wrap gap-1.5">
       {actions.map((action) => (
-        <button
+        <Button
           key={action.id}
-          type="button"
-          className="cursor-pointer rounded-md border border-line-subtle bg-surface-subtle px-2.5 py-1.5 text-xs font-medium text-tx-secondary transition hover:bg-surface-hover hover:text-tx-main"
+          variant="secondary"
+          size="xs"
           onClick={() => onApplyFormat(action.style)}
         >
           {action.label}
-        </button>
+        </Button>
       ))}
     </div>
   );

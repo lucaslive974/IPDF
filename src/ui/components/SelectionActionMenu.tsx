@@ -1,3 +1,5 @@
+import { Button, IconButton, Popover } from './ui';
+
 export interface SelectionActionMenuProps {
   readonly text: string;
   readonly x: number;
@@ -28,13 +30,7 @@ export function SelectionActionMenu({
   onClose,
 }: SelectionActionMenuProps) {
   return (
-    <div
-      className="fixed z-50 flex -translate-x-1/2 flex-col gap-2 rounded-xl border border-line-subtle bg-surface/95 p-2 shadow-xl backdrop-blur-md transition-all duration-200"
-      style={{
-        left: `${x}px`,
-        top: `${Math.max(16, y - 60)}px`,
-      }}
-    >
+    <Popover x={x} y={y} width="w-auto" offsetY={60} className="p-2 gap-2">
       <div className="flex items-center gap-1.5">
         <div className="flex items-center gap-1 border-r border-line-subtle pr-1.5">
           {COLOR_OPTIONS.map((c) => (
@@ -42,52 +38,32 @@ export function SelectionActionMenu({
               key={c.hex}
               type="button"
               title={`Highlight ${c.label}`}
-              className={`h-5 w-5 rounded-full ${c.classBg} transition hover:scale-110 active:scale-95`}
+              className={`h-5 w-5 rounded-full ${c.classBg} transition hover:scale-110 active:scale-95 cursor-pointer`}
               onClick={() => onHighlight(c.hex)}
             />
           ))}
         </div>
 
-        <button
-          type="button"
-          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-tx-secondary hover:bg-surface-subtle hover:text-tx-main active:scale-95 transition"
-          onClick={onExplain}
-        >
-          <span>✨</span>
-          <span>Explain</span>
-        </button>
+        <Button variant="ghost" size="xs" iconLeft="✨" onClick={onExplain}>
+          Explain
+        </Button>
 
-        <button
-          type="button"
-          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-tx-secondary hover:bg-surface-subtle hover:text-tx-main active:scale-95 transition"
-          onClick={onDefineTerm}
-        >
-          <span>📖</span>
-          <span>Term</span>
-        </button>
+        <Button variant="ghost" size="xs" iconLeft="📖" onClick={onDefineTerm}>
+          Term
+        </Button>
 
-        <button
-          type="button"
-          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-tx-secondary hover:bg-surface-subtle hover:text-tx-main active:scale-95 transition"
-          onClick={onTranslate}
-        >
-          <span>🌐</span>
-          <span>Translate</span>
-        </button>
+        <Button variant="ghost" size="xs" iconLeft="🌐" onClick={onTranslate}>
+          Translate
+        </Button>
 
-        <button
-          type="button"
-          className="ml-1 rounded-md px-1.5 py-0.5 text-xs text-tx-faint hover:bg-surface-subtle hover:text-tx-main"
-          onClick={onClose}
-          title="Dismiss"
-        >
+        <IconButton variant="ghost" size="xs" label="Dismiss" onClick={onClose}>
           ✕
-        </button>
+        </IconButton>
       </div>
 
       <div className="max-w-64 truncate text-[0.65rem] text-tx-muted italic px-1">
         &ldquo;{text}&rdquo;
       </div>
-    </div>
+    </Popover>
   );
 }
