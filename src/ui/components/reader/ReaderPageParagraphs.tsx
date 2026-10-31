@@ -10,6 +10,52 @@ function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/**
+ * Expands a browser selection to word boundaries so highlights never divide words.
+ */
+export function getExpandedWordSelection(selection: Selection | null): string {
+  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+    return '';
+  }
+
+  const raw = selection.toString();
+  if (!raw || raw.trim().length === 0) return '';
+
+  try {
+    const range = selection.getRangeAt(0);
+    const expandedRange = range.cloneRange();
+
+    // Expand start to word boundary if inside a text node
+    if (expandedRange.startContainer.nodeType === Node.TEXT_NODE) {
+      const text = expandedRange.startContainer.textContent || '';
+      let start = expandedRange.startOffset;
+      while (start > 0 && /[\w\u00C0-\u024F]/.test(text[start - 1] || '')) {
+        start--;
+      }
+      expandedRange.setStart(expandedRange.startContainer, start);
+    }
+
+    // Expand end to word boundary if inside a text node
+    if (expandedRange.endContainer.nodeType === Node.TEXT_NODE) {
+      const text = expandedRange.endContainer.textContent || '';
+      let end = expandedRange.endOffset;
+      while (end < text.length && /[\w\u00C0-\u024F]/.test(text[end] || '')) {
+        end++;
+      }
+      expandedRange.setEnd(expandedRange.endContainer, end);
+    }
+
+    const expandedText = expandedRange.toString().trim();
+    if (expandedText.length > 0) {
+      return expandedText;
+    }
+  } catch {
+    // Fallback to raw selection if DOM range manipulation is unsupported
+  }
+
+  return raw.trim();
+}
+
 export function findHighlightMatchesInParagraph(
   paragraph: string,
   hlText: string
@@ -155,7 +201,7 @@ export const ReaderPageParagraphs = memo(function ReaderPageParagraphs({
         const chunks = tokenizeTextWithHighlights(paragraph, highlights);
 
         return (
-          <p key={`p-${pageNumber}-${pIdx + 1}`} className="indent-6 text-justify">
+          <p key={`p-${pageNumber}-${pIdx + 1}`} className="text-justify leading-relaxed">
             {chunks.map((chunk, cIdx) => {
               if (!chunk.highlight) {
                 return <span key={`c-${cIdx + 1}`}>{chunk.text}</span>;
@@ -163,14 +209,13 @@ export const ReaderPageParagraphs = memo(function ReaderPageParagraphs({
 
               const hl = chunk.highlight;
               return (
-                <button
+                <span
                   key={`hl-${hl.id}-${cIdx + 1}`}
-                  type="button"
-                  className="inline p-0 m-0 border-0 bg-transparent text-left whitespace-normal cursor-pointer rounded-xs px-0.5 text-inherit transition duration-150 select-text hover:brightness-105 active:opacity-80"
+                  className="cursor-pointer select-text transition duration-150 hover:brightness-105 active:opacity-80"
                   style={{
-                    font: 'inherit',
                     backgroundColor: `${hl.color}33`,
                     borderBottom: `1.5px solid ${hl.color}aa`,
+                    borderRadius: '2px',
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -180,6 +225,16 @@ export const ReaderPageParagraphs = memo(function ReaderPageParagraphs({
                       y: rect.top,
                     });
                   }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      onHighlightClick(hl, {
+                        x: rect.left + rect.width / 2,
+                        y: rect.top,
+                      });
+                    }
+                  }}
                   onContextMenu={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -187,7 +242,7 @@ export const ReaderPageParagraphs = memo(function ReaderPageParagraphs({
                   }}
                 >
                   {chunk.text}
-                </button>
+                </span>
               );
             })}
           </p>

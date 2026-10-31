@@ -4,6 +4,7 @@ import type { Highlight } from '../../core/domain/Highlight';
 import type { AnnotationFormatterMap } from '../../core/domain/RichAnnotation';
 import type { TextFormatStyle } from '../../core/domain/types';
 import type { DocumentPage } from '../../core/ports/BackendService';
+import { getExpandedWordSelection } from '../components/reader/ReaderPageParagraphs';
 import { useNavigation } from '../hooks/useNavigation';
 import { useServiceContainer } from '../providers/ServiceContainerContext';
 import { useHighlightStore } from '../stores/useHighlightStore';
@@ -432,11 +433,9 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
       initialNote?: string,
       pageNumber = currentPage
     ): Promise<Highlight | null> => {
-      const selected =
-        overrideText?.trim() ||
-        selectionPopover?.text?.trim() ||
-        (typeof window !== 'undefined' ? window.getSelection()?.toString().trim() : '') ||
-        '';
+      const browserSel =
+        typeof window !== 'undefined' ? getExpandedWordSelection(window.getSelection()) : '';
+      const selected = overrideText?.trim() || selectionPopover?.text?.trim() || browserSel || '';
 
       if (!selected) {
         return null;
@@ -480,7 +479,7 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
   const createHighlightFromCurrentSelection = useCallback(
     async (colorHex: string) => {
       const browserSel =
-        typeof window !== 'undefined' ? window.getSelection()?.toString().trim() : '';
+        typeof window !== 'undefined' ? getExpandedWordSelection(window.getSelection()) : '';
       await createHighlightWithColor(colorHex, browserSel);
     },
     [createHighlightWithColor]

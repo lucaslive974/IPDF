@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Highlight } from '../../../core/domain/Highlight';
 import {
   findHighlightMatchesInParagraph,
+  getExpandedWordSelection,
   tokenizeTextWithHighlights,
 } from '../../../ui/components/reader/ReaderPageParagraphs';
 import { DEFAULT_HIGHLIGHT_COLORS } from '../../../ui/components/ui/ColorPicker';
@@ -78,5 +79,26 @@ describe('ReaderTokenizer & UI Constants', () => {
   it('provides default highlight color options', () => {
     expect(DEFAULT_HIGHLIGHT_COLORS.length).toBeGreaterThan(0);
     expect(DEFAULT_HIGHLIGHT_COLORS[0]?.value).toBe('#FFEB3B');
+  });
+
+  describe('getExpandedWordSelection', () => {
+    it('returns empty string when selection is null or collapsed', () => {
+      expect(getExpandedWordSelection(null)).toBe('');
+      const collapsedMock = {
+        rangeCount: 1,
+        isCollapsed: true,
+        toString: () => '',
+      } as unknown as Selection;
+      expect(getExpandedWordSelection(collapsedMock)).toBe('');
+    });
+
+    it('returns raw trimmed text if selection range is not manipulable', () => {
+      const mockSelection = {
+        rangeCount: 0,
+        isCollapsed: false,
+        toString: () => '  sample text  ',
+      } as unknown as Selection;
+      expect(getExpandedWordSelection(mockSelection)).toBe('');
+    });
   });
 });

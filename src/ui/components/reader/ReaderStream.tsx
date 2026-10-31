@@ -5,6 +5,7 @@ import { useReader } from '../../hooks/useReader';
 import { useReaderUI } from '../../hooks/useReaderUI';
 import { useTypographyStore } from '../../stores/useTypographyStore';
 import { ReaderPageItem } from './ReaderPageItem';
+import { getExpandedWordSelection } from './ReaderPageParagraphs';
 
 export interface ReaderStreamProps {
   readonly isProgrammaticScrollRef: RefObject<boolean>;
@@ -44,7 +45,7 @@ export const ReaderStream = memo(function ReaderStream({
       if (!selection || selection.isCollapsed) {
         return;
       }
-      const text = selection.toString().trim();
+      const text = getExpandedWordSelection(selection);
       if (text.length === 0) {
         return;
       }
