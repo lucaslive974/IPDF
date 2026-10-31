@@ -90,7 +90,11 @@ export interface ReaderContextValue {
   closeHighlightPopover(): void;
   openExpandedStudio(highlight: Highlight): void;
   closeExpandedStudio(): void;
-  createHighlightWithColor(colorHex: string, overrideText?: string): Promise<void>;
+  createHighlightWithColor(
+    colorHex: string,
+    overrideText?: string,
+    initialNote?: string
+  ): Promise<Highlight | null>;
   createHighlightFromCurrentSelection(colorHex: string): Promise<void>;
   changeHighlightColor(highlightId: string, colorHex: string): Promise<void>;
   deleteHighlight(highlightId: string): Promise<void>;
@@ -283,14 +287,22 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
   }, []);
 
   const createHighlightWithColor = useCallback(
-    async (colorHex: string, overrideText?: string) => {
-      const fallbackExcerpt =
-        FALLBACK_PASSAGE_EXCERPTS[excerptCounterRef.current % FALLBACK_PASSAGE_EXCERPTS.length] ??
-        'human beings living in an underground den';
-      excerptCounterRef.current += 1;
+    async (
+      colorHex: string,
+      overrideText?: string,
+      initialNote?: string
+    ): Promise<Highlight | null> => {
+      const selected =
+        overrideText?.trim() ||
+        selectionPopover?.text?.trim() ||
+        (typeof window !== 'undefined' ? window.getSelection()?.toString().trim() : '') ||
+        '';
 
-      const textToHighlight =
-        overrideText && overrideText.trim().length > 0 ? overrideText.trim() : fallbackExcerpt;
+      if (!selected) {
+        return null;
+      }
+
+      const textToHighlight = selected;
 
       const created = await annotationWorkbench.createFromSelection(
         document.bookHash,
@@ -305,16 +317,19 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
           clientRect: createEmptyRect(),
         },
         colorHex,
-        'Study note'
+        initialNote ?? 'Study note'
       );
+
+      excerptCounterRef.current += 1;
 
       if (typeof window !== 'undefined') {
         window.getSelection()?.removeAllRanges();
       }
       setSelectionPopover(null);
       await refreshState(created.id, currentPage);
+      return created;
     },
-    [annotationWorkbench, currentPage, document, refreshState]
+    [annotationWorkbench, currentPage, document, refreshState, selectionPopover]
   );
 
   const createHighlightFromCurrentSelection = useCallback(

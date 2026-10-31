@@ -29,16 +29,13 @@ function tokenizeTextWithHighlights(
   const matches: Match[] = [];
   for (const hl of highlights) {
     if (!hl.text || hl.text.trim().length === 0) continue;
-    let searchIndex = 0;
-    while (searchIndex < paragraph.length) {
-      const idx = paragraph.indexOf(hl.text, searchIndex);
-      if (idx === -1) break;
+    const idx = paragraph.indexOf(hl.text);
+    if (idx !== -1) {
       matches.push({
         start: idx,
         end: idx + hl.text.length,
         highlight: hl,
       });
-      searchIndex = idx + hl.text.length;
     }
   }
 
@@ -103,32 +100,33 @@ export function ReaderView() {
     [isAnimating, reader]
   );
 
-  // 1. Mouse Selection Popover Handler
+  // 1. Context Menu (Right Click) on Selected Text
   useEffect(() => {
-    const handleMouseUp = () => {
+    const handleContextMenu = (e: MouseEvent) => {
       const selection = window.getSelection();
       if (!selection || selection.isCollapsed) {
         return;
       }
       const text = selection.toString().trim();
-      if (text.length > 0) {
-        const range = selection.getRangeAt(0);
-        const rect = range.getBoundingClientRect();
-        reader.setSelectionPopover({
-          text,
-          x: rect.left + rect.width / 2,
-          y: rect.top,
-        });
+      if (text.length === 0) {
+        return;
       }
+
+      e.preventDefault();
+      reader.setSelectionPopover({
+        text,
+        x: e.clientX,
+        y: e.clientY,
+      });
     };
 
     const container = contentAreaRef.current;
     if (container) {
-      container.addEventListener('mouseup', handleMouseUp);
+      container.addEventListener('contextmenu', handleContextMenu);
     }
     return () => {
       if (container) {
-        container.removeEventListener('mouseup', handleMouseUp);
+        container.removeEventListener('contextmenu', handleContextMenu);
       }
     };
   }, [reader.setSelectionPopover]);
@@ -224,6 +222,10 @@ export function ReaderView() {
 
   // 5. Immersive Click / Tap Toggle for Chrome
   const handleViewportClick = (e: React.MouseEvent<HTMLElement>) => {
+    // If popovers are open, ignore toggle to let popover close handle it
+    if (reader.activeHighlightPopover || reader.selectionPopover) {
+      return;
+    }
     const target = e.target as HTMLElement;
     if (target.closest('button, [role="button"], input, textarea, pre')) {
       return;
@@ -402,18 +404,44 @@ export function ReaderView() {
         </div>
       )}
 
-      {/* Floating Selection Action Popover Menu */}
+      {/* Floating Selection Action Popover Menu (Right-Click Context Menu) */}
       {reader.selectionPopover && (
         <SelectionActionMenu
           text={reader.selectionPopover.text}
           x={reader.selectionPopover.x}
           y={reader.selectionPopover.y}
-          onHighlight={(color) => void reader.createHighlightWithColor(color)}
-          onExplain={() => void reader.generateContextualPrompt()}
-          onDefineTerm={() => void reader.generateContextualPrompt('Define philosophical term')}
-          onTranslate={() =>
-            void reader.generateContextualPrompt('Translate passage into Portuguese')
-          }
+          onCreateNote={async (color) => {
+            const currentSelection = reader.selectionPopover;
+            if (!currentSelection) return;
+            const created = await reader.createHighlightWithColor(color, currentSelection.text, '');
+            if (created) {
+              reader.openHighlightPopover(created, {
+                x: currentSelection.x,
+                y: currentSelection.y,
+              });
+            }
+          }}
+          onHighlight={(color) => {
+            if (reader.selectionPopover) {
+              void reader.createHighlightWithColor(color, reader.selectionPopover.text);
+            }
+          }}
+          onExplain={() => {
+            if (reader.selectionPopover) {
+              void reader.generateContextualPrompt(
+                `Explain this passage in depth: "${reader.selectionPopover.text}"`
+              );
+              reader.setSelectionPopover(null);
+            }
+          }}
+          onTranslate={() => {
+            if (reader.selectionPopover) {
+              void reader.generateContextualPrompt(
+                `Translate to Portuguese and explain idioms: "${reader.selectionPopover.text}"`
+              );
+              reader.setSelectionPopover(null);
+            }
+          }}
           onClose={() => reader.setSelectionPopover(null)}
         />
       )}
