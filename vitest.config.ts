@@ -5,5 +5,23 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.spec.ts'],
     globals: false,
+    coverage: {
+      provider: 'v8',
+      enabled: true,
+      reporter: ['text', 'html', 'json-summary'],
+      include: ['src/core/**/*.ts', 'src/adapters/**/*.ts'],
+      exclude: [
+        'src/**/*.spec.ts',
+        'src/core/ports/**/*.ts',
+        'src/core/domain/types.ts',
+        'src/core/domain/BookMetadata.ts',
+      ],
+      thresholds: {
+        lines: 80,
+        functions: 80,
+        branches: 80,
+        statements: 80,
+      },
+    },
   },
 });

@@ -12,6 +12,8 @@ Este documento define as regras operacionais obrigatórias para qualquer agente 
    Nenhuma classe em `src/core/` pode acessar variáveis globais, `window` diretamente ou singletons importados estaticamente. Toda dependência deve entrar via `constructor`.
 3. **Zero `any` Policy:**
    O uso de `any` é estritamente proibido. Utilize tipos estritos, Generics ou `unknown` com *type guards*.
+4. **Meta Mínima de Cobertura de Testes (>= 80%):**
+   É obrigatório manter **pelo menos 80% de cobertura de testes** (`lines >= 80%`, `functions >= 80%`, `branches >= 80%`, `statements >= 80%`) em `src/core/` e `src/adapters/`. O Vitest (`@vitest/coverage-v8`) está configurado com *thresholds* bloqueantes: se a cobertura cair abaixo de 80%, `npm run test` e `npm run verify` falharão automaticamente.
 
 ---
 
@@ -21,7 +23,7 @@ O agente tem autonomia para avançar nas tarefas e realizar commits no Git, mas 
 
 ### Passo 1: Teste Primeiro (Red)
 - Crie os dublês de teste necessários (`InMemoryRepository`, `FakeProvider`, `Spy`) em `src/test/fakes/`.
-- Escreva o arquivo de teste unitário (`*.spec.ts`) validando tanto o caminho feliz quanto os casos de borda listados na Matriz de Cenários abaixo.
+- Escreva o arquivo de teste unitário (`*.spec.ts`) validando tanto o caminho feliz quanto os casos de borda listados na Matriz de Cenários abaixo, garantindo cobertura >= 80%.
 
 ### Passo 2: Implementação Limpa (Green)
 - Escreva o código de produção seguindo os contratos definidos em `docs/03-CORE-CONTRACTS.md`.
@@ -37,10 +39,10 @@ O comando `npm run verify` executa em sequência:
 1. `npm run format` (`biome format --write ./src`)
 2. `npm run lint` (`biome check ./src`)
 3. `npm run typecheck` (`tsc --noEmit`)
-4. `npm run test` (`vitest run`)
+4. `npm run test` (`vitest run --coverage`, exigindo >= 80% em lines, functions, branches e statements)
 
 > [!CAUTION]
-> **REGRA DE BLOQUEIO:** Se qualquer uma dessas 4 etapas falhar ou emitir erros, o agente **ESTÁ PROIBIDO** de fazer commit ou avançar para a próxima tarefa. Corrija a formatação, a tipagem ou o teste quebrado até que `npm run verify` retorne `exit code 0`.
+> **REGRA DE BLOQUEIO:** Se qualquer uma dessas 4 etapas falhar, emitir erros ou ficar abaixo de **80% de cobertura de testes**, o agente **ESTÁ PROIBIDO** de fazer commit ou avançar para a próxima tarefa. Corrija a formatação, a tipagem, o teste quebrado ou adicione casos de teste faltantes até que `npm run verify` retorne `exit code 0`.
 
 ### Passo 4: Commit Atômico (Conventional Commits)
 Com o `npm run verify` 100% verde, faça um commit pequeno, atômico e focado exclusivamente na unidade recém-implementada:

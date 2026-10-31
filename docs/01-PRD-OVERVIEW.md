@@ -25,7 +25,7 @@ O sistema opera sob os princípios **Offline-First** e **BYOC (Bring Your Own Cl
 | **Anotações Ricas (Strategy + Visitor)** | Editor WYSIWYG Assistido + `tldraw` + `draw.io` | Formatação de texto assistida (negrito, sublinhado, cores, listas sem exigir conhecimento de sintaxe Markdown), quadro branco livre (`tldraw`) e diagramas (`draw.io`) abstraídos via *Strategy* e *Visitor Pattern* compondo o `HighlightManager`. |
 | **Persistência Local** | **SQLite** + **Local FS** | `@tauri-apps/plugin-sql` para metadados/grifos/anotações e `@tauri-apps/plugin-fs` para binários de livros. |
 | **Identidade de Obras** | **SHA-256 (`bookHash`)** | Calculado sobre o `ArrayBuffer` binário do arquivo, garantindo identidade única entre dispositivos independente do nome do arquivo. |
-| **Qualidade & Testes** | **Vitest** + **Biome** + **TSC** | Pipeline bloqueante via `npm run verify` (`format` + `lint` + `typecheck` + `test`). |
+| **Qualidade & Testes** | **Vitest (+ Coverage v8)** + **Biome** + **TSC** | Pipeline bloqueante via `npm run verify` (`format` + `lint` + `typecheck` + `test --coverage` com **meta mínima obrigatória de 80% de cobertura**). |
 
 ---
 

@@ -11,11 +11,12 @@ Este repositório segue uma arquitetura **Hexagonal (Ports & Adapters)** estrita
 3. **[`docs/03-CORE-CONTRACTS.md`](docs/03-CORE-CONTRACTS.md)**
    Contratos TypeScript exatos e imutáveis para objetos de valor, entidades (`Highlight`, `RichAnnotation` com Visitor/Double Dispatch, `BookMetadata`) e portas (`IAnnotationToolStrategy`, `IAssistedTextFormattingStrategy`, `IRepository`, `IDocumentViewer`, `ILLMProvider`, `ITTSProvider`, `IPresenceProvider`, `ISystemBridge`, `IRemoteStorageProvider`).
 4. **[`docs/04-AGENT-WORKFLOW-AND-TDD.md`](docs/04-AGENT-WORKFLOW-AND-TDD.md)**
-   Regras de engenharia, ciclo obrigatório **Red -> Green -> Verify -> Commit**, política *Zero `any`*, comando bloqueante `npm run verify` e matriz de testes unitários obrigatórios no Vitest.
+   Regras de engenharia, ciclo obrigatório **Red -> Green -> Verify -> Commit**, política *Zero `any`*, meta mínima obrigatória de **80% de cobertura de testes (Test Coverage)**, comando bloqueante `npm run verify` e matriz de testes unitários obrigatórios no Vitest.
 
 ## ⚡ Regras de Ouro Inegociáveis
 
 - **Portabilidade Desktop + iOS (`WKWebView`):** Nunca utilize `Buffer` do Node.js em `src/core/`. Utilize sempre `Uint8Array` ou `ArrayBuffer`.
 - **Injeção de Dependência Pura:** Nenhuma classe em `src/core/` pode acessar singletons globais, `window` diretamente, banco de dados físico ou rede. Tudo entra via `constructor` tipado pelas interfaces de `src/core/ports/`.
 - **Zero `any` Policy:** Proibido usar `any`.
-- **Quality Gate Bloqueante:** Nenhum commit pode ser realizado sem que `npm run verify` (`format` + `lint` + `typecheck` + `test`) retorne `exit code 0`.
+- **Cobertura de Testes Mínima (>= 80%):** Todo código em `src/core/` e `src/adapters/` deve manter no mínimo **80% de cobertura** em *lines*, *functions*, *branches* e *statements* (validado automaticamente pelo `@vitest/coverage-v8`).
+- **Quality Gate Bloqueante:** Nenhum commit pode ser realizado sem que `npm run verify` (`format` + `lint` + `typecheck` + `test --coverage`) retorne `exit code 0`.

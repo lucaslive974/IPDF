@@ -107,4 +107,44 @@ describe('CloudlessSyncEngine', () => {
     expect(remoteStorage.uploadCount).toBe(0);
     expect(remoteStorage.downloadCount).toBe(0);
   });
+
+  it('synchronizes .reader_library_index.json via syncLibraryIndex()', async () => {
+    const bookRepo = new InMemoryBookRepository();
+    const highlightRepo = new InMemoryHighlightRepository();
+    const fileStorage = new InMemoryFileStorage();
+    const remoteStorage = new InMemoryRemoteStorageProvider();
+    const jsonStrategy = new JsonExportStrategy();
+
+    const now = new Date('2026-03-10T15:00:00Z');
+    const initialIndex = await jsonStrategy.serialize({
+      schemaVersion: 1,
+      exportedAt: now,
+      deviceId: 'desktop',
+      books: [
+        {
+          bookHash: 'book-1',
+          title: 'Ethics',
+          author: 'Spinoza',
+          format: 'pdf',
+          currentPage: 12,
+          totalPages: 300,
+          percentage: 4,
+          isDownloadedLocally: false,
+          lastReadAt: now,
+          updatedAt: now,
+        },
+      ],
+      highlights: [],
+    });
+
+    await remoteStorage.uploadFile('.reader_library_index.json', initialIndex, 'application/json');
+
+    const portabilityService = new DataPortabilityService(bookRepo, highlightRepo, fileStorage);
+    const syncEngine = new CloudlessSyncEngine(remoteStorage, portabilityService, jsonStrategy);
+
+    await syncEngine.syncLibraryIndex();
+
+    const importedBook = await bookRepo.findById('book-1');
+    expect(importedBook?.title).toBe('Ethics');
+  });
 });

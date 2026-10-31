@@ -149,4 +149,85 @@ describe('HighlightManager Service & Annotation Strategies', () => {
       'DIAGRAM:<svg id="drawio-svg"/>',
     ]);
   });
+
+  it('supports all assisted formatting styles, serialize/deserialize, and clear commands on strategies', async () => {
+    const repo = new InMemoryHighlightRepository();
+    const textStrategy = new AssistedRichTextStrategy();
+    const tldrawStrategy = new TldrawAnnotationStrategy();
+    const drawioStrategy = new DrawioAnnotationStrategy();
+
+    expect(
+      textStrategy.formatSelection('Item 1\nItem 2', { start: 0, end: 13 }, { kind: 'italic' })
+    ).toBe('*Item 1\nItem 2*');
+    expect(
+      textStrategy.formatSelection('Strike', { start: 0, end: 6 }, { kind: 'strikethrough' })
+    ).toBe('~~Strike~~');
+    expect(
+      textStrategy.formatSelection(
+        'Colored',
+        { start: 0, end: 7 },
+        { kind: 'textColor', colorHex: '#38bdf8' }
+      )
+    ).toBe('<span style="color:#38bdf8">Colored</span>');
+    expect(
+      textStrategy.formatSelection(
+        'Marked',
+        { start: 0, end: 6 },
+        { kind: 'backgroundColor', colorHex: '#eab308' }
+      )
+    ).toBe('<mark style="background-color:#eab308">Marked</mark>');
+    expect(
+      textStrategy.formatSelection('Title', { start: 0, end: 5 }, { kind: 'heading', level: 2 })
+    ).toBe('## Title');
+    expect(textStrategy.formatSelection('A\nB', { start: 0, end: 3 }, { kind: 'bulletList' })).toBe(
+      '- A\n- B'
+    );
+    expect(
+      textStrategy.formatSelection('A\nB', { start: 0, end: 3 }, { kind: 'orderedList' })
+    ).toBe('1. A\n2. B');
+    expect(
+      textStrategy.formatSelection('Quote', { start: 0, end: 5 }, { kind: 'blockquote' })
+    ).toBe('> Quote');
+
+    const deserializedText = textStrategy.deserialize('**Hello**');
+    expect(textStrategy.serialize(deserializedText)).toBe('**Hello**');
+
+    const deserializedTldraw = tldrawStrategy.deserialize('{"v":1}', new Date(), '<svg/>');
+    expect(tldrawStrategy.serialize(deserializedTldraw)).toBe('{"v":1}');
+
+    const deserializedDrawio = drawioStrategy.deserialize('<mxGraphModel/>', new Date(), '<svg/>');
+    expect(drawioStrategy.serialize(deserializedDrawio)).toBe('<mxGraphModel/>');
+
+    const manager = new HighlightManager(repo, [textStrategy, tldrawStrategy, drawioStrategy]);
+    const hl = await manager.createFromSelection(
+      'book-1',
+      {
+        text: 'Passage',
+        surroundingContext: 'Context',
+        anchor: { format: 'epub', pageNumber: 1, epubCfi: 'cfi-1' },
+        clientRect: makeMockRect(),
+      },
+      '#eab308',
+      'Initial'
+    );
+
+    await manager.interactWithAnnotation(hl.id, 'assisted-markdown', {
+      target: 'assisted-markdown',
+      action: 'insert-text',
+      text: 'Appended line',
+    });
+    await manager.interactWithAnnotation(hl.id, 'tldraw', {
+      target: 'tldraw',
+      action: 'clear-canvas',
+    });
+    await manager.interactWithAnnotation(hl.id, 'drawio', {
+      target: 'drawio',
+      action: 'clear-diagram',
+    });
+
+    const updated = await repo.findById(hl.id);
+    expect(updated?.note).toBe('Initial\nAppended line');
+    expect(updated?.getRichAnnotation('tldraw')?.rawData).toBe('{}');
+    expect(updated?.getRichAnnotation('drawio')?.rawData).toBe('<mxGraphModel/>');
+  });
 });

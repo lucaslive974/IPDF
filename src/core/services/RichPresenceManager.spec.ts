@@ -68,4 +68,17 @@ describe('RichPresenceManager', () => {
 
     vi.useRealTimers();
   });
+
+  it('supports immediate activity dispatch and clearAllPresence()', async () => {
+    const provider = new SpyPresenceProvider('discord-ipc');
+    const manager = new RichPresenceManager(3000);
+    manager.registerProvider(provider);
+
+    manager.updateActivity(makeActivity(99), true);
+    await Promise.resolve();
+    expect(provider.publishedActivities).toHaveLength(1);
+
+    await manager.clearAllPresence();
+    expect(provider.clearCalls).toBe(1);
+  });
 });
