@@ -2,21 +2,15 @@ import { LibraryView } from './components/LibraryView';
 import { ReaderView } from './components/ReaderView';
 import { SettingsView } from './components/SettingsView';
 import { useNavigation } from './hooks/useNavigation';
-import { LibraryProvider } from './providers/LibraryContext';
 import { NavigationProvider } from './providers/NavigationContext';
-import { ReaderProvider } from './providers/ReaderContext';
 import { ServiceContainerProvider } from './providers/ServiceContainerContext';
 import { ThemeProvider } from './providers/ThemeContext';
 
 function AppRouter() {
-  const { currentView, selectedBook } = useNavigation();
+  const { currentView } = useNavigation();
 
   if (currentView === 'reader') {
-    return (
-      <ReaderProvider book={selectedBook}>
-        <ReaderView />
-      </ReaderProvider>
-    );
+    return <ReaderView />;
   }
 
   if (currentView === 'settings') {
@@ -31,9 +25,7 @@ export function App() {
     <ThemeProvider>
       <ServiceContainerProvider>
         <NavigationProvider>
-          <LibraryProvider>
-            <AppRouter />
-          </LibraryProvider>
+          <AppRouter />
         </NavigationProvider>
       </ServiceContainerProvider>
     </ThemeProvider>
