@@ -87,12 +87,10 @@ export const ReaderPageItem = memo(function ReaderPageItem({
   onHighlightContextMenu,
 }: ReaderPageItemProps) {
   const fontSize = useTypographyStore((s) => s.fontSize);
-  const zoomLevel = useTypographyStore((s) => s.zoomLevel);
   const fontFamily = useTypographyStore((s) => s.fontFamily);
   const lineSpacing = useTypographyStore((s) => s.lineSpacing);
 
   const def = FONT_FAMILY_DEFINITIONS[fontFamily];
-  const effectiveFontSize = fontSize * zoomLevel;
 
   return (
     <article
@@ -148,7 +146,7 @@ export const ReaderPageItem = memo(function ReaderPageItem({
         className="space-y-6 text-tx-main tracking-normal"
         style={{
           fontFamily: def.cssFontFamily,
-          fontSize: `${effectiveFontSize}px`,
+          fontSize: `${fontSize}px`,
           lineHeight: lineSpacing,
         }}
       >

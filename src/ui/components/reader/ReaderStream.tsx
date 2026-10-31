@@ -19,6 +19,7 @@ export const ReaderStream = memo(function ReaderStream({
   const increaseZoom = useTypographyStore((s) => s.increaseZoom);
   const decreaseZoom = useTypographyStore((s) => s.decreaseZoom);
   const setZoomLevel = useTypographyStore((s) => s.setZoomLevel);
+  const zoomLevel = useTypographyStore((s) => s.zoomLevel);
 
   const contentAreaRef = useRef<HTMLDivElement>(null);
   const bottomSentinelRef = useRef<HTMLDivElement>(null);
@@ -256,7 +257,11 @@ export const ReaderStream = memo(function ReaderStream({
 
   return (
     <main className="flex-1 w-full flex flex-col items-center px-4 sm:px-12 py-12 sm:py-20">
-      <div ref={contentAreaRef} className="w-full max-w-2xl flex flex-col gap-12">
+      <div
+        ref={contentAreaRef}
+        className="w-full max-w-2xl flex flex-col gap-12"
+        style={{ zoom: zoomLevel }}
+      >
         {/* Top sentinel for reverse scrolling */}
         <div ref={topSentinelRef} className="h-4 w-full pointer-events-none" />
 
