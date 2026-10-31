@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { AssistedRichTextStrategy } from '../../../src/adapters/annotations/AssistedRichTextStrategy';
+import { AssistedRichTextStrategy } from '../../../adapters/annotations/AssistedRichTextStrategy';
 import {
   DrawioAnnotationStrategy,
   TldrawAnnotationStrategy,
-} from '../../../src/adapters/annotations/DiagramAnnotationStrategies';
-import type { IAnnotationVisitor } from '../../../src/core/domain/RichAnnotation';
-import { AnnotationWorkbenchService } from '../../../src/core/services/AnnotationWorkbenchService';
+} from '../../../adapters/annotations/DiagramAnnotationStrategies';
+import type { IAnnotationVisitor } from '../../../core/domain/RichAnnotation';
+import { AnnotationWorkbenchService } from '../../../core/services/AnnotationWorkbenchService';
 import { FakeBackendGateway } from '../../fakes/FakeBackendGateway';
 
 const createEmptyRect = (): DOMRect =>

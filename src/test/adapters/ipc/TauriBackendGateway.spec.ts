@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   type SerializedHighlight,
   TauriBackendGateway,
-} from '../../../src/adapters/ipc/TauriBackendGateway';
-import { Highlight } from '../../../src/core/domain/Highlight';
+} from '../../../adapters/ipc/TauriBackendGateway';
+import { Highlight } from '../../../core/domain/Highlight';
 import {
   AssistedTextAnnotation,
   DrawioDiagramAnnotation,
   TldrawBoardAnnotation,
-} from '../../../src/core/domain/RichAnnotation';
+} from '../../../core/domain/RichAnnotation';
 
 describe('TauriBackendGateway (Rust IPC Bridge)', () => {
   it('should serialize and deserialize highlights with all rich annotation types across Tauri IPC', async () => {

@@ -1,9 +1,5 @@
-import type { Highlight } from '../../src/core/domain/Highlight';
-import type {
-  IBackendGateway,
-  LLMRequest,
-  ReadingContext,
-} from '../../src/core/ports/IBackendGateway';
+import type { Highlight } from '../../core/domain/Highlight';
+import type { IBackendGateway, LLMRequest, ReadingContext } from '../../core/ports/IBackendGateway';
 
 export class FakeBackendGateway implements IBackendGateway {
   private readonly highlights = new Map<string, Highlight>();

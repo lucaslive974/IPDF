@@ -7,7 +7,7 @@ Este repositório segue uma arquitetura **Hexagonal (Ports & Adapters)** estrita
 1. **[`docs/01-PRD-OVERVIEW.md`](docs/01-PRD-OVERVIEW.md)**
    Visão do produto, stack tecnológica (Tauri v2, TypeScript Strict, EPUB/PDF, SQLite, BYOC), requisitos funcionais e o Roadmap dividido em 6 fases.
 2. **[`docs/02-ARCHITECTURE-UML.md`](docs/02-ARCHITECTURE-UML.md)**
-   Princípios de Clean Architecture, árvore de diretórios obrigatória (`src/core/domain`, `src/core/ports`, `src/core/services`, `src/adapters`, `src/ui` e `test/` espelhando `src/` na raiz), diagrama de classes UML e estrutura de sincronização remota (*Cloudless Sync*).
+   Princípios de Clean Architecture, árvore de diretórios obrigatória (`src/core/domain`, `src/core/ports`, `src/core/services`, `src/adapters`, `src/ui` e `src/test/` para os testes de frontend/TS), diagrama de classes UML e estrutura de sincronização remota (*Cloudless Sync*).
 3. **[`docs/03-CORE-CONTRACTS.md`](docs/03-CORE-CONTRACTS.md)**
    Contratos TypeScript exatos e imutáveis para objetos de valor, entidades (`Highlight`, `RichAnnotation` com Visitor/Double Dispatch, `BookMetadata`) e portas (`IAnnotationToolStrategy`, `IAssistedTextFormattingStrategy`, `IRepository`, `IDocumentViewer`, `ILLMProvider`, `ITTSProvider`, `IPresenceProvider`, `ISystemBridge`, `IStorageProvider`).
 4. **[`docs/04-AGENT-WORKFLOW-AND-TDD.md`](docs/04-AGENT-WORKFLOW-AND-TDD.md)**
@@ -18,7 +18,7 @@ Este repositório segue uma arquitetura **Hexagonal (Ports & Adapters)** estrita
 - **Arquitetura Backend-Heavy em Rust (`Caminho 2`):**
   - **Rust (`src-tauri/crates/ipdf-core/` & `src-tauri/`):** Concentra o motor pesado de dados, hashing SHA-256 em *streaming* (`Sha256BookHasher`), persistência SQLite, `IStorageProvider` (arquivos avulsos, pastas locais, nuvem e `CachedStorageDecorator`), `DataPortabilityService` (LWW, ZIP), `CloudlessSyncEngine`, `RichPresenceManager` (Discord IPC / Webhooks) e `PromptBuilder`.
   - **TypeScript (`src/`):** Focado em renderização DOM/Canvas (`IDocumentViewer`: `epub.js`, `pdf.js`), edição visual/assistida a 60fps (`IAnnotationToolStrategy`: `AssistedRichTextStrategy`, `tldraw`, `draw.io`) e camada de apresentação **MVVC** (`src/ui/providers`, `src/ui/hooks`, `src/ui/components`).
-- **Código e Comentários 100% em Inglês:** Todo código-fonte (`src/`, `src-tauri/` e `test/`), nomes de símbolos, mensagens de erro e comentários/JSDoc (quando estritamente necessários) devem ser escritos **exclusivamente em inglês**. Evite comentários óbvios nas estruturas de dados.
+- **Código e Comentários 100% em Inglês:** Todo código-fonte (`src/` e `src-tauri/`), nomes de símbolos, mensagens de erro e comentários/JSDoc (quando estritamente necessários) devem ser escritos **exclusivamente em inglês**. Evite comentários óbvios nas estruturas de dados.
 - **Portabilidade Desktop + iOS (`WKWebView`):** Nunca utilize `Buffer` do Node.js em `src/core/`. Utilize sempre `Uint8Array` ou `ArrayBuffer`.
 - **Injeção de Dependência Pura:** Nenhuma classe em `src/core/` ou `ipdf-core` pode acessar singletons globais, `window` diretamente, banco de dados físico ou rede. Tudo entra via `constructor` / traits tipados pelas portas.
 - **Frontend MVVC / MVVM Modular (`src/ui/`):** Proibido misturar IoC, gerenciamento de estado/regras e JSX em "super arquivos". Separe estritamente em:

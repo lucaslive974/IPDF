@@ -15,8 +15,8 @@ O projeto utiliza **Clean Architecture / Hexagonal Architecture (Ports & Adapter
   - `src/ui/providers/`: *Composition Root* e provedores React Context (`ServiceContainerContext.tsx`) responsáveis exclusivamente pela Inversão de Controle (DI).
   - `src/ui/hooks/`: *ViewModels / ViewControllers* implementados como Custom Hooks (`useStudyWorkbenchViewModel.ts`), encapsulando todo o estado de tela.
   - `src/ui/components/`: Componentes visuais puramente declarativos, modulares e reutilizáveis (`PassageReaderPanel`, `SectionAnnotationPanel`, `AssistedFormattingToolbar`, `HighlightCard`, `CodeInspectorBox`).
-- **Testes e Dublês (`test/` na raiz + `src-tauri/crates/ipdf-core/tests/`):**
-  - No TypeScript, todos os arquivos `*.spec.ts` ficam na pasta raiz `test/` espelhando `src/`.
+- **Testes e Dublês (`src/test/` no TypeScript + `src-tauri/crates/ipdf-core/tests/` no Rust):**
+  - No TypeScript, todos os arquivos `*.spec.ts` ficam na pasta `src/test/` espelhando os módulos de `src/`.
   - No Rust, os testes de integração e unidade ficam em `src-tauri/crates/ipdf-core/tests/`.
 
 ---
@@ -55,18 +55,18 @@ O projeto utiliza **Clean Architecture / Hexagonal Architecture (Ports & Adapter
 │   │   ├── ipc/
 │   │   │   └── TauriBackendGateway.ts    # Implementação de IBackendGateway via Tauri invoke()
 │   │   └── annotations/                  # AssistedRichTextStrategy.ts, DiagramAnnotationStrategies.ts
-│   └── ui/                               # Camada de Apresentação em Arquitetura MVVC
-│       ├── providers/                    # IoC / Injeção de Dependências (ServiceContainerContext.tsx)
-│       ├── hooks/                        # ViewModels / ViewControllers (Custom Hooks)
-│       ├── components/                   # Componentes React reutilizáveis e puramente visuais
-│       └── App.tsx                       # Composição declarativa de alto nível
-└── test/                                 # Espelha a estrutura de src/ (NENHUM arquivo .spec.ts dentro de src/)
-    ├── core/
-    │   ├── domain/                       # Highlight.spec.ts
-    │   └── services/                     # AnnotationWorkbenchService.spec.ts
-    ├── adapters/
-    │   └── ipc/                          # TauriBackendGateway.spec.ts
-    └── fakes/                            # FakeBackendGateway.ts
+│   ├── ui/                               # Camada de Apresentação em Arquitetura MVVC
+│   │   ├── providers/                    # IoC / Injeção de Dependências (ServiceContainerContext.tsx)
+│   │   ├── hooks/                        # ViewModels / ViewControllers (Custom Hooks)
+│   │   ├── components/                   # Componentes React reutilizáveis e puramente visuais
+│   │   └── App.tsx                       # Composição declarativa de alto nível
+│   └── test/                             # Testes TypeScript/UI espelhando a estrutura de src/
+│       ├── core/
+│       │   ├── domain/                   # Highlight.spec.ts
+│       │   └── services/                 # AnnotationWorkbenchService.spec.ts
+│       ├── adapters/
+│       │   └── ipc/                      # TauriBackendGateway.spec.ts
+│       └── fakes/                        # FakeBackendGateway.ts
 ```
 
 ---

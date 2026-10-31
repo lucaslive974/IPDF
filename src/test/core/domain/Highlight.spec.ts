@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Highlight } from '../../../src/core/domain/Highlight';
+import { Highlight } from '../../../core/domain/Highlight';
 import {
   AssistedTextAnnotation,
   DrawioDiagramAnnotation,
   type IAnnotationVisitor,
   TldrawBoardAnnotation,
-} from '../../../src/core/domain/RichAnnotation';
+} from '../../../core/domain/RichAnnotation';
 
 describe('Highlight & RichAnnotation Domain Entities', () => {
   it('updates updatedAt when calling updateNote, changeColor, setRichAnnotation, and removeRichAnnotation', () => {

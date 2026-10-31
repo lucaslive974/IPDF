@@ -29,9 +29,9 @@ Este documento define as regras operacionais obrigatórias para qualquer agente 
 O agente tem autonomia para avançar nas tarefas e realizar commits no Git, mas **DEVE** cumprir estritamente os 4 passos abaixo para cada classe ou funcionalidade criada:
 
 ### Passo 1: Teste Primeiro (Red)
-- **Separação Estrita `src/` vs `test/`:** NUNCA crie arquivos `*.spec.ts` ou dublês dentro de `src/`. Todos os testes devem residir na pasta raiz `test/` espelhando a estrutura de `src/` (ex.: `src/core/services/Foo.ts` -> `test/core/services/Foo.spec.ts`).
-- Crie os dublês de teste necessários (`InMemoryRepository`, `FakeProvider`, `Spy`) em `test/fakes/`.
-- Escreva o arquivo de teste unitário (`test/**/*.spec.ts`) validando tanto o caminho feliz quanto os casos de borda listados na Matriz de Cenários abaixo, garantindo cobertura >= 80%.
+- **Separação Estrita em `src/test/`:** NUNCA misture arquivos `*.spec.ts` ou dublês junto aos arquivos de produção em `src/core/`, `src/adapters/` ou `src/ui/`. Todos os testes TypeScript/UI devem residir na pasta `src/test/` espelhando a estrutura de `src/` (ex.: `src/core/services/Foo.ts` -> `src/test/core/services/Foo.spec.ts`).
+- Crie os dublês de teste necessários (`FakeBackendGateway`, etc.) em `src/test/fakes/`.
+- Escreva o arquivo de teste unitário (`src/test/**/*.spec.ts`) validando tanto o caminho feliz quanto os casos de borda listados na Matriz de Cenários abaixo, garantindo cobertura >= 80%.
 
 ### Passo 2: Implementação Limpa (Green)
 - Escreva o código de produção seguindo os contratos definidos em `docs/03-CORE-CONTRACTS.md`.
@@ -44,8 +44,8 @@ npm run verify
 ```
 
 O comando `npm run verify` executa em sequência:
-1. `npm run format` (`biome format --write ./src ./test`)
-2. `npm run lint` (`biome check ./src ./test`)
+1. `npm run format` (`biome format --write ./src`)
+2. `npm run lint` (`biome check ./src`)
 3. `npm run typecheck` (`tsc --noEmit`)
 4. `npm run test` (`vitest run --coverage`, exigindo >= 80% em lines, functions, branches e statements)
 5. `npm run verify:rust` (`cargo fmt --check` + `cargo clippy --all-targets -- -D warnings` + `cargo test` na crate `src-tauri/crates/ipdf-core`)
@@ -69,9 +69,9 @@ Com o `npm run verify` 100% verde, faça um commit pequeno, atômico e focado ex
 
 | Camada | Módulo / Serviço | Suíte de Teste | Asserções Obrigatórias |
 | :--- | :--- | :--- | :--- |
-| **TypeScript (`test/`)** | **`Highlight` & `RichAnnotation`** | `test/core/domain/Highlight.spec.ts` | 1. `updateNote`, `changeColor`, `setRichAnnotation` e `removeRichAnnotation` atualizam `updatedAt`.<br>2. Double Dispatch (`annotation.attachTo(highlight)`) e Visitor (`highlight.acceptAnnotationVisitor(visitor)`) despacham corretamente para `visitAssistedText`, `visitTldrawBoard` e `visitDrawioDiagram` sem `switch/case`.<br>3. `overlapsWith` detecta colisão exata de CFI (EPUB) e intersecção geométrica AABB de `BoundingBox` (PDF). |
-| **TypeScript (`test/`)** | **`AnnotationWorkbenchService` + Strategies** | `test/core/services/AnnotationWorkbenchService.spec.ts` | 1. Carrega grifos via `IBackendGateway` e filtra por página (`getForPage(n)`).<br>2. Aplica todos os estilos de formatação assistida (`AssistedRichTextStrategy` com Command Dispatch Map) e quadros visuais (`tldraw` / `draw.io`), persistindo cada atualização via `IBackendGateway`. |
-| **TypeScript (`test/`)** | **`TauriBackendGateway`** | `test/adapters/ipc/TauriBackendGateway.spec.ts` | 1. Serializa e desserializa `Highlight` e todas as variantes de `IRichAnnotation` via mapa de desserializadores (`ANNOTATION_DESERIALIZERS`) sem `switch/if`.<br>2. Encaminha comandos IPC (`load_book_highlights`, `save_highlight`, `delete_highlight`, `build_term_lookup_prompt`, `sync_book_workspace`). |
+| **TypeScript (`src/test/`)** | **`Highlight` & `RichAnnotation`** | `src/test/core/domain/Highlight.spec.ts` | 1. `updateNote`, `changeColor`, `setRichAnnotation` e `removeRichAnnotation` atualizam `updatedAt`.<br>2. Double Dispatch (`annotation.attachTo(highlight)`) e Visitor (`highlight.acceptAnnotationVisitor(visitor)`) despacham corretamente para `visitAssistedText`, `visitTldrawBoard` e `visitDrawioDiagram` sem `switch/case`.<br>3. `overlapsWith` detecta colisão exata de CFI (EPUB) e intersecção geométrica AABB de `BoundingBox` (PDF). |
+| **TypeScript (`src/test/`)** | **`AnnotationWorkbenchService` + Strategies** | `src/test/core/services/AnnotationWorkbenchService.spec.ts` | 1. Carrega grifos via `IBackendGateway` e filtra por página (`getForPage(n)`).<br>2. Aplica todos os estilos de formatação assistida (`AssistedRichTextStrategy` com Command Dispatch Map) e quadros visuais (`tldraw` / `draw.io`), persistindo cada atualização via `IBackendGateway`. |
+| **TypeScript (`src/test/`)** | **`TauriBackendGateway`** | `src/test/adapters/ipc/TauriBackendGateway.spec.ts` | 1. Serializa e desserializa `Highlight` e todas as variantes de `IRichAnnotation` via mapa de desserializadores (`ANNOTATION_DESERIALIZERS`) sem `switch/if`.<br>2. Encaminha comandos IPC (`load_book_highlights`, `save_highlight`, `delete_highlight`, `build_term_lookup_prompt`, `sync_book_workspace`). |
 | **Rust (`ipdf-core`)** | **`Sha256BookHasher`** | `src-tauri/crates/ipdf-core/tests/core_tests.rs` | 1. Calcula o hash SHA-256 em *streaming* (chunks de 64 KB) produzindo o mesmo digest que o buffer completo sem alocar o arquivo inteiro em RAM. |
 | **Rust (`ipdf-core`)** | **`HighlightManager`, `DataPortabilityService` & `CloudlessSyncEngine`** | `src-tauri/crates/ipdf-core/tests/core_tests.rs` | 1. Merge *Last-Write-Wins (LWW)* atualiza registros locais apenas quando `incoming.updated_at > local.updated_at`.<br>2. Sincroniza `<bookHash>.highlights.json` sobre a trait unificada `StorageProvider`. |
 | **Rust (`ipdf-core`)** | **`CachedStorageDecorator` & `RichPresenceManager`** | `src-tauri/crates/ipdf-core/tests/core_tests.rs` | 1. Cacheia binários sob demanda no `local_cache` e opera *offline* quando o `primary` está indisponível.<br>2. Aplica janela de *debounce* no `RichPresenceManager` antes de notificar provedores de presença. |
