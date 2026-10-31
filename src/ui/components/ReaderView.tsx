@@ -285,12 +285,8 @@ export function ReaderView() {
 
   const percentage = Math.round((reader.currentPage / reader.totalPages) * 100);
 
-  // Paragraph texts representing continuous book content
-  const sampleParagraphs = [
-    reader.document.sampleParagraph,
-    'Above and behind them a fire is blazing at a distance, and between the fire and the prisoners there is a raised way; and you will see, if you look, a low wall built along the way, like the screen which marionette players have in front of them, over which they show the puppets.',
-    'And if they were in the habit of conferring honours among themselves on those who were quickest to observe the passing shadows and to remark which of them went before, and which followed after, and which were together; and who were therefore best able to draw conclusions as to the future, do you think that he would care for such honours and glories, or envy the possessors of them?',
-  ];
+  const paragraphs =
+    reader.paragraphs.length > 0 ? reader.paragraphs : [reader.document.sampleParagraph];
 
   return (
     <section
@@ -322,7 +318,9 @@ export function ReaderView() {
             <span className="text-xs font-semibold text-tx-main">
               {reader.document.bookAuthor} &mdash; {reader.document.bookTitle}
             </span>
-            <span className="text-[0.7rem] text-tx-muted">{reader.document.chapterTitle}</span>
+            <span className="text-[0.7rem] text-tx-muted">
+              {reader.chapterTitle || reader.document.chapterTitle}
+            </span>
           </div>
         </div>
 
@@ -357,7 +355,7 @@ export function ReaderView() {
           {/* Chapter Heading */}
           <div className="text-center mb-2">
             <h1 className="text-2xl font-serif font-bold text-tx-main sm:text-3xl tracking-tight">
-              {reader.document.chapterTitle}
+              {reader.chapterTitle || reader.document.chapterTitle}
             </h1>
             <p className="mt-1 text-xs text-tx-muted tracking-wider uppercase font-semibold">
               {reader.document.bookAuthor} &bull; {reader.document.bookTitle}
@@ -366,7 +364,7 @@ export function ReaderView() {
 
           {/* Book Page Content with Inline Highlights directly over text */}
           <div className="space-y-6 text-lg sm:text-xl leading-relaxed text-tx-main font-serif tracking-normal">
-            {sampleParagraphs.map((paragraph, pIdx) => {
+            {paragraphs.map((paragraph, pIdx) => {
               const chunks = tokenizeTextWithHighlights(paragraph, reader.highlights);
 
               return (

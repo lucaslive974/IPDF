@@ -71,6 +71,8 @@ export interface ReaderContextValue {
   readonly document: StudyDocumentDescriptor;
   readonly currentPage: number;
   readonly totalPages: number;
+  readonly chapterTitle: string;
+  readonly paragraphs: string[];
   readonly highlights: Highlight[];
   readonly selectedId: string | null;
   readonly noteInput: string;
@@ -109,7 +111,7 @@ export interface ReaderProviderProps {
 }
 
 export function ReaderProvider({ children, book }: ReaderProviderProps) {
-  const { annotationWorkbench, backendGateway } = useServiceContainer();
+  const { annotationWorkbench, backendGateway, epubViewer } = useServiceContainer();
 
   const [document] = useState<StudyDocumentDescriptor>(() => {
     if (book) {
@@ -128,7 +130,9 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
   });
 
   const [currentPage, setCurrentPage] = useState<number>(book?.currentPage || 1);
-  const totalPages = book?.totalPages || 320;
+  const [totalPages, setTotalPages] = useState<number>(book?.totalPages || 15);
+  const [chapterTitle, setChapterTitle] = useState<string>(document.chapterTitle);
+  const [paragraphs, setParagraphs] = useState<string[]>([document.sampleParagraph]);
 
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -176,6 +180,32 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
     let cancelled = false;
 
     const bootstrapReader = async () => {
+      try {
+        const rawBytes = await backendGateway.readBookBinary(document.bookHash);
+        if (!cancelled && rawBytes.length > 0) {
+          const container =
+            typeof globalThis !== 'undefined' && globalThis.document?.createElement
+              ? globalThis.document.createElement('div')
+              : ({ innerHTML: '' } as unknown as HTMLElement);
+          await epubViewer.render(container, rawBytes.buffer as ArrayBuffer);
+          const pageInfo = epubViewer.getCurrentPage();
+          if (pageInfo.totalPages > 0) {
+            setTotalPages(pageInfo.totalPages);
+          }
+          await epubViewer.goToPage(currentPage);
+          const currentInfo = epubViewer.getCurrentPage();
+          if (currentInfo.chapterTitle) {
+            setChapterTitle(currentInfo.chapterTitle);
+          }
+          const loadedParagraphs = epubViewer.getParagraphsForChapter(currentPage - 1);
+          if (loadedParagraphs.length > 0) {
+            setParagraphs(loadedParagraphs);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to load book binary in reader:', err);
+      }
+
       await annotationWorkbench.loadBookHighlights(document.bookHash);
       if (cancelled) return;
 
@@ -188,16 +218,25 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
     return () => {
       cancelled = true;
     };
-  }, [annotationWorkbench, currentPage, document, refreshState]);
+  }, [annotationWorkbench, backendGateway, currentPage, document, epubViewer, refreshState]);
 
   const navigatePage = useCallback(
     async (delta: number) => {
       const next = Math.max(1, Math.min(totalPages, currentPage + delta));
       setCurrentPage(next);
+      await epubViewer.goToPage(next);
+      const pageInfo = epubViewer.getCurrentPage();
+      if (pageInfo.chapterTitle) {
+        setChapterTitle(pageInfo.chapterTitle);
+      }
+      const loadedParagraphs = epubViewer.getParagraphsForChapter(next - 1);
+      if (loadedParagraphs.length > 0) {
+        setParagraphs(loadedParagraphs);
+      }
       await backendGateway.updateBookProgress(document.bookHash, next, totalPages);
       await refreshState(null, next);
     },
-    [backendGateway, currentPage, document.bookHash, refreshState, totalPages]
+    [backendGateway, currentPage, document.bookHash, epubViewer, refreshState, totalPages]
   );
 
   const selectHighlight = useCallback(
@@ -437,6 +476,8 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
       document,
       currentPage,
       totalPages,
+      chapterTitle,
+      paragraphs,
       highlights,
       selectedId,
       noteInput,
@@ -466,6 +507,8 @@ export function ReaderProvider({ children, book }: ReaderProviderProps) {
       document,
       currentPage,
       totalPages,
+      chapterTitle,
+      paragraphs,
       highlights,
       selectedId,
       noteInput,

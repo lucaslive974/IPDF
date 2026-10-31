@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import type { BookMetadata } from '../../core/domain/BookMetadata';
 import { Highlight } from '../../core/domain/Highlight';
 import {
@@ -59,15 +60,27 @@ const ANNOTATION_DESERIALIZERS: Record<RichAnnotationType, AnnotationDeserialize
 };
 
 export class TauriBackendGateway implements IBackendGateway {
-  constructor(private readonly invokeFn: TauriInvokeFn) {}
+  constructor(private readonly invokeFn?: TauriInvokeFn) {}
+
+  private async call<T>(cmd: string, args: Record<string, unknown> = {}): Promise<T> {
+    if (this.invokeFn) {
+      return this.invokeFn<T>(cmd, args);
+    }
+    return invoke<T>(cmd, args);
+  }
 
   public async listLibraryBooks(): Promise<BookMetadata[]> {
-    const dtos = await this.invokeFn<SerializedBookMetadata[]>('list_library_books');
+    const dtos = await this.call<SerializedBookMetadata[]>('list_library_books');
     return dtos.map((dto) => this.deserializeBookMetadata(dto));
   }
 
+  public async readBookBinary(bookHash: string): Promise<Uint8Array> {
+    const bytes = await this.call<number[]>('read_book_binary', { bookHash });
+    return new Uint8Array(bytes);
+  }
+
   public async importLibraryBook(input: ImportLibraryBookInput): Promise<BookMetadata> {
-    const dto = await this.invokeFn<SerializedBookMetadata>('import_library_book', {
+    const dto = await this.call<SerializedBookMetadata>('import_library_book', {
       rawBytes: Array.from(input.rawBytes),
       title: input.title,
       author: input.author,
@@ -83,7 +96,7 @@ export class TauriBackendGateway implements IBackendGateway {
     currentPage: number,
     totalPages: number
   ): Promise<BookMetadata> {
-    const dto = await this.invokeFn<SerializedBookMetadata>('update_book_progress', {
+    const dto = await this.call<SerializedBookMetadata>('update_book_progress', {
       bookHash,
       currentPage,
       totalPages,
@@ -92,25 +105,25 @@ export class TauriBackendGateway implements IBackendGateway {
   }
 
   public async loadBookHighlights(bookHash: string): Promise<Highlight[]> {
-    const dtos = await this.invokeFn<SerializedHighlight[]>('load_book_highlights', { bookHash });
+    const dtos = await this.call<SerializedHighlight[]>('load_book_highlights', { bookHash });
     return dtos.map((dto) => this.deserializeHighlight(dto));
   }
 
   public async saveHighlight(highlight: Highlight): Promise<void> {
-    await this.invokeFn<void>('save_highlight', {
+    await this.call<void>('save_highlight', {
       highlight: this.serializeHighlight(highlight),
     });
   }
 
   public async deleteHighlight(highlightId: string): Promise<void> {
-    await this.invokeFn<void>('delete_highlight', { highlightId });
+    await this.call<void>('delete_highlight', { highlightId });
   }
 
   public async buildTermLookupRequest(
     context: ReadingContext,
     targetLanguage = 'en'
   ): Promise<LLMRequest> {
-    return this.invokeFn<LLMRequest>('build_term_lookup_prompt', {
+    return this.call<LLMRequest>('build_term_lookup_prompt', {
       bookTitle: context.bookTitle,
       bookAuthor: context.bookAuthor ?? null,
       chapterTitle: context.chapterTitle ?? null,
@@ -121,7 +134,7 @@ export class TauriBackendGateway implements IBackendGateway {
   }
 
   public async syncBookWorkspace(bookHash: string): Promise<string> {
-    return this.invokeFn<string>('sync_book_workspace', { bookHash });
+    return this.call<string>('sync_book_workspace', { bookHash });
   }
 
   private deserializeBookMetadata(dto: SerializedBookMetadata): BookMetadata {

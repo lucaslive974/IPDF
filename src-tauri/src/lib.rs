@@ -67,6 +67,7 @@ pub struct BackendState {
     highlight_repo: SqliteHighlightRepository,
     config_store: FileConfigurationStore,
     platform_env: Box<dyn PlatformEnvironment + Send>,
+    book_binaries: BTreeMap<String, Vec<u8>>,
 }
 
 impl Default for BackendState {
@@ -100,6 +101,7 @@ impl Default for BackendState {
             highlight_repo,
             config_store,
             platform_env: platform,
+            book_binaries: BTreeMap::new(),
         }
     }
 }
@@ -134,7 +136,10 @@ fn open_book_file(
 ) -> Result<BookMetadata, String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
     let path = std::path::Path::new(&file_path);
-    let (metadata, _) = guard.library.open_book_from_path(path)?;
+    let (metadata, bytes) = guard.library.open_book_from_path(path)?;
+    guard
+        .book_binaries
+        .insert(metadata.book_hash.clone(), bytes);
     Ok(metadata)
 }
 
@@ -149,7 +154,8 @@ fn import_library_book(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<BookMetadata, String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
-    guard.library.import_book(ImportBookInput {
+    let cloned_bytes = raw_bytes.clone();
+    let meta = guard.library.import_book(ImportBookInput {
         raw_bytes,
         title,
         author,
@@ -157,7 +163,23 @@ fn import_library_book(
         total_pages,
         cover_image_url,
         now_ms: current_epoch_ms(),
-    })
+    })?;
+    guard
+        .book_binaries
+        .insert(meta.book_hash.clone(), cloned_bytes);
+    Ok(meta)
+}
+
+#[tauri::command]
+fn read_book_binary(
+    book_hash: String,
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<Vec<u8>, String> {
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    if let Some(bytes) = guard.book_binaries.get(&book_hash) {
+        return Ok(bytes.clone());
+    }
+    guard.library.open_book_binary(&book_hash)
 }
 
 #[tauri::command]
@@ -411,7 +433,8 @@ pub fn run() {
             sync_book_workspace,
             get_platform_info,
             get_app_setting,
-            set_app_setting
+            set_app_setting,
+            read_book_binary
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

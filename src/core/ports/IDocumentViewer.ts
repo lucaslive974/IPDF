@@ -9,6 +9,7 @@ export interface IDocumentViewer {
   nextPage(): Promise<void>;
   prevPage(): Promise<void>;
   getCurrentPage(): PageInfo;
+  getParagraphsForChapter(index?: number): string[];
 
   getSelection(): TextSelection | null;
   clearSelection(): void;

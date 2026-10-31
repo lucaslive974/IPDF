@@ -123,10 +123,64 @@ export class EpubViewerAdapter implements IDocumentViewer {
 
   public async render(container: HTMLElement, fileData: ArrayBuffer): Promise<void> {
     this.container = container;
-    this.chapters = this.parseEpubChapters(fileData);
+    this.chapters = await this.parseEpubChapters(fileData);
     this.currentPageIndex = 0;
     this.flushDom();
     this.emitPageChanged();
+  }
+
+  public getChapters(): EpubChapterDescriptor[] {
+    return [...this.chapters];
+  }
+
+  public getParagraphsForChapter(index = this.currentPageIndex): string[] {
+    const chapter = this.chapters[index];
+    if (!chapter) return [];
+
+    const content = chapter.content;
+    const paragraphs: string[] = [];
+
+    const pRegex = /<p[^>]*>([\s\S]*?)<\/p>/gi;
+    let match = pRegex.exec(content);
+    while (match !== null) {
+      const clean = match[1]
+        .replace(/<[^>]+>/g, '')
+        .replace(/&mdash;/g, '—')
+        .replace(/&ndash;/g, '–')
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
+        .replace(/&lsquo;/g, '‘')
+        .replace(/&rsquo;/g, '’')
+        .replace(/&ldquo;/g, '“')
+        .replace(/&rdquo;/g, '”')
+        .replace(/&amp;/g, '&')
+        .replace(/&nbsp;/g, ' ')
+        .trim();
+      if (clean.length > 5) {
+        paragraphs.push(clean);
+      }
+      match = pRegex.exec(content);
+    }
+
+    if (paragraphs.length === 0) {
+      const plain = content
+        .replace(/<[^>]+>/g, '')
+        .replace(/&mdash;/g, '—')
+        .replace(/&ndash;/g, '–')
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
+        .replace(/&amp;/g, '&')
+        .replace(/&nbsp;/g, ' ')
+        .trim();
+      if (plain) {
+        return plain
+          .split(/\n\s*\n/)
+          .map((p) => p.trim())
+          .filter((p) => p.length > 0);
+      }
+    }
+
+    return paragraphs;
   }
 
   public destroy(): void {
@@ -301,8 +355,29 @@ export class EpubViewerAdapter implements IDocumentViewer {
     this.highlightClickedListeners.push(callback);
   }
 
-  private parseEpubChapters(fileData: ArrayBuffer): EpubChapterDescriptor[] {
-    const rawText = new TextDecoder().decode(new Uint8Array(fileData)).trim();
+  private async parseEpubChapters(fileData: ArrayBuffer): Promise<EpubChapterDescriptor[]> {
+    const bytes = new Uint8Array(fileData);
+
+    // 1. Binary ZIP (EPUB specification standard: PK\x03\x04 signature)
+    if (
+      bytes.length > 30 &&
+      bytes[0] === 0x50 &&
+      bytes[1] === 0x4b &&
+      bytes[2] === 0x03 &&
+      bytes[3] === 0x04
+    ) {
+      try {
+        const chapters = await this.extractChaptersFromZip(bytes);
+        if (chapters.length > 0) {
+          return chapters;
+        }
+      } catch (err) {
+        console.warn('Failed to unpack EPUB in frontend:', err);
+      }
+    }
+
+    // 2. Structured JSON chapters fallback (unit test mocks)
+    const rawText = new TextDecoder().decode(bytes).trim();
     if (rawText.startsWith('{')) {
       try {
         const parsed = JSON.parse(rawText) as { chapters?: EpubChapterDescriptor[] };
@@ -321,6 +396,78 @@ export class EpubViewerAdapter implements IDocumentViewer {
         content: rawText.length > 0 ? rawText : 'Empty EPUB Document',
       },
     ];
+  }
+
+  private async extractChaptersFromZip(bytes: Uint8Array): Promise<EpubChapterDescriptor[]> {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    let offset = 0;
+    const chapters: EpubChapterDescriptor[] = [];
+    let chapterIndex = 1;
+
+    while (offset + 30 <= bytes.length) {
+      const sig = view.getUint32(offset, true);
+      if (sig !== 0x04034b50) {
+        break;
+      }
+      const method = view.getUint16(offset + 8, true);
+      const compSize = view.getUint32(offset + 18, true);
+      const nameLen = view.getUint16(offset + 26, true);
+      const extraLen = view.getUint16(offset + 28, true);
+
+      const nameBytes = bytes.subarray(offset + 30, offset + 30 + nameLen);
+      const name = new TextDecoder('utf-8').decode(nameBytes);
+      const dataStart = offset + 30 + nameLen + extraLen;
+      const compData = bytes.subarray(dataStart, dataStart + compSize);
+      offset = dataStart + compSize;
+
+      const lower = name.toLowerCase();
+      if (
+        (lower.endsWith('.xhtml') || lower.endsWith('.html') || lower.endsWith('.htm')) &&
+        !lower.includes('wrap') &&
+        !lower.includes('cover') &&
+        !lower.includes('toc')
+      ) {
+        let text = '';
+        if (method === 0) {
+          text = new TextDecoder('utf-8').decode(compData);
+        } else if (method === 8 && typeof DecompressionStream !== 'undefined') {
+          try {
+            const ds = new DecompressionStream('deflate-raw');
+            const writer = ds.writable.getWriter();
+            void writer.write(compData as unknown as BufferSource);
+            void writer.close();
+            const decompressed = await new Response(ds.readable).arrayBuffer();
+            text = new TextDecoder('utf-8').decode(decompressed);
+          } catch {
+            // Decompression fallback
+          }
+        }
+
+        if (text.length > 0) {
+          const title = this.extractTitleFromHtml(text) || `Chapter ${chapterIndex}`;
+          chapters.push({
+            title,
+            cfiBase: `epubcfi(/6/${chapterIndex * 2}!/4/2`,
+            content: text,
+          });
+          chapterIndex += 1;
+        }
+      }
+    }
+
+    return chapters;
+  }
+
+  private extractTitleFromHtml(html: string): string | null {
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    if (titleMatch?.[1]?.trim()) {
+      return titleMatch[1].trim();
+    }
+    const hMatch = html.match(/<h[12][^>]*>([^<]+)<\/h[12]>/i);
+    if (hMatch?.[1]?.trim()) {
+      return hMatch[1].trim();
+    }
+    return null;
   }
 
   private flushDom(): void {

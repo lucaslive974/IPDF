@@ -18,6 +18,21 @@ export class FakeBackendGateway implements IBackendGateway {
     );
   }
 
+  public async readBookBinary(_bookHash: string): Promise<Uint8Array> {
+    return new TextEncoder().encode(
+      JSON.stringify({
+        chapters: [
+          {
+            title: 'Book VII — Allegory of the Cave',
+            cfiBase: 'epubcfi(/6/14!/4/2',
+            content:
+              'Behold! human beings living in an underground den, which has a mouth open towards the light and reaching all along the den; here they have been from their childhood, and have their legs and necks chained so that they cannot move, and can only see before them, being prevented by the chains from turning round their heads (noesis vs. doxa).',
+          },
+        ],
+      })
+    );
+  }
+
   public async importLibraryBook(input: ImportLibraryBookInput): Promise<BookMetadata> {
     const bookHash = `sha256-${input.title.toLowerCase().replace(/\s+/g, '-')}`;
     const now = new Date();

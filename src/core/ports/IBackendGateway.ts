@@ -28,6 +28,7 @@ export interface ImportLibraryBookInput {
 
 export interface IBackendGateway {
   listLibraryBooks(): Promise<BookMetadata[]>;
+  readBookBinary(bookHash: string): Promise<Uint8Array>;
   importLibraryBook(input: ImportLibraryBookInput): Promise<BookMetadata>;
   updateBookProgress(
     bookHash: string,

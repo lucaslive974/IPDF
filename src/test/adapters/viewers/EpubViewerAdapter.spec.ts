@@ -158,4 +158,44 @@ describe('EpubViewerAdapter (EPUB CFI, Highlights, Inline Ruby & Cover Extractio
     viewer.destroy();
     expect(container.innerHTML).toBe('');
   });
+
+  it('parses EPUB binary archive and extracts paragraphs and chapters', async () => {
+    const viewer = new EpubViewerAdapter();
+    const container = createFakeContainer();
+
+    const filename = 'chapter1.xhtml';
+    const content =
+      '<html><head><title>Allegory</title></head><body><h1>The Cave</h1><p>Behold prisoners chained in the dark.</p><p>They see shadows cast upon the wall.</p></body></html>';
+    const nameBytes = new TextEncoder().encode(filename);
+    const contentBytes = new TextEncoder().encode(content);
+
+    const totalLen = 30 + nameBytes.length + contentBytes.length;
+    const zipBytes = new Uint8Array(totalLen);
+    const view = new DataView(zipBytes.buffer);
+
+    view.setUint32(0, 0x04034b50, true);
+    view.setUint16(4, 20, true);
+    view.setUint16(6, 0, true);
+    view.setUint16(8, 0, true); // method 0 (stored)
+    view.setUint16(10, 0, true);
+    view.setUint16(12, 0, true);
+    view.setUint32(14, 0, true);
+    view.setUint32(18, contentBytes.length, true);
+    view.setUint32(22, contentBytes.length, true);
+    view.setUint16(26, nameBytes.length, true);
+    view.setUint16(28, 0, true);
+
+    zipBytes.set(nameBytes, 30);
+    zipBytes.set(contentBytes, 30 + nameBytes.length);
+
+    await viewer.render(container, zipBytes.buffer);
+
+    const chapters = viewer.getChapters();
+    expect(chapters).toHaveLength(1);
+    expect(chapters[0]?.title).toBe('Allegory');
+
+    const paragraphs = viewer.getParagraphsForChapter(0);
+    expect(paragraphs).toHaveLength(2);
+    expect(paragraphs[0]).toBe('Behold prisoners chained in the dark.');
+  });
 });

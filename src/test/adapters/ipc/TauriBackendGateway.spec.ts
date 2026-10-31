@@ -76,6 +76,9 @@ describe('TauriBackendGateway (Rust IPC Bridge)', () => {
             maxTokens: 500,
           } as unknown as T;
         }
+        if (cmd === 'read_book_binary') {
+          return [1, 2, 3, 4] as unknown as T;
+        }
         if (cmd === 'sync_book_workspace') {
           return `synced:${String(args.bookHash)}` as unknown as T;
         }
@@ -100,6 +103,9 @@ describe('TauriBackendGateway (Rust IPC Bridge)', () => {
     const libraryBooks = await gateway.listLibraryBooks();
     expect(libraryBooks).toHaveLength(1);
     expect(libraryBooks[0]?.currentPage).toBe(25);
+
+    const binary = await gateway.readBookBinary('sha256-imported-book');
+    expect(binary).toHaveLength(4);
 
     const original = new Highlight(
       'hl_ipc_1',
