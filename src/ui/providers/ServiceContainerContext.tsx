@@ -6,20 +6,40 @@ import {
   TldrawAnnotationStrategy,
 } from '../../adapters/annotations/DiagramAnnotationStrategies';
 import {
+  type SerializedBookMetadata,
   type SerializedHighlight,
   TauriBackendGateway,
   type TauriInvokeFn,
 } from '../../adapters/ipc/TauriBackendGateway';
+import { EpubViewerAdapter } from '../../adapters/viewers/EpubViewerAdapter';
 import type { IBackendGateway } from '../../core/ports/IBackendGateway';
+import type { IDocumentViewer } from '../../core/ports/IDocumentViewer';
 import { AnnotationWorkbenchService } from '../../core/services/AnnotationWorkbenchService';
 
 export interface ServiceContainer {
   readonly backendGateway: IBackendGateway;
   readonly annotationWorkbench: AnnotationWorkbenchService;
+  readonly epubViewer: IDocumentViewer;
 }
 
 export function createHybridInvoke(): TauriInvokeFn {
   const highlightsByBook = new Map<string, Map<string, SerializedHighlight>>();
+  const booksByHash = new Map<string, SerializedBookMetadata>([
+    [
+      'sha256-plato-republic-book-vii',
+      {
+        bookHash: 'sha256-plato-republic-book-vii',
+        title: 'The Republic',
+        author: 'Plato',
+        format: 'epub',
+        currentPage: 1,
+        totalPages: 320,
+        percentage: 1,
+        lastReadAtMs: Date.now(),
+        updatedAtMs: Date.now(),
+      },
+    ],
+  ]);
 
   return async <T,>(cmd: string, args: Record<string, unknown> = {}): Promise<T> => {
     const hasTauriInternals =
@@ -32,6 +52,55 @@ export function createHybridInvoke(): TauriInvokeFn {
       } catch {
         // Fallback to in-memory handler if native command is unavailable
       }
+    }
+
+    if (cmd === 'list_library_books') {
+      return Array.from(booksByHash.values()).sort(
+        (a, b) => b.lastReadAtMs - a.lastReadAtMs
+      ) as unknown as T;
+    }
+
+    if (cmd === 'import_library_book') {
+      const title = String(args.title ?? 'Untitled');
+      const bookHash = `sha256-${title.toLowerCase().replace(/\s+/g, '-')}`;
+      const totalPages = Math.max(1, Number(args.totalPages ?? 100));
+      const nowMs = Date.now();
+      const dto: SerializedBookMetadata = {
+        bookHash,
+        title,
+        author: String(args.author ?? 'Unknown'),
+        format: 'epub',
+        currentPage: 1,
+        totalPages,
+        percentage: Math.round((1 / totalPages) * 100),
+        coverImageUrl: args.coverImageUrl ? String(args.coverImageUrl) : undefined,
+        lastReadAtMs: nowMs,
+        updatedAtMs: nowMs,
+      };
+      booksByHash.set(bookHash, dto);
+      return dto as unknown as T;
+    }
+
+    if (cmd === 'update_book_progress') {
+      const bookHash = String(args.bookHash ?? '');
+      const currentPage = Math.max(1, Number(args.currentPage ?? 1));
+      const totalPages = Math.max(1, Number(args.totalPages ?? 1));
+      const existing = booksByHash.get(bookHash);
+      const nowMs = Date.now();
+      const updated: SerializedBookMetadata = {
+        bookHash,
+        title: existing?.title ?? 'The Republic',
+        author: existing?.author ?? 'Plato',
+        format: existing?.format ?? 'epub',
+        currentPage,
+        totalPages,
+        percentage: Math.round((currentPage / totalPages) * 100),
+        coverImageUrl: existing?.coverImageUrl,
+        lastReadAtMs: nowMs,
+        updatedAtMs: nowMs,
+      };
+      booksByHash.set(bookHash, updated);
+      return updated as unknown as T;
     }
 
     if (cmd === 'load_book_highlights') {
@@ -104,10 +173,12 @@ export function createDefaultServiceContainer(customGateway?: IBackendGateway): 
     new TldrawAnnotationStrategy(),
     new DrawioAnnotationStrategy(),
   ]);
+  const epubViewer = new EpubViewerAdapter();
 
   return {
     backendGateway,
     annotationWorkbench,
+    epubViewer,
   };
 }
 

@@ -11,12 +11,17 @@ function StudyWorkbenchView() {
       <div className="mx-auto max-w-360 grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-5">
         <PassageReaderPanel
           document={vm.document}
+          libraryBooks={vm.libraryBooks}
+          currentPage={vm.currentPage}
+          totalPages={vm.totalPages}
           highlights={vm.highlights}
           selectedHighlightId={vm.selectedId}
           onCreateHighlight={(color) => void vm.createHighlightFromCurrentSelection(color)}
           onSelectHighlight={(id) => void vm.selectHighlight(id)}
           onGeneratePrompt={() => void vm.generateContextualPrompt()}
           onSyncBook={() => void vm.runCloudlessSync()}
+          onImportSampleBook={() => void vm.importSampleEpubBook()}
+          onNavigatePage={(delta) => void vm.navigatePage(delta)}
         />
 
         <SectionAnnotationPanel

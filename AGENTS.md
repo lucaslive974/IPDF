@@ -24,8 +24,8 @@ Este repositório segue uma arquitetura **Hexagonal (Ports & Adapters)** estrita
 - **Paridade de Modularização Estrita (TypeScript & Rust):** É terminantemente proibido concentrar múltiplas entidades, portas, serviços ou testes em "super arquivos" monolíticos (como um único `domain.rs`, `ports.rs` ou `services.rs`). O backend Rust (`src-tauri/crates/ipdf-core/src/`) **DEVE** espelhar a mesma organização modular de um arquivo por responsabilidade usada no TypeScript:
   - `core/domain/` (`types.rs`, `book_metadata.rs`, `rich_annotation.rs`, `highlight.rs`),
   - `core/ports/` (`repository.rs`, `storage_provider.rs`, `export_strategy.rs`, `llm_provider.rs`, `presence_provider.rs`, `tts_provider.rs`, `system_bridge.rs`),
-  - `core/services/` (`sha256_book_hasher.rs`, `highlight_manager.rs`, `data_portability_service.rs`, `cloudless_sync_engine.rs`, `prompt_builder.rs`, `rich_presence_manager.rs`, `tts_session_manager.rs`),
-  - `adapters/` (`storage/cached_storage_decorator.rs`, etc.),
+  - `core/services/` (`sha256_book_hasher.rs`, `library_manager.rs`, `highlight_manager.rs`, `data_portability_service.rs`, `cloudless_sync_engine.rs`, `prompt_builder.rs`, `rich_presence_manager.rs`, `tts_session_manager.rs`),
+  - `adapters/` (`persistence/sqlite_book_repository.rs`, `persistence/sqlite_highlight_repository.rs`, `storage/local_folder_storage_adapter.rs`, `storage/cached_storage_decorator.rs`, etc.),
   - `tests/` (`fakes/mod.rs` e arquivos `*_spec.rs` dedicados por domínio/serviço).
 - **Frontend MVVC / MVVM Modular (`src/ui/`):** Proibido misturar IoC, gerenciamento de estado/regras e JSX em "super arquivos". Separe estritamente em:
   1. `src/ui/providers/` (Inversão de Controle / Contextos de DI),

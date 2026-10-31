@@ -1,5 +1,5 @@
 use sha2::{Digest, Sha256};
-use std::io::Read;
+use std::io::{Cursor, Read};
 
 pub struct Sha256BookHasher;
 
@@ -16,5 +16,9 @@ impl Sha256BookHasher {
         }
         let digest = hasher.finalize();
         Ok(digest.iter().map(|b| format!("{b:02x}")).collect())
+    }
+
+    pub fn hash_bytes(bytes: &[u8]) -> Result<String, String> {
+        Self::hash_stream(Cursor::new(bytes))
     }
 }

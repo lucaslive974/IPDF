@@ -1,3 +1,4 @@
+import type { BookMetadata } from '../../core/domain/BookMetadata';
 import { Highlight } from '../../core/domain/Highlight';
 import {
   type IRichAnnotation,
@@ -5,8 +6,13 @@ import {
   createDrawioDiagramAnnotation,
   createTldrawBoardAnnotation,
 } from '../../core/domain/RichAnnotation';
-import type { HighlightAnchor, RichAnnotationType } from '../../core/domain/types';
-import type { IBackendGateway, LLMRequest, ReadingContext } from '../../core/ports/IBackendGateway';
+import type { BookFormat, HighlightAnchor, RichAnnotationType } from '../../core/domain/types';
+import type {
+  IBackendGateway,
+  ImportLibraryBookInput,
+  LLMRequest,
+  ReadingContext,
+} from '../../core/ports/IBackendGateway';
 
 export type TauriInvokeFn = <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
 
@@ -29,6 +35,19 @@ export interface SerializedHighlight {
   readonly annotations: SerializedRichAnnotation[];
 }
 
+export interface SerializedBookMetadata {
+  readonly bookHash: string;
+  readonly title: string;
+  readonly author: string;
+  readonly format: BookFormat;
+  readonly currentPage: number;
+  readonly totalPages: number;
+  readonly percentage: number;
+  readonly coverImageUrl?: string;
+  readonly lastReadAtMs: number;
+  readonly updatedAtMs: number;
+}
+
 type AnnotationDeserializer = (dto: SerializedRichAnnotation) => IRichAnnotation;
 
 const ANNOTATION_DESERIALIZERS: Record<RichAnnotationType, AnnotationDeserializer> = {
@@ -41,6 +60,36 @@ const ANNOTATION_DESERIALIZERS: Record<RichAnnotationType, AnnotationDeserialize
 
 export class TauriBackendGateway implements IBackendGateway {
   constructor(private readonly invokeFn: TauriInvokeFn) {}
+
+  public async listLibraryBooks(): Promise<BookMetadata[]> {
+    const dtos = await this.invokeFn<SerializedBookMetadata[]>('list_library_books');
+    return dtos.map((dto) => this.deserializeBookMetadata(dto));
+  }
+
+  public async importLibraryBook(input: ImportLibraryBookInput): Promise<BookMetadata> {
+    const dto = await this.invokeFn<SerializedBookMetadata>('import_library_book', {
+      rawBytes: Array.from(input.rawBytes),
+      title: input.title,
+      author: input.author,
+      format: input.format,
+      totalPages: input.totalPages,
+      coverImageUrl: input.coverImageUrl ?? null,
+    });
+    return this.deserializeBookMetadata(dto);
+  }
+
+  public async updateBookProgress(
+    bookHash: string,
+    currentPage: number,
+    totalPages: number
+  ): Promise<BookMetadata> {
+    const dto = await this.invokeFn<SerializedBookMetadata>('update_book_progress', {
+      bookHash,
+      currentPage,
+      totalPages,
+    });
+    return this.deserializeBookMetadata(dto);
+  }
 
   public async loadBookHighlights(bookHash: string): Promise<Highlight[]> {
     const dtos = await this.invokeFn<SerializedHighlight[]>('load_book_highlights', { bookHash });
@@ -73,6 +122,21 @@ export class TauriBackendGateway implements IBackendGateway {
 
   public async syncBookWorkspace(bookHash: string): Promise<string> {
     return this.invokeFn<string>('sync_book_workspace', { bookHash });
+  }
+
+  private deserializeBookMetadata(dto: SerializedBookMetadata): BookMetadata {
+    return {
+      bookHash: dto.bookHash,
+      title: dto.title,
+      author: dto.author,
+      format: dto.format,
+      currentPage: dto.currentPage,
+      totalPages: dto.totalPages,
+      percentage: dto.percentage,
+      coverImageUrl: dto.coverImageUrl,
+      lastReadAt: new Date(dto.lastReadAtMs),
+      updatedAt: new Date(dto.updatedAtMs),
+    };
   }
 
   private serializeHighlight(highlight: Highlight): SerializedHighlight {

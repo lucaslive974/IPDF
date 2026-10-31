@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  type SerializedBookMetadata,
   type SerializedHighlight,
   TauriBackendGateway,
 } from '../../../adapters/ipc/TauriBackendGateway';
@@ -11,11 +12,50 @@ import {
 } from '../../../core/domain/RichAnnotation';
 
 describe('TauriBackendGateway (Rust IPC Bridge)', () => {
-  it('should serialize and deserialize highlights with all rich annotation types across Tauri IPC', async () => {
+  it('should serialize and deserialize highlights and library books across Tauri IPC', async () => {
     const storedDtos = new Map<string, SerializedHighlight>();
+    const storedBooks = new Map<string, SerializedBookMetadata>();
 
     const gateway = new TauriBackendGateway(
       async <T>(cmd: string, args: Record<string, unknown> = {}) => {
+        if (cmd === 'list_library_books') {
+          return Array.from(storedBooks.values()) as unknown as T;
+        }
+        if (cmd === 'import_library_book') {
+          const dto: SerializedBookMetadata = {
+            bookHash: 'sha256-imported-book',
+            title: String(args.title),
+            author: String(args.author),
+            format: 'epub',
+            currentPage: 1,
+            totalPages: Number(args.totalPages),
+            percentage: 1,
+            coverImageUrl: args.coverImageUrl ? String(args.coverImageUrl) : undefined,
+            lastReadAtMs: 1_700_000_000_000,
+            updatedAtMs: 1_700_000_000_000,
+          };
+          storedBooks.set(dto.bookHash, dto);
+          return dto as unknown as T;
+        }
+        if (cmd === 'update_book_progress') {
+          const bookHash = String(args.bookHash);
+          const currentPage = Number(args.currentPage);
+          const totalPages = Number(args.totalPages);
+          const existing = storedBooks.get(bookHash);
+          const updated: SerializedBookMetadata = {
+            bookHash,
+            title: existing?.title ?? 'Book',
+            author: existing?.author ?? 'Author',
+            format: 'epub',
+            currentPage,
+            totalPages,
+            percentage: (currentPage / totalPages) * 100,
+            lastReadAtMs: 1_700_000_100_000,
+            updatedAtMs: 1_700_000_100_000,
+          };
+          storedBooks.set(bookHash, updated);
+          return updated as unknown as T;
+        }
         if (cmd === 'save_highlight') {
           const dto = args.highlight as SerializedHighlight;
           storedDtos.set(dto.id, dto);
@@ -42,6 +82,24 @@ describe('TauriBackendGateway (Rust IPC Bridge)', () => {
         throw new Error(`Unexpected command: ${cmd}`);
       }
     );
+
+    const imported = await gateway.importLibraryBook({
+      rawBytes: new Uint8Array([1, 2, 3]),
+      title: 'Phaedrus',
+      author: 'Plato',
+      format: 'epub',
+      totalPages: 100,
+      coverImageUrl: 'cover://phaedrus.webp',
+    });
+    expect(imported.bookHash).toBe('sha256-imported-book');
+    expect(imported.lastReadAt).toBeInstanceOf(Date);
+
+    const progressed = await gateway.updateBookProgress('sha256-imported-book', 25, 100);
+    expect(progressed.percentage).toBe(25);
+
+    const libraryBooks = await gateway.listLibraryBooks();
+    expect(libraryBooks).toHaveLength(1);
+    expect(libraryBooks[0]?.currentPage).toBe(25);
 
     const original = new Highlight(
       'hl_ipc_1',

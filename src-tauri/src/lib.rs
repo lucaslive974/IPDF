@@ -1,10 +1,14 @@
-use ipdf_core::core::domain::HighlightAnchor;
-use ipdf_core::core::ports::ReadingContext;
-use ipdf_core::core::services::{PromptBuilder, Sha256BookHasher};
+use ipdf_core::adapters::persistence::{SqliteBookRepository, SqliteHighlightRepository};
+use ipdf_core::adapters::storage::LocalFolderStorageAdapter;
+use ipdf_core::core::domain::{BookFormat, BookMetadata, HighlightAnchor};
+use ipdf_core::core::ports::{ReadingContext, StorageProvider};
+use ipdf_core::core::services::{ImportBookInput, LibraryManager, PromptBuilder, Sha256BookHasher};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use std::env;
 use std::io::Cursor;
 use std::sync::Mutex;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::State;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,9 +43,46 @@ pub struct IpcLlmRequestDto {
     pub max_tokens: u32,
 }
 
-#[derive(Default)]
 pub struct BackendState {
     highlights: BTreeMap<String, IpcHighlightDto>,
+    library: LibraryManager<SqliteBookRepository, LocalFolderStorageAdapter>,
+    _highlight_repo: SqliteHighlightRepository,
+}
+
+impl Default for BackendState {
+    fn default() -> Self {
+        let storage_dir = env::temp_dir().join("ipdf-workspace-storage");
+        let mut storage = LocalFolderStorageAdapter::new("local-folder", storage_dir);
+        let _ = storage.initialize();
+        let book_repo =
+            SqliteBookRepository::new_in_memory().expect("Failed to init SQLite BookRepository");
+        let highlight_repo = SqliteHighlightRepository::new_in_memory()
+            .expect("Failed to init SQLite HighlightRepository");
+        let mut library = LibraryManager::new(book_repo, storage);
+
+        let _ = library.import_book(ImportBookInput {
+            raw_bytes: b"PK\x03\x04plato-republic-book-vii".to_vec(),
+            title: "The Republic".to_string(),
+            author: "Plato".to_string(),
+            format: BookFormat::Epub,
+            total_pages: 320,
+            cover_image_url: None,
+            now_ms: current_epoch_ms(),
+        });
+
+        Self {
+            highlights: BTreeMap::new(),
+            library,
+            _highlight_repo: highlight_repo,
+        }
+    }
+}
+
+fn current_epoch_ms() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
 }
 
 #[tauri::command]
@@ -52,6 +93,50 @@ fn healthcheck() -> &'static str {
 #[tauri::command]
 fn compute_book_sha256(bytes: Vec<u8>) -> Result<String, String> {
     Sha256BookHasher::hash_stream(Cursor::new(bytes))
+}
+
+#[tauri::command]
+fn list_library_books(state: State<'_, Mutex<BackendState>>) -> Result<Vec<BookMetadata>, String> {
+    let guard = state.lock().map_err(|e| e.to_string())?;
+    guard.library.list_books()
+}
+
+#[tauri::command]
+fn import_library_book(
+    raw_bytes: Vec<u8>,
+    title: String,
+    author: String,
+    format: BookFormat,
+    total_pages: u32,
+    cover_image_url: Option<String>,
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<BookMetadata, String> {
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    guard.library.import_book(ImportBookInput {
+        raw_bytes,
+        title,
+        author,
+        format,
+        total_pages,
+        cover_image_url,
+        now_ms: current_epoch_ms(),
+    })
+}
+
+#[tauri::command]
+fn update_book_progress(
+    book_hash: String,
+    current_page: u32,
+    total_pages: u32,
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<BookMetadata, String> {
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    guard.library.update_reading_progress(
+        &book_hash,
+        current_page,
+        total_pages,
+        current_epoch_ms(),
+    )
 }
 
 #[tauri::command]
@@ -148,6 +233,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             healthcheck,
             compute_book_sha256,
+            list_library_books,
+            import_library_book,
+            update_book_progress,
             load_book_highlights,
             save_highlight,
             delete_highlight,

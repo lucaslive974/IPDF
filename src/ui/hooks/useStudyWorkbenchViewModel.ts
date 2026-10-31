@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { BookMetadata } from '../../core/domain/BookMetadata';
 import type { Highlight } from '../../core/domain/Highlight';
 import type { AnnotationFormatterMap } from '../../core/domain/RichAnnotation';
 import type { TextFormatStyle } from '../../core/domain/types';
@@ -51,6 +52,9 @@ const ANNOTATION_FORMATTERS: AnnotationFormatterMap<string> = {
 
 export interface StudyWorkbenchViewModel {
   readonly document: StudyDocumentDescriptor;
+  readonly libraryBooks: BookMetadata[];
+  readonly currentPage: number;
+  readonly totalPages: number;
   readonly highlights: Highlight[];
   readonly selectedId: string | null;
   readonly noteInput: string;
@@ -65,12 +69,18 @@ export interface StudyWorkbenchViewModel {
   attachVisualBoard(kind: 'tldraw' | 'drawio'): Promise<void>;
   generateContextualPrompt(): Promise<void>;
   runCloudlessSync(): Promise<void>;
+  importSampleEpubBook(): Promise<void>;
+  navigatePage(delta: number): Promise<void>;
 }
 
 export function useStudyWorkbenchViewModel(
   document: StudyDocumentDescriptor = DEFAULT_DOCUMENT
 ): StudyWorkbenchViewModel {
   const { annotationWorkbench, backendGateway } = useServiceContainer();
+
+  const [libraryBooks, setLibraryBooks] = useState<BookMetadata[]>([]);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const totalPages = 320;
 
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -87,8 +97,8 @@ export function useStudyWorkbenchViewModel(
   const [llmPromptPreview, setLlmPromptPreview] = useState<string>('');
 
   const refreshState = useCallback(
-    async (activeHighlightId?: string | null) => {
-      const pageHighlights = annotationWorkbench.getForPage(1);
+    async (activeHighlightId?: string | null, pageNum = 1) => {
+      const pageHighlights = annotationWorkbench.getForPage(pageNum);
       setHighlights([...pageHighlights]);
 
       const targetId = activeHighlightId ?? selectedIdRef.current ?? pageHighlights[0]?.id ?? null;
@@ -113,6 +123,10 @@ export function useStudyWorkbenchViewModel(
   useEffect(() => {
     let cancelled = false;
     const initializeBookSession = async () => {
+      const books = await backendGateway.listLibraryBooks();
+      if (!cancelled) {
+        setLibraryBooks(books);
+      }
       await annotationWorkbench.loadBookHighlights(document.bookHash);
       if (cancelled) {
         return;
@@ -131,23 +145,23 @@ export function useStudyWorkbenchViewModel(
           'Transition from sensory opinion to pure intellection'
         );
         if (!cancelled) {
-          await refreshState(created.id);
+          await refreshState(created.id, 1);
         }
       } else if (!cancelled) {
-        await refreshState(existing[0]?.id);
+        await refreshState(existing[0]?.id, 1);
       }
     };
     void initializeBookSession();
     return () => {
       cancelled = true;
     };
-  }, [annotationWorkbench, document, refreshState]);
+  }, [annotationWorkbench, backendGateway, document, refreshState]);
 
   const selectHighlight = useCallback(
     async (highlightId: string) => {
-      await refreshState(highlightId);
+      await refreshState(highlightId, currentPage);
     },
-    [refreshState]
+    [currentPage, refreshState]
   );
 
   const updateNoteDraft = useCallback(
@@ -165,11 +179,11 @@ export function useStudyWorkbenchViewModel(
             setFormattedAnnotations(
               annotationWorkbench.formatHighlightAnnotations(currentId, ANNOTATION_FORMATTERS)
             );
-            setHighlights([...annotationWorkbench.getForPage(1)]);
+            setHighlights([...annotationWorkbench.getForPage(currentPage)]);
           });
       }
     },
-    [annotationWorkbench]
+    [annotationWorkbench, currentPage]
   );
 
   const updateSelectionRange = useCallback((start: number, end: number) => {
@@ -194,7 +208,7 @@ export function useStudyWorkbenchViewModel(
           surroundingContext: document.sampleParagraph,
           anchor: {
             format: 'epub',
-            pageNumber: 1,
+            pageNumber: currentPage,
             epubCfi: `epubcfi(/6/14!/4/2/${Date.now()}_${excerptCounterRef.current})`,
           },
           clientRect: createEmptyRect(),
@@ -205,9 +219,9 @@ export function useStudyWorkbenchViewModel(
       if (typeof window !== 'undefined') {
         window.getSelection()?.removeAllRanges();
       }
-      await refreshState(created.id);
+      await refreshState(created.id, currentPage);
     },
-    [annotationWorkbench, document, refreshState]
+    [annotationWorkbench, currentPage, document, refreshState]
   );
 
   const applyAssistedFormat = useCallback(
@@ -234,9 +248,9 @@ export function useStudyWorkbenchViewModel(
         formatStyle: style,
       });
       setSelectionRange({ start: 0, end: 0 });
-      await refreshState(activeId);
+      await refreshState(activeId, currentPage);
     },
-    [annotationWorkbench, noteInput, refreshState, selectionRange]
+    [annotationWorkbench, currentPage, noteInput, refreshState, selectionRange]
   );
 
   const attachVisualBoard = useCallback(
@@ -261,9 +275,9 @@ export function useStudyWorkbenchViewModel(
           svgPreview: '<svg viewBox="0 0 120 40"><text>draw.io: Divided Line</text></svg>',
         });
       }
-      await refreshState(activeId);
+      await refreshState(activeId, currentPage);
     },
-    [annotationWorkbench, refreshState]
+    [annotationWorkbench, currentPage, refreshState]
   );
 
   const generateContextualPrompt = useCallback(async () => {
@@ -287,8 +301,36 @@ export function useStudyWorkbenchViewModel(
     setSyncExportPreview(exportedJson);
   }, [backendGateway, document.bookHash]);
 
+  const importSampleEpubBook = useCallback(async () => {
+    const rawBytes = new TextEncoder().encode('PK\x03\x04kant-critique-pure-reason');
+    await backendGateway.importLibraryBook({
+      rawBytes,
+      title: 'Critique of Pure Reason',
+      author: 'Immanuel Kant',
+      format: 'epub',
+      totalPages: 480,
+    });
+    const books = await backendGateway.listLibraryBooks();
+    setLibraryBooks(books);
+  }, [backendGateway]);
+
+  const navigatePage = useCallback(
+    async (delta: number) => {
+      const next = Math.max(1, Math.min(totalPages, currentPage + delta));
+      setCurrentPage(next);
+      await backendGateway.updateBookProgress(document.bookHash, next, totalPages);
+      const books = await backendGateway.listLibraryBooks();
+      setLibraryBooks(books);
+      await refreshState(null, next);
+    },
+    [backendGateway, currentPage, document.bookHash, refreshState]
+  );
+
   return {
     document,
+    libraryBooks,
+    currentPage,
+    totalPages,
     highlights,
     selectedId,
     noteInput,
@@ -303,5 +345,7 @@ export function useStudyWorkbenchViewModel(
     attachVisualBoard,
     generateContextualPrompt,
     runCloudlessSync,
+    importSampleEpubBook,
+    navigatePage,
   };
 }
