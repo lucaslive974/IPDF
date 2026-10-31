@@ -1,51 +1,19 @@
-import { useState } from 'react';
+import { useNavigation } from '../hooks/useNavigation';
+import { useSettings } from '../hooks/useSettings';
 import { useTheme } from '../hooks/useTheme';
 import { Badge, Button, Card, IconButton, Input } from './ui';
 
-export interface SettingsViewProps {
-  readonly syncExportPreview: string;
-  readonly onRunCloudlessSync: () => void;
-  readonly onBackToLibrary: () => void;
-}
-
-export function SettingsView({
-  syncExportPreview,
-  onRunCloudlessSync,
-  onBackToLibrary,
-}: SettingsViewProps) {
+export function SettingsView() {
   const { theme, setTheme } = useTheme();
-  const [monitoredFolders, setMonitoredFolders] = useState<string[]>([
-    '~/Documents/PhilosophyBooks',
-    '~/.var/app/com.ipdf.reader/data/books',
-  ]);
-  const [newFolderInput, setNewFolderInput] = useState('');
-  const [isDriveConnected, setIsDriveConnected] = useState(true);
-  const [syncStatusMessage, setSyncStatusMessage] = useState<string | null>(null);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-
-  const handleAddFolder = () => {
-    if (newFolderInput.trim().length > 0) {
-      setMonitoredFolders((prev) => [...prev, newFolderInput.trim()]);
-      setNewFolderInput('');
-    }
-  };
-
-  const handleRemoveFolder = (index: number) => {
-    setMonitoredFolders((prev) => prev.filter((_, idx) => idx !== index));
-  };
-
-  const handleTriggerSync = () => {
-    onRunCloudlessSync();
-    setSyncStatusMessage('Last-Write-Wins synchronization completed successfully!');
-    setTimeout(() => setSyncStatusMessage(null), 4000);
-  };
+  const navigation = useNavigation();
+  const settings = useSettings();
 
   return (
     <div className="min-h-screen bg-canvas text-tx-main flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line-subtle bg-surface/80 px-6 py-4 backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" iconLeft="←" onClick={onBackToLibrary}>
+          <Button variant="outline" size="sm" iconLeft="←" onClick={navigation.closeSettings}>
             Back to Library
           </Button>
           <h1 className="text-base font-bold text-tx-main">Settings &amp; Preferences</h1>
@@ -124,7 +92,7 @@ export function SettingsView({
           </div>
 
           <div className="flex flex-col gap-2">
-            {monitoredFolders.map((folder, idx) => (
+            {settings.monitoredFolders.map((folder, idx) => (
               <Card
                 key={`folder-${idx + 1}`}
                 variant="subtle"
@@ -137,7 +105,7 @@ export function SettingsView({
                   variant="ghost"
                   size="xs"
                   label="Remove folder"
-                  onClick={() => handleRemoveFolder(idx)}
+                  onClick={() => settings.removeFolder(idx)}
                 >
                   ✕
                 </IconButton>
@@ -149,10 +117,10 @@ export function SettingsView({
             <Input
               containerClassName="flex-1"
               placeholder="e.g. /home/user/Ebooks or C:\Books"
-              value={newFolderInput}
-              onChange={(e) => setNewFolderInput(e.target.value)}
+              value={settings.newFolderInput}
+              onChange={(e) => settings.setNewFolderInput(e.target.value)}
             />
-            <Button variant="secondary" size="md" onClick={handleAddFolder}>
+            <Button variant="secondary" size="md" onClick={settings.addFolder}>
               + Add Folder
             </Button>
           </div>
@@ -171,8 +139,8 @@ export function SettingsView({
                 conflict resolution:
               </p>
             </div>
-            <Badge variant={isDriveConnected ? 'success' : 'neutral'} size="xs">
-              {isDriveConnected ? 'Drive Connected' : 'Disconnected'}
+            <Badge variant={settings.isDriveConnected ? 'success' : 'neutral'} size="xs">
+              {settings.isDriveConnected ? 'Drive Connected' : 'Disconnected'}
             </Badge>
           </div>
 
@@ -191,32 +159,28 @@ export function SettingsView({
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="primary" size="sm" onClick={handleTriggerSync}>
+              <Button variant="primary" size="sm" onClick={() => void settings.triggerSync()}>
                 Sync Now
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsDriveConnected((prev) => !prev)}
-              >
-                {isDriveConnected ? 'Disconnect' : 'Connect'}
+              <Button variant="outline" size="sm" onClick={settings.toggleDriveConnection}>
+                {settings.isDriveConnected ? 'Disconnect' : 'Connect'}
               </Button>
             </div>
           </Card>
 
-          {syncStatusMessage && (
+          {settings.syncStatusMessage && (
             <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-600 dark:text-emerald-300 transition-opacity duration-200">
-              {syncStatusMessage}
+              {settings.syncStatusMessage}
             </div>
           )}
 
-          {syncExportPreview && (
+          {settings.syncExportPreview && (
             <div className="flex flex-col gap-1.5">
               <span className="text-xs font-semibold text-tx-muted">
                 Last Sync Payload Preview (LWW Engine):
               </span>
               <pre className="max-h-36 overflow-y-auto rounded-lg border border-line-subtle bg-surface-subtle p-3 font-mono text-[0.7rem] text-tx-secondary">
-                {syncExportPreview}
+                {settings.syncExportPreview}
               </pre>
             </div>
           )}
@@ -241,7 +205,7 @@ export function SettingsView({
               padding="sm"
               rounded="xl"
               className="flex flex-col gap-1 text-left"
-              onClick={handleTriggerSync}
+              onClick={() => void settings.triggerSync()}
             >
               <span className="text-xs font-bold text-tx-main">Export Highlights Backup</span>
               <span className="text-[0.7rem] text-tx-muted">
@@ -254,7 +218,7 @@ export function SettingsView({
               padding="sm"
               rounded="xl"
               className="flex flex-col gap-1 text-left"
-              onClick={handleTriggerSync}
+              onClick={() => void settings.triggerSync()}
             >
               <span className="text-xs font-bold text-tx-main">Import Highlights Backup</span>
               <span className="text-[0.7rem] text-tx-muted">
@@ -280,9 +244,13 @@ export function SettingsView({
             </p>
           </div>
 
-          {!showResetConfirm ? (
+          {!settings.showResetConfirm ? (
             <div>
-              <Button variant="danger-subtle" size="md" onClick={() => setShowResetConfirm(true)}>
+              <Button
+                variant="danger-subtle"
+                size="md"
+                onClick={() => settings.setShowResetConfirm(true)}
+              >
                 Reset App Data &amp; Cache
               </Button>
             </div>
@@ -295,13 +263,17 @@ export function SettingsView({
                 variant="danger"
                 size="sm"
                 onClick={() => {
-                  setShowResetConfirm(false);
+                  void settings.resetDatabase();
                   alert('App data reset simulator triggered.');
                 }}
               >
                 Yes, Reset All
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setShowResetConfirm(false)}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => settings.setShowResetConfirm(false)}
+              >
                 Cancel
               </Button>
             </div>

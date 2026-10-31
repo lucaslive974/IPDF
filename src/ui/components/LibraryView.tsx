@@ -1,25 +1,32 @@
 import { useState } from 'react';
 import type { BookMetadata } from '../../core/domain/BookMetadata';
-import type { Highlight } from '../../core/domain/Highlight';
+import { useLibrary } from '../hooks/useLibrary';
+import { useNavigation } from '../hooks/useNavigation';
 import { useTheme } from '../hooks/useTheme';
 import { Badge, Button, Card, IconButton, Input } from './ui';
 
 export interface LibraryViewProps {
-  readonly books: BookMetadata[];
-  readonly highlights: Highlight[];
-  readonly onOpenBook: (book: BookMetadata) => void;
-  readonly onImportNewBook: () => void;
-  readonly onOpenSettings: () => void;
+  readonly books?: BookMetadata[];
+  readonly onOpenBook?: (book: BookMetadata) => void;
+  readonly onImportNewBook?: () => void;
+  readonly onOpenSettings?: () => void;
 }
 
 export function LibraryView({
-  books,
-  highlights,
-  onOpenBook,
-  onImportNewBook,
-  onOpenSettings,
-}: LibraryViewProps) {
+  books: propBooks,
+  onOpenBook: propOnOpenBook,
+  onImportNewBook: propOnImportNewBook,
+  onOpenSettings: propOnOpenSettings,
+}: LibraryViewProps = {}) {
+  const library = useLibrary();
+  const navigation = useNavigation();
   const { theme, toggleTheme } = useTheme();
+
+  const books = propBooks ?? library.books;
+  const onOpenBook = propOnOpenBook ?? navigation.openReader;
+  const onImportNewBook = propOnImportNewBook ?? library.importSampleBook;
+  const onOpenSettings = propOnOpenSettings ?? navigation.openSettings;
+
   const [activeTab, setActiveTab] = useState<'recents' | 'all' | 'highlights' | 'lists'>('recents');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -104,7 +111,7 @@ export function LibraryView({
               size="sm"
               onClick={() => setActiveTab('highlights')}
             >
-              🖍️ Bookmarks ({highlights.length})
+              🖍️ Bookmarks
             </Button>
             <Button
               variant={activeTab === 'lists' ? 'outline' : 'ghost'}
@@ -168,54 +175,12 @@ export function LibraryView({
           </div>
         )}
 
-        {/* Tab 3: Highlights List */}
+        {/* Tab 3: Bookmarks / Highlights List */}
         {activeTab === 'highlights' && (
           <div className="flex flex-col gap-3">
-            {highlights.length === 0 ? (
-              <Card variant="dashed" padding="lg" className="text-center text-sm text-tx-muted">
-                No highlights created yet. Open a book to start active study annotations!
-              </Card>
-            ) : (
-              highlights.map((hl) => (
-                <Card
-                  key={hl.id}
-                  variant="surface"
-                  padding="sm"
-                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-                >
-                  <div className="flex items-start gap-3">
-                    <span
-                      className="mt-1 h-3 w-3 shrink-0 rounded-full"
-                      style={{ backgroundColor: hl.color }}
-                    />
-                    <div className="flex flex-col gap-1">
-                      <p className="text-sm italic text-tx-main">&ldquo;{hl.text}&rdquo;</p>
-                      {hl.note && (
-                        <p className="text-xs text-tx-muted">
-                          <span className="font-semibold text-tx-secondary">Note:</span> {hl.note}
-                        </p>
-                      )}
-                      <span className="text-[0.65rem] text-tx-faint">
-                        Page {hl.anchor.pageNumber} &bull; {hl.anchor.format.toUpperCase()}
-                      </span>
-                    </div>
-                  </div>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="self-end sm:self-center shrink-0"
-                    onClick={() => {
-                      const book = books[0];
-                      if (book) {
-                        onOpenBook(book);
-                      }
-                    }}
-                  >
-                    Open in Passage &rarr;
-                  </Button>
-                </Card>
-              ))
-            )}
+            <Card variant="dashed" padding="lg" className="text-center text-sm text-tx-muted">
+              Bookmarks and passage annotations are indexed within active study reading sessions.
+            </Card>
           </div>
         )}
 

@@ -1,61 +1,14 @@
 import { useEffect, useRef } from 'react';
-import type { Highlight } from '../../core/domain/Highlight';
-import type {
-  ActiveHighlightPopoverState,
-  SelectionPopoverState,
-  StudyDocumentDescriptor,
-} from '../hooks/studyWorkbenchTypes';
+import { useNavigation } from '../hooks/useNavigation';
+import { useReader } from '../hooks/useReader';
+import { HighlightDetailModal } from './HighlightDetailModal';
 import { HighlightPopover } from './HighlightPopover';
 import { SelectionActionMenu } from './SelectionActionMenu';
-import { Button, Card, IconButton } from './ui';
+import { Button, IconButton } from './ui';
 
-export interface ReaderViewProps {
-  readonly document: StudyDocumentDescriptor;
-  readonly currentPage: number;
-  readonly totalPages: number;
-  readonly highlights: Highlight[];
-  readonly selectionPopover: SelectionPopoverState | null;
-  readonly activeHighlightPopover: ActiveHighlightPopoverState | null;
-  readonly noteDraft: string;
-  readonly onBackToLibrary: () => void;
-  readonly onOpenSettings: () => void;
-  readonly onNavigatePage: (delta: number) => void;
-  readonly onSelectText: (state: SelectionPopoverState | null) => void;
-  readonly onHighlightClick: (highlight: Highlight, coords: { x: number; y: number }) => void;
-  readonly onCloseHighlightPopover: () => void;
-  readonly onCreateHighlight: (colorHex: string) => void;
-  readonly onChangeHighlightColor: (highlightId: string, colorHex: string) => void;
-  readonly onDeleteHighlight: (highlightId: string) => void;
-  readonly onNoteChange: (text: string) => void;
-  readonly onExpandHighlight: () => void;
-  readonly onExplainSelection: () => void;
-  readonly onDefineSelection: () => void;
-  readonly onTranslateSelection: () => void;
-}
-
-export function ReaderView({
-  document,
-  currentPage,
-  totalPages,
-  highlights,
-  selectionPopover,
-  activeHighlightPopover,
-  noteDraft,
-  onBackToLibrary,
-  onOpenSettings,
-  onNavigatePage,
-  onSelectText,
-  onHighlightClick,
-  onCloseHighlightPopover,
-  onCreateHighlight,
-  onChangeHighlightColor,
-  onDeleteHighlight,
-  onNoteChange,
-  onExpandHighlight,
-  onExplainSelection,
-  onDefineSelection,
-  onTranslateSelection,
-}: ReaderViewProps) {
+export function ReaderView() {
+  const reader = useReader();
+  const navigation = useNavigation();
   const contentAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -68,7 +21,7 @@ export function ReaderView({
       if (text.length > 0) {
         const range = selection.getRangeAt(0);
         const rect = range.getBoundingClientRect();
-        onSelectText({
+        reader.setSelectionPopover({
           text,
           x: rect.left + rect.width / 2,
           y: rect.top,
@@ -85,23 +38,23 @@ export function ReaderView({
         container.removeEventListener('mouseup', handleMouseUp);
       }
     };
-  }, [onSelectText]);
+  }, [reader.setSelectionPopover]);
 
-  const percentage = Math.round((currentPage / totalPages) * 100);
+  const percentage = Math.round((reader.currentPage / reader.totalPages) * 100);
 
   return (
     <div className="relative min-h-screen bg-canvas text-tx-main flex flex-col justify-between selection:bg-amber-300/40 selection:text-amber-900 dark:selection:bg-amber-400/30 dark:selection:text-amber-200">
       {/* 1. Minimal distraction-free Header */}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-line-subtle bg-surface/80 px-6 py-3 backdrop-blur-md transition-all">
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" iconLeft="←" onClick={onBackToLibrary}>
+          <Button variant="outline" size="sm" iconLeft="←" onClick={navigation.closeReader}>
             Library
           </Button>
           <div className="hidden sm:flex flex-col">
             <span className="text-xs font-semibold text-tx-main">
-              {document.bookAuthor} &mdash; {document.bookTitle}
+              {reader.document.bookAuthor} &mdash; {reader.document.bookTitle}
             </span>
-            <span className="text-[0.7rem] text-tx-muted">{document.chapterTitle}</span>
+            <span className="text-[0.7rem] text-tx-muted">{reader.document.chapterTitle}</span>
           </div>
         </div>
 
@@ -110,10 +63,15 @@ export function ReaderView({
             <span className="font-mono text-sky-600 dark:text-sky-400">{percentage}%</span>
             <span className="text-tx-faint">&bull;</span>
             <span className="text-tx-muted">
-              Page {currentPage} of {totalPages}
+              Page {reader.currentPage} of {reader.totalPages}
             </span>
           </div>
-          <IconButton variant="outline" size="sm" label="Settings" onClick={onOpenSettings}>
+          <IconButton
+            variant="outline"
+            size="sm"
+            label="Settings"
+            onClick={navigation.openSettings}
+          >
             ⚙️
           </IconButton>
         </div>
@@ -124,10 +82,10 @@ export function ReaderView({
         <div className="w-full max-w-2xl flex flex-col gap-8">
           <div className="text-center">
             <h1 className="text-2xl font-serif font-bold text-tx-main sm:text-3xl tracking-tight">
-              {document.chapterTitle}
+              {reader.document.chapterTitle}
             </h1>
             <p className="mt-1 text-xs text-tx-muted tracking-wider uppercase font-semibold">
-              {document.bookAuthor} &bull; {document.bookTitle}
+              {reader.document.bookAuthor} &bull; {reader.document.bookTitle}
             </p>
           </div>
 
@@ -135,7 +93,7 @@ export function ReaderView({
             ref={contentAreaRef}
             className="rounded-2xl border border-line-subtle bg-surface p-6 sm:p-10 text-lg leading-relaxed text-tx-main font-serif tracking-normal shadow-xs"
           >
-            <p className="indent-6 mb-6">{document.sampleParagraph}</p>
+            <p className="indent-6 mb-6">{reader.document.sampleParagraph}</p>
 
             <p className="indent-6">
               And if they were in the habit of conferring honours among themselves on those who were
@@ -146,20 +104,20 @@ export function ReaderView({
             </p>
 
             {/* Render active page highlights */}
-            {highlights.length > 0 && (
+            {reader.highlights.length > 0 && (
               <div className="mt-8 border-t border-line-subtle pt-4 flex flex-col gap-2">
                 <span className="text-[0.7rem] uppercase tracking-wider font-semibold text-tx-muted">
-                  Highlights on this page ({highlights.length})
+                  Highlights on this page ({reader.highlights.length})
                 </span>
                 <div className="flex flex-wrap gap-2">
-                  {highlights.map((hl) => (
+                  {reader.highlights.map((hl) => (
                     <Button
                       key={hl.id}
                       variant="secondary"
                       size="xs"
                       onClick={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
-                        onHighlightClick(hl, {
+                        reader.openHighlightPopover(hl, {
                           x: rect.left + rect.width / 2,
                           y: rect.top,
                         });
@@ -186,8 +144,8 @@ export function ReaderView({
           <Button
             variant="ghost"
             size="xs"
-            disabled={currentPage <= 1}
-            onClick={() => onNavigatePage(-1)}
+            disabled={reader.currentPage <= 1}
+            onClick={() => void reader.navigatePage(-1)}
           >
             &larr; Prev
           </Button>
@@ -195,7 +153,7 @@ export function ReaderView({
           <span className="text-tx-faint">|</span>
 
           <span className="font-mono text-tx-secondary">
-            {currentPage} / {totalPages}
+            {reader.currentPage} / {reader.totalPages}
           </span>
 
           <span className="text-tx-faint">|</span>
@@ -203,8 +161,8 @@ export function ReaderView({
           <Button
             variant="ghost"
             size="xs"
-            disabled={currentPage >= totalPages}
-            onClick={() => onNavigatePage(1)}
+            disabled={reader.currentPage >= reader.totalPages}
+            onClick={() => void reader.navigatePage(1)}
           >
             Next &rarr;
           </Button>
@@ -212,33 +170,60 @@ export function ReaderView({
       </footer>
 
       {/* Floating Selection Action Popover Menu */}
-      {selectionPopover && (
+      {reader.selectionPopover && (
         <SelectionActionMenu
-          text={selectionPopover.text}
-          x={selectionPopover.x}
-          y={selectionPopover.y}
-          onHighlight={(color) => onCreateHighlight(color)}
-          onExplain={onExplainSelection}
-          onDefineTerm={onDefineSelection}
-          onTranslate={onTranslateSelection}
-          onClose={() => onSelectText(null)}
+          text={reader.selectionPopover.text}
+          x={reader.selectionPopover.x}
+          y={reader.selectionPopover.y}
+          onHighlight={(color) => void reader.createHighlightWithColor(color)}
+          onExplain={() => void reader.generateContextualPrompt()}
+          onDefineTerm={() => void reader.generateContextualPrompt('Define philosophical term')}
+          onTranslate={() =>
+            void reader.generateContextualPrompt('Translate passage into Portuguese')
+          }
+          onClose={() => reader.setSelectionPopover(null)}
         />
       )}
 
       {/* Floating Highlight Quick Popover */}
-      {activeHighlightPopover && (
+      {reader.activeHighlightPopover && (
         <HighlightPopover
-          highlight={activeHighlightPopover.highlight}
-          x={activeHighlightPopover.x}
-          y={activeHighlightPopover.y}
-          noteDraft={noteDraft}
-          onNoteChange={onNoteChange}
+          highlight={reader.activeHighlightPopover.highlight}
+          x={reader.activeHighlightPopover.x}
+          y={reader.activeHighlightPopover.y}
+          noteDraft={reader.noteInput}
+          onNoteChange={reader.updateNoteDraft}
           onChangeColor={(color) =>
-            onChangeHighlightColor(activeHighlightPopover.highlight.id, color)
+            void reader.changeHighlightColor(
+              reader.activeHighlightPopover?.highlight.id ?? '',
+              color
+            )
           }
-          onDelete={() => onDeleteHighlight(activeHighlightPopover.highlight.id)}
-          onExpand={onExpandHighlight}
-          onClose={onCloseHighlightPopover}
+          onDelete={() =>
+            void reader.deleteHighlight(reader.activeHighlightPopover?.highlight.id ?? '')
+          }
+          onExpand={() => {
+            if (reader.activeHighlightPopover) {
+              reader.openExpandedStudio(reader.activeHighlightPopover.highlight);
+            }
+          }}
+          onClose={reader.closeHighlightPopover}
+        />
+      )}
+
+      {/* Expanded Studio Modal */}
+      {reader.expandedHighlight && (
+        <HighlightDetailModal
+          highlight={reader.expandedHighlight}
+          noteInput={reader.noteInput}
+          formattedAnnotations={reader.formattedAnnotations}
+          llmPromptPreview={reader.llmPromptPreview}
+          onNoteChange={reader.updateNoteDraft}
+          onSelectionChange={reader.updateSelectionRange}
+          onApplyFormat={(style) => void reader.applyAssistedFormat(style)}
+          onAttachBoard={(kind) => void reader.attachVisualBoard(kind)}
+          onGeneratePrompt={() => void reader.generateContextualPrompt()}
+          onClose={reader.closeExpandedStudio}
         />
       )}
     </div>
