@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { IconButton } from './IconButton';
+import { CloseIcon } from './icons';
 
 export interface ModalProps {
   readonly isOpen: boolean;
@@ -25,18 +26,18 @@ export function Modal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-md p-4 transition-opacity duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4 transition-opacity duration-200">
       <div
-        className={`relative flex h-[88vh] w-full ${maxWidth} flex-col rounded-2xl border border-line-subtle bg-surface shadow-2xl overflow-hidden`}
+        className={`relative flex h-[88vh] w-full ${maxWidth} flex-col rounded-xl border border-line-subtle bg-surface shadow-2xl overflow-hidden`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-line-subtle bg-surface/90 px-6 py-4 shrink-0">
+        <div className="flex items-center justify-between border-b border-line-subtle bg-surface px-6 py-4 shrink-0">
           <div>
-            <h3 className="text-base font-bold text-tx-main">{title}</h3>
+            <h3 className="text-base font-semibold text-tx-main tracking-tight">{title}</h3>
             {subtitle && <div className="mt-0.5 text-xs text-tx-muted">{subtitle}</div>}
           </div>
-          <IconButton variant="subtle" size="sm" label="Close" onClick={onClose}>
-            ✕
+          <IconButton variant="ghost" size="xs" label="Close" onClick={onClose}>
+            <CloseIcon className="h-4 w-4" />
           </IconButton>
         </div>
 

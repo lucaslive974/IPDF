@@ -10,16 +10,16 @@ export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 }
 
 const VARIANT_CLASSES: Record<BadgeVariant, string> = {
-  brand: 'border border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400',
-  success: 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-  warning: 'border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400',
-  neutral: 'border border-line-subtle bg-surface-subtle text-tx-secondary',
-  faint: 'border border-line-subtle bg-transparent text-tx-faint',
+  brand: 'border border-line-strong bg-surface-subtle text-tx-main',
+  success: 'border border-emerald-600/20 bg-emerald-600/10 text-emerald-700 dark:text-emerald-300',
+  warning: 'border border-amber-600/20 bg-amber-600/10 text-amber-700 dark:text-amber-300',
+  neutral: 'border border-line-subtle bg-surface-subtle/70 text-tx-secondary',
+  faint: 'border border-line-subtle/60 bg-transparent text-tx-muted',
 };
 
 const SIZE_CLASSES: Record<BadgeSize, string> = {
-  xs: 'px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wider rounded-full',
-  sm: 'px-2.5 py-1 text-xs font-semibold rounded-full',
+  xs: 'px-2 py-0.5 text-[0.65rem] font-medium tracking-wide rounded-full',
+  sm: 'px-2.5 py-0.5 text-xs font-medium rounded-full',
 };
 
 export function Badge({

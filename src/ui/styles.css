@@ -4,34 +4,36 @@
 
 :root,
 [data-theme="light"] {
-  --color-canvas: #f8fafc;
+  /* Apple Warm Paper aesthetic: soft, relaxing off-white for zero eye fatigue */
+  --color-canvas: #faf8f5;
   --color-surface: #ffffff;
-  --color-surface-subtle: #f1f5f9;
-  --color-surface-hover: #e2e8f0;
-  --color-line-subtle: #e2e8f0;
-  --color-line-strong: #cbd5e1;
-  --color-tx-main: #0f172a;
-  --color-tx-secondary: #334155;
-  --color-tx-muted: #64748b;
-  --color-tx-faint: #94a3b8;
-  --color-brand: #0284c7;
-  --color-brand-hover: #0369a1;
+  --color-surface-subtle: #f2efe9;
+  --color-surface-hover: #eae6dd;
+  --color-line-subtle: #e8e4dc;
+  --color-line-strong: #d5cfc5;
+  --color-tx-main: #1c1b1a;
+  --color-tx-secondary: #57534e;
+  --color-tx-muted: #847e76;
+  --color-tx-faint: #b4afa6;
+  --color-brand: #1c1b1a;
+  --color-brand-hover: #383532;
 }
 
 .dark,
 [data-theme="dark"] {
-  --color-canvas: #020617;
-  --color-surface: #0f172a;
-  --color-surface-subtle: #1e293b;
-  --color-surface-hover: #334155;
-  --color-line-subtle: #1e293b;
-  --color-line-strong: #334155;
-  --color-tx-main: #f8fafc;
-  --color-tx-secondary: #cbd5e1;
-  --color-tx-muted: #94a3b8;
-  --color-tx-faint: #64748b;
-  --color-brand: #38bdf8;
-  --color-brand-hover: #7dd3fc;
+  /* Apple Warm Graphite aesthetic: deep warm charcoal, not harsh cold blue */
+  --color-canvas: #151413;
+  --color-surface: #1e1d1c;
+  --color-surface-subtle: #282625;
+  --color-surface-hover: #343230;
+  --color-line-subtle: #2d2b29;
+  --color-line-strong: #403d3a;
+  --color-tx-main: #f5f2eb;
+  --color-tx-secondary: #c7c2b8;
+  --color-tx-muted: #8a857c;
+  --color-tx-faint: #5a5650;
+  --color-brand: #f5f2eb;
+  --color-brand-hover: #dcd8cf;
 }
 
 @theme {

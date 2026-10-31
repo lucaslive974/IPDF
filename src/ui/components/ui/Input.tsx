@@ -1,4 +1,5 @@
 import type { InputHTMLAttributes, ReactNode } from 'react';
+import { CloseIcon } from './icons';
 
 export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> {
   readonly iconLeft?: ReactNode;
@@ -21,13 +22,13 @@ export function Input({
   return (
     <div className={`flex flex-col gap-1 ${containerClassName}`.trim()}>
       <div
-        className={`flex items-center rounded-xl border bg-surface-subtle px-3 py-1.5 transition ${
+        className={`flex items-center rounded-lg border bg-surface-subtle/80 px-3 py-1.5 transition ${
           error
-            ? 'border-rose-500 focus-within:border-rose-500'
-            : 'border-line-subtle focus-within:border-brand'
+            ? 'border-red-500 focus-within:border-red-500'
+            : 'border-line-subtle focus-within:border-line-strong'
         }`}
       >
-        {iconLeft && <span className="mr-2 text-xs text-tx-faint shrink-0">{iconLeft}</span>}
+        {iconLeft && <span className="mr-2 text-tx-muted shrink-0">{iconLeft}</span>}
         <input
           value={value}
           className={`w-full bg-transparent text-xs text-tx-main placeholder:text-tx-faint focus:outline-none ${className}`.trim()}
@@ -36,14 +37,15 @@ export function Input({
         {onClear && hasValue && (
           <button
             type="button"
-            className="ml-1 text-xs text-tx-faint hover:text-tx-main cursor-pointer"
+            className="ml-1 p-0.5 text-tx-faint hover:text-tx-main cursor-pointer"
             onClick={onClear}
+            aria-label="Clear input"
           >
-            ✕
+            <CloseIcon className="h-3 w-3" />
           </button>
         )}
       </div>
-      {error && <span className="text-[0.65rem] text-rose-500 font-medium px-1">{error}</span>}
+      {error && <span className="text-[0.65rem] text-red-500 font-medium px-1">{error}</span>}
     </div>
   );
 }

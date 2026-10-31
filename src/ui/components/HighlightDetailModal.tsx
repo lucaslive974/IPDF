@@ -45,43 +45,40 @@ export function HighlightDetailModal({
   return (
     <Modal isOpen={true} title={titleNode} subtitle={subtitleNode} onClose={onClose}>
       {/* Tab switcher */}
-      <div className="flex border-b border-line-subtle -mx-6 -mt-6 px-6 bg-surface-subtle/50 mb-6">
-        <Button
-          variant="ghost"
-          size="sm"
-          className={`rounded-none border-b-2 ${
+      <div className="flex border-b border-line-subtle -mx-6 -mt-6 px-6 bg-surface-subtle/40 mb-6">
+        <button
+          type="button"
+          className={`px-4 py-2.5 text-xs font-medium border-b-2 transition cursor-pointer ${
             activeTab === 'text'
-              ? 'border-brand text-brand hover:text-brand'
+              ? 'border-tx-main text-tx-main'
               : 'border-transparent text-tx-muted hover:text-tx-main'
           }`}
           onClick={() => setActiveTab('text')}
         >
-          📝 Assisted Text & Notes
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className={`rounded-none border-b-2 ${
+          Assisted Notes
+        </button>
+        <button
+          type="button"
+          className={`px-4 py-2.5 text-xs font-medium border-b-2 transition cursor-pointer ${
             activeTab === 'visual'
-              ? 'border-brand text-brand hover:text-brand'
+              ? 'border-tx-main text-tx-main'
               : 'border-transparent text-tx-muted hover:text-tx-main'
           }`}
           onClick={() => setActiveTab('visual')}
         >
-          🎨 Boards (tldraw & draw.io)
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className={`rounded-none border-b-2 ${
+          Diagram Boards
+        </button>
+        <button
+          type="button"
+          className={`px-4 py-2.5 text-xs font-medium border-b-2 transition cursor-pointer ${
             activeTab === 'ai'
-              ? 'border-brand text-brand hover:text-brand'
+              ? 'border-tx-main text-tx-main'
               : 'border-transparent text-tx-muted hover:text-tx-main'
           }`}
           onClick={() => setActiveTab('ai')}
         >
-          ✨ AI Tutor & Context
-        </Button>
+          Contextual Synthesis
+        </button>
       </div>
 
       {/* Tab Body */}
@@ -153,11 +150,11 @@ export function HighlightDetailModal({
               onClick={() => onAttachBoard('tldraw')}
             >
               <div className="flex items-center justify-between">
-                <span className="text-sm font-bold text-tx-main">✏️ tldraw Whiteboard</span>
-                <span className="text-xs text-brand font-semibold">+ Attach Board</span>
+                <span className="text-xs font-semibold text-tx-main">tldraw Canvas</span>
+                <span className="text-xs text-tx-muted font-medium">+ Attach</span>
               </div>
               <p className="mt-1 text-xs text-tx-muted">
-                Freeform infinite sketching canvas for philosophical mind maps.
+                Freeform infinite sketching canvas for conceptual mind maps.
               </p>
             </Card>
 
@@ -169,8 +166,8 @@ export function HighlightDetailModal({
               onClick={() => onAttachBoard('drawio')}
             >
               <div className="flex items-center justify-between">
-                <span className="text-sm font-bold text-tx-main">📊 draw.io Diagram</span>
-                <span className="text-xs text-brand font-semibold">+ Attach Diagram</span>
+                <span className="text-xs font-semibold text-tx-main">draw.io Diagram</span>
+                <span className="text-xs text-tx-muted font-medium">+ Attach</span>
               </div>
               <p className="mt-1 text-xs text-tx-muted">
                 Structured nodes, logical hierarchies, and relational diagrams.

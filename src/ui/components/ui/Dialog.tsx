@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useRef } from 'react';
 import { IconButton } from './IconButton';
+import { CloseIcon } from './icons';
 
 export interface DialogProps {
   readonly isOpen: boolean;
@@ -44,7 +45,7 @@ export function Dialog({
   return (
     <div
       role="presentation"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-xs p-4 transition-opacity duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 transition-opacity duration-150"
       onClick={(e) => {
         if (contentRef.current && !contentRef.current.contains(e.target as Node)) {
           onClose();
@@ -58,16 +59,16 @@ export function Dialog({
     >
       <div
         ref={contentRef}
-        className={`relative flex w-full ${maxWidth} flex-col rounded-2xl border border-line-subtle bg-surface shadow-2xl overflow-hidden transition-all duration-200`}
+        className={`relative flex w-full ${maxWidth} flex-col rounded-xl border border-line-subtle bg-surface shadow-xl overflow-hidden transition-all duration-200`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-line-subtle bg-surface/90 px-5 py-3.5 shrink-0">
+        <div className="flex items-center justify-between border-b border-line-subtle bg-surface px-5 py-3.5 shrink-0">
           <div>
-            <h3 className="text-sm font-bold text-tx-main">{title}</h3>
+            <h3 className="text-sm font-semibold text-tx-main tracking-tight">{title}</h3>
             {subtitle && <p className="mt-0.5 text-xs text-tx-muted">{subtitle}</p>}
           </div>
-          <IconButton variant="subtle" size="sm" label="Close Dialog" onClick={onClose}>
-            ✕
+          <IconButton variant="ghost" size="xs" label="Close Dialog" onClick={onClose}>
+            <CloseIcon className="h-3.5 w-3.5" />
           </IconButton>
         </div>
 

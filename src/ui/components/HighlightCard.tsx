@@ -1,4 +1,5 @@
 import type { Highlight } from '../../core/domain/Highlight';
+import { Card } from './ui';
 
 export interface HighlightCardProps {
   readonly highlight: Highlight;
@@ -8,10 +9,11 @@ export interface HighlightCardProps {
 
 export function HighlightCard({ highlight, isActive, onSelect }: HighlightCardProps) {
   return (
-    <div
-      className={`cursor-pointer rounded-lg border border-slate-800 border-l-[5px] bg-slate-950 p-3.5 transition hover:border-slate-700 ${
-        isActive ? 'ring-2 ring-sky-400' : ''
-      }`}
+    <Card
+      variant="interactive"
+      padding="sm"
+      rounded="lg"
+      className={`border-l-4 transition ${isActive ? 'ring-2 ring-tx-main' : ''}`}
       style={{ borderLeftColor: highlight.color }}
       onClick={() => onSelect(highlight.id)}
       onKeyDown={(event) => {
@@ -20,8 +22,10 @@ export function HighlightCard({ highlight, isActive, onSelect }: HighlightCardPr
         }
       }}
     >
-      <strong className="text-sm font-semibold text-slate-100">“{highlight.text}”</strong>
-      <div className="mt-1 text-xs text-slate-400">Note: {highlight.note || '(empty)'}</div>
-    </div>
+      <p className="text-xs font-medium text-tx-main leading-relaxed">
+        &ldquo;{highlight.text}&rdquo;
+      </p>
+      {highlight.note && <p className="mt-1 text-[0.68rem] text-tx-muted">{highlight.note}</p>}
+    </Card>
   );
 }

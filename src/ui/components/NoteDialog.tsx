@@ -12,17 +12,17 @@ export interface NoteDialogProps {
 }
 
 const COLOR_CHOICES = [
-  { label: 'Amarelo', hex: '#eab308', classBg: 'bg-amber-400' },
-  { label: 'Verde', hex: '#22c55e', classBg: 'bg-emerald-500' },
-  { label: 'Azul', hex: '#38bdf8', classBg: 'bg-sky-400' },
-  { label: 'Roxo', hex: '#a855f7', classBg: 'bg-purple-500' },
-  { label: 'Rosa', hex: '#f43f5e', classBg: 'bg-rose-500' },
+  { label: 'Amber', hex: '#d97706', classBg: 'bg-amber-600/70' },
+  { label: 'Emerald', hex: '#059669', classBg: 'bg-emerald-600/70' },
+  { label: 'Sky', hex: '#0284c7', classBg: 'bg-sky-600/70' },
+  { label: 'Purple', hex: '#7c3aed', classBg: 'bg-purple-600/70' },
+  { label: 'Rose', hex: '#e11d48', classBg: 'bg-rose-600/70' },
 ];
 
 export function NoteDialog({
   isOpen,
   text,
-  initialColor = '#eab308',
+  initialColor = '#d97706',
   initialNote = '',
   onSave,
   onOpenStudio,
@@ -39,58 +39,55 @@ export function NoteDialog({
   return (
     <Dialog
       isOpen={isOpen}
-      title="Criar Nota de Estudo"
-      subtitle="Vincule reflexões e marcações contextuais à sua leitura."
+      title="Add Study Note"
+      subtitle="Attach reflections and contextual margin notes to your reading."
       onClose={onClose}
       footer={
         <>
           <Button variant="outline" size="sm" onClick={onClose}>
-            Cancelar
+            Cancel
           </Button>
           {onOpenStudio && (
             <Button
               variant="secondary"
               size="sm"
-              iconRight="↗"
               onClick={() => {
                 onClose();
                 onOpenStudio();
               }}
             >
-              Estúdio Completo
+              Open Studio &rarr;
             </Button>
           )}
-          <Button variant="primary" size="sm" iconLeft="💾" onClick={handleSave}>
-            Salvar Nota & Grifo
+          <Button variant="primary" size="sm" onClick={handleSave}>
+            Save Note
           </Button>
         </>
       }
     >
       {/* Selected passage quote */}
-      <div className="rounded-xl border border-line-subtle bg-surface-subtle/70 p-3.5 space-y-1">
-        <span className="text-[0.65rem] font-semibold text-tx-muted uppercase tracking-wider">
-          Trecho Selecionado
+      <div className="rounded-lg border border-line-subtle/80 bg-surface-subtle/60 p-3 space-y-1">
+        <span className="text-[0.62rem] font-medium text-tx-muted uppercase tracking-wider">
+          Selected Passage
         </span>
-        <p className="text-xs text-tx-main italic leading-relaxed border-l-2 border-line-strong pl-2.5">
+        <p className="text-xs text-tx-main italic leading-relaxed border-l border-line-strong pl-2.5">
           &ldquo;{text}&rdquo;
         </p>
       </div>
 
       {/* Color Selection */}
       <div className="space-y-1.5">
-        <span className="text-[0.7rem] font-semibold text-tx-secondary block">
-          Cor do Destaque:
-        </span>
+        <span className="text-[0.68rem] font-medium text-tx-secondary block">Highlight Tone:</span>
         <div className="flex items-center gap-2">
           {COLOR_CHOICES.map((c) => (
             <button
               key={c.hex}
               type="button"
               title={c.label}
-              className={`h-6 w-6 rounded-full ${c.classBg} transition-all duration-150 cursor-pointer ${
+              className={`h-5 w-5 rounded-full ${c.classBg} transition-all duration-150 cursor-pointer ${
                 selectedColor === c.hex
-                  ? 'ring-2 ring-brand ring-offset-2 ring-offset-surface scale-110 shadow-sm'
-                  : 'hover:scale-105 opacity-80 hover:opacity-100'
+                  ? 'ring-2 ring-tx-main ring-offset-2 ring-offset-surface scale-110'
+                  : 'hover:scale-105 opacity-70 hover:opacity-100'
               }`}
               onClick={() => setSelectedColor(c.hex)}
             />
@@ -102,17 +99,17 @@ export function NoteDialog({
       <div className="space-y-1.5">
         <label
           htmlFor="note-draft-textarea"
-          className="text-[0.7rem] font-semibold text-tx-secondary"
+          className="text-[0.68rem] font-medium text-tx-secondary"
         >
-          Sua Anotação:
+          Margin Note:
         </label>
         <textarea
           id="note-draft-textarea"
           rows={4}
           value={noteContent}
           onChange={(e) => setNoteContent(e.target.value)}
-          placeholder="Escreva suas reflexões, ideias ou dúvidas sobre esta passagem..."
-          className="w-full rounded-xl border border-line-subtle bg-surface-subtle p-3 text-xs text-tx-main placeholder:text-tx-faint focus:border-brand focus:outline-none transition-colors"
+          placeholder="Write your reflections, questions, or ideas about this passage..."
+          className="w-full rounded-lg border border-line-subtle bg-surface-subtle p-3 text-xs text-tx-main placeholder:text-tx-faint focus:border-line-strong focus:outline-none transition-colors"
         />
       </div>
     </Dialog>

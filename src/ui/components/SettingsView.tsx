@@ -1,7 +1,17 @@
 import { useNavigation } from '../hooks/useNavigation';
 import { useSettings } from '../hooks/useSettings';
 import { useTheme } from '../hooks/useTheme';
-import { Badge, Button, Card, IconButton, Input } from './ui';
+import {
+  ArrowLeftIcon,
+  Badge,
+  Button,
+  Card,
+  CloseIcon,
+  IconButton,
+  Input,
+  MoonIcon,
+  SunIcon,
+} from './ui';
 
 export function SettingsView() {
   const { theme, setTheme } = useTheme();
@@ -9,72 +19,80 @@ export function SettingsView() {
   const settings = useSettings();
 
   return (
-    <div className="min-h-screen bg-canvas text-tx-main flex flex-col">
+    <div className="min-h-screen bg-canvas text-tx-main flex flex-col font-sans">
       {/* Header */}
-      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line-subtle bg-surface/80 px-6 py-4 backdrop-blur-md">
+      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line-subtle/70 bg-canvas/80 px-6 py-3.5 backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" iconLeft="←" onClick={navigation.closeSettings}>
-            Back to Library
+          <Button
+            variant="outline"
+            size="sm"
+            iconLeft={<ArrowLeftIcon className="h-3.5 w-3.5" />}
+            onClick={navigation.closeSettings}
+          >
+            Library
           </Button>
-          <h1 className="text-base font-bold text-tx-main">Settings &amp; Preferences</h1>
+          <h1 className="text-sm font-semibold text-tx-main tracking-tight">Preferences</h1>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 mx-auto w-full max-w-4xl px-6 py-8 flex flex-col gap-8">
+      <main className="flex-1 mx-auto w-full max-w-3xl px-6 py-8 flex flex-col gap-6">
         {/* Appearance & Theme Section */}
         <Card variant="surface" padding="md" className="flex flex-col gap-4">
           <div>
-            <h2 className="text-sm font-bold text-tx-main flex items-center gap-2">
-              <span>🎨</span>
-              <span>Appearance &amp; Theme</span>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-tx-muted">
+              Appearance
             </h2>
-            <p className="mt-1 text-xs text-tx-muted">
-              Choose your reading workspace appearance. Color tokens adapt dynamically:
+            <p className="mt-1 text-xs text-tx-secondary">
+              Select reading workspace theme. Tokens adapt to minimize eye strain:
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
             <button
               type="button"
-              className={`flex items-center justify-between rounded-xl border p-3.5 text-xs font-semibold transition cursor-pointer ${
+              className={`flex items-center justify-between rounded-lg border p-3 text-xs font-medium transition cursor-pointer ${
                 theme === 'light'
-                  ? 'border-brand bg-sky-50 dark:bg-sky-950/40 text-brand shadow-xs'
-                  : 'border-line-subtle bg-surface-subtle text-tx-secondary hover:border-line-strong'
+                  ? 'border-tx-main bg-surface-subtle text-tx-main shadow-2xs'
+                  : 'border-line-subtle bg-surface/50 text-tx-muted hover:border-line-strong'
               }`}
               onClick={() => setTheme('light')}
             >
               <div className="flex items-center gap-2.5">
-                <span className="text-base">☀️</span>
+                <SunIcon className="h-4 w-4 text-tx-main" />
                 <div className="text-left">
-                  <div className="font-bold">Light Theme</div>
+                  <div className="font-medium text-tx-main">Warm Paper</div>
                   <div className="text-[0.65rem] text-tx-muted">
-                    Crisp off-white canvas for daylight
+                    Ivory tone for daylight reading
                   </div>
                 </div>
               </div>
-              {theme === 'light' && <span className="text-brand font-bold">✓</span>}
+              {theme === 'light' && (
+                <span className="text-tx-main font-semibold text-xs">Active</span>
+              )}
             </button>
 
             <button
               type="button"
-              className={`flex items-center justify-between rounded-xl border p-3.5 text-xs font-semibold transition cursor-pointer ${
+              className={`flex items-center justify-between rounded-lg border p-3 text-xs font-medium transition cursor-pointer ${
                 theme === 'dark'
-                  ? 'border-brand bg-sky-50 dark:bg-sky-950/40 text-brand shadow-xs'
-                  : 'border-line-subtle bg-surface-subtle text-tx-secondary hover:border-line-strong'
+                  ? 'border-tx-main bg-surface-subtle text-tx-main shadow-2xs'
+                  : 'border-line-subtle bg-surface/50 text-tx-muted hover:border-line-strong'
               }`}
               onClick={() => setTheme('dark')}
             >
               <div className="flex items-center gap-2.5">
-                <span className="text-base">🌙</span>
+                <MoonIcon className="h-4 w-4 text-tx-main" />
                 <div className="text-left">
-                  <div className="font-bold">Dark Theme</div>
+                  <div className="font-medium text-tx-main">Warm Graphite</div>
                   <div className="text-[0.65rem] text-tx-muted">
-                    OLED slate tones for low-light study
+                    Soft charcoal for low-light study
                   </div>
                 </div>
               </div>
-              {theme === 'dark' && <span className="text-brand font-bold">✓</span>}
+              {theme === 'dark' && (
+                <span className="text-tx-main font-semibold text-xs">Active</span>
+              )}
             </button>
           </div>
         </Card>
@@ -82,11 +100,10 @@ export function SettingsView() {
         {/* 1. Book Folders Configuration */}
         <Card variant="surface" padding="md" className="flex flex-col gap-4">
           <div>
-            <h2 className="text-sm font-bold text-tx-main flex items-center gap-2">
-              <span>📁</span>
-              <span>Monitored Book Folders</span>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-tx-muted">
+              Monitored Storage Folders
             </h2>
-            <p className="mt-1 text-xs text-tx-muted">
+            <p className="mt-1 text-xs text-tx-secondary">
               The reader automatically indexes .epub and .pdf files found in these directories:
             </p>
           </div>
@@ -97,7 +114,7 @@ export function SettingsView() {
                 key={`folder-${idx + 1}`}
                 variant="subtle"
                 padding="sm"
-                rounded="xl"
+                rounded="lg"
                 className="flex items-center justify-between font-mono text-xs text-tx-secondary"
               >
                 <span>{folder}</span>
@@ -107,7 +124,7 @@ export function SettingsView() {
                   label="Remove folder"
                   onClick={() => settings.removeFolder(idx)}
                 >
-                  ✕
+                  <CloseIcon className="h-3.5 w-3.5" />
                 </IconButton>
               </Card>
             ))}
@@ -116,12 +133,12 @@ export function SettingsView() {
           <div className="flex gap-2">
             <Input
               containerClassName="flex-1"
-              placeholder="e.g. /home/user/Ebooks or C:\Books"
+              placeholder="e.g. /home/user/Books"
               value={settings.newFolderInput}
               onChange={(e) => settings.setNewFolderInput(e.target.value)}
             />
             <Button variant="secondary" size="md" onClick={settings.addFolder}>
-              + Add Folder
+              Add Directory
             </Button>
           </div>
         </Card>
@@ -130,32 +147,28 @@ export function SettingsView() {
         <Card variant="surface" padding="md" className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-bold text-tx-main flex items-center gap-2">
-                <span>☁️</span>
-                <span>Google Drive &amp; Cloudless Sync (BYOC)</span>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-tx-muted">
+                Cloudless Sync (BYOC)
               </h2>
-              <p className="mt-1 text-xs text-tx-muted">
-                Zero-server sync using your personal cloud storage with Last-Write-Wins (LWW)
-                conflict resolution:
+              <p className="mt-1 text-xs text-tx-secondary">
+                Zero-server synchronization with Last-Write-Wins (LWW) conflict resolution:
               </p>
             </div>
-            <Badge variant={settings.isDriveConnected ? 'success' : 'neutral'} size="xs">
-              {settings.isDriveConnected ? 'Drive Connected' : 'Disconnected'}
+            <Badge variant="neutral" size="xs">
+              {settings.isDriveConnected ? 'Connected' : 'Local Only'}
             </Badge>
           </div>
 
           <Card
             variant="subtle"
             padding="sm"
-            rounded="xl"
+            rounded="lg"
             className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
           >
             <div>
-              <span className="text-xs font-semibold text-tx-main block">
-                Target Folder: /IPDF_Sync/
-              </span>
-              <span className="text-[0.7rem] text-tx-muted">
-                Sync payload: .json highlights &amp; reading progress
+              <span className="text-xs font-medium text-tx-main block">Target: /IPDF_Sync/</span>
+              <span className="text-[0.68rem] text-tx-muted">
+                Highlights, reading metrics, and margin notes
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -169,77 +182,59 @@ export function SettingsView() {
           </Card>
 
           {settings.syncStatusMessage && (
-            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-600 dark:text-emerald-300 transition-opacity duration-200">
+            <div className="rounded-lg border border-line-subtle bg-surface-subtle p-3 text-xs text-tx-secondary transition-opacity duration-200">
               {settings.syncStatusMessage}
-            </div>
-          )}
-
-          {settings.syncExportPreview && (
-            <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-semibold text-tx-muted">
-                Last Sync Payload Preview (LWW Engine):
-              </span>
-              <pre className="max-h-36 overflow-y-auto rounded-lg border border-line-subtle bg-surface-subtle p-3 font-mono text-[0.7rem] text-tx-secondary">
-                {settings.syncExportPreview}
-              </pre>
             </div>
           )}
         </Card>
 
-        {/* 3. Data Portability (Import / Export) */}
+        {/* 3. Data Portability */}
         <Card variant="surface" padding="md" className="flex flex-col gap-4">
           <div>
-            <h2 className="text-sm font-bold text-tx-main flex items-center gap-2">
-              <span>📦</span>
-              <span>Data Portability &amp; Backup</span>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-tx-muted">
+              Data Portability
             </h2>
-            <p className="mt-1 text-xs text-tx-muted">
-              Export all your reading history, rich drawings, and study highlights into standard
-              open formats:
+            <p className="mt-1 text-xs text-tx-secondary">
+              Export reading metrics and annotations into standard open formats:
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Card
               variant="interactive"
               padding="sm"
-              rounded="xl"
+              rounded="lg"
               className="flex flex-col gap-1 text-left"
               onClick={() => void settings.triggerSync()}
             >
-              <span className="text-xs font-bold text-tx-main">Export Highlights Backup</span>
-              <span className="text-[0.7rem] text-tx-muted">
-                Exports all annotations as a portable JSON or ZIP bundle.
+              <span className="text-xs font-medium text-tx-main">Export Annotations</span>
+              <span className="text-[0.68rem] text-tx-muted">
+                Package all notes and highlights as a JSON bundle.
               </span>
             </Card>
 
             <Card
               variant="interactive"
               padding="sm"
-              rounded="xl"
+              rounded="lg"
               className="flex flex-col gap-1 text-left"
               onClick={() => void settings.triggerSync()}
             >
-              <span className="text-xs font-bold text-tx-main">Import Highlights Backup</span>
-              <span className="text-[0.7rem] text-tx-muted">
-                Merges external annotations using Last-Write-Wins rules.
+              <span className="text-xs font-medium text-tx-main">Import Backup</span>
+              <span className="text-[0.68rem] text-tx-muted">
+                Merge external notes using Last-Write-Wins rules.
               </span>
             </Card>
           </div>
         </Card>
 
         {/* 4. Danger Zone: Reset Data */}
-        <Card
-          variant="subtle"
-          padding="md"
-          className="border-rose-500/20 bg-rose-500/5 flex flex-col gap-4"
-        >
+        <Card variant="subtle" padding="md" className="flex flex-col gap-4 border-line-subtle">
           <div>
-            <h2 className="text-sm font-bold text-rose-600 dark:text-rose-400 flex items-center gap-2">
-              <span>⚠️</span>
-              <span>Reset Application Data</span>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-tx-muted">
+              Maintenance
             </h2>
-            <p className="mt-1 text-xs text-tx-muted">
+            <p className="mt-1 text-xs text-tx-secondary">
               Clear local SQLite databases, reset highlights, and purge cached book covers:
             </p>
           </div>
@@ -248,15 +243,15 @@ export function SettingsView() {
             <div>
               <Button
                 variant="danger-subtle"
-                size="md"
+                size="sm"
                 onClick={() => settings.setShowResetConfirm(true)}
               >
-                Reset App Data &amp; Cache
+                Reset Database &amp; Cache
               </Button>
             </div>
           ) : (
-            <div className="flex items-center gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4">
-              <span className="text-xs text-rose-700 dark:text-rose-200 font-semibold flex-1">
+            <div className="flex items-center gap-3 rounded-lg border border-line-strong bg-surface p-3.5">
+              <span className="text-xs text-tx-main font-medium flex-1">
                 Are you sure? This action will reset your local database.
               </span>
               <Button
@@ -264,10 +259,10 @@ export function SettingsView() {
                 size="sm"
                 onClick={() => {
                   void settings.resetDatabase();
-                  alert('App data reset simulator triggered.');
+                  alert('Database reset completed.');
                 }}
               >
-                Yes, Reset All
+                Confirm Reset
               </Button>
               <Button
                 variant="outline"

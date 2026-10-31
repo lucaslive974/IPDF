@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Badge, Button, Dialog } from './ui';
+import { Badge, Button, CopyIcon, Dialog, SparklesIcon } from './ui';
 
 export interface ExplainDialogProps {
   readonly isOpen: boolean;
@@ -14,20 +14,19 @@ type ExplainMode = 'concepts' | 'historical' | 'simple' | 'deep';
 interface ModeOption {
   readonly id: ExplainMode;
   readonly label: string;
-  readonly icon: string;
 }
 
 const MODES: readonly ModeOption[] = [
-  { id: 'concepts', label: 'Conceitos-Chave', icon: '🧠' },
-  { id: 'historical', label: 'Histórico-Cultural', icon: '🏛️' },
-  { id: 'simple', label: 'Simplificar', icon: '💡' },
-  { id: 'deep', label: 'Aprofundamento', icon: '🔍' },
+  { id: 'concepts', label: 'Key Concepts' },
+  { id: 'historical', label: 'Historical' },
+  { id: 'simple', label: 'Simplified' },
+  { id: 'deep', label: 'In-Depth' },
 ];
 
 export function ExplainDialog({
   isOpen,
   text,
-  bookTitle = 'Livro em Estudo',
+  bookTitle = 'Selected Book',
   onSaveAsAnnotation,
   onClose,
 }: ExplainDialogProps) {
@@ -37,13 +36,13 @@ export function ExplainDialog({
   const getExplanationContent = (mode: ExplainMode, _excerpt: string): string => {
     switch (mode) {
       case 'concepts':
-        return 'O trecho aborda a tensão fundamental entre a percepção sensorial (doxa) e o conhecimento inteligível (noesis). A alegoria expõe como as correntes da ignorância habituam a consciência às sombras da realidade, sugerindo que a apreensão da verdade exige uma conversão deliberada da alma em direção à luz.';
+        return 'The passage explores the fundamental tension between sensory perception (doxa) and intelligible knowledge (noesis). The allegory exposes how the chains of ignorance habituate consciousness to mere shadows of reality, suggesting that the apprehension of truth demands a deliberate conversion of the soul toward the light.';
       case 'historical':
-        return 'Na Grécia clássica do século IV a.C., Platão confrontava o relativismo dos sofistas. Este trecho reflete a preocupação com a formação ética e política dos cidadãos atenienses, utilizando o mito da caverna para ilustrar a necessidade da paideia (educação transformadora).';
+        return 'In 4th-century BCE classical Greece, Plato confronted the relativism of the Sophists. This passage reflects the concern for the ethical and political education of Athenian citizens, utilizing the allegory of the cave to demonstrate the necessity of paideia (transformative learning).';
       case 'simple':
-        return 'Em termos diretos: as pessoas estão presas e acreditam que as sombras na parede são a realidade inteira, porque nunca viram nada diferente. Para conhecer a verdade, é preciso se libertar e olhar para a fonte real da luz.';
+        return 'In direct terms: human beings are confined and believe the shadows on the wall are the entirety of reality, having never known anything else. To discover truth, one must break free and look directly at the actual source of light.';
       case 'deep':
-        return 'Epistemologicamente, o excerto estabelece os graus da Linha Dividida: da eikasia (conjectura) à noesis (intuição intelectual). A metáfora das correntes e da caverna opera como uma crítica ontológica à condição humana desacoplada da Ideia do Bem.';
+        return 'Epistemologically, the excerpt marks the ascending degrees of the Divided Line: from eikasia (conjecture) to noesis (pure intellectual intuition). The metaphor of chains operates as an ontological critique of human existence separated from the Idea of the Good.';
     }
   };
 
@@ -65,62 +64,66 @@ export function ExplainDialog({
   return (
     <Dialog
       isOpen={isOpen}
-      title="Explicar com IA"
-      subtitle={`Análise hermenêutica contextual — ${bookTitle}`}
+      title="Explain Passage"
+      subtitle={`Contextual analysis — ${bookTitle}`}
       onClose={onClose}
       maxWidth="max-w-lg"
       footer={
         <>
           <Button variant="outline" size="sm" onClick={onClose}>
-            Fechar
+            Cancel
           </Button>
-          <Button variant="secondary" size="sm" iconLeft={copied ? '✓' : '📋'} onClick={handleCopy}>
-            {copied ? 'Copiado!' : 'Copiar'}
+          <Button
+            variant="secondary"
+            size="sm"
+            iconLeft={<CopyIcon className="h-3.5 w-3.5" />}
+            onClick={handleCopy}
+          >
+            {copied ? 'Copied' : 'Copy'}
           </Button>
-          <Button variant="primary" size="sm" iconLeft="💾" onClick={handleSave}>
-            Salvar Anotação
+          <Button variant="primary" size="sm" onClick={handleSave}>
+            Save Annotation
           </Button>
         </>
       }
     >
       {/* Excerpt */}
-      <div className="rounded-xl border border-line-subtle bg-surface-subtle/70 p-3 space-y-1">
-        <span className="text-[0.65rem] font-semibold text-tx-muted uppercase tracking-wider">
-          Trecho Analisado
+      <div className="rounded-lg border border-line-subtle/80 bg-surface-subtle/60 p-3 space-y-1">
+        <span className="text-[0.62rem] font-medium text-tx-muted uppercase tracking-wider">
+          Analyzed Passage
         </span>
-        <p className="text-xs text-tx-main italic leading-relaxed border-l-2 border-line-strong pl-2.5">
+        <p className="text-xs text-tx-main italic leading-relaxed border-l border-line-strong pl-2.5">
           &ldquo;{text}&rdquo;
         </p>
       </div>
 
-      {/* Perspective / Modes */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+      {/* Perspective / Modes (Apple Segmented Style) */}
+      <div className="flex items-center gap-1 rounded-lg bg-surface-subtle/80 p-0.5 border border-line-subtle/60 text-xs">
         {MODES.map((mode) => (
           <button
             key={mode.id}
             type="button"
             onClick={() => setCurrentMode(mode.id)}
-            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-all duration-150 cursor-pointer ${
+            className={`flex-1 text-center py-1 rounded-md text-xs font-medium transition ${
               currentMode === mode.id
-                ? 'bg-brand text-white shadow-xs'
-                : 'bg-surface-subtle text-tx-muted hover:text-tx-main hover:bg-surface-hover'
+                ? 'bg-surface text-tx-main shadow-2xs'
+                : 'text-tx-muted hover:text-tx-main'
             }`}
           >
-            <span>{mode.icon}</span>
-            <span>{mode.label}</span>
+            {mode.label}
           </button>
         ))}
       </div>
 
       {/* AI Explanation Result Box */}
-      <div className="rounded-xl border border-line-subtle bg-surface p-4 space-y-3">
+      <div className="rounded-lg border border-line-subtle/80 bg-surface p-4 space-y-2.5">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-base">✨</span>
-            <span className="text-xs font-semibold text-tx-main">Síntese Analítica</span>
+          <div className="flex items-center gap-1.5 text-xs font-medium text-tx-main">
+            <SparklesIcon className="h-3.5 w-3.5 text-tx-muted" />
+            <span>Analytical Synthesis</span>
           </div>
-          <Badge variant="brand" size="xs">
-            IA Assistant
+          <Badge variant="neutral" size="xs">
+            Assistant
           </Badge>
         </div>
 

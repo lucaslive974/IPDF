@@ -1,4 +1,12 @@
-import { DropdownMenu, DropdownMenuHeader, DropdownMenuItem, DropdownMenuSeparator } from './ui';
+import {
+  CopyIcon,
+  DropdownMenu,
+  DropdownMenuHeader,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  GlobeIcon,
+  SparklesIcon,
+} from './ui';
 
 export interface ReaderContextMenuProps {
   readonly text: string;
@@ -14,11 +22,11 @@ export interface ReaderContextMenuProps {
 }
 
 const COLOR_PRESETS = [
-  { label: 'Amarelo', hex: '#eab308', classBg: 'bg-amber-400' },
-  { label: 'Verde', hex: '#22c55e', classBg: 'bg-emerald-500' },
-  { label: 'Azul', hex: '#38bdf8', classBg: 'bg-sky-400' },
-  { label: 'Roxo', hex: '#a855f7', classBg: 'bg-purple-500' },
-  { label: 'Rosa', hex: '#f43f5e', classBg: 'bg-rose-500' },
+  { label: 'Amber', hex: '#d97706', classBg: 'bg-amber-600/70' },
+  { label: 'Emerald', hex: '#059669', classBg: 'bg-emerald-600/70' },
+  { label: 'Sky', hex: '#0284c7', classBg: 'bg-sky-600/70' },
+  { label: 'Purple', hex: '#7c3aed', classBg: 'bg-purple-600/70' },
+  { label: 'Rose', hex: '#e11d48', classBg: 'bg-rose-600/70' },
 ];
 
 export function ReaderContextMenu({
@@ -34,16 +42,16 @@ export function ReaderContextMenu({
   onClose,
 }: ReaderContextMenuProps) {
   return (
-    <DropdownMenu x={x} y={y} isOpen={isOpen} onClose={onClose} width="w-64">
+    <DropdownMenu x={x} y={y} isOpen={isOpen} onClose={onClose} width="w-60">
       {/* Quick Color Picker Header */}
-      <DropdownMenuHeader title="Destacar / Grifar">
+      <DropdownMenuHeader title="Highlight">
         <div className="flex items-center gap-1.5">
           {COLOR_PRESETS.map((c) => (
             <button
               key={c.hex}
               type="button"
-              title={`Grifar com ${c.label}`}
-              className={`h-4 w-4 rounded-full ${c.classBg} transition hover:scale-125 active:scale-95 cursor-pointer shadow-xs`}
+              title={`Highlight with ${c.label}`}
+              className={`h-3.5 w-3.5 rounded-full ${c.classBg} transition hover:scale-125 active:scale-95 cursor-pointer`}
               onClick={() => {
                 onHighlightColor(c.hex);
                 onClose();
@@ -57,9 +65,8 @@ export function ReaderContextMenu({
 
       {/* Main Options */}
       <DropdownMenuItem
-        icon="📝"
-        label="Criar Nota..."
-        description="Adicionar comentário e anotação"
+        label="Add Margin Note..."
+        description="Attach note to passage"
         onClick={() => {
           onClose();
           onOpenNoteDialog();
@@ -67,9 +74,9 @@ export function ReaderContextMenu({
       />
 
       <DropdownMenuItem
-        icon="✨"
-        label="Explicar com IA..."
-        description="Análise e conceitos filosóficos"
+        icon={<SparklesIcon className="h-3.5 w-3.5" />}
+        label="Explain with AI..."
+        description="Contextual analysis"
         onClick={() => {
           onClose();
           onOpenExplainDialog();
@@ -77,9 +84,9 @@ export function ReaderContextMenu({
       />
 
       <DropdownMenuItem
-        icon="🌐"
-        label="Traduzir..."
-        description="Tradução contextual para outros idiomas"
+        icon={<GlobeIcon className="h-3.5 w-3.5" />}
+        label="Translate..."
+        description="Contextual translation"
         onClick={() => {
           onClose();
           onOpenTranslateDialog();
@@ -89,8 +96,8 @@ export function ReaderContextMenu({
       <DropdownMenuSeparator />
 
       <DropdownMenuItem
-        icon="📋"
-        label="Copiar Texto"
+        icon={<CopyIcon className="h-3.5 w-3.5" />}
+        label="Copy Passage"
         shortcut="Ctrl+C"
         onClick={() => {
           onCopyText();
@@ -99,7 +106,7 @@ export function ReaderContextMenu({
       />
 
       {/* Excerpt quote preview */}
-      <div className="px-2.5 py-1.5 mt-0.5 border-t border-line-subtle/50 text-[0.65rem] text-tx-muted italic truncate">
+      <div className="px-2.5 py-1.5 mt-0.5 border-t border-line-subtle/50 text-[0.62rem] text-tx-muted italic truncate">
         &ldquo;{text}&rdquo;
       </div>
     </DropdownMenu>

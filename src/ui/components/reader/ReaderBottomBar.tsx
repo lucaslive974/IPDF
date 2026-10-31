@@ -30,7 +30,7 @@ export const ReaderBottomBar = memo(function ReaderBottomBar({
             : 'translate-y-12 opacity-0 pointer-events-none'
         }`}
       >
-        <div className="flex items-center gap-2 rounded-full border border-line-subtle bg-surface/95 px-4 py-1.5 shadow-xl backdrop-blur-md text-xs font-semibold">
+        <div className="flex items-center gap-2 rounded-full border border-line-subtle/70 bg-surface/85 px-3.5 py-1.5 shadow-md backdrop-blur-md text-xs font-medium">
           <span className="text-tx-muted">Page</span>
           <input
             type="text"
@@ -64,10 +64,10 @@ export const ReaderBottomBar = memo(function ReaderBottomBar({
                 setPageInputValue(String(reader.currentPage));
               }
             }}
-            className="w-16 rounded-md border border-line-subtle bg-surface-subtle px-2 py-0.5 text-center font-mono text-xs font-bold text-tx-main focus:border-brand outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            className="w-14 rounded-md border border-line-subtle/80 bg-surface-subtle/80 px-2 py-0.5 text-center font-mono text-xs font-medium text-tx-main focus:border-line-strong outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             aria-label="Direct page number jump"
           />
-          <span className="text-tx-muted font-mono">of {reader.totalPages}</span>
+          <span className="text-tx-muted font-mono text-[0.7rem]">of {reader.totalPages}</span>
         </div>
       </footer>
 

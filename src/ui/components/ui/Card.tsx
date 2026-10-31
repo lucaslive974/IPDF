@@ -15,15 +15,15 @@ const VARIANT_CLASSES: Record<CardVariant, string> = {
   surface: 'border border-line-subtle bg-surface shadow-xs',
   subtle: 'border border-line-subtle bg-surface-subtle',
   interactive:
-    'border border-line-subtle bg-surface shadow-xs transition hover:border-line-strong hover:shadow-md active:scale-[0.99] cursor-pointer',
+    'border border-line-subtle bg-surface shadow-xs transition hover:border-line-strong hover:shadow-sm active:scale-[0.99] cursor-pointer',
   dashed: 'border border-dashed border-line-subtle bg-transparent',
 };
 
 const PADDING_CLASSES: Record<CardPadding, string> = {
   none: '',
-  sm: 'p-3.5',
-  md: 'p-5',
-  lg: 'p-6 sm:p-8',
+  sm: 'p-3',
+  md: 'p-4 sm:p-5',
+  lg: 'p-5 sm:p-7',
 };
 
 const ROUNDED_CLASSES: Record<CardRounded, string> = {
@@ -35,7 +35,7 @@ const ROUNDED_CLASSES: Record<CardRounded, string> = {
 export function Card({
   variant = 'surface',
   padding = 'md',
-  rounded = '2xl',
+  rounded = 'xl',
   className = '',
   children,
   ...rest

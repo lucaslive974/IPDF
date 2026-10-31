@@ -3,7 +3,19 @@ import type { BookMetadata } from '../../core/domain/BookMetadata';
 import { useLibrary } from '../hooks/useLibrary';
 import { useNavigation } from '../hooks/useNavigation';
 import { useTheme } from '../hooks/useTheme';
-import { Badge, Button, Card, IconButton, Input } from './ui';
+import {
+  Badge,
+  BookIcon,
+  Button,
+  Card,
+  IconButton,
+  Input,
+  MoonIcon,
+  PlusIcon,
+  SearchIcon,
+  SettingsIcon,
+  SunIcon,
+} from './ui';
 
 export interface LibraryViewProps {
   readonly books?: BookMetadata[];
@@ -58,24 +70,24 @@ export function LibraryView({
   );
 
   return (
-    <div className="min-h-screen bg-canvas text-tx-main flex flex-col">
-      {/* Top Navigation */}
-      <header className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-4 border-b border-line-subtle bg-surface/80 px-6 py-4 backdrop-blur-md">
+    <div className="min-h-screen bg-canvas text-tx-main flex flex-col font-sans selection:bg-tx-main selection:text-canvas">
+      {/* Top Apple-Style Monochromatic Navigation */}
+      <header className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-4 border-b border-line-subtle bg-canvas/80 px-6 py-3.5 backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-linear-to-tr from-sky-500 to-indigo-500 text-base font-black text-white shadow-sm">
-            I
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-line-subtle bg-surface text-xs font-semibold tracking-wider text-tx-main shadow-2xs">
+            IP
           </div>
           <div>
-            <h1 className="text-base font-bold text-tx-main tracking-tight">IPDF Reader</h1>
-            <p className="text-[0.7rem] text-tx-muted font-medium">Active Study &amp; Philosophy</p>
+            <h1 className="text-sm font-semibold text-tx-main tracking-tight">Library</h1>
+            <p className="text-[0.65rem] text-tx-muted font-normal">Active Study</p>
           </div>
         </div>
 
         {/* Search bar */}
-        <div className="flex-1 max-w-md">
+        <div className="flex-1 max-w-sm">
           <Input
-            iconLeft="🔍"
-            placeholder="Search titles, authors, or topics..."
+            iconLeft={<SearchIcon className="h-3.5 w-3.5" />}
+            placeholder="Search titles, authors..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onClear={() => setSearchQuery('')}
@@ -84,8 +96,13 @@ export function LibraryView({
 
         {/* Quick action buttons */}
         <div className="flex items-center gap-2">
-          <Button variant="primary" size="md" iconLeft="+" onClick={handleOpenFileInput}>
-            Open eBook
+          <Button
+            variant="primary"
+            size="sm"
+            iconLeft={<PlusIcon className="h-3.5 w-3.5" />}
+            onClick={handleOpenFileInput}
+          >
+            Import
           </Button>
           <input
             ref={fileInputRef}
@@ -97,62 +114,78 @@ export function LibraryView({
           />
 
           <IconButton
-            variant="outline"
-            size="md"
+            variant="ghost"
+            size="sm"
             label={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             onClick={toggleTheme}
           >
-            {theme === 'dark' ? '☀️' : '🌙'}
+            {theme === 'dark' ? <SunIcon className="h-4 w-4" /> : <MoonIcon className="h-4 w-4" />}
           </IconButton>
 
           <IconButton
-            variant="outline"
-            size="md"
+            variant="ghost"
+            size="sm"
             label="Settings & Directories"
             onClick={onOpenSettings}
           >
-            ⚙️
+            <SettingsIcon className="h-4 w-4" />
           </IconButton>
         </div>
       </header>
 
       {/* Main Body */}
-      <main className="flex-1 mx-auto w-full max-w-6xl px-6 py-8 flex flex-col gap-6">
-        {/* Navigation Tabs */}
+      <main className="flex-1 mx-auto w-full max-w-5xl px-6 py-8 flex flex-col gap-6">
+        {/* Navigation Tabs (Apple Segmented Control) */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line-subtle pb-3">
-          <div className="flex items-center gap-1 rounded-xl bg-surface-subtle p-1 border border-line-subtle">
-            <Button
-              variant={activeTab === 'recents' ? 'outline' : 'ghost'}
-              size="sm"
+          <div className="inline-flex items-center gap-0.5 rounded-lg bg-surface-subtle/80 p-0.5 border border-line-subtle/60 text-xs font-medium">
+            <button
+              type="button"
+              className={`px-3 py-1 rounded-md transition ${
+                activeTab === 'recents'
+                  ? 'bg-surface text-tx-main shadow-2xs'
+                  : 'text-tx-muted hover:text-tx-main'
+              }`}
               onClick={() => setActiveTab('recents')}
             >
-              🕒 Recents
-            </Button>
-            <Button
-              variant={activeTab === 'all' ? 'outline' : 'ghost'}
-              size="sm"
+              Recents
+            </button>
+            <button
+              type="button"
+              className={`px-3 py-1 rounded-md transition ${
+                activeTab === 'all'
+                  ? 'bg-surface text-tx-main shadow-2xs'
+                  : 'text-tx-muted hover:text-tx-main'
+              }`}
               onClick={() => setActiveTab('all')}
             >
-              📚 All Books ({filteredBooks.length})
-            </Button>
-            <Button
-              variant={activeTab === 'highlights' ? 'outline' : 'ghost'}
-              size="sm"
+              All Books ({filteredBooks.length})
+            </button>
+            <button
+              type="button"
+              className={`px-3 py-1 rounded-md transition ${
+                activeTab === 'highlights'
+                  ? 'bg-surface text-tx-main shadow-2xs'
+                  : 'text-tx-muted hover:text-tx-main'
+              }`}
               onClick={() => setActiveTab('highlights')}
             >
-              🖍️ Bookmarks
-            </Button>
-            <Button
-              variant={activeTab === 'lists' ? 'outline' : 'ghost'}
-              size="sm"
+              Annotations
+            </button>
+            <button
+              type="button"
+              className={`px-3 py-1 rounded-md transition ${
+                activeTab === 'lists'
+                  ? 'bg-surface text-tx-main shadow-2xs'
+                  : 'text-tx-muted hover:text-tx-main'
+              }`}
               onClick={() => setActiveTab('lists')}
             >
-              📑 Reading Lists
-            </Button>
+              Collections
+            </button>
           </div>
 
-          <span className="text-xs text-tx-muted font-mono">
-            {filteredBooks.length} works loaded
+          <span className="text-xs text-tx-muted font-mono font-medium">
+            {filteredBooks.length} {filteredBooks.length === 1 ? 'work' : 'works'}
           </span>
         </div>
 
@@ -163,10 +196,12 @@ export function LibraryView({
               <Card
                 variant="dashed"
                 padding="lg"
-                className="col-span-full text-center text-sm text-tx-muted py-12"
+                className="col-span-full text-center text-xs text-tx-muted py-14"
               >
-                No books found. Click &ldquo;Open eBook&rdquo; above to load an EPUB or PDF from
-                your device.
+                <div className="flex flex-col items-center gap-2">
+                  <BookIcon className="h-6 w-6 text-tx-faint" />
+                  <p>No books found. Click &ldquo;Import&rdquo; above to load an EPUB or PDF.</p>
+                </div>
               </Card>
             ) : (
               filteredBooks.map((book) => (
@@ -177,20 +212,20 @@ export function LibraryView({
                   className="group flex flex-col justify-between overflow-hidden"
                 >
                   <div className="flex flex-col gap-3">
-                    {/* Front Book Cover extracted by Backend from First Page */}
+                    {/* Front Book Cover */}
                     {book.coverImageUrl ? (
-                      <div className="relative aspect-3/4 w-full overflow-hidden rounded-lg bg-surface-subtle shadow-md border border-line-subtle/50 flex items-center justify-center">
+                      <div className="relative aspect-3/4 w-full overflow-hidden rounded-md bg-surface-subtle shadow-xs border border-line-subtle/60 flex items-center justify-center">
                         <img
                           src={book.coverImageUrl}
                           alt={`Cover of ${book.title}`}
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
                           loading="lazy"
                         />
                       </div>
                     ) : (
-                      <div className="aspect-3/4 w-full rounded-lg bg-linear-to-b from-surface-subtle to-surface border border-line-subtle/40 p-4 flex flex-col justify-between shadow-xs">
-                        <span className="text-[0.65rem] font-bold uppercase tracking-wider text-tx-muted">
-                          IPDF Edition
+                      <div className="aspect-3/4 w-full rounded-md bg-surface-subtle border border-line-subtle/50 p-4 flex flex-col justify-between shadow-2xs">
+                        <span className="text-[0.62rem] font-medium uppercase tracking-widest text-tx-muted">
+                          Edition
                         </span>
                         <div>
                           <p className="font-serif font-bold text-sm text-tx-main line-clamp-2">
@@ -198,40 +233,43 @@ export function LibraryView({
                           </p>
                           <p className="text-xs text-tx-muted mt-1">{book.author}</p>
                         </div>
-                        <span className="text-lg">📖</span>
+                        <BookIcon className="h-4 w-4 text-tx-faint" />
                       </div>
                     )}
 
                     <div className="flex items-center justify-between">
-                      <Badge variant="brand" size="xs">
+                      <Badge variant="neutral" size="xs">
                         {book.format}
                       </Badge>
-                      <span className="text-[0.7rem] font-mono text-tx-muted">
+                      <span className="text-[0.68rem] font-mono text-tx-muted">
                         {Math.round(book.percentage)}%
                       </span>
                     </div>
 
                     <div>
-                      <h3 className="text-sm font-bold text-tx-main group-hover:text-brand transition line-clamp-2">
+                      <h3 className="text-xs font-semibold text-tx-main group-hover:text-tx-secondary transition line-clamp-2">
                         {book.title}
                       </h3>
-                      <p className="mt-0.5 text-xs text-tx-muted font-medium">{book.author}</p>
+                      <p className="mt-0.5 text-[0.72rem] text-tx-muted font-normal">
+                        {book.author}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="mt-5 flex flex-col gap-3">
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-subtle">
+                  <div className="mt-4 flex flex-col gap-2.5">
+                    {/* Monochromatic Apple Progress Bar */}
+                    <div className="h-1 w-full overflow-hidden rounded-full bg-surface-subtle">
                       <div
-                        className="h-full bg-linear-to-r from-sky-500 to-indigo-500 transition-all duration-300"
+                        className="h-full bg-tx-main/80 transition-all duration-300"
                         style={{ width: `${Math.max(4, book.percentage)}%` }}
                       />
                     </div>
 
-                    <div className="flex items-center justify-between text-[0.7rem] text-tx-muted">
+                    <div className="flex items-center justify-between text-[0.68rem] text-tx-muted">
                       <span>
-                        Page {book.currentPage} / {book.totalPages}
+                        Page {book.currentPage} of {book.totalPages}
                       </span>
-                      <Button variant="secondary" size="xs" onClick={() => onOpenBook(book)}>
+                      <Button variant="ghost" size="xs" onClick={() => onOpenBook(book)}>
                         Read &rarr;
                       </Button>
                     </div>
@@ -245,32 +283,32 @@ export function LibraryView({
         {/* Tab 3: Bookmarks / Highlights List */}
         {activeTab === 'highlights' && (
           <div className="flex flex-col gap-3">
-            <Card variant="dashed" padding="lg" className="text-center text-sm text-tx-muted">
+            <Card variant="dashed" padding="lg" className="text-center text-xs text-tx-muted py-8">
               Bookmarks and passage annotations are indexed within active study reading sessions.
             </Card>
           </div>
         )}
 
-        {/* Tab 4: Reading Lists (Future Preview) */}
+        {/* Tab 4: Reading Lists */}
         {activeTab === 'lists' && (
           <div className="flex flex-col gap-4">
             <Card
               variant="dashed"
               padding="lg"
-              className="text-center flex flex-col items-center gap-3"
+              className="text-center flex flex-col items-center gap-3 py-10"
             >
-              <span className="text-3xl">📚</span>
-              <h3 className="text-base font-bold text-tx-main">Custom Reading Lists</h3>
+              <BookIcon className="h-6 w-6 text-tx-faint" />
+              <h3 className="text-sm font-semibold text-tx-main">Curated Collections</h3>
               <p className="max-w-md text-xs text-tx-muted">
                 Curate custom active study tracks (e.g. &ldquo;Ancient Epistemology&rdquo;,
-                &ldquo;Modern Political Philosophy&rdquo;). Coming soon in Phase 6!
+                &ldquo;Modern Political Philosophy&rdquo;).
               </p>
               <Button
                 variant="secondary"
-                size="md"
+                size="sm"
                 onClick={() => alert('Reading list curation planned for Phase 6!')}
               >
-                + Create Study List
+                New Collection
               </Button>
             </Card>
           </div>

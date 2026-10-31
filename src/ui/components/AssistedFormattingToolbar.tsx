@@ -8,16 +8,16 @@ export interface FormattingActionItem {
 }
 
 const DEFAULT_FORMATTING_ACTIONS: FormattingActionItem[] = [
-  { id: 'bold', label: 'B Bold', style: { kind: 'bold' } },
-  { id: 'italic', label: 'I Italic', style: { kind: 'italic' } },
-  { id: 'underline', label: 'U Underline', style: { kind: 'underline' } },
-  { id: 'color-blue', label: 'Blue Text', style: { kind: 'textColor', colorHex: '#38bdf8' } },
+  { id: 'bold', label: 'Bold', style: { kind: 'bold' } },
+  { id: 'italic', label: 'Italic', style: { kind: 'italic' } },
+  { id: 'underline', label: 'Underline', style: { kind: 'underline' } },
+  { id: 'color-amber', label: 'Amber', style: { kind: 'textColor', colorHex: '#d97706' } },
   {
     id: 'bg-yellow',
-    label: 'Mark Fill',
-    style: { kind: 'backgroundColor', colorHex: '#ca8a04' },
+    label: 'Highlight',
+    style: { kind: 'backgroundColor', colorHex: '#d97706' },
   },
-  { id: 'blockquote', label: '❝ Quote', style: { kind: 'blockquote' } },
+  { id: 'blockquote', label: 'Quote', style: { kind: 'blockquote' } },
 ];
 
 export interface AssistedFormattingToolbarProps {

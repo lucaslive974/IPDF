@@ -20,23 +20,24 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary:
-    'bg-brand text-white shadow-xs hover:bg-brand-hover active:scale-95 disabled:opacity-50 disabled:hover:bg-brand',
+    'bg-tx-main text-canvas shadow-xs hover:opacity-90 active:scale-[0.98] disabled:opacity-40 disabled:hover:opacity-40',
   secondary:
-    'border border-line-subtle bg-surface-subtle text-tx-secondary hover:bg-surface-hover hover:text-tx-main active:scale-95 disabled:opacity-50',
+    'border border-line-subtle bg-surface-subtle text-tx-secondary hover:bg-surface-hover hover:text-tx-main active:scale-[0.98] disabled:opacity-40',
   outline:
-    'border border-line-subtle bg-surface text-tx-secondary hover:bg-surface-subtle hover:text-tx-main active:scale-95 disabled:opacity-50',
+    'border border-line-subtle bg-surface/80 text-tx-secondary hover:bg-surface-subtle hover:text-tx-main active:scale-[0.98] disabled:opacity-40',
   ghost:
-    'text-tx-muted hover:bg-surface-subtle hover:text-tx-main active:scale-95 disabled:opacity-50',
-  danger: 'bg-rose-600 text-white shadow-xs hover:bg-rose-500 active:scale-95 disabled:opacity-50',
+    'text-tx-muted hover:bg-surface-subtle hover:text-tx-main active:scale-[0.98] disabled:opacity-40',
+  danger:
+    'bg-red-700 text-white shadow-xs hover:bg-red-800 active:scale-[0.98] disabled:opacity-40',
   'danger-subtle':
-    'border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-300 hover:bg-rose-500/20 active:scale-95 disabled:opacity-50',
+    'border border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 active:scale-[0.98] disabled:opacity-40',
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
-  xs: 'px-2.5 py-1 text-xs rounded-md',
-  sm: 'px-3 py-1.5 text-xs font-semibold rounded-lg',
-  md: 'px-3.5 py-2 text-xs font-semibold rounded-xl',
-  lg: 'px-4 py-2.5 text-sm font-semibold rounded-xl',
+  xs: 'px-2.5 py-1 text-xs rounded-md font-medium',
+  sm: 'px-3 py-1.5 text-xs font-medium rounded-lg',
+  md: 'px-3.5 py-1.5 text-xs font-medium rounded-lg',
+  lg: 'px-4.5 py-2 text-sm font-medium rounded-xl',
 };
 
 export function Button({

@@ -1,5 +1,5 @@
 import type { Highlight } from '../../core/domain/Highlight';
-import { Badge, Button, IconButton, Popover } from './ui';
+import { Badge, Button, CloseIcon, IconButton, Popover, TrashIcon } from './ui';
 
 export interface HighlightPopoverProps {
   readonly highlight: Highlight;
@@ -14,11 +14,11 @@ export interface HighlightPopoverProps {
 }
 
 const COLOR_PRESETS = [
-  { label: 'Yellow', hex: '#eab308', classBg: 'bg-amber-400' },
-  { label: 'Green', hex: '#22c55e', classBg: 'bg-emerald-500' },
-  { label: 'Blue', hex: '#38bdf8', classBg: 'bg-sky-400' },
-  { label: 'Purple', hex: '#a855f7', classBg: 'bg-purple-500' },
-  { label: 'Rose', hex: '#f43f5e', classBg: 'bg-rose-500' },
+  { label: 'Amber', hex: '#d97706', classBg: 'bg-amber-600/70' },
+  { label: 'Emerald', hex: '#059669', classBg: 'bg-emerald-600/70' },
+  { label: 'Sky', hex: '#0284c7', classBg: 'bg-sky-600/70' },
+  { label: 'Purple', hex: '#7c3aed', classBg: 'bg-purple-600/70' },
+  { label: 'Rose', hex: '#e11d48', classBg: 'bg-rose-600/70' },
 ];
 
 export function HighlightPopover({
@@ -39,56 +39,53 @@ export function HighlightPopover({
       <div className="flex items-center justify-between border-b border-line-subtle pb-2">
         <div className="flex items-center gap-1.5">
           <span
-            className="h-3 w-3 rounded-full shrink-0"
+            className="h-2.5 w-2.5 rounded-full shrink-0"
             style={{ backgroundColor: highlight.color }}
           />
-          <span className="text-xs font-semibold text-tx-main">Highlight</span>
+          <span className="text-xs font-medium text-tx-main">Highlight</span>
           {annotationsCount > 0 && (
-            <Badge variant="brand" size="xs">
+            <Badge variant="neutral" size="xs">
               {annotationsCount} rich
             </Badge>
           )}
         </div>
         <div className="flex items-center gap-1">
-          <IconButton variant="danger" size="xs" label="Delete Highlight" onClick={onDelete}>
-            🗑️
+          <IconButton variant="ghost" size="xs" label="Delete Highlight" onClick={onDelete}>
+            <TrashIcon className="h-3.5 w-3.5" />
           </IconButton>
           <IconButton variant="ghost" size="xs" label="Close" onClick={onClose}>
-            ✕
+            <CloseIcon className="h-3 w-3" />
           </IconButton>
         </div>
       </div>
 
-      <div className="max-h-16 overflow-y-auto text-xs text-tx-secondary italic border-l-2 border-line-strong pl-2">
-        &ldquo;{highlight.text}&rdquo;
-      </div>
-
-      <div className="flex items-center gap-1.5 py-1">
-        <span className="text-[0.7rem] text-tx-muted">Color:</span>
-        {COLOR_PRESETS.map((c) => (
+      <div className="flex items-center gap-1.5 pt-1">
+        {COLOR_PRESETS.map((color) => (
           <button
-            key={c.hex}
+            key={color.hex}
             type="button"
-            className={`h-4 w-4 rounded-full ${c.classBg} transition hover:scale-125 cursor-pointer ${
-              highlight.color === c.hex ? 'ring-2 ring-brand ring-offset-1 ring-offset-surface' : ''
+            className={`h-4 w-4 rounded-full ${color.classBg} transition hover:scale-110 active:scale-95 cursor-pointer ${
+              highlight.color === color.hex
+                ? 'ring-2 ring-tx-main ring-offset-1 ring-offset-surface'
+                : ''
             }`}
-            onClick={() => onChangeColor(c.hex)}
+            onClick={() => onChangeColor(color.hex)}
+            title={color.label}
           />
         ))}
       </div>
 
       <textarea
-        className="w-full rounded-lg border border-line-subtle bg-surface-subtle p-2 text-xs text-tx-main placeholder:text-tx-faint focus:border-brand focus:outline-none"
+        className="w-full rounded-md border border-line-subtle bg-surface-subtle p-2 text-xs text-tx-main placeholder:text-tx-faint focus:border-line-strong focus:outline-none resize-none transition-colors"
         rows={2}
-        placeholder="Add personal note..."
+        placeholder="Add a margin note..."
         value={noteDraft}
         onChange={(e) => onNoteChange(e.target.value)}
       />
 
-      <div className="flex items-center justify-between pt-1">
-        <span className="text-[0.65rem] text-tx-faint">Page {highlight.anchor.pageNumber}</span>
-        <Button variant="primary" size="xs" iconRight="↗" onClick={onExpand}>
-          Studio Expand
+      <div className="flex items-center justify-end pt-1 border-t border-line-subtle">
+        <Button variant="secondary" size="xs" onClick={onExpand}>
+          Studio &rarr;
         </Button>
       </div>
     </Popover>

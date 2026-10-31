@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Badge, Button, Dialog } from './ui';
+import { Badge, Button, CopyIcon, Dialog } from './ui';
 
 export interface TranslateDialogProps {
   readonly isOpen: boolean;
@@ -11,15 +11,14 @@ export interface TranslateDialogProps {
 interface TargetLanguage {
   readonly code: string;
   readonly label: string;
-  readonly flag: string;
 }
 
 const LANGUAGES: readonly TargetLanguage[] = [
-  { code: 'pt', label: 'Português', flag: '🇧🇷' },
-  { code: 'es', label: 'Espanhol', flag: '🇪🇸' },
-  { code: 'fr', label: 'Francês', flag: '🇫🇷' },
-  { code: 'de', label: 'Alemão', flag: '🇩🇪' },
-  { code: 'it', label: 'Italiano', flag: '🇮🇹' },
+  { code: 'pt', label: 'Portuguese' },
+  { code: 'es', label: 'Spanish' },
+  { code: 'fr', label: 'French' },
+  { code: 'de', label: 'German' },
+  { code: 'it', label: 'Italian' },
 ];
 
 export function TranslateDialog({ isOpen, text, onSaveAsNote, onClose }: TranslateDialogProps) {
@@ -89,79 +88,78 @@ export function TranslateDialog({ isOpen, text, onSaveAsNote, onClose }: Transla
   return (
     <Dialog
       isOpen={isOpen}
-      title="Traduzir Trecho"
-      subtitle="Tradução contextual assistida com preservação de termos acadêmicos."
+      title="Translate Passage"
+      subtitle="Contextual translation preserving philosophical and academic terms."
       onClose={onClose}
       maxWidth="max-w-lg"
       footer={
         <>
           <Button variant="outline" size="sm" onClick={onClose}>
-            Fechar
+            Cancel
           </Button>
-          <Button variant="secondary" size="sm" iconLeft={copied ? '✓' : '📋'} onClick={handleCopy}>
-            {copied ? 'Copiado!' : 'Copiar'}
+          <Button
+            variant="secondary"
+            size="sm"
+            iconLeft={<CopyIcon className="h-3.5 w-3.5" />}
+            onClick={handleCopy}
+          >
+            {copied ? 'Copied' : 'Copy'}
           </Button>
-          <Button variant="primary" size="sm" iconLeft="💾" onClick={handleSave}>
-            Salvar como Nota
+          <Button variant="primary" size="sm" onClick={handleSave}>
+            Save Note
           </Button>
         </>
       }
     >
       {/* Original Passage */}
-      <div className="rounded-xl border border-line-subtle bg-surface-subtle/70 p-3 space-y-1">
+      <div className="rounded-lg border border-line-subtle/80 bg-surface-subtle/60 p-3 space-y-1">
         <div className="flex items-center justify-between">
-          <span className="text-[0.65rem] font-semibold text-tx-muted uppercase tracking-wider">
-            Original (Inglês)
+          <span className="text-[0.62rem] font-medium text-tx-muted uppercase tracking-wider">
+            Original (English)
           </span>
           <Badge variant="neutral" size="xs">
             EN
           </Badge>
         </div>
-        <p className="text-xs text-tx-main italic leading-relaxed border-l-2 border-line-strong pl-2.5">
+        <p className="text-xs text-tx-main italic leading-relaxed border-l border-line-strong pl-2.5">
           &ldquo;{text}&rdquo;
         </p>
       </div>
 
-      {/* Language Selector */}
+      {/* Language Selector (Apple Segmented Style) */}
       <div className="space-y-1.5">
-        <span className="text-[0.7rem] font-semibold text-tx-secondary block">
-          Idioma de Destino:
-        </span>
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="text-[0.68rem] font-medium text-tx-secondary block">Target Language:</span>
+        <div className="flex items-center gap-1 rounded-lg bg-surface-subtle/80 p-0.5 border border-line-subtle/60 text-xs">
           {LANGUAGES.map((lang) => (
             <button
               key={lang.code}
               type="button"
               onClick={() => setTargetLang(lang.code)}
-              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-all duration-150 cursor-pointer ${
+              className={`flex-1 text-center py-1 rounded-md text-xs font-medium transition ${
                 targetLang === lang.code
-                  ? 'bg-brand text-white shadow-xs'
-                  : 'bg-surface-subtle text-tx-muted hover:text-tx-main hover:bg-surface-hover'
+                  ? 'bg-surface text-tx-main shadow-2xs'
+                  : 'text-tx-muted hover:text-tx-main'
               }`}
             >
-              <span>{lang.flag}</span>
-              <span>{lang.label}</span>
+              {lang.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Translation Result */}
-      <div className="rounded-xl border border-line-subtle bg-surface p-4 space-y-2.5">
+      {/* Translation Result Box */}
+      <div className="rounded-lg border border-line-subtle/80 bg-surface p-4 space-y-2.5">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-tx-main">Tradução Contextual</span>
-          <Badge variant="brand" size="xs">
+          <span className="text-xs font-medium text-tx-main">Contextual Translation</span>
+          <Badge variant="neutral" size="xs">
             {targetLang.toUpperCase()}
           </Badge>
         </div>
 
-        <p className="text-xs leading-relaxed text-tx-main text-justify font-serif">
-          {translation}
-        </p>
+        <p className="text-xs leading-relaxed text-tx-secondary text-justify">{translation}</p>
 
         {notes && (
-          <div className="rounded-lg bg-surface-subtle/80 p-2 text-[0.7rem] text-tx-muted border-l-2 border-brand">
-            <span className="font-semibold text-tx-secondary">Nota terminológica: </span>
+          <div className="border-t border-line-subtle/50 pt-2 text-[0.68rem] text-tx-muted italic">
             {notes}
           </div>
         )}
