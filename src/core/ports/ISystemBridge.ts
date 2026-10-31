@@ -25,8 +25,20 @@ export interface IClipboardService {
   readText(): Promise<string>;
 }
 
+export interface LocalFileDescriptor {
+  path: string;
+  fileName: string;
+  format: BookFormat;
+  sizeBytes: number;
+  modifiedAt: Date;
+}
+
 export interface IFileStorageService {
   readBookBinary(bookHash: string): Promise<ArrayBuffer>;
   writeBookBinary(bookHash: string, data: ArrayBuffer, ext: BookFormat): Promise<string>;
   hasBookBinary(bookHash: string): Promise<boolean>;
+  readFileAtPath?(filePath: string): Promise<ArrayBuffer>;
+  pickLocalBookFiles?(): Promise<LocalFileDescriptor[]>;
+  pickLocalFolder?(): Promise<string | null>;
+  scanLocalFolderForBooks?(folderPath: string): Promise<LocalFileDescriptor[]>;
 }

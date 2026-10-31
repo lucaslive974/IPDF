@@ -1,5 +1,7 @@
 import type { BookFormat } from './types';
 
+export type BookSourceType = 'standalone-file' | 'local-folder' | 'remote-storage';
+
 export interface BookMetadata {
   bookHash: string;
   title: string;
@@ -8,6 +10,8 @@ export interface BookMetadata {
   currentPage: number;
   totalPages: number;
   percentage: number;
+  sourceType?: BookSourceType;
+  localFilePath?: string;
   isDownloadedLocally: boolean;
   remoteFileId?: string;
   coverImageBuffer?: Uint8Array;

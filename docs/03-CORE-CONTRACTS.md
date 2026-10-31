@@ -116,6 +116,8 @@ export type AnnotationCommand = AssistedMarkdownCommand | TldrawCommand | Drawio
 ```typescript
 import type { BookFormat } from './types';
 
+export type BookSourceType = 'standalone-file' | 'local-folder' | 'remote-storage';
+
 export interface BookMetadata {
   bookHash: string;
   title: string;
@@ -124,6 +126,8 @@ export interface BookMetadata {
   currentPage: number;
   totalPages: number;
   percentage: number;
+  sourceType?: BookSourceType;
+  localFilePath?: string;
   isDownloadedLocally: boolean;
   remoteFileId?: string;
   coverImageBuffer?: Uint8Array;
@@ -502,10 +506,22 @@ export interface IClipboardService {
   readText(): Promise<string>;
 }
 
+export interface LocalFileDescriptor {
+  path: string;
+  fileName: string;
+  format: BookFormat;
+  sizeBytes: number;
+  modifiedAt: Date;
+}
+
 export interface IFileStorageService {
   readBookBinary(bookHash: string): Promise<ArrayBuffer>;
   writeBookBinary(bookHash: string, data: ArrayBuffer, ext: BookFormat): Promise<string>;
   hasBookBinary(bookHash: string): Promise<boolean>;
+  readFileAtPath?(filePath: string): Promise<ArrayBuffer>;
+  pickLocalBookFiles?(): Promise<LocalFileDescriptor[]>;
+  pickLocalFolder?(): Promise<string | null>;
+  scanLocalFolderForBooks?(folderPath: string): Promise<LocalFileDescriptor[]>;
 }
 ```
 

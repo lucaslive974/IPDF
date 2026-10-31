@@ -48,7 +48,7 @@ O projeto utiliza **Clean Architecture / Hexagonal Architecture (Ports & Adapter
 │   ├── adapters/
 │   │   ├── viewers/                      # EpubViewerAdapter.ts, PdfViewerAdapter.ts
 │   │   ├── annotations/                  # AssistedRichTextStrategy.ts, DiagramAnnotationStrategies.ts
-│   │   ├── storage/                      # SQLite repositories, GoogleDriveStorageProvider.ts
+│   │   ├── storage/                      # SQLite repositories, LocalFileStorageAdapter.ts, LocalFolderStorageProvider.ts, GoogleDriveStorageProvider.ts
 │   │   ├── llm/                          # CloudAPILLMProvider.ts, OllamaLocalLLMProvider.ts
 │   │   ├── tts/                          # PiperLocalTTS.ts, NativeSystemTTS.ts
 │   │   └── presence/                     # DiscordIPCProvider.ts, CustomWebhookProvider.ts
@@ -181,12 +181,21 @@ classDiagram
 
 ---
 
-## 4. Estrutura da Pasta Remota no Google Drive (Cloudless Sync)
+## 4. Modos de Armazenamento: Arquivos Avulsos, Pastas Locais e Cloudless Sync
 
-O `CloudlessSyncEngine` mantém a seguinte organização na pasta selecionada pelo usuário no Google Drive (ou qualquer provedor que implemente `IRemoteStorageProvider`):
+O sistema suporta três origens de livros (`BookSourceType = 'standalone-file' | 'local-folder' | 'remote-storage'`), todas unificadas pelo `bookHash` (**SHA-256** do binário):
+
+1. **Arquivos Avulsos (`standalone-file` via `IFileStorageService`):**
+   - O usuário abre um `.epub` ou `.pdf` em qualquer caminho do disco (`pickLocalBookFiles` / `readFileAtPath`).
+   - O `LibraryManager` calcula o `bookHash` SHA-256, registra o `localFilePath` no `BookMetadata` e salva os grifos no SQLite local. Se o arquivo for movido de pasta ou renomeado, ao abri-lo novamente o `bookHash` reconhece a obra e restaura todos os grifos e anotações automaticamente.
+2. **Pastas Locais (`local-folder` via `IFileStorageService` / `LocalFolderStorageProvider`):**
+   - O usuário pode apontar para uma pasta local (`pickLocalFolder` / `scanLocalFolderForBooks`) contendo seus livros `.epub`/`.pdf`.
+   - Adicionalmente, uma pasta local pode atuar como `LocalFolderStorageProvider` (implementando `IRemoteStorageProvider` sobre o filesystem local), permitindo usar a mesma estrutura de sincronização LWW em pastas locais ou sincronizadas por ferramentas externas (Syncthing, iCloud, OneDrive).
+3. **Pasta Remota no Google Drive / WebDAV (`remote-storage` via `CloudlessSyncEngine`):**
+   O `CloudlessSyncEngine` mantém a seguinte organização na pasta selecionada (seja no Google Drive ou via `LocalFolderStorageProvider`):
 
 ```text
-📁 Pasta Raiz no Google Drive
+📁 Pasta Raiz (Google Drive ou Pasta Local de Sync)
  ├── 📄 .reader_library_index.json       # Catálogo leve com metadados, capas e página atual
  ├── 📁 books/
  │    └── 📕 <bookHash>.epub | .pdf      # Binários completos baixados sob demanda (On-Demand Caching)
