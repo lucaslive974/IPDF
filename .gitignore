@@ -1,0 +1,7 @@
+node_modules/
+dist/
+coverage/
+.tauri/
+src-tauri/target/
+*.log
+.DS_Store
