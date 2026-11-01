@@ -303,11 +303,27 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
     ]
   );
 
+  const pageHighlightsMap = useMemo(() => {
+    const map = new Map<number, Highlight[]>();
+    for (const h of highlights) {
+      const pageNum = h.anchor.pageNumber;
+      const list = map.get(pageNum);
+      if (list) {
+        list.push(h);
+      } else {
+        map.set(pageNum, [h]);
+      }
+    }
+    return map;
+  }, [highlights]);
+
+  const emptyHighlights: Highlight[] = useMemo(() => [], []);
+
   const getHighlightsForPage = useCallback(
     (pageNumber: number): Highlight[] => {
-      return readerHighlights.getHighlightsForPage(pageNumber);
+      return pageHighlightsMap.get(pageNumber) ?? emptyHighlights;
     },
-    [readerHighlights]
+    [pageHighlightsMap, emptyHighlights]
   );
 
   const goToPage = useCallback(

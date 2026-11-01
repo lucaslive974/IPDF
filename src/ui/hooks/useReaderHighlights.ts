@@ -112,18 +112,6 @@ export function useReaderHighlights(
 ): ReaderHighlightsController {
   const container = useServiceContainer();
   const highlightService = injectedHighlightService ?? container.highlightService;
-  const highlights = useHighlightStore((s) => s.highlights);
 
-  const controller = useMemo(
-    () => createReaderHighlightsController(highlightService),
-    [highlightService]
-  );
-
-  return useMemo(
-    () => ({
-      ...controller,
-      highlights,
-    }),
-    [controller, highlights]
-  );
+  return useMemo(() => createReaderHighlightsController(highlightService), [highlightService]);
 }
