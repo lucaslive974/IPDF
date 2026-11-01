@@ -55,6 +55,14 @@ impl LocalFolderStorageAdapter {
         }
         epub_path
     }
+
+    pub fn root_dir(&self) -> &Path {
+        &self.root_dir
+    }
+
+    pub fn resolve_entry_path(&self, name: &str) -> PathBuf {
+        self.root_dir.join(name)
+    }
 }
 
 impl StorageProvider for LocalFolderStorageAdapter {
@@ -170,6 +178,11 @@ impl StorageProvider for LocalFolderStorageAdapter {
             fs::create_dir_all(&self.root_dir).map_err(to_err)?;
         }
         let path = self.root_dir.join(name);
+        if let Some(parent) = path.parent() {
+            if !parent.exists() {
+                fs::create_dir_all(parent).map_err(to_err)?;
+            }
+        }
         fs::write(&path, data).map_err(to_err)?;
 
         Ok(StorageEntry {

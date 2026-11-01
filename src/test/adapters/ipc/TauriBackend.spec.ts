@@ -7,6 +7,7 @@ import {
   TauriPresenceService,
   TauriReaderService,
   TauriSettingsService,
+  resolveCoverUrl,
 } from '../../../adapters/ipc';
 import { Highlight } from '../../../core/domain/Highlight';
 import { createAssistedTextAnnotation } from '../../../core/domain/RichAnnotation';
@@ -17,6 +18,7 @@ const storedBooks = new Map<string, SerializedBookMetadata>();
 const storedSettings = new Map<string, string>();
 
 vi.mock('@tauri-apps/api/core', () => ({
+  convertFileSrc: vi.fn((path: string) => `asset://localhost/${path}`),
   invoke: vi.fn(async <T>(cmd: string, args: Record<string, unknown> = {}) => {
     if (cmd === 'list_library_books') {
       return Array.from(storedBooks.values()) as unknown as T;
@@ -334,5 +336,19 @@ describe('MockBackend (In-Memory Modular Double)', () => {
 
     await mock.clearRichPresence();
     expect(await mock.getAppSetting('discord_presence_cleared')).toBe('true');
+  });
+
+  it('correctly resolves cover image URLs according to protocol and scheme', () => {
+    expect(resolveCoverUrl(undefined)).toBeUndefined();
+    expect(resolveCoverUrl(null)).toBeUndefined();
+    expect(resolveCoverUrl('')).toBeUndefined();
+    expect(resolveCoverUrl('   ')).toBeUndefined();
+    expect(resolveCoverUrl('http://example.com/cover.jpg')).toBe('http://example.com/cover.jpg');
+    expect(resolveCoverUrl('https://example.com/cover.jpg')).toBe('https://example.com/cover.jpg');
+    expect(resolveCoverUrl('data:image/jpeg;base64,123')).toBe('data:image/jpeg;base64,123');
+    expect(resolveCoverUrl('asset://localhost/test.jpg')).toBe('asset://localhost/test.jpg');
+    expect(resolveCoverUrl('/home/user/covers/book.jpg')).toBe(
+      'asset://localhost//home/user/covers/book.jpg'
+    );
   });
 });

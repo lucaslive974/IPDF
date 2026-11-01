@@ -1,6 +1,8 @@
 use ipdf_core::core::domain::BookFormat;
 use ipdf_core::core::ports::{BookRepository, ConfigurationStore, StorageProvider};
-use ipdf_core::core::services::{ImportBookInput, LibraryManager};
+use ipdf_core::core::services::{
+    BookCoverExtractorFactory, ImportBookInput, LibraryManager, Sha256BookHasher,
+};
 
 pub const BUNDLED_REPUBLIC_EPUB: &[u8] = include_bytes!("../../assets/republic-plato.epub");
 pub const INITIAL_SEED_KEY: &str = "initial_seed_completed_v1";
@@ -18,13 +20,28 @@ pub fn seed_bundled_assets_if_needed<S: StorageProvider, R: BookRepository, C: C
 
     if let Ok(books) = library.list_books() {
         if books.is_empty() {
+            let extractor = BookCoverExtractorFactory::create(BookFormat::Epub);
+            let cover_url = if let Some(cover) = extractor.extract_cover(BUNDLED_REPUBLIC_EPUB) {
+                if let Ok(book_hash) = Sha256BookHasher::hash_bytes(BUNDLED_REPUBLIC_EPUB) {
+                    let entry_name = format!("covers/{}.{}", book_hash, cover.extension);
+                    let _ = library
+                        .storage_mut()
+                        .write_entry(&entry_name, &cover.data, &cover.mime_type);
+                    Some(entry_name)
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
             let input = ImportBookInput {
                 raw_bytes: BUNDLED_REPUBLIC_EPUB.to_vec(),
                 title: "The Republic".to_string(),
                 author: "Plato".to_string(),
                 format: BookFormat::Epub,
                 total_pages: 320,
-                cover_image_url: None,
+                cover_image_url: cover_url,
                 now_ms,
             };
             let _ = library.import_book(input);

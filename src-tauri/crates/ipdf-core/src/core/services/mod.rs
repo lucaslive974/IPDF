@@ -1,5 +1,6 @@
 pub mod cloudless_sync_engine;
 pub mod data_portability_service;
+pub mod extractor;
 pub mod highlight_manager;
 pub mod library_manager;
 pub mod pagination;
@@ -11,6 +12,7 @@ pub mod tts_session_manager;
 
 pub use cloudless_sync_engine::CloudlessSyncEngine;
 pub use data_portability_service::DataPortabilityService;
+pub use extractor::{BookCoverExtractorFactory, EpubCoverExtractor, PdfCoverExtractor};
 pub use highlight_manager::{CreateHighlightInput, HighlightManager};
 pub use library_manager::{ImportBookInput, LibraryManager};
 pub use pagination::{BookPaginatorFactory, EpubBookPaginator, PdfBookPaginator};

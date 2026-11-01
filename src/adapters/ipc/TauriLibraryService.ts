@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import type { BookMetadata } from '../../core/domain/BookMetadata';
 import type { BookFormat } from '../../core/domain/types';
 import type { ILibraryService, ImportLibraryBookInput } from '../../core/ports/ILibraryService';
@@ -16,6 +16,25 @@ export interface SerializedBookMetadata {
   readonly updatedAtMs: number;
 }
 
+export function resolveCoverUrl(url?: string | null): string | undefined {
+  if (!url) return undefined;
+  const trimmed = url.trim();
+  if (!trimmed) return undefined;
+  if (
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('data:') ||
+    trimmed.startsWith('asset:')
+  ) {
+    return trimmed;
+  }
+  try {
+    return convertFileSrc(trimmed);
+  } catch {
+    return trimmed;
+  }
+}
+
 export function deserializeBookMetadata(dto: SerializedBookMetadata): BookMetadata {
   return {
     bookHash: dto.bookHash,
@@ -25,7 +44,7 @@ export function deserializeBookMetadata(dto: SerializedBookMetadata): BookMetada
     currentPage: dto.currentPage,
     totalPages: dto.totalPages,
     percentage: dto.percentage,
-    coverImageUrl: dto.coverImageUrl,
+    coverImageUrl: resolveCoverUrl(dto.coverImageUrl),
     lastReadAt: new Date(dto.lastReadAtMs),
     updatedAt: new Date(dto.updatedAtMs),
   };

@@ -1,8 +1,10 @@
 use crate::state::BackendState;
 use crate::utils::current_epoch_ms;
 use ipdf_core::core::domain::{BookFormat, BookMetadata, BookPagePayload};
-use ipdf_core::core::ports::{HighlightRepository, ReadingActivity};
-use ipdf_core::core::services::{ImportBookInput, Sha256BookHasher};
+use ipdf_core::core::ports::{BookRepository, HighlightRepository, ReadingActivity, StorageProvider};
+use ipdf_core::core::services::{
+    BookCoverExtractorFactory, ImportBookInput, Sha256BookHasher,
+};
 use std::io::Cursor;
 use std::path::Path;
 use std::sync::Mutex;
@@ -28,7 +30,35 @@ pub fn open_book_file(
 ) -> Result<BookMetadata, String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
     let path = Path::new(&file_path);
-    let (metadata, _bytes) = guard.library.open_book_from_path(path)?;
+    let (mut metadata, bytes) = guard.library.open_book_from_path(path)?;
+
+    if metadata.cover_image_url.is_none() {
+        let extractor = BookCoverExtractorFactory::create(metadata.format);
+        if let Some(cover) = extractor.extract_cover(&bytes) {
+            let entry_name = format!("covers/{}.{}", metadata.book_hash, cover.extension);
+            if guard
+                .library
+                .storage_mut()
+                .write_entry(&entry_name, &cover.data, &cover.mime_type)
+                .is_ok()
+            {
+                let full_path = guard.library.storage().resolve_entry_path(&entry_name);
+                let cover_path = full_path.to_string_lossy().to_string();
+                metadata.cover_image_url = Some(cover_path);
+                if let Some(mut repo_book) = guard
+                    .library
+                    .book_repo_mut()
+                    .find_book_by_hash(&metadata.book_hash)
+                    .ok()
+                    .flatten()
+                {
+                    repo_book.cover_image_url = metadata.cover_image_url.clone();
+                    let _ = guard.library.book_repo_mut().save_book(repo_book);
+                }
+            }
+        }
+    }
+
     let now = current_epoch_ms();
     let total = metadata.total_pages.max(1);
     let pct = (metadata.current_page as f64 / total as f64) * 100.0;
@@ -58,13 +88,41 @@ pub fn import_library_book(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<BookMetadata, String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
+
+    let resolved_cover = match cover_image_url {
+        Some(url) if !url.trim().is_empty() => Some(url),
+        _ => {
+            let extractor = BookCoverExtractorFactory::create(format);
+            if let Some(cover) = extractor.extract_cover(&raw_bytes) {
+                if let Ok(book_hash) = Sha256BookHasher::hash_bytes(&raw_bytes) {
+                    let entry_name = format!("covers/{}.{}", book_hash, cover.extension);
+                    if guard
+                        .library
+                        .storage_mut()
+                        .write_entry(&entry_name, &cover.data, &cover.mime_type)
+                        .is_ok()
+                    {
+                        let full_path = guard.library.storage().resolve_entry_path(&entry_name);
+                        Some(full_path.to_string_lossy().to_string())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }
+    };
+
     let meta = guard.library.import_book(ImportBookInput {
         raw_bytes,
         title,
         author,
         format,
         total_pages,
-        cover_image_url,
+        cover_image_url: resolved_cover,
         now_ms: current_epoch_ms(),
     })?;
     Ok(meta)
