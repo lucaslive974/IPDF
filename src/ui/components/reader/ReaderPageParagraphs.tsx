@@ -249,22 +249,30 @@ export const ReaderPageParagraphs = memo(function ReaderPageParagraphs({
                     {chunk.text}
                   </span>
                   {hasNote && isLastChunkOfHighlight && (
-                    <button
-                      type="button"
-                      aria-label="View annotation note"
-                      title={hl.note}
-                      className="inline-flex items-center justify-center align-middle mx-1 px-1 py-0.5 rounded text-[11px] leading-none bg-surface-subtle border border-line-subtle text-tx-secondary hover:text-tx-main hover:bg-surface-hover transition shadow-xs cursor-pointer select-none"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        onHighlightClick(hl, {
-                          x: rect.left + rect.width / 2,
-                          y: rect.top,
-                        });
-                      }}
-                    >
-                      💬
-                    </button>
+                    <span className="relative inline-block h-0 w-0 select-none">
+                      <button
+                        type="button"
+                        aria-label="View annotation note"
+                        title={hl.note}
+                        className="absolute -top-2 left-0.5 inline-flex cursor-pointer items-center justify-center p-0.5 text-tx-faint transition-colors hover:text-tx-secondary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          onHighlightClick(hl, {
+                            x: rect.left + rect.width / 2,
+                            y: rect.top,
+                          });
+                        }}
+                      >
+                        <svg
+                          className="h-3 w-3 fill-current opacity-70 transition-opacity hover:opacity-100"
+                          viewBox="0 0 16 16"
+                          aria-hidden="true"
+                        >
+                          <path d="M2.5 3A1.5 1.5 0 0 0 1 4.5v7A1.5 1.5 0 0 0 2.5 13h1.75v2.25a.75.75 0 0 0 1.28.53L8.06 13H13.5a1.5 1.5 0 0 0 1.5-1.5v-7A1.5 1.5 0 0 0 13.5 3h-11Z" />
+                        </svg>
+                      </button>
+                    </span>
                   )}
                 </span>
               );
