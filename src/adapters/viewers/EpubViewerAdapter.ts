@@ -34,7 +34,6 @@ const createDefaultClientRect = (): DOMRect =>
 
 export class EpubViewerAdapter implements IDocumentViewer {
   private container: HTMLElement | null = null;
-  private chapters: EpubChapterDescriptor[] = [];
   private pages: DocumentPage[] = [];
   private currentPageIndex = 0;
   private renderedHighlights = new Map<string, Highlight>();
@@ -48,9 +47,7 @@ export class EpubViewerAdapter implements IDocumentViewer {
 
   public async render(container: HTMLElement, fileData: ArrayBuffer): Promise<void> {
     this.container = container;
-    this.pages = [];
-    this.chapters = await this.parseEpubChapters(fileData);
-    this.pages = this.paginateChapters(this.chapters);
+    this.pages = this.parsePages(fileData);
     this.currentPageIndex = 0;
     this.flushDom();
     this.emitPageChanged();
@@ -75,63 +72,15 @@ export class EpubViewerAdapter implements IDocumentViewer {
   }
 
   public getChapters(): EpubChapterDescriptor[] {
-    return [...this.chapters];
+    return this.pages.map((p) => ({
+      title: p.chapterTitle,
+      cfiBase: p.cfiBase,
+      content: p.paragraphs.join('\n\n'),
+    }));
   }
 
   public getParagraphsForChapter(index = this.currentPageIndex): string[] {
-    const page = this.pages[index];
-    if (page && page.paragraphs.length > 0) {
-      return page.paragraphs;
-    }
-
-    const chapter = this.chapters[index];
-    if (!chapter) return [];
-
-    const content = chapter.content;
-    const paragraphs: string[] = [];
-
-    const pRegex = /<p[^>]*>([\s\S]*?)<\/p>/gi;
-    let match = pRegex.exec(content);
-    while (match !== null) {
-      const clean = match[1]
-        .replace(/<br\s*\/?>/gi, ' ')
-        .replace(/<[^>]+>/g, '')
-        .replace(/&mdash;/g, '—')
-        .replace(/&ndash;/g, '–')
-        .replace(/&quot;/g, '"')
-        .replace(/&apos;/g, "'")
-        .replace(/&lsquo;/g, '‘')
-        .replace(/&rsquo;/g, '’')
-        .replace(/&ldquo;/g, '“')
-        .replace(/&rdquo;/g, '”')
-        .replace(/&amp;/g, '&')
-        .replace(/&nbsp;/g, ' ')
-        .trim();
-      if (clean.length > 5) {
-        paragraphs.push(clean);
-      }
-      match = pRegex.exec(content);
-    }
-
-    if (paragraphs.length === 0) {
-      const plain = content
-        .replace(/<[^>]+>/g, '')
-        .replace(/&mdash;/g, '—')
-        .replace(/&ndash;/g, '–')
-        .replace(/&quot;/g, '"')
-        .replace(/&apos;/g, "'")
-        .replace(/&amp;/g, '&')
-        .replace(/&nbsp;/g, ' ')
-        .trim();
-      if (plain) {
-        return plain
-          .split(/\n\s*\n/)
-          .map((p) => p.trim())
-          .filter((p) => p.length > 0);
-      }
-    }
-
-    return paragraphs;
+    return this.pages[index]?.paragraphs ?? [];
   }
 
   public destroy(): void {
@@ -139,7 +88,6 @@ export class EpubViewerAdapter implements IDocumentViewer {
       this.container.innerHTML = '';
     }
     this.container = null;
-    this.chapters = [];
     this.pages = [];
     this.renderedHighlights.clear();
     this.inlineAnnotations = [];
@@ -148,15 +96,15 @@ export class EpubViewerAdapter implements IDocumentViewer {
   }
 
   public async goToPage(target: number | string): Promise<void> {
-    if (this.chapters.length === 0) {
+    if (this.pages.length === 0) {
       return;
     }
 
     if (typeof target === 'number') {
-      const clampedIndex = Math.max(0, Math.min(this.chapters.length - 1, target - 1));
+      const clampedIndex = Math.max(0, Math.min(this.pages.length - 1, target - 1));
       this.currentPageIndex = clampedIndex;
     } else {
-      const foundIndex = this.chapters.findIndex((ch) => target.startsWith(ch.cfiBase));
+      const foundIndex = this.pages.findIndex((p) => target.startsWith(p.cfiBase));
       if (foundIndex >= 0) {
         this.currentPageIndex = foundIndex;
       }
@@ -167,7 +115,7 @@ export class EpubViewerAdapter implements IDocumentViewer {
   }
 
   public async nextPage(): Promise<void> {
-    if (this.currentPageIndex < this.chapters.length - 1) {
+    if (this.currentPageIndex < this.pages.length - 1) {
       this.currentPageIndex += 1;
       this.flushDom();
       this.emitPageChanged();
@@ -183,61 +131,17 @@ export class EpubViewerAdapter implements IDocumentViewer {
   }
 
   public getCurrentPage(): PageInfo {
-    const totalPages = Math.max(1, this.pages.length || this.chapters.length);
+    const totalPages = Math.max(1, this.pages.length);
     const currentPage = Math.max(1, Math.min(totalPages, this.currentPageIndex + 1));
     const page = this.pages[currentPage - 1];
-    const chapter = this.chapters[this.currentPageIndex];
     const percentage = Math.round((currentPage / totalPages) * 100);
 
     return {
       currentPage,
       totalPages,
-      chapterTitle: page?.chapterTitle || chapter?.title,
+      chapterTitle: page?.chapterTitle ?? 'Chapter 1',
       percentage,
     };
-  }
-
-  private paginateChapters(chapters: EpubChapterDescriptor[]): DocumentPage[] {
-    const pages: DocumentPage[] = [];
-    let pageNum = 1;
-
-    for (let cIdx = 0; cIdx < chapters.length; cIdx += 1) {
-      const ch = chapters[cIdx];
-      if (!ch) continue;
-      const paragraphs = this.getParagraphsForChapter(cIdx);
-      if (paragraphs.length <= 14) {
-        pages.push({
-          pageNumber: pageNum,
-          chapterTitle: ch.title,
-          paragraphs: paragraphs.length > 0 ? paragraphs : ['Empty chapter'],
-          cfiBase: `${ch.cfiBase}/1:0`,
-        });
-        pageNum += 1;
-      } else {
-        const chunks = Math.ceil(paragraphs.length / 14);
-        for (let i = 0; i < chunks; i += 1) {
-          const slice = paragraphs.slice(i * 14, (i + 1) * 14);
-          pages.push({
-            pageNumber: pageNum,
-            chapterTitle: ch.title,
-            paragraphs: slice,
-            cfiBase: `${ch.cfiBase}/${i + 1}:0`,
-          });
-          pageNum += 1;
-        }
-      }
-    }
-
-    return pages.length > 0
-      ? pages
-      : [
-          {
-            pageNumber: 1,
-            chapterTitle: 'Chapter 1',
-            paragraphs: ['Empty document'],
-            cfiBase: 'epubcfi(/6/2!/4/2/1:0)',
-          },
-        ];
   }
 
   public getSelection(): TextSelection | null {
@@ -252,13 +156,13 @@ export class EpubViewerAdapter implements IDocumentViewer {
   }
 
   public simulateTextSelection(selectedText: string, epubCfi?: string): void {
-    const chapter = this.chapters[this.currentPageIndex];
+    const page = this.pages[this.currentPageIndex];
     const pageNumber = this.currentPageIndex + 1;
-    const cfi = epubCfi ?? `${chapter?.cfiBase ?? 'epubcfi(/6/2!/4/2'}/1:0)`;
+    const cfi = epubCfi ?? `${page?.cfiBase ?? 'epubcfi(/6/2!/4/2'}/1:0)`;
 
     const selection: TextSelection = {
       text: selectedText,
-      surroundingContext: chapter?.content ?? selectedText,
+      surroundingContext: page?.paragraphs.join(' ') ?? selectedText,
       anchor: {
         format: 'epub',
         pageNumber,
@@ -307,27 +211,27 @@ export class EpubViewerAdapter implements IDocumentViewer {
   }
 
   public async extractVisibleSentences(): Promise<SentenceNode[]> {
-    const chapter = this.chapters[this.currentPageIndex];
-    if (!chapter) {
+    const page = this.pages[this.currentPageIndex];
+    if (!page || page.paragraphs.length === 0) {
       return [];
     }
 
-    const pageNumber = this.currentPageIndex + 1;
-    const parts = chapter.content
+    const textContent = page.paragraphs.join(' ');
+    const parts = textContent
       .split(/(?<=[.!?])\s+/)
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
 
     let charOffset = 0;
     return parts.map((sentenceText, idx) => {
-      const cfi = `${chapter.cfiBase}/1:${charOffset})`;
+      const cfi = `${page.cfiBase}/1:${charOffset})`;
       charOffset += sentenceText.length + 1;
       return {
-        id: `epub-sentence-p${pageNumber}-${idx + 1}`,
+        id: `epub-sentence-p${page.pageNumber}-${idx + 1}`,
         text: sentenceText,
         anchor: {
           format: 'epub',
-          pageNumber,
+          pageNumber: page.pageNumber,
           epubCfi: cfi,
         },
       };
@@ -351,119 +255,42 @@ export class EpubViewerAdapter implements IDocumentViewer {
     this.highlightClickedListeners.push(callback);
   }
 
-  private async parseEpubChapters(fileData: ArrayBuffer): Promise<EpubChapterDescriptor[]> {
-    const bytes = new Uint8Array(fileData);
+  private parsePages(fileData: ArrayBuffer): DocumentPage[] {
+    const rawText = new TextDecoder().decode(new Uint8Array(fileData)).trim();
 
-    // 1. Binary ZIP (EPUB specification standard: PK\x03\x04 signature)
-    if (
-      bytes.length > 30 &&
-      bytes[0] === 0x50 &&
-      bytes[1] === 0x4b &&
-      bytes[2] === 0x03 &&
-      bytes[3] === 0x04
-    ) {
-      try {
-        const chapters = await this.extractChaptersFromZip(bytes);
-        if (chapters.length > 0) {
-          return chapters;
-        }
-      } catch (err) {
-        console.warn('Failed to unpack EPUB in frontend:', err);
-      }
-    }
-
-    // 2. Structured JSON chapters fallback (unit test mocks)
-    const rawText = new TextDecoder().decode(bytes).trim();
     if (rawText.startsWith('{')) {
       try {
-        const parsed = JSON.parse(rawText) as { chapters?: EpubChapterDescriptor[] };
+        const parsed = JSON.parse(rawText) as {
+          chapters?: Array<{ title: string; cfiBase: string; content: string }>;
+        };
         if (Array.isArray(parsed.chapters) && parsed.chapters.length > 0) {
-          return parsed.chapters;
+          return parsed.chapters.map((ch, idx) => ({
+            pageNumber: idx + 1,
+            chapterTitle: ch.title,
+            paragraphs: ch.content
+              .split(/(?:<\/p>|\n\s*\n)/i)
+              .map((p) => p.replace(/<[^>]+>/g, '').trim())
+              .filter((p) => p.length > 0),
+            cfiBase: `${ch.cfiBase}/1:0`,
+          }));
         }
       } catch {
-        // Fallback to single chapter text below
+        // Fallback to plain text
       }
     }
 
+    const content = rawText.length > 0 ? rawText : 'Empty EPUB Document';
     return [
       {
-        title: 'Chapter 1',
-        cfiBase: 'epubcfi(/6/2!/4/2',
-        content: rawText.length > 0 ? rawText : 'Empty EPUB Document',
+        pageNumber: 1,
+        chapterTitle: 'Chapter 1',
+        paragraphs: content
+          .split(/\n\s*\n/)
+          .map((p) => p.replace(/<[^>]+>/g, '').trim())
+          .filter((p) => p.length > 0),
+        cfiBase: 'epubcfi(/6/2!/4/2/1:0)',
       },
     ];
-  }
-
-  private async extractChaptersFromZip(bytes: Uint8Array): Promise<EpubChapterDescriptor[]> {
-    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-    let offset = 0;
-    const chapters: EpubChapterDescriptor[] = [];
-    let chapterIndex = 1;
-
-    while (offset + 30 <= bytes.length) {
-      const sig = view.getUint32(offset, true);
-      if (sig !== 0x04034b50) {
-        break;
-      }
-      const method = view.getUint16(offset + 8, true);
-      const compSize = view.getUint32(offset + 18, true);
-      const nameLen = view.getUint16(offset + 26, true);
-      const extraLen = view.getUint16(offset + 28, true);
-
-      const nameBytes = bytes.subarray(offset + 30, offset + 30 + nameLen);
-      const name = new TextDecoder('utf-8').decode(nameBytes);
-      const dataStart = offset + 30 + nameLen + extraLen;
-      const compData = bytes.subarray(dataStart, dataStart + compSize);
-      offset = dataStart + compSize;
-
-      const lower = name.toLowerCase();
-      if (
-        (lower.endsWith('.xhtml') || lower.endsWith('.html') || lower.endsWith('.htm')) &&
-        !lower.includes('wrap') &&
-        !lower.includes('cover') &&
-        !lower.includes('toc')
-      ) {
-        let text = '';
-        if (method === 0) {
-          text = new TextDecoder('utf-8').decode(compData);
-        } else if (method === 8 && typeof DecompressionStream !== 'undefined') {
-          try {
-            const ds = new DecompressionStream('deflate-raw');
-            const writer = ds.writable.getWriter();
-            void writer.write(compData as unknown as BufferSource);
-            void writer.close();
-            const decompressed = await new Response(ds.readable).arrayBuffer();
-            text = new TextDecoder('utf-8').decode(decompressed);
-          } catch {
-            // Decompression fallback
-          }
-        }
-
-        if (text.length > 0) {
-          const title = this.extractTitleFromHtml(text) || `Chapter ${chapterIndex}`;
-          chapters.push({
-            title,
-            cfiBase: `epubcfi(/6/${chapterIndex * 2}!/4/2`,
-            content: text,
-          });
-          chapterIndex += 1;
-        }
-      }
-    }
-
-    return chapters;
-  }
-
-  private extractTitleFromHtml(html: string): string | null {
-    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-    if (titleMatch?.[1]?.trim()) {
-      return titleMatch[1].trim();
-    }
-    const hMatch = html.match(/<h[12][^>]*>([^<]+)<\/h[12]>/i);
-    if (hMatch?.[1]?.trim()) {
-      return hMatch[1].trim();
-    }
-    return null;
   }
 
   private flushDom(): void {
@@ -471,8 +298,8 @@ export class EpubViewerAdapter implements IDocumentViewer {
       return;
     }
 
-    const chapter = this.chapters[this.currentPageIndex];
-    if (!chapter) {
+    const page = this.pages[this.currentPageIndex];
+    if (!page) {
       this.container.innerHTML = '';
       return;
     }
@@ -481,7 +308,7 @@ export class EpubViewerAdapter implements IDocumentViewer {
     const highlightMarks: string[] = [];
     for (const hl of this.renderedHighlights.values()) {
       if (hl.anchor.pageNumber === pageNumber) {
-        const cfi = hl.anchor.epubCfi ?? `${chapter.cfiBase}/1:0)`;
+        const cfi = hl.anchor.epubCfi ?? `${page.cfiBase}/1:0)`;
         highlightMarks.push(
           `<mark data-highlight-id="${hl.id}" data-epub-cfi="${cfi}" style="background-color:${hl.color}">${hl.text}</mark>`
         );
@@ -491,7 +318,7 @@ export class EpubViewerAdapter implements IDocumentViewer {
     const rubyNodes: string[] = [];
     for (const inline of this.inlineAnnotations) {
       if (inline.anchor.pageNumber === pageNumber) {
-        const cfi = inline.anchor.epubCfi ?? `${chapter.cfiBase}/1:0)`;
+        const cfi = inline.anchor.epubCfi ?? `${page.cfiBase}/1:0)`;
         const detail = inline.tooltipDetails ?? inline.shortText;
         rubyNodes.push(
           `<ruby data-inline-cfi="${cfi}">${inline.shortText}<rt>${detail}</rt></ruby>`
@@ -504,9 +331,9 @@ export class EpubViewerAdapter implements IDocumentViewer {
       : '';
 
     this.container.innerHTML = [
-      `<article data-epub-page="${pageNumber}" data-cfi-base="${chapter.cfiBase}"${ttsAttr}>`,
-      `<h2>${chapter.title}</h2>`,
-      `<p>${chapter.content}</p>`,
+      `<article data-epub-page="${pageNumber}" data-cfi-base="${page.cfiBase}"${ttsAttr}>`,
+      `<h2>${page.chapterTitle}</h2>`,
+      `<p>${page.paragraphs.join(' ')}</p>`,
       ...highlightMarks,
       ...rubyNodes,
       '</article>',

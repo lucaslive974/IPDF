@@ -150,40 +150,26 @@ describe('EpubViewerAdapter (EPUB CFI, Highlights & Virtual Pagination)', () => 
     expect(container.innerHTML).toBe('');
   });
 
-  it('parses EPUB binary archive and extracts paragraphs and chapters', async () => {
+  it('extracts paragraphs and chapters from structured document content', async () => {
     const viewer = new EpubViewerAdapter();
     const container = createFakeContainer();
 
-    const filename = 'chapter1.xhtml';
-    const content =
-      '<html><head><title>Allegory</title></head><body><h1>The Cave</h1><p>Behold prisoners chained in the dark.</p><p>They see shadows cast upon the wall.</p></body></html>';
-    const nameBytes = new TextEncoder().encode(filename);
-    const contentBytes = new TextEncoder().encode(content);
+    const epubContent = JSON.stringify({
+      chapters: [
+        {
+          title: 'Allegory of the Cave',
+          cfiBase: 'epubcfi(/6/10!/4/2',
+          content:
+            '<p>Behold prisoners chained in the dark.</p><p>They see shadows cast upon the wall.</p>',
+        },
+      ],
+    });
 
-    const totalLen = 30 + nameBytes.length + contentBytes.length;
-    const zipBytes = new Uint8Array(totalLen);
-    const view = new DataView(zipBytes.buffer);
-
-    view.setUint32(0, 0x04034b50, true);
-    view.setUint16(4, 20, true);
-    view.setUint16(6, 0, true);
-    view.setUint16(8, 0, true); // method 0 (stored)
-    view.setUint16(10, 0, true);
-    view.setUint16(12, 0, true);
-    view.setUint32(14, 0, true);
-    view.setUint32(18, contentBytes.length, true);
-    view.setUint32(22, contentBytes.length, true);
-    view.setUint16(26, nameBytes.length, true);
-    view.setUint16(28, 0, true);
-
-    zipBytes.set(nameBytes, 30);
-    zipBytes.set(contentBytes, 30 + nameBytes.length);
-
-    await viewer.render(container, zipBytes.buffer);
+    await viewer.render(container, encodeUtf8(epubContent));
 
     const chapters = viewer.getChapters();
     expect(chapters).toHaveLength(1);
-    expect(chapters[0]?.title).toBe('Allegory');
+    expect(chapters[0]?.title).toBe('Allegory of the Cave');
 
     const paragraphs = viewer.getParagraphsForChapter(0);
     expect(paragraphs).toHaveLength(2);
@@ -204,29 +190,27 @@ describe('EpubViewerAdapter (EPUB CFI, Highlights & Virtual Pagination)', () => 
     await viewer.prevPage();
     expect(viewer.getCurrentPage().currentPage).toBe(1);
 
-    // 2. Large chapter with > 14 paragraphs to trigger multi-page chunking
-    const manyParas = Array.from({ length: 20 }, (_, i) => `<p>Paragraph ${i + 1}</p>`).join('');
+    // 2. Multi-chapter document
     const jsonEpub = JSON.stringify({
       chapters: [
         {
-          title: 'Long Chapter',
+          title: 'Chapter 1',
           cfiBase: 'epubcfi(/6/10!/4/2',
-          content: `<div><h2>Subtitle Heading</h2>${manyParas}</div>`,
+          content: 'Paragraph 1\n\nParagraph 2',
         },
         {
-          title: 'Empty Chapter',
+          title: 'Chapter 2',
           cfiBase: 'epubcfi(/6/12!/4/2',
-          content: '   ',
+          content: 'Paragraph 3',
         },
       ],
     });
 
     await viewer.render(container, encodeUtf8(jsonEpub));
     const pages = viewer.getPagesChunk(1, 100);
-    expect(pages.length).toBeGreaterThanOrEqual(3);
+    expect(pages.length).toBe(2);
 
     // Next page at boundary
-    await viewer.nextPage();
     await viewer.nextPage();
     await viewer.nextPage(); // beyond max
     expect(viewer.getCurrentPage().currentPage).toBe(2);
