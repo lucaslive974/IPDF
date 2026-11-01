@@ -15,7 +15,6 @@ import type {
   IReaderService,
   ISettingsService,
 } from '../../core/ports';
-import { AnnotationWorkbenchService } from '../../core/services/AnnotationWorkbenchService';
 
 export interface ServiceContainer {
   readonly libraryService: ILibraryService;
@@ -23,7 +22,6 @@ export interface ServiceContainer {
   readonly readerService: IReaderService;
   readonly presenceService: IPresenceService;
   readonly settingsService: ISettingsService;
-  readonly annotationWorkbench: AnnotationWorkbenchService;
   readonly epubViewer: IDocumentViewer;
 }
 
@@ -54,8 +52,6 @@ export function ServiceContainerProvider({
     const readerService = injectedReader ?? new TauriReaderService();
     const presenceService = injectedPresence ?? new TauriPresenceService();
     const settingsService = injectedSettings ?? new TauriSettingsService();
-
-    const annotationWorkbench = new AnnotationWorkbenchService(highlightService);
     const epubViewer = viewer ?? new EpubViewerAdapter();
 
     return {
@@ -64,7 +60,6 @@ export function ServiceContainerProvider({
       readerService,
       presenceService,
       settingsService,
-      annotationWorkbench,
       epubViewer,
     };
   }, [

@@ -20,6 +20,7 @@ import {
   useReaderUIStore,
 } from '../stores/useReaderUIStore';
 import { formatMarkdownSelection } from '../utils/markdownFormatting';
+import { useReaderHighlights } from './useReaderHighlights';
 
 export { DEFAULT_BOOK_HASH, DEFAULT_DOCUMENT };
 export type { StudyDocumentDescriptor, SelectionPopoverState, ActiveHighlightPopoverState };
@@ -81,8 +82,8 @@ export interface ReaderViewModel {
 export type ReaderContextValue = ReaderViewModel;
 
 export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
-  const { readerService, highlightService, epubViewer, annotationWorkbench } =
-    useServiceContainer();
+  const { readerService, highlightService, epubViewer } = useServiceContainer();
+  const readerHighlights = useReaderHighlights(highlightService);
   const navigation = useNavigation();
   const book = bookOverride ?? navigation.selectedBook;
 
@@ -145,7 +146,7 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
   // Refresh active highlight notes and annotations
   const refreshState = useCallback(
     async (activeHighlightId?: string | null, pageNum = currentPage) => {
-      const pageHighlights = annotationWorkbench.getForPage(pageNum);
+      const pageHighlights = readerHighlights.getHighlightsForPage(pageNum);
       setHighlights([...pageHighlights]);
 
       const targetId = activeHighlightId ?? selectedIdRef.current ?? pageHighlights[0]?.id ?? null;
@@ -161,7 +162,7 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
         setNoteInput(found.note);
       }
     },
-    [annotationWorkbench, currentPage, setHighlights, setNoteInput, setSelectedId]
+    [readerHighlights, currentPage, setHighlights, setNoteInput, setSelectedId]
   );
 
   // Bootstrap book & initial pages on mount or book change
@@ -226,10 +227,10 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
         console.warn('Failed to load book pages in reader:', err);
       }
 
-      await annotationWorkbench.loadBookHighlights(doc.bookHash);
+      await readerHighlights.loadBookHighlights(doc.bookHash);
       if (cancelled) return;
 
-      const existing = annotationWorkbench.getForPage(initialPage);
+      const existing = readerHighlights.getHighlightsForPage(initialPage);
       setHighlights([...existing]);
     };
 
@@ -242,7 +243,7 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
     book,
     readerService,
     epubViewer,
-    annotationWorkbench,
+    readerHighlights,
     setDocument,
     setCurrentPage,
     setTotalPages,
@@ -253,9 +254,9 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
 
   // Sync highlights when current page changes
   useEffect(() => {
-    const existing = annotationWorkbench.getForPage(currentPage);
+    const existing = readerHighlights.getHighlightsForPage(currentPage);
     setHighlights([...existing]);
-  }, [annotationWorkbench, currentPage, setHighlights]);
+  }, [readerHighlights, currentPage, setHighlights]);
 
   const loadMorePages = useCallback(
     async (direction: 'next' | 'prev') => {
@@ -316,9 +317,9 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
 
   const getHighlightsForPage = useCallback(
     (pageNumber: number): Highlight[] => {
-      return annotationWorkbench.getForPage(pageNumber);
+      return readerHighlights.getHighlightsForPage(pageNumber);
     },
-    [annotationWorkbench]
+    [readerHighlights]
   );
 
   const goToPage = useCallback(
@@ -396,14 +397,14 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
       setNoteInput(value);
       const currentId = selectedIdRef.current;
       if (currentId) {
-        void annotationWorkbench.updateHighlightNote(currentId, value).then((updated) => {
-          const currentHighlights = annotationWorkbench.getForPage(currentPage);
+        void readerHighlights.updateHighlightNote(currentId, value).then((updated) => {
+          const currentHighlights = readerHighlights.getHighlightsForPage(currentPage);
           setHighlights([...currentHighlights]);
           upsertHighlight(updated);
         });
       }
     },
-    [annotationWorkbench, currentPage, setHighlights, setNoteInput, upsertHighlight]
+    [readerHighlights, currentPage, setHighlights, setNoteInput, upsertHighlight]
   );
 
   const updateSelectionRange = useCallback((start: number, end: number) => {
@@ -425,7 +426,7 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
         return null;
       }
 
-      const created = await annotationWorkbench.createFromSelection(
+      const created = await readerHighlights.createFromSelection(
         document.bookHash,
         {
           text: selected,
@@ -450,14 +451,7 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
       await refreshState(created.id, pageNumber);
       return created;
     },
-    [
-      annotationWorkbench,
-      currentPage,
-      document,
-      refreshState,
-      selectionPopover,
-      setSelectionPopover,
-    ]
+    [readerHighlights, currentPage, document, refreshState, selectionPopover, setSelectionPopover]
   );
 
   const createHighlightFromCurrentSelection = useCallback(
@@ -488,21 +482,16 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
       if (expandedHighlight?.id === highlightId) {
         closeExpandedStudio();
       }
-      await highlightService.deleteHighlight(highlightId);
-      removeHighlight(highlightId);
-      await annotationWorkbench.loadBookHighlights(document.bookHash);
+      await readerHighlights.deleteHighlight(highlightId);
       await refreshState(null, currentPage);
     },
     [
-      annotationWorkbench,
-      highlightService,
+      readerHighlights,
       closeExpandedStudio,
       closeHighlightPopover,
       currentPage,
-      document.bookHash,
       expandedHighlight?.id,
       refreshState,
-      removeHighlight,
     ]
   );
 
@@ -519,10 +508,10 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
       const formatted = formatMarkdownSelection(noteInput, range, style);
       setNoteInput(formatted);
       setSelectionRange({ start: 0, end: 0 });
-      await annotationWorkbench.updateHighlightNote(activeId, formatted);
+      await readerHighlights.updateHighlightNote(activeId, formatted);
       await refreshState(activeId, currentPage);
     },
-    [annotationWorkbench, currentPage, noteInput, refreshState, selectionRange, setNoteInput]
+    [readerHighlights, currentPage, noteInput, refreshState, selectionRange, setNoteInput]
   );
 
   const generateContextualPrompt = useCallback(
