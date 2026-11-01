@@ -56,4 +56,19 @@ describe('useReaderTextSelection / createReaderTextSelectionController', () => {
     expect(highlight?.note).toBe('Kant ethics');
     expect(useHighlightStore.getState().highlights).toHaveLength(1);
   });
+
+  it('creates a highlight with empty note when initialNote is omitted', async () => {
+    const highlightsController = createReaderHighlightsController(backend);
+    const controller = createReaderTextSelectionController({
+      bookHash: 'book-hash',
+      sampleParagraph: 'Surrounding philosophical context.',
+      readerHighlights: highlightsController,
+    });
+
+    const highlight = await controller.createHighlight('#4CAF50', 'Pure text highlight', 2);
+
+    expect(highlight).not.toBeNull();
+    expect(highlight?.text).toBe('Pure text highlight');
+    expect(highlight?.note).toBe('');
+  });
 });

@@ -56,7 +56,7 @@ export function createReaderTextSelectionController(
   let counter = 0;
 
   return {
-    async createHighlight(colorHex, selectedText, pageNumber, initialNote = 'Study note') {
+    async createHighlight(colorHex, selectedText, pageNumber, initialNote = '') {
       const text = selectedText.trim();
       if (!text) {
         return null;
@@ -119,7 +119,7 @@ export function useReaderTextSelection(
         colorHex,
         selected,
         pageNumber,
-        initialNote ?? 'Study note'
+        initialNote ?? ''
       );
 
       if (!created) {
