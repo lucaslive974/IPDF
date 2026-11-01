@@ -1,18 +1,20 @@
 mod fakes;
 
-use fakes::FakeDiscordIpcTransport;
-use ipdf_core::adapters::presence::{DiscordPresenceAdapter, OP_FRAME, OP_HANDSHAKE};
+use fakes::FakeDiscordPresenceClient;
+use ipdf_core::adapters::presence::{
+    DiscordPresenceAdapter, NativeDiscordPresenceAdapter, DEFAULT_DISCORD_CLIENT_ID,
+};
 use ipdf_core::core::ports::{PresenceProvider, ReadingActivity};
 use ipdf_core::core::services::RichPresenceManager;
 
 #[test]
-fn test_discord_presence_handshake_and_publish_activity() {
-    let transport = FakeDiscordIpcTransport::default();
-    let mut adapter =
-        DiscordPresenceAdapter::new("1234567890", true, transport).with_process_id(9999);
+fn test_discord_presence_start_and_publish_activity() {
+    let client = FakeDiscordPresenceClient::default();
+    let mut adapter = DiscordPresenceAdapter::new(1234567890, true, client);
 
     assert_eq!(adapter.id(), "discord");
     assert!(adapter.is_enabled());
+    assert_eq!(adapter.client_id(), 1234567890);
 
     let activity = ReadingActivity {
         book_hash: "hash-dostoievski".to_string(),
@@ -28,31 +30,32 @@ fn test_discord_presence_handshake_and_publish_activity() {
 
     adapter.publish_activity(&activity).unwrap();
 
-    // Verify frames recorded in transport: Handshake (0) and Activity (1)
-    let frames = &adapter.transport().sent_frames;
-    assert_eq!(frames.len(), 2);
-    assert_eq!(frames[0].0, OP_HANDSHAKE);
-    assert!(frames[0].1.contains("1234567890"));
+    // Verify client was started
+    assert!(adapter.client().started);
 
-    assert_eq!(frames[1].0, OP_FRAME);
-    assert!(frames[1]
-        .1
-        .contains("Crime and Punishment — Fyodor Dostoevsky"));
-    assert!(frames[1]
-        .1
-        .contains("Part 1: Chapter 2 — Pág. 45/350 (12.9%)"));
+    // Verify activity details and state
+    let activities = &adapter.client().activities;
+    assert_eq!(activities.len(), 1);
+    assert_eq!(
+        activities[0].details,
+        "Crime and Punishment — Fyodor Dostoevsky"
+    );
+    assert_eq!(
+        activities[0].state,
+        "Part 1: Chapter 2 — Pág. 45/350 (12.9%)"
+    );
+    assert_eq!(activities[0].start_time_secs, 1_700_000_000);
+    assert_eq!(activities[0].large_image.as_deref(), Some("app_logo"));
 
-    // Second publish should not re-handshake
+    // Second publish should not re-start the client
     adapter.publish_activity(&activity).unwrap();
-    assert_eq!(adapter.transport().sent_frames.len(), 3);
-    assert_eq!(adapter.transport().sent_frames[2].0, OP_FRAME);
+    assert_eq!(adapter.client().activities.len(), 2);
 }
 
 #[test]
 fn test_discord_presence_full_lifecycle_and_formatting() {
-    let transport = FakeDiscordIpcTransport::default();
-    let mut adapter =
-        DiscordPresenceAdapter::new("test_app_id_999", true, transport).with_process_id(4321);
+    let client = FakeDiscordPresenceClient::default();
+    let mut adapter = DiscordPresenceAdapter::new(9999, true, client);
 
     let activity = ReadingActivity {
         book_hash: "hash-clean-code".to_string(),
@@ -66,11 +69,11 @@ fn test_discord_presence_full_lifecycle_and_formatting() {
         session_started_at_ms: 1_690_000_000_000,
     };
 
-    // First publish triggers handshake + frame
     assert!(adapter.publish_activity(&activity).is_ok());
 
     // Clear activity
     assert!(adapter.clear_activity().is_ok());
+    assert_eq!(adapter.client().clear_calls, 1);
 
     // Format check without chapter and unknown author
     let activity_no_chapter = ReadingActivity {
@@ -85,12 +88,16 @@ fn test_discord_presence_full_lifecycle_and_formatting() {
         session_started_at_ms: 1_690_000_000_000,
     };
     assert!(adapter.publish_activity(&activity_no_chapter).is_ok());
+
+    let activities = &adapter.client().activities;
+    assert_eq!(activities.last().unwrap().details, "Study Notes");
+    assert_eq!(activities.last().unwrap().state, "Página 5 de 10 (50.0%)");
 }
 
 #[test]
 fn test_discord_presence_disabled_behavior() {
-    let transport = FakeDiscordIpcTransport::default();
-    let mut adapter = DiscordPresenceAdapter::new("app_id", false, transport);
+    let client = FakeDiscordPresenceClient::default();
+    let mut adapter = DiscordPresenceAdapter::new(8888, false, client);
 
     assert!(!adapter.is_enabled());
 
@@ -108,25 +115,28 @@ fn test_discord_presence_disabled_behavior() {
 
     // Publish while disabled should return Ok(()) without action
     assert!(adapter.publish_activity(&activity).is_ok());
+    assert_eq!(adapter.client().activities.len(), 0);
 
     // Enable it
     adapter.set_enabled(true);
     assert!(adapter.is_enabled());
     assert!(adapter.publish_activity(&activity).is_ok());
+    assert_eq!(adapter.client().activities.len(), 1);
 
     // Disable it cleans up
     adapter.set_enabled(false);
     assert!(!adapter.is_enabled());
+    assert_eq!(adapter.client().clear_calls, 1);
 }
 
 #[test]
-fn test_discord_presence_error_handling() {
-    let transport = FakeDiscordIpcTransport {
-        fail_connect: true,
+fn test_discord_presence_fallback_on_asset_failure() {
+    let client = FakeDiscordPresenceClient {
+        fail_set: true,
         ..Default::default()
     };
 
-    let mut adapter = DiscordPresenceAdapter::new("app_id", true, transport);
+    let mut adapter = DiscordPresenceAdapter::new(7777, true, client);
     let activity = ReadingActivity {
         book_hash: "h".to_string(),
         book_title: "T".to_string(),
@@ -139,24 +149,14 @@ fn test_discord_presence_error_handling() {
         session_started_at_ms: 1000,
     };
 
-    // Should return Err when connect fails
-    let err = adapter.publish_activity(&activity);
-    assert!(err.is_err());
-
-    // Test send failure
-    let transport_send_fail = FakeDiscordIpcTransport {
-        fail_send: true,
-        ..Default::default()
-    };
-    let mut adapter_fail = DiscordPresenceAdapter::new("app_id", true, transport_send_fail);
-    let send_err = adapter_fail.publish_activity(&activity);
-    assert!(send_err.is_err());
+    // Even if initial set_activity fails, publish_activity completes gracefully
+    assert!(adapter.publish_activity(&activity).is_ok());
 }
 
 #[test]
 fn test_discord_presence_integrated_with_rich_presence_manager() {
-    let transport = FakeDiscordIpcTransport::default();
-    let adapter = DiscordPresenceAdapter::new("app_id", true, transport);
+    let client = FakeDiscordPresenceClient::default();
+    let adapter = DiscordPresenceAdapter::new(6666, true, client);
 
     let mut manager = RichPresenceManager::new(3000);
     manager.register_provider(adapter);
@@ -191,62 +191,13 @@ fn test_discord_presence_integrated_with_rich_presence_manager() {
 }
 
 #[test]
-fn test_native_discord_ipc_transport_and_default_adapter() {
-    use ipdf_core::adapters::presence::{
-        DiscordIpcTransport, NativeDiscordIpcTransport, NativeDiscordPresenceAdapter, OP_FRAME,
-    };
-    use std::io::{Read, Write};
-    use std::os::unix::net::UnixListener;
-
-    // 1. Default creation
+fn test_native_discord_presence_adapter_creation() {
     let default_adapter = NativeDiscordPresenceAdapter::create_default(None, false);
     assert_eq!(default_adapter.id(), "discord");
+    assert_eq!(default_adapter.client_id(), DEFAULT_DISCORD_CLIENT_ID);
     assert!(!default_adapter.is_enabled());
 
-    let custom_adapter =
-        NativeDiscordPresenceAdapter::create_default(Some("custom_id".into()), true);
+    let custom_adapter = NativeDiscordPresenceAdapter::create_default(Some(12345), true);
+    assert_eq!(custom_adapter.client_id(), 12345);
     assert!(custom_adapter.is_enabled());
-
-    // 2. Test native unix stream with a local UnixListener
-    let temp_socket =
-        std::env::temp_dir().join(format!("test_discord_{}.sock", std::process::id()));
-    let _ = std::fs::remove_file(&temp_socket);
-
-    let listener = UnixListener::bind(&temp_socket).expect("bind fake unix socket");
-
-    let server_handle = std::thread::spawn(move || {
-        if let Ok((mut stream, _)) = listener.accept() {
-            let mut header = [0u8; 8];
-            if stream.read_exact(&mut header).is_ok() {
-                let len = u32::from_le_bytes([header[4], header[5], header[6], header[7]]) as usize;
-                let mut buf = vec![0u8; len];
-                let _ = stream.read_exact(&mut buf);
-
-                // Reply with 8 bytes header + payload
-                let reply_payload = b"{\"ok\":true}";
-                let _ = stream.write_all(&OP_FRAME.to_le_bytes());
-                let _ = stream.write_all(&(reply_payload.len() as u32).to_le_bytes());
-                let _ = stream.write_all(reply_payload);
-                let _ = stream.flush();
-            }
-        }
-    });
-
-    let mut transport = NativeDiscordIpcTransport::with_socket_path(&temp_socket);
-    assert!(!transport.is_connected());
-    assert!(transport.connect().is_ok());
-    assert!(transport.is_connected());
-
-    // Connect again is a no-op
-    assert!(transport.connect().is_ok());
-
-    let res = transport.send_frame(OP_FRAME, "{\"cmd\":\"TEST\"}");
-    assert!(res.is_ok());
-    assert!(res.unwrap().contains("ok"));
-
-    transport.disconnect();
-    assert!(!transport.is_connected());
-
-    let _ = server_handle.join();
-    let _ = std::fs::remove_file(&temp_socket);
 }

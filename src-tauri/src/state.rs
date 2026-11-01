@@ -62,8 +62,15 @@ impl Default for BackendState {
             .map(|val| val != "false")
             .unwrap_or(true);
 
+        let discord_client_id = config_store
+            .get("discord_client_id")
+            .ok()
+            .flatten()
+            .and_then(|id_str| id_str.parse::<u64>().ok());
+
         let mut presence_manager = RichPresenceManager::new(3000);
-        let discord_adapter = NativeDiscordPresenceAdapter::create_default(None, discord_enabled);
+        let discord_adapter =
+            NativeDiscordPresenceAdapter::create_default(discord_client_id, discord_enabled);
         presence_manager.register_provider(discord_adapter);
 
         let mut startup_book = None;

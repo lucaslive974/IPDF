@@ -338,39 +338,60 @@ impl PowerSaveBlocker for SpyPowerBlocker {
     }
 }
 
-#[derive(Default)]
-pub struct FakeDiscordIpcTransport {
-    pub connected: bool,
-    pub fail_connect: bool,
-    pub fail_send: bool,
-    pub sent_frames: Vec<(u32, String)>,
+#[derive(Clone, Debug, PartialEq)]
+pub struct RecordedActivity {
+    pub details: String,
+    pub state: String,
+    pub start_time_secs: i64,
+    pub large_image: Option<String>,
+    pub large_text: Option<String>,
 }
 
-impl ipdf_core::adapters::presence::DiscordIpcTransport for FakeDiscordIpcTransport {
-    fn is_connected(&self) -> bool {
-        self.connected
+#[derive(Default)]
+pub struct FakeDiscordPresenceClient {
+    pub started: bool,
+    pub fail_start: bool,
+    pub fail_set: bool,
+    pub activities: Vec<RecordedActivity>,
+    pub clear_calls: usize,
+}
+
+impl ipdf_core::adapters::presence::DiscordPresenceClient for FakeDiscordPresenceClient {
+    fn is_started(&self) -> bool {
+        self.started
     }
 
-    fn connect(&mut self) -> Result<(), String> {
-        if self.fail_connect {
-            return Err("Fake Discord connection failed".to_string());
+    fn start(&mut self) -> Result<(), String> {
+        if self.fail_start {
+            return Err("Fake start failed".to_string());
         }
-        self.connected = true;
+        self.started = true;
         Ok(())
     }
 
-    fn send_frame(&mut self, opcode: u32, payload: &str) -> Result<String, String> {
-        if !self.connected {
-            return Err("Not connected".to_string());
+    fn set_activity(
+        &mut self,
+        details: &str,
+        state: &str,
+        start_time_secs: i64,
+        large_image: Option<&str>,
+        large_text: Option<&str>,
+    ) -> Result<(), String> {
+        if self.fail_set {
+            return Err("Fake set_activity failed".to_string());
         }
-        if self.fail_send {
-            return Err("Fake frame send failed".to_string());
-        }
-        self.sent_frames.push((opcode, payload.to_string()));
-        Ok(r#"{"cmd":"SET_ACTIVITY","data":{},"evt":null,"nonce":"1"}"#.to_string())
+        self.activities.push(RecordedActivity {
+            details: details.to_string(),
+            state: state.to_string(),
+            start_time_secs,
+            large_image: large_image.map(|s| s.to_string()),
+            large_text: large_text.map(|s| s.to_string()),
+        });
+        Ok(())
     }
 
-    fn disconnect(&mut self) {
-        self.connected = false;
+    fn clear_activity(&mut self) -> Result<(), String> {
+        self.clear_calls += 1;
+        Ok(())
     }
 }

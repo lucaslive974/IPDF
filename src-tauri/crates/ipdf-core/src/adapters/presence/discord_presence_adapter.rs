@@ -1,61 +1,37 @@
-use super::discord_ipc_transport::{
-    DiscordIpcTransport, NativeDiscordIpcTransport, OP_FRAME, OP_HANDSHAKE,
-};
+use super::discord_presence_client::{DiscordPresenceClient, NativeDiscordPresenceClient};
 use crate::core::ports::{PresenceProvider, ReadingActivity};
 
-pub const DEFAULT_DISCORD_CLIENT_ID: &str = "1345829104928194600";
+pub const DEFAULT_DISCORD_CLIENT_ID: u64 = 1566424463602356286;
 
-pub struct DiscordPresenceAdapter<T: DiscordIpcTransport> {
+pub struct DiscordPresenceAdapter<C: DiscordPresenceClient> {
     id: String,
-    client_id: String,
+    client_id: u64,
     enabled: bool,
-    transport: T,
-    has_handshake: bool,
-    process_id: u32,
+    client: C,
+    has_started: bool,
 }
 
-impl<T: DiscordIpcTransport> DiscordPresenceAdapter<T> {
-    pub fn new(client_id: impl Into<String>, enabled: bool, transport: T) -> Self {
+impl<C: DiscordPresenceClient> DiscordPresenceAdapter<C> {
+    pub fn new(client_id: u64, enabled: bool, client: C) -> Self {
         Self {
             id: "discord".to_string(),
-            client_id: client_id.into(),
+            client_id,
             enabled,
-            transport,
-            has_handshake: false,
-            process_id: std::process::id(),
+            client,
+            has_started: false,
         }
     }
 
-    pub fn with_process_id(mut self, pid: u32) -> Self {
-        self.process_id = pid;
-        self
+    pub fn client(&self) -> &C {
+        &self.client
     }
 
-    pub fn transport(&self) -> &T {
-        &self.transport
+    pub fn client_mut(&mut self) -> &mut C {
+        &mut self.client
     }
 
-    pub fn transport_mut(&mut self) -> &mut T {
-        &mut self.transport
-    }
-
-    fn ensure_connected(&mut self) -> Result<(), String> {
-        if !self.transport.is_connected() {
-            self.transport.connect()?;
-            self.has_handshake = false;
-        }
-
-        if !self.has_handshake {
-            let handshake_payload = serde_json::json!({
-                "v": 1,
-                "client_id": self.client_id
-            });
-            self.transport
-                .send_frame(OP_HANDSHAKE, &handshake_payload.to_string())?;
-            self.has_handshake = true;
-        }
-
-        Ok(())
+    pub fn client_id(&self) -> u64 {
+        self.client_id
     }
 
     fn format_state_string(activity: &ReadingActivity) -> String {
@@ -72,7 +48,7 @@ impl<T: DiscordIpcTransport> DiscordPresenceAdapter<T> {
             }
         }
         format!(
-            "Página {}/{} ({:.1}%)",
+            "Página {} de {} ({:.1}%)",
             activity.current_page, activity.total_pages, pct
         )
     }
@@ -86,16 +62,16 @@ impl<T: DiscordIpcTransport> DiscordPresenceAdapter<T> {
     }
 }
 
-pub type NativeDiscordPresenceAdapter = DiscordPresenceAdapter<NativeDiscordIpcTransport>;
+pub type NativeDiscordPresenceAdapter = DiscordPresenceAdapter<NativeDiscordPresenceClient>;
 
 impl NativeDiscordPresenceAdapter {
-    pub fn create_default(client_id: Option<String>, enabled: bool) -> Self {
-        let cid = client_id.unwrap_or_else(|| DEFAULT_DISCORD_CLIENT_ID.to_string());
-        Self::new(cid, enabled, NativeDiscordIpcTransport::new())
+    pub fn create_default(client_id: Option<u64>, enabled: bool) -> Self {
+        let cid = client_id.unwrap_or(DEFAULT_DISCORD_CLIENT_ID);
+        Self::new(cid, enabled, NativeDiscordPresenceClient::new(cid))
     }
 }
 
-impl<T: DiscordIpcTransport> PresenceProvider for DiscordPresenceAdapter<T> {
+impl<C: DiscordPresenceClient> PresenceProvider for DiscordPresenceAdapter<C> {
     fn id(&self) -> &str {
         &self.id
     }
@@ -108,8 +84,6 @@ impl<T: DiscordIpcTransport> PresenceProvider for DiscordPresenceAdapter<T> {
         self.enabled = enabled;
         if !enabled {
             let _ = self.clear_activity();
-            self.transport.disconnect();
-            self.has_handshake = false;
         }
     }
 
@@ -118,66 +92,33 @@ impl<T: DiscordIpcTransport> PresenceProvider for DiscordPresenceAdapter<T> {
             return Ok(());
         }
 
-        self.ensure_connected()?;
+        if !self.has_started {
+            let _ = self.client.start();
+            self.has_started = true;
+        }
 
         let details = Self::format_details_string(activity);
         let state = Self::format_state_string(activity);
         let start_time_secs = activity.session_started_at_ms / 1000;
 
-        let payload = serde_json::json!({
-            "cmd": "SET_ACTIVITY",
-            "args": {
-                "pid": self.process_id,
-                "activity": {
-                    "details": details,
-                    "state": state,
-                    "timestamps": {
-                        "start": start_time_secs
-                    },
-                    "assets": {
-                        "large_image": "ipdf_logo",
-                        "large_text": "IPDF Active Study Reader",
-                        "small_image": match activity.state.as_str() {
-                            "listening_tts" => "tts_audio",
-                            "annotating" => "pencil_edit",
-                            _ => "book_reading"
-                        },
-                        "small_text": match activity.state.as_str() {
-                            "listening_tts" => "Ouvindo TTS",
-                            "annotating" => "Anotando",
-                            _ => "Lendo"
-                        }
-                    }
-                }
-            },
-            "nonce": format!("{}", activity.current_page)
-        });
+        let res = self.client.set_activity(
+            &details,
+            &state,
+            start_time_secs,
+            Some("app_logo"),
+            Some("Scholarium — Active Study Reader"),
+        );
 
-        match self.transport.send_frame(OP_FRAME, &payload.to_string()) {
-            Ok(_) => Ok(()),
-            Err(e) => {
-                self.transport.disconnect();
-                self.has_handshake = false;
-                Err(e)
-            }
+        if res.is_err() {
+            let _ = self
+                .client
+                .set_activity(&details, &state, start_time_secs, None, None);
         }
+
+        Ok(())
     }
 
     fn clear_activity(&mut self) -> Result<(), String> {
-        if !self.transport.is_connected() {
-            return Ok(());
-        }
-
-        let payload = serde_json::json!({
-            "cmd": "SET_ACTIVITY",
-            "args": {
-                "pid": self.process_id,
-                "activity": null
-            },
-            "nonce": "clear"
-        });
-
-        let _ = self.transport.send_frame(OP_FRAME, &payload.to_string());
-        Ok(())
+        self.client.clear_activity()
     }
 }
