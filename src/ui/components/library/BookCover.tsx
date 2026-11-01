@@ -14,6 +14,7 @@ export interface BookCoverProps {
   readonly author?: string;
   readonly coverImageUrl?: string;
   readonly className?: string;
+  readonly onClick?: () => void;
 }
 
 export const BookCover = memo(function BookCover({
@@ -21,11 +22,29 @@ export const BookCover = memo(function BookCover({
   author,
   coverImageUrl,
   className = '',
+  onClick,
 }: BookCoverProps) {
+  const interactiveClasses = onClick
+    ? 'cursor-pointer hover:opacity-95 active:scale-[0.99] transition duration-150'
+    : '';
+
+  const handleKeyDown = onClick
+    ? (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }
+    : undefined;
+
   if (coverImageUrl) {
     return (
       <div
-        className={`relative aspect-3/4 w-full overflow-hidden rounded-md bg-surface-subtle shadow-xs border border-line-subtle/60 flex items-center justify-center ${className}`}
+        className={`relative aspect-3/4 w-full overflow-hidden rounded-md bg-surface-subtle shadow-xs border border-line-subtle/60 flex items-center justify-center ${interactiveClasses} ${className}`}
+        onClick={onClick}
+        onKeyDown={handleKeyDown}
+        role={onClick ? 'button' : undefined}
+        tabIndex={onClick ? 0 : undefined}
       >
         <img
           src={coverImageUrl}
@@ -39,7 +58,11 @@ export const BookCover = memo(function BookCover({
 
   return (
     <div
-      className={`aspect-3/4 w-full rounded-md bg-surface-subtle border border-line-subtle/50 p-4 flex flex-col justify-between shadow-2xs ${className}`}
+      className={`aspect-3/4 w-full rounded-md bg-surface-subtle border border-line-subtle/50 p-4 flex flex-col justify-between shadow-2xs ${interactiveClasses} ${className}`}
+      onClick={onClick}
+      onKeyDown={handleKeyDown}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
     >
       <span className="text-[0.62rem] font-medium uppercase tracking-widest text-tx-muted">
         Edition

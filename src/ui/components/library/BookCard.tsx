@@ -25,7 +25,12 @@ export const BookCard = memo(function BookCard({
       className="group flex flex-col justify-between overflow-hidden"
     >
       <div className="flex flex-col gap-3">
-        <BookCover title={book.title} author={book.author} coverImageUrl={book.coverImageUrl} />
+        <BookCover
+          title={book.title}
+          author={book.author}
+          coverImageUrl={book.coverImageUrl}
+          onClick={() => onOpenBook(book)}
+        />
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
@@ -68,7 +73,13 @@ export const BookCard = memo(function BookCard({
 
         <div>
           <h3 className="text-xs font-semibold text-tx-main group-hover:text-tx-secondary transition line-clamp-2">
-            {book.title}
+            <button
+              type="button"
+              className="text-left cursor-pointer hover:underline focus:outline-hidden"
+              onClick={() => onOpenBook(book)}
+            >
+              {book.title}
+            </button>
           </h3>
           {showAuthor && (
             <p className="mt-0.5 text-[0.72rem] text-tx-muted font-normal">{book.author}</p>
