@@ -5,6 +5,7 @@ pub trait HighlightRepository {
     fn find_by_id(&self, id: &str) -> Result<Option<Highlight>, String>;
     fn update(&mut self, highlight: Highlight) -> Result<(), String>;
     fn delete(&mut self, id: &str) -> Result<(), String>;
+    fn delete_by_book(&mut self, book_hash: &str) -> Result<usize, String>;
     fn find_by_book(&self, book_hash: &str) -> Result<Vec<Highlight>, String>;
     fn find_by_book_and_page(
         &self,

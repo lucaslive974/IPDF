@@ -156,6 +156,16 @@ export class MockBackend
     return updated;
   }
 
+  public async deleteBook(bookHash: string): Promise<boolean> {
+    const removed = this.books.delete(bookHash);
+    for (const [id, hl] of Array.from(this.highlights.entries())) {
+      if (hl.bookHash === bookHash) {
+        this.highlights.delete(id);
+      }
+    }
+    return removed;
+  }
+
   public async loadBookHighlights(bookHash: string): Promise<Highlight[]> {
     return Array.from(this.highlights.values()).filter((h) => h.bookHash === bookHash);
   }

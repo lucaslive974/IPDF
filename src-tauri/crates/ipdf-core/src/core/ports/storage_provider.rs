@@ -23,6 +23,7 @@ pub trait StorageProvider {
         data: Vec<u8>,
         format: BookFormat,
     ) -> Result<(), String>;
+    fn delete_book_binary(&mut self, book_hash: &str) -> Result<bool, String>;
 
     fn list_entries(&self, prefix: Option<&str>) -> Result<Vec<StorageEntry>, String>;
     fn read_entry(&mut self, name: &str) -> Result<Option<Vec<u8>>, String>;

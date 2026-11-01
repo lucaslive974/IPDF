@@ -4,6 +4,7 @@ import { useLibrary } from '../hooks/useLibrary';
 import { useNavigation } from '../hooks/useNavigation';
 import { useTheme } from '../hooks/useTheme';
 import { BooksGrid } from './library/BooksGrid';
+import { DeleteBookDialog } from './library/DeleteBookDialog';
 import { LibraryAnnotationsTab } from './library/LibraryAnnotationsTab';
 import { LibraryCollectionsTab } from './library/LibraryCollectionsTab';
 import { LibraryHeader } from './library/LibraryHeader';
@@ -37,6 +38,7 @@ export function LibraryView({
   const [activeTab, setActiveTab] = useState<LibraryTabId>('recents');
   const [searchQuery, setSearchQuery] = useState('');
   const [bookToRename, setBookToRename] = useState<BookMetadata | null>(null);
+  const [bookToDelete, setBookToDelete] = useState<BookMetadata | null>(null);
 
   const handleOpenFileInput = () => {
     if (propOnImportNewBook) {
@@ -95,6 +97,7 @@ export function LibraryView({
             books={filteredBooks}
             onOpenBook={onOpenBook}
             onRenameBook={setBookToRename}
+            onDeleteBook={setBookToDelete}
             onImportClick={handleOpenFileInput}
           />
         )}
@@ -110,6 +113,15 @@ export function LibraryView({
         onClose={() => setBookToRename(null)}
         onRename={async (hash, newTitle) => {
           await library.renameBook(hash, newTitle);
+        }}
+      />
+
+      <DeleteBookDialog
+        isOpen={Boolean(bookToDelete)}
+        book={bookToDelete}
+        onClose={() => setBookToDelete(null)}
+        onDelete={async (hash) => {
+          await library.deleteBook(hash);
         }}
       />
     </div>

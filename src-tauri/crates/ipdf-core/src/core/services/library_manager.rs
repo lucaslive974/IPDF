@@ -2,7 +2,7 @@ use crate::core::domain::{BookFormat, BookMetadata, BookPagePayload};
 use crate::core::ports::StorageProvider;
 use crate::core::services::Sha256BookHasher;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::Path;
 
@@ -11,6 +11,7 @@ pub const DEFAULT_ASSET_HASH: &str =
     "8c8bf2ed9bff65aaf226bf5db3879eb378a26e72489bd28666abc01c02f2a0c2";
 pub const ASSET_INIT_MARKER: &str = ".installed_assets_v1";
 pub const PROGRESS_FILE: &str = ".reading_progress.json";
+pub const DELETED_BOOKS_FILE: &str = ".deleted_books.json";
 
 pub const BUNDLED_REPUBLIC_EPUB: &[u8] =
     include_bytes!("../../../../../../assets/republic-plato.epub");
@@ -44,6 +45,7 @@ pub struct LibraryManager<S: StorageProvider> {
     progress_map: BTreeMap<String, ReadingProgress>,
     in_memory_books: BTreeMap<String, Vec<u8>>,
     pages_cache: BTreeMap<String, Vec<BookPagePayload>>,
+    deleted_books: BTreeSet<String>,
     auto_bundle_assets: bool,
 }
 
@@ -54,6 +56,7 @@ impl<S: StorageProvider> LibraryManager<S> {
             progress_map: BTreeMap::new(),
             in_memory_books: BTreeMap::new(),
             pages_cache: BTreeMap::new(),
+            deleted_books: BTreeSet::new(),
             auto_bundle_assets: true,
         }
     }
@@ -74,6 +77,7 @@ impl<S: StorageProvider> LibraryManager<S> {
     pub fn initialize(&mut self) -> Result<bool, String> {
         let _ = self.storage.initialize()?;
         self.load_progress_cache()?;
+        self.load_deleted_books()?;
 
         if self.auto_bundle_assets {
             self.ensure_bundled_assets()?;
@@ -84,7 +88,7 @@ impl<S: StorageProvider> LibraryManager<S> {
 
     fn ensure_bundled_assets(&mut self) -> Result<(), String> {
         let marker = self.storage.read_entry(ASSET_INIT_MARKER)?;
-        if marker.is_none() {
+        if marker.is_none() && !self.deleted_books.contains(DEFAULT_ASSET_HASH) {
             let cover_url = Self::extract_or_generate_cover(
                 &[],
                 "The Republic",
@@ -111,6 +115,23 @@ impl<S: StorageProvider> LibraryManager<S> {
                 .write_entry(ASSET_INIT_MARKER, b"1", "text/plain")?;
             self.persist_progress_cache()?;
         }
+        Ok(())
+    }
+
+    fn load_deleted_books(&mut self) -> Result<(), String> {
+        if let Some(bytes) = self.storage.read_entry(DELETED_BOOKS_FILE)? {
+            if let Ok(set) = serde_json::from_slice::<BTreeSet<String>>(&bytes) {
+                self.deleted_books = set;
+            }
+        }
+        Ok(())
+    }
+
+    fn persist_deleted_books(&mut self) -> Result<(), String> {
+        let json = serde_json::to_vec(&self.deleted_books).map_err(|e| e.to_string())?;
+        let _ = self
+            .storage
+            .write_entry(DELETED_BOOKS_FILE, &json, "application/json")?;
         Ok(())
     }
 
@@ -205,8 +226,12 @@ impl<S: StorageProvider> LibraryManager<S> {
 
     pub fn list_books(&mut self) -> Result<Vec<BookMetadata>, String> {
         self.load_progress_cache()?;
+        self.load_deleted_books()?;
 
-        if self.auto_bundle_assets && !self.progress_map.contains_key(DEFAULT_ASSET_HASH) {
+        if self.auto_bundle_assets
+            && !self.progress_map.contains_key(DEFAULT_ASSET_HASH)
+            && !self.deleted_books.contains(DEFAULT_ASSET_HASH)
+        {
             let cover_url = Self::extract_or_generate_cover(
                 &[],
                 "The Republic",
@@ -455,6 +480,23 @@ impl<S: StorageProvider> LibraryManager<S> {
             last_read_at_ms: progress.last_read_at_ms,
             updated_at_ms: progress.last_read_at_ms,
         })
+    }
+
+    pub fn delete_book(&mut self, book_hash: &str) -> Result<bool, String> {
+        self.load_progress_cache()?;
+        self.load_deleted_books()?;
+
+        let removed =
+            self.progress_map.remove(book_hash).is_some() || book_hash == DEFAULT_ASSET_HASH;
+        self.in_memory_books.remove(book_hash);
+        self.pages_cache.remove(book_hash);
+        self.deleted_books.insert(book_hash.to_string());
+
+        let _ = self.storage.delete_book_binary(book_hash);
+        self.persist_progress_cache()?;
+        self.persist_deleted_books()?;
+
+        Ok(removed)
     }
 
     pub fn get_book_pages(

@@ -112,4 +112,36 @@ describe('useLibraryStore', () => {
     expect(useLibraryStore.getState().books[0]?.title).toBe('Renamed Document Title');
     expect(useLibraryStore.getState().books[0]?.bookHash).toBe('h1');
   });
+
+  it('removes a book by bookHash using removeBook', () => {
+    const b1: BookMetadata = {
+      bookHash: 'h1',
+      title: 'Book 1',
+      author: 'A1',
+      format: 'epub',
+      currentPage: 1,
+      totalPages: 50,
+      percentage: 2,
+      lastReadAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const b2: BookMetadata = {
+      bookHash: 'h2',
+      title: 'Book 2',
+      author: 'A2',
+      format: 'pdf',
+      currentPage: 5,
+      totalPages: 100,
+      percentage: 5,
+      lastReadAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    useLibraryStore.getState().setBooks([b1, b2]);
+    expect(useLibraryStore.getState().books).toHaveLength(2);
+
+    useLibraryStore.getState().removeBook('h1');
+    expect(useLibraryStore.getState().books).toHaveLength(1);
+    expect(useLibraryStore.getState().books[0]?.bookHash).toBe('h2');
+  });
 });

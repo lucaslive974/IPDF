@@ -69,6 +69,16 @@ impl<L: StorageProvider, P: StorageProvider> StorageProvider for CachedStorageDe
         Ok(())
     }
 
+    fn delete_book_binary(&mut self, book_hash: &str) -> Result<bool, String> {
+        let cache_deleted = self.local_cache.delete_book_binary(book_hash)?;
+        let primary_deleted = if self.primary_storage.is_available() {
+            self.primary_storage.delete_book_binary(book_hash)?
+        } else {
+            false
+        };
+        Ok(cache_deleted || primary_deleted)
+    }
+
     fn list_entries(&self, prefix: Option<&str>) -> Result<Vec<StorageEntry>, String> {
         if self.primary_storage.is_available() {
             return self.primary_storage.list_entries(prefix);

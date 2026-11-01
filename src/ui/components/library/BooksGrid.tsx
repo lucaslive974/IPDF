@@ -7,6 +7,7 @@ export interface BooksGridProps {
   readonly books: readonly BookMetadata[];
   readonly onOpenBook: (book: BookMetadata) => void;
   readonly onRenameBook?: (book: BookMetadata) => void;
+  readonly onDeleteBook?: (book: BookMetadata) => void;
   readonly onImportClick?: () => void;
 }
 
@@ -14,6 +15,7 @@ export const BooksGrid = memo(function BooksGrid({
   books,
   onOpenBook,
   onRenameBook,
+  onDeleteBook,
   onImportClick,
 }: BooksGridProps) {
   if (books.length === 0) {
@@ -46,6 +48,7 @@ export const BooksGrid = memo(function BooksGrid({
           book={book}
           onOpenBook={onOpenBook}
           onRenameBook={onRenameBook}
+          onDeleteBook={onDeleteBook}
         />
       ))}
     </div>

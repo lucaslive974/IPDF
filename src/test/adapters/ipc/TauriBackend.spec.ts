@@ -70,6 +70,11 @@ vi.mock('@tauri-apps/api/core', () => ({
       storedBooks.set(bookHash, updated);
       return updated as unknown as T;
     }
+    if (cmd === 'delete_book') {
+      const bookHash = String(args.bookHash);
+      const existed = storedBooks.delete(bookHash);
+      return existed as unknown as T;
+    }
     if (cmd === 'get_startup_book') {
       return null as unknown as T;
     }
@@ -175,6 +180,12 @@ describe('Modular Tauri IPC Adapters', () => {
     const opened = await libraryService.openBookFile('/path/to/my_book.pdf');
     expect(opened.title).toBe('my_book');
     expect(opened.format).toBe('pdf');
+
+    const deleted = await libraryService.deleteBook('sha256-imported-book');
+    expect(deleted).toBe(true);
+    const booksAfterDelete = await libraryService.listLibraryBooks();
+    expect(booksAfterDelete).toHaveLength(1);
+    expect(booksAfterDelete[0]?.bookHash).toBe('sha256-opened-file');
   });
 
   it('should manage reader operations via TauriReaderService', async () => {

@@ -40,6 +40,7 @@ pub fn run() {
             library::get_book_pages,
             library::update_book_progress,
             library::rename_book,
+            library::delete_book,
             // Highlights & Annotations routes
             highlights::load_book_highlights,
             highlights::save_highlight,

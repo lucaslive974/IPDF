@@ -66,4 +66,8 @@ export class TauriLibraryService implements ILibraryService {
     });
     return deserializeBookMetadata(dto);
   }
+
+  public async deleteBook(bookHash: string): Promise<boolean> {
+    return invoke<boolean>('delete_book', { bookHash });
+  }
 }

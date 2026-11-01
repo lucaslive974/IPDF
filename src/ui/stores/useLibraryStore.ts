@@ -9,6 +9,7 @@ export interface LibraryState {
   setLoading(isLoading: boolean): void;
   upsertBook(book: BookMetadata): void;
   renameBook(bookHash: string, newTitle: string): void;
+  removeBook(bookHash: string): void;
   reset(): void;
 }
 
@@ -36,6 +37,11 @@ export const useLibraryStore = create<LibraryState>((set) => ({
       books: state.books.map((b) =>
         b.bookHash === bookHash ? { ...b, title: newTitle, updatedAt: new Date() } : b
       ),
+    })),
+
+  removeBook: (bookHash) =>
+    set((state) => ({
+      books: state.books.filter((b) => b.bookHash !== bookHash),
     })),
 
   reset: () => set({ books: [], isLoading: false }),

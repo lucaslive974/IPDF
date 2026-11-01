@@ -102,6 +102,16 @@ impl StorageProvider for LocalFolderStorageAdapter {
         fs::write(&path, data).map_err(to_err)
     }
 
+    fn delete_book_binary(&mut self, book_hash: &str) -> Result<bool, String> {
+        let path = self.resolve_book_path(book_hash);
+        if path.exists() {
+            fs::remove_file(&path).map_err(to_err)?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
     fn list_entries(&self, prefix: Option<&str>) -> Result<Vec<StorageEntry>, String> {
         if !self.root_dir.exists() {
             return Ok(Vec::new());

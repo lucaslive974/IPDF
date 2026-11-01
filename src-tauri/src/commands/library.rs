@@ -1,7 +1,7 @@
 use crate::state::BackendState;
 use crate::utils::current_epoch_ms;
 use ipdf_core::core::domain::{BookFormat, BookMetadata, BookPagePayload};
-use ipdf_core::core::ports::ReadingActivity;
+use ipdf_core::core::ports::{HighlightRepository, ReadingActivity};
 use ipdf_core::core::services::{ImportBookInput, Sha256BookHasher};
 use std::io::Cursor;
 use std::path::Path;
@@ -127,4 +127,14 @@ pub fn rename_book(
 ) -> Result<BookMetadata, String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
     guard.library.rename_book(&book_hash, &new_title)
+}
+
+#[tauri::command]
+pub fn delete_book(
+    book_hash: String,
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<bool, String> {
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    let _ = guard.highlight_repo.delete_by_book(&book_hash)?;
+    guard.library.delete_book(&book_hash)
 }

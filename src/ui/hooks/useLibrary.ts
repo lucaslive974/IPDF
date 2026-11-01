@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react';
 import type { BookMetadata } from '../../core/domain/BookMetadata';
 import type { BookFormat } from '../../core/domain/types';
 import { useServiceContainer } from '../providers/ServiceContainerContext';
+import { useHighlightStore } from '../stores/useHighlightStore';
 import { useLibraryStore } from '../stores/useLibraryStore';
 
 export interface LibraryViewModel {
@@ -16,6 +17,7 @@ export interface LibraryViewModel {
     totalPages: number
   ): Promise<BookMetadata>;
   renameBook(bookHash: string, newTitle: string): Promise<BookMetadata>;
+  deleteBook(bookHash: string): Promise<boolean>;
 }
 
 // Keep type alias for backwards compatibility
@@ -28,6 +30,7 @@ export function useLibrary(): LibraryViewModel {
   const setBooks = useLibraryStore((s) => s.setBooks);
   const setLoading = useLibraryStore((s) => s.setLoading);
   const upsertBook = useLibraryStore((s) => s.upsertBook);
+  const removeBook = useLibraryStore((s) => s.removeBook);
 
   const loadBooks = useCallback(async (): Promise<BookMetadata[]> => {
     setLoading(true);
@@ -94,6 +97,26 @@ export function useLibrary(): LibraryViewModel {
     [libraryService, setLoading, upsertBook]
   );
 
+  const deleteBook = useCallback(
+    async (bookHash: string): Promise<boolean> => {
+      setLoading(true);
+      try {
+        const success = await libraryService.deleteBook(bookHash);
+        if (success) {
+          removeBook(bookHash);
+          const currentHighlights = useHighlightStore.getState().highlights;
+          useHighlightStore
+            .getState()
+            .setHighlights(currentHighlights.filter((h) => h.bookHash !== bookHash));
+        }
+        return success;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [libraryService, removeBook, setLoading]
+  );
+
   useEffect(() => {
     if (books.length === 0) {
       void loadBooks();
@@ -108,5 +131,6 @@ export function useLibrary(): LibraryViewModel {
     importSampleBook,
     updateBookProgress,
     renameBook,
+    deleteBook,
   };
 }

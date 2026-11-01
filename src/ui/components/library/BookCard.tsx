@@ -1,15 +1,21 @@
 import { memo } from 'react';
 import type { BookMetadata } from '../../../core/domain/BookMetadata';
-import { Badge, Button, Card, IconButton, PencilIcon, ProgressBar } from '../ui';
+import { Badge, Button, Card, IconButton, PencilIcon, ProgressBar, TrashIcon } from '../ui';
 import { BookCover, isValidAuthor } from './BookCover';
 
 export interface BookCardProps {
   readonly book: BookMetadata;
   readonly onOpenBook: (book: BookMetadata) => void;
   readonly onRenameBook?: (book: BookMetadata) => void;
+  readonly onDeleteBook?: (book: BookMetadata) => void;
 }
 
-export const BookCard = memo(function BookCard({ book, onOpenBook, onRenameBook }: BookCardProps) {
+export const BookCard = memo(function BookCard({
+  book,
+  onOpenBook,
+  onRenameBook,
+  onDeleteBook,
+}: BookCardProps) {
   const showAuthor = isValidAuthor(book.author);
 
   return (
@@ -38,6 +44,20 @@ export const BookCard = memo(function BookCard({ book, onOpenBook, onRenameBook 
                 }}
               >
                 <PencilIcon className="h-3 w-3" />
+              </IconButton>
+            )}
+            {onDeleteBook && (
+              <IconButton
+                variant="ghost"
+                size="xs"
+                label="Delete document"
+                className="opacity-0 group-hover:opacity-100 transition-opacity text-tx-muted hover:text-red-500"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteBook(book);
+                }}
+              >
+                <TrashIcon className="h-3 w-3" />
               </IconButton>
             )}
           </div>

@@ -29,6 +29,11 @@ impl HighlightRepository for InMemoryHighlightRepo {
         self.store.remove(id);
         Ok(())
     }
+    fn delete_by_book(&mut self, book_hash: &str) -> Result<usize, String> {
+        let initial_len = self.store.len();
+        self.store.retain(|_, h| h.book_hash != book_hash);
+        Ok(initial_len - self.store.len())
+    }
     fn find_by_book(&self, book_hash: &str) -> Result<Vec<Highlight>, String> {
         Ok(self
             .store
@@ -110,6 +115,14 @@ impl StorageProvider for InMemoryStorage {
         let _ = self.write_entry(&file_name, &data, mime_type)?;
         self.binaries.insert(book_hash.to_string(), data);
         Ok(())
+    }
+    fn delete_book_binary(&mut self, book_hash: &str) -> Result<bool, String> {
+        let existed = self.binaries.remove(book_hash).is_some();
+        let epub_name = format!("{book_hash}.epub");
+        let pdf_name = format!("{book_hash}.pdf");
+        self.entries.remove(&epub_name);
+        self.entries.remove(&pdf_name);
+        Ok(existed)
     }
     fn list_entries(&self, _prefix: Option<&str>) -> Result<Vec<StorageEntry>, String> {
         Ok(self.entries.values().map(|(e, _)| e.clone()).collect())

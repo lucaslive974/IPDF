@@ -36,6 +36,7 @@ const UPSERT_SQL: &str = "
 
 const FIND_BY_ID_SQL: &str = "SELECT id, book_hash, text, color, anchor_json, note, created_at_ms, updated_at_ms, annotations_json FROM highlights WHERE id = ?1";
 const DELETE_BY_ID_SQL: &str = "DELETE FROM highlights WHERE id = ?1";
+const DELETE_BY_BOOK_SQL: &str = "DELETE FROM highlights WHERE book_hash = ?1";
 const FIND_BY_BOOK_SQL: &str = "SELECT id, book_hash, text, color, anchor_json, note, created_at_ms, updated_at_ms, annotations_json FROM highlights WHERE book_hash = ?1 ORDER BY created_at_ms ASC";
 const FIND_BY_BOOK_AND_PAGE_SQL: &str = "SELECT id, book_hash, text, color, anchor_json, note, created_at_ms, updated_at_ms, annotations_json FROM highlights WHERE book_hash = ?1 AND page_number = ?2 ORDER BY created_at_ms ASC";
 
@@ -153,6 +154,14 @@ impl HighlightRepository for SqliteHighlightRepository {
             .execute(DELETE_BY_ID_SQL, params![id])
             .map_err(to_err)?;
         Ok(())
+    }
+
+    fn delete_by_book(&mut self, book_hash: &str) -> Result<usize, String> {
+        let count = self
+            .conn
+            .execute(DELETE_BY_BOOK_SQL, params![book_hash])
+            .map_err(to_err)?;
+        Ok(count)
     }
 
     fn find_by_book(&self, book_hash: &str) -> Result<Vec<Highlight>, String> {

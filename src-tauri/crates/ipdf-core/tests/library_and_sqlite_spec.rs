@@ -351,3 +351,84 @@ fn test_library_manager_rename_book_preserves_highlights() {
         .rename_book("nonexistent-hash", "New Title")
         .is_err());
 }
+
+#[test]
+fn test_library_manager_and_sqlite_delete_book_cascades() {
+    let storage = InMemoryStorage::new("local-memory");
+    let mut library = LibraryManager::new(storage);
+    library.initialize().unwrap();
+
+    let mut sqlite_repo = SqliteHighlightRepository::new_in_memory().unwrap();
+
+    // 1. Import book
+    let imported = library
+        .import_book(ImportBookInput {
+            raw_bytes: b"Dummy book content".to_vec(),
+            title: "To Be Deleted".to_string(),
+            author: "Anonymous".to_string(),
+            format: BookFormat::Epub,
+            total_pages: 50,
+            cover_image_url: None,
+            now_ms: 1000,
+        })
+        .unwrap();
+
+    let book_hash = imported.book_hash;
+
+    // 2. Add highlights to SQLite
+    let hl1 = Highlight::new(
+        "hl-del-1",
+        &book_hash,
+        "Passage to be removed",
+        "#FFEB3B",
+        HighlightAnchor {
+            format: BookFormat::Epub,
+            page_number: 1,
+            epub_cfi: Some("epubcfi(/6/2!/4/2)".to_string()),
+            pdf_rects: None,
+        },
+        "Note 1",
+        1000,
+    );
+    let hl2 = Highlight::new(
+        "hl-del-2",
+        &book_hash,
+        "Another passage to be removed",
+        "#4CAF50",
+        HighlightAnchor {
+            format: BookFormat::Epub,
+            page_number: 2,
+            epub_cfi: Some("epubcfi(/6/4!/4/2)".to_string()),
+            pdf_rects: None,
+        },
+        "Note 2",
+        1000,
+    );
+    sqlite_repo.save(hl1).unwrap();
+    sqlite_repo.save(hl2).unwrap();
+
+    assert_eq!(sqlite_repo.find_by_book(&book_hash).unwrap().len(), 2);
+    assert!(library.get_book(&book_hash).unwrap().is_some());
+
+    // 3. Cascade deletion: delete highlights and book
+    let deleted_hls = sqlite_repo.delete_by_book(&book_hash).unwrap();
+    assert_eq!(deleted_hls, 2);
+    assert_eq!(sqlite_repo.find_by_book(&book_hash).unwrap().len(), 0);
+
+    let deleted_book = library.delete_book(&book_hash).unwrap();
+    assert!(deleted_book);
+    assert!(library.get_book(&book_hash).unwrap().is_none());
+
+    // Book is not listed anymore
+    let all_books = library.list_books().unwrap();
+    assert!(!all_books.iter().any(|b| b.book_hash == book_hash));
+
+    // 4. Deleting default bundled book prevents it from reviving
+    use ipdf_core::core::services::library_manager::DEFAULT_ASSET_HASH;
+    let default_deleted = library.delete_book(DEFAULT_ASSET_HASH).unwrap();
+    assert!(default_deleted);
+    let books_after = library.list_books().unwrap();
+    assert!(!books_after
+        .iter()
+        .any(|b| b.book_hash == DEFAULT_ASSET_HASH));
+}
