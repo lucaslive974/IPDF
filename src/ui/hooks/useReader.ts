@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BookMetadata } from '../../core/domain/BookMetadata';
 import type { Highlight } from '../../core/domain/Highlight';
-import type { AnnotationFormatterMap } from '../../core/domain/RichAnnotation';
 import type { TextFormatStyle } from '../../core/domain/types';
 import type { DocumentPage } from '../../core/ports/IReaderService';
 import { isValidAuthor } from '../components/library/BookCover';
@@ -20,6 +19,7 @@ import {
   type SelectionPopoverState,
   useReaderUIStore,
 } from '../stores/useReaderUIStore';
+import { formatMarkdownSelection } from '../utils/markdownFormatting';
 
 export { DEFAULT_BOOK_HASH, DEFAULT_DOCUMENT };
 export type { StudyDocumentDescriptor, SelectionPopoverState, ActiveHighlightPopoverState };
@@ -37,10 +37,6 @@ export const createEmptyRect = (): DOMRect =>
     toJSON: () => ({}),
   }) as DOMRect;
 
-export const ANNOTATION_FORMATTERS: AnnotationFormatterMap<string> = {
-  'assisted-markdown': (node) => `[Assisted Text] ${node.rawData}`,
-};
-
 export interface ReaderViewModel {
   readonly document: StudyDocumentDescriptor;
   readonly currentPage: number;
@@ -51,7 +47,6 @@ export interface ReaderViewModel {
   readonly highlights: readonly Highlight[];
   readonly selectedId: string | null;
   readonly noteInput: string;
-  readonly formattedAnnotations: string[];
   readonly selectionPopover: SelectionPopoverState | null;
   readonly activeHighlightPopover: ActiveHighlightPopoverState | null;
   readonly expandedHighlight: Highlight | null;
@@ -126,7 +121,6 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
   const closeExpandedStudio = useReaderUIStore((s) => s.closeExpandedStudio);
 
   // Local ViewModel state
-  const [formattedAnnotations, setFormattedAnnotations] = useState<string[]>([]);
   const [llmPromptPreview, setLlmPromptPreview] = useState<string>('');
   const [selectionRange, setSelectionRange] = useState<{ start: number; end: number }>({
     start: 0,
@@ -165,9 +159,6 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
       const found = pageHighlights.find((h) => h.id === targetId);
       if (found) {
         setNoteInput(found.note);
-        setFormattedAnnotations(
-          annotationWorkbench.formatHighlightAnnotations(targetId, ANNOTATION_FORMATTERS)
-        );
       }
     },
     [annotationWorkbench, currentPage, setHighlights, setNoteInput, setSelectedId]
@@ -405,23 +396,11 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
       setNoteInput(value);
       const currentId = selectedIdRef.current;
       if (currentId) {
-        void annotationWorkbench
-          .interactWithAnnotation(currentId, 'assisted-markdown', {
-            target: 'assisted-markdown',
-            action: 'replace-text',
-            text: value,
-          })
-          .then(() => {
-            setFormattedAnnotations(
-              annotationWorkbench.formatHighlightAnnotations(currentId, ANNOTATION_FORMATTERS)
-            );
-            const currentHighlights = annotationWorkbench.getForPage(currentPage);
-            setHighlights([...currentHighlights]);
-            const updated = currentHighlights.find((h) => h.id === currentId);
-            if (updated) {
-              upsertHighlight(updated);
-            }
-          });
+        void annotationWorkbench.updateHighlightNote(currentId, value).then((updated) => {
+          const currentHighlights = annotationWorkbench.getForPage(currentPage);
+          setHighlights([...currentHighlights]);
+          upsertHighlight(updated);
+        });
       }
     },
     [annotationWorkbench, currentPage, setHighlights, setNoteInput, upsertHighlight]
@@ -532,27 +511,18 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
       const activeId = selectedIdRef.current;
       if (!activeId) return;
 
-      await annotationWorkbench.interactWithAnnotation(activeId, 'assisted-markdown', {
-        target: 'assisted-markdown',
-        action: 'replace-text',
-        text: noteInput,
-      });
-
       const range =
         selectionRange.end > selectionRange.start
           ? selectionRange
           : { start: 0, end: noteInput.length };
 
-      await annotationWorkbench.interactWithAnnotation(activeId, 'assisted-markdown', {
-        target: 'assisted-markdown',
-        action: 'apply-format',
-        selectionRange: range,
-        formatStyle: style,
-      });
+      const formatted = formatMarkdownSelection(noteInput, range, style);
+      setNoteInput(formatted);
       setSelectionRange({ start: 0, end: 0 });
+      await annotationWorkbench.updateHighlightNote(activeId, formatted);
       await refreshState(activeId, currentPage);
     },
-    [annotationWorkbench, currentPage, noteInput, refreshState, selectionRange]
+    [annotationWorkbench, currentPage, noteInput, refreshState, selectionRange, setNoteInput]
   );
 
   const generateContextualPrompt = useCallback(
@@ -585,7 +555,6 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
     highlights,
     selectedId,
     noteInput,
-    formattedAnnotations,
     selectionPopover,
     activeHighlightPopover,
     expandedHighlight,

@@ -7,7 +7,6 @@ import { Button, Card, Modal, SegmentedControl, type SegmentedControlOption } fr
 export interface HighlightDetailModalProps {
   readonly highlight: Highlight;
   readonly noteInput: string;
-  readonly formattedAnnotations: string[];
   readonly llmPromptPreview: string;
   readonly onNoteChange: (text: string) => void;
   readonly onSelectionChange: (start: number, end: number) => void;
@@ -26,7 +25,6 @@ const STUDIO_TABS: readonly SegmentedControlOption<StudioTabId>[] = [
 export function HighlightDetailModal({
   highlight,
   noteInput,
-  formattedAnnotations,
   llmPromptPreview,
   onNoteChange,
   onSelectionChange,
@@ -84,27 +82,6 @@ export function HighlightDetailModal({
               }}
             />
           </div>
-
-          {formattedAnnotations.length > 0 && (
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-semibold text-tx-muted">
-                Compiled Rich Annotations ({formattedAnnotations.length})
-              </span>
-              <div className="flex flex-col gap-1.5">
-                {formattedAnnotations.map((item, idx) => (
-                  <Card
-                    key={`formatted-${idx + 1}`}
-                    variant="subtle"
-                    padding="sm"
-                    rounded="lg"
-                    className="font-mono text-xs text-tx-secondary"
-                  >
-                    {item}
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
 

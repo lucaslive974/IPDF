@@ -47,23 +47,3 @@ export type TextFormatStyle =
   | { kind: 'bulletList' }
   | { kind: 'orderedList' }
   | { kind: 'blockquote' };
-
-export type AssistedMarkdownCommand =
-  | {
-      target: 'assisted-markdown';
-      action: 'insert-text';
-      text: string;
-    }
-  | {
-      target: 'assisted-markdown';
-      action: 'replace-text';
-      text: string;
-    }
-  | {
-      target: 'assisted-markdown';
-      action: 'apply-format';
-      selectionRange: { start: number; end: number };
-      formatStyle: TextFormatStyle;
-    };
-
-export type AnnotationCommand = AssistedMarkdownCommand;

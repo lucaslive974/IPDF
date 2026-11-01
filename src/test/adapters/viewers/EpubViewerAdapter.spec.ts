@@ -189,4 +189,51 @@ describe('EpubViewerAdapter (EPUB CFI, Highlights & Virtual Pagination)', () => 
     expect(paragraphs).toHaveLength(2);
     expect(paragraphs[0]).toBe('Behold prisoners chained in the dark.');
   });
+
+  it('handles navigation boundaries, paragraph chunking, and fallback empty pages', async () => {
+    const viewer = new EpubViewerAdapter();
+    const container = createFakeContainer();
+
+    // 1. Empty render fallback
+    await viewer.render(container, encodeUtf8(''));
+    expect(viewer.getPage(999)).toBeNull();
+    const emptyPages = viewer.getPagesChunk(1, 10);
+    expect(emptyPages[0]?.paragraphs).toEqual(['Empty EPUB Document']);
+
+    // Prev page at 1 does nothing
+    await viewer.prevPage();
+    expect(viewer.getCurrentPage().currentPage).toBe(1);
+
+    // 2. Large chapter with > 14 paragraphs to trigger multi-page chunking
+    const manyParas = Array.from({ length: 20 }, (_, i) => `<p>Paragraph ${i + 1}</p>`).join('');
+    const jsonEpub = JSON.stringify({
+      chapters: [
+        {
+          title: 'Long Chapter',
+          cfiBase: 'epubcfi(/6/10!/4/2',
+          content: `<div><h2>Subtitle Heading</h2>${manyParas}</div>`,
+        },
+        {
+          title: 'Empty Chapter',
+          cfiBase: 'epubcfi(/6/12!/4/2',
+          content: '   ',
+        },
+      ],
+    });
+
+    await viewer.render(container, encodeUtf8(jsonEpub));
+    const pages = viewer.getPagesChunk(1, 100);
+    expect(pages.length).toBeGreaterThanOrEqual(3);
+
+    // Next page at boundary
+    await viewer.nextPage();
+    await viewer.nextPage();
+    await viewer.nextPage(); // beyond max
+    expect(viewer.getCurrentPage().currentPage).toBe(2);
+
+    // Out-of-bounds goToPage
+    await viewer.goToPage(100);
+    await viewer.goToPage(-1);
+    await viewer.goToPage('epubcfi(invalid-cfi-target)');
+  });
 });

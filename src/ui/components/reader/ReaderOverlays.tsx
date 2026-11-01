@@ -180,7 +180,6 @@ export const ReaderOverlays = memo(function ReaderOverlays() {
         <HighlightDetailModal
           highlight={reader.expandedHighlight}
           noteInput={reader.noteInput}
-          formattedAnnotations={reader.formattedAnnotations}
           llmPromptPreview={reader.llmPromptPreview}
           onNoteChange={reader.updateNoteDraft}
           onSelectionChange={reader.updateSelectionRange}

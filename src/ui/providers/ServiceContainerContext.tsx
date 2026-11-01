@@ -1,5 +1,4 @@
 import { type ReactNode, createContext, useContext, useMemo } from 'react';
-import { AssistedRichTextStrategy } from '../../adapters/annotations/AssistedRichTextStrategy';
 import {
   TauriHighlightService,
   TauriLibraryService,
@@ -56,9 +55,7 @@ export function ServiceContainerProvider({
     const presenceService = injectedPresence ?? new TauriPresenceService();
     const settingsService = injectedSettings ?? new TauriSettingsService();
 
-    const annotationWorkbench = new AnnotationWorkbenchService(highlightService, [
-      new AssistedRichTextStrategy(),
-    ]);
+    const annotationWorkbench = new AnnotationWorkbenchService(highlightService);
     const epubViewer = viewer ?? new EpubViewerAdapter();
 
     return {

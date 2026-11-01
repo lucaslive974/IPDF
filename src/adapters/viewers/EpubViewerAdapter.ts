@@ -48,6 +48,7 @@ export class EpubViewerAdapter implements IDocumentViewer {
 
   public async render(container: HTMLElement, fileData: ArrayBuffer): Promise<void> {
     this.container = container;
+    this.pages = [];
     this.chapters = await this.parseEpubChapters(fileData);
     this.pages = this.paginateChapters(this.chapters);
     this.currentPageIndex = 0;

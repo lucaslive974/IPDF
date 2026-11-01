@@ -1,6 +1,4 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { AssistedRichTextStrategy } from '../../../adapters/annotations/AssistedRichTextStrategy';
-import type { AnnotationFormatterMap } from '../../../core/domain/RichAnnotation';
 import { AnnotationWorkbenchService } from '../../../core/services/AnnotationWorkbenchService';
 import { MockBackend } from '../../mocks/MockBackend';
 
@@ -17,13 +15,13 @@ const createEmptyRect = (): DOMRect =>
     toJSON: () => ({}),
   }) as DOMRect;
 
-describe('AnnotationWorkbenchService (60fps Frontend Strategy + Backend Persistence)', () => {
+describe('AnnotationWorkbenchService (Direct Highlight & Note Management)', () => {
   let backend: MockBackend;
   let service: AnnotationWorkbenchService;
 
   beforeEach(() => {
     backend = new MockBackend();
-    service = new AnnotationWorkbenchService(backend, [new AssistedRichTextStrategy()]);
+    service = new AnnotationWorkbenchService(backend);
   });
 
   it('should create a highlight, persist via gateway, and merge overlapping selections', async () => {
@@ -54,7 +52,7 @@ describe('AnnotationWorkbenchService (60fps Frontend Strategy + Backend Persiste
     expect(service.getForPage(1)).toHaveLength(1);
   });
 
-  it('should apply all assisted formatting styles and diagram commands via Command Dispatch', async () => {
+  it('should update highlight note directly and persist', async () => {
     const hl = await service.createFromSelection(
       'book_1',
       {
@@ -64,91 +62,14 @@ describe('AnnotationWorkbenchService (60fps Frontend Strategy + Backend Persiste
         clientRect: createEmptyRect(),
       },
       '#FFEB3B',
-      'Thesis Antithesis Synthesis'
+      'Thesis'
     );
 
-    await service.interactWithAnnotation(hl.id, 'assisted-markdown', {
-      target: 'assisted-markdown',
-      action: 'apply-format',
-      selectionRange: { start: 0, end: 6 },
-      formatStyle: { kind: 'bold' },
-    });
+    const updated = await service.updateHighlightNote(hl.id, 'Thesis Antithesis Synthesis');
+    expect(updated.note).toBe('Thesis Antithesis Synthesis');
 
-    await service.interactWithAnnotation(hl.id, 'assisted-markdown', {
-      target: 'assisted-markdown',
-      action: 'apply-format',
-      selectionRange: { start: 0, end: 10 },
-      formatStyle: { kind: 'italic' },
-    });
-
-    await service.interactWithAnnotation(hl.id, 'assisted-markdown', {
-      target: 'assisted-markdown',
-      action: 'apply-format',
-      selectionRange: { start: 0, end: 10 },
-      formatStyle: { kind: 'underline' },
-    });
-
-    await service.interactWithAnnotation(hl.id, 'assisted-markdown', {
-      target: 'assisted-markdown',
-      action: 'apply-format',
-      selectionRange: { start: 0, end: 10 },
-      formatStyle: { kind: 'strikethrough' },
-    });
-
-    await service.interactWithAnnotation(hl.id, 'assisted-markdown', {
-      target: 'assisted-markdown',
-      action: 'apply-format',
-      selectionRange: { start: 0, end: 10 },
-      formatStyle: { kind: 'textColor', colorHex: '#ff0000' },
-    });
-
-    await service.interactWithAnnotation(hl.id, 'assisted-markdown', {
-      target: 'assisted-markdown',
-      action: 'apply-format',
-      selectionRange: { start: 0, end: 10 },
-      formatStyle: { kind: 'backgroundColor', colorHex: '#ffff00' },
-    });
-
-    await service.interactWithAnnotation(hl.id, 'assisted-markdown', {
-      target: 'assisted-markdown',
-      action: 'apply-format',
-      selectionRange: { start: 0, end: 10 },
-      formatStyle: { kind: 'heading', level: 2 },
-    });
-
-    await service.interactWithAnnotation(hl.id, 'assisted-markdown', {
-      target: 'assisted-markdown',
-      action: 'apply-format',
-      selectionRange: { start: 0, end: 10 },
-      formatStyle: { kind: 'bulletList' },
-    });
-
-    await service.interactWithAnnotation(hl.id, 'assisted-markdown', {
-      target: 'assisted-markdown',
-      action: 'apply-format',
-      selectionRange: { start: 0, end: 10 },
-      formatStyle: { kind: 'orderedList' },
-    });
-
-    await service.interactWithAnnotation(hl.id, 'assisted-markdown', {
-      target: 'assisted-markdown',
-      action: 'apply-format',
-      selectionRange: { start: 0, end: 10 },
-      formatStyle: { kind: 'blockquote' },
-    });
-
-    await service.interactWithAnnotation(hl.id, 'assisted-markdown', {
-      target: 'assisted-markdown',
-      action: 'insert-text',
-      text: 'Added appendix',
-    });
-
-    const formatterMap: AnnotationFormatterMap<string> = {
-      'assisted-markdown': (n) => `TEXT:${n.rawData.length > 0}`,
-    };
-
-    const formatted = service.formatHighlightAnnotations(hl.id, formatterMap);
-    expect(formatted).toEqual(['TEXT:true']);
+    const colorUpdated = await service.updateHighlightColor(hl.id, '#0284c7');
+    expect(colorUpdated.color).toBe('#0284c7');
 
     await service.removeHighlight(hl.id);
     expect(service.getForPage(2)).toHaveLength(0);
@@ -166,34 +87,11 @@ describe('AnnotationWorkbenchService (60fps Frontend Strategy + Backend Persiste
     expect(reloaded).toHaveLength(1);
     expect(reloaded[0]?.id).toBe(hl.id);
 
-    await expect(
-      service.interactWithAnnotation('missing_id', 'assisted-markdown', {
-        target: 'assisted-markdown',
-        action: 'replace-text',
-        text: 'Fail',
-      })
-    ).rejects.toThrow('Highlight not found');
-
-    const bareService = new AnnotationWorkbenchService(backend);
-    const bareHl = await bareService.createFromSelection('book_bare', {
-      text: 'No strategy',
-      surroundingContext: 'Context',
-      anchor: { format: 'epub', pageNumber: 1, epubCfi: 'epubcfi(/6/2!/4/6)' },
-      clientRect: createEmptyRect(),
-    });
-
-    await expect(
-      bareService.interactWithAnnotation(bareHl.id, 'assisted-markdown', {
-        target: 'assisted-markdown',
-        action: 'replace-text',
-        text: 'Fail',
-      })
-    ).rejects.toThrow('Annotation tool strategy not registered');
-
-    expect(() =>
-      bareService.formatHighlightAnnotations('missing_id', {
-        'assisted-markdown': () => 'text',
-      })
-    ).toThrow('Highlight not found');
+    await expect(service.updateHighlightNote('missing_id', 'Fail')).rejects.toThrow(
+      'Highlight not found'
+    );
+    await expect(service.updateHighlightColor('missing_id', '#ff0000')).rejects.toThrow(
+      'Highlight not found'
+    );
   });
 });

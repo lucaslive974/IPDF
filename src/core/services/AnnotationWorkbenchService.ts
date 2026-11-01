@@ -1,25 +1,11 @@
 import { Highlight } from '../domain/Highlight';
-import type { AnnotationFormatterMap } from '../domain/RichAnnotation';
-import type { AnnotationCommand, RichAnnotationType, TextSelection } from '../domain/types';
-import type { IAnnotationToolStrategy } from '../ports/IAnnotationStrategy';
+import type { TextSelection } from '../domain/types';
 import type { IHighlightService } from '../ports/IHighlightService';
 
 export class AnnotationWorkbenchService {
   private readonly activeHighlights = new Map<string, Highlight>();
-  private readonly toolStrategies = new Map<RichAnnotationType, IAnnotationToolStrategy>();
 
-  constructor(
-    private readonly highlightService: IHighlightService,
-    strategies: IAnnotationToolStrategy[] = []
-  ) {
-    for (const strategy of strategies) {
-      this.registerToolStrategy(strategy);
-    }
-  }
-
-  public registerToolStrategy(strategy: IAnnotationToolStrategy): void {
-    this.toolStrategies.set(strategy.type, strategy);
-  }
+  constructor(private readonly highlightService: IHighlightService) {}
 
   public async loadBookHighlights(bookHash: string): Promise<Highlight[]> {
     const list = await this.highlightService.loadBookHighlights(bookHash);
@@ -41,14 +27,6 @@ export class AnnotationWorkbenchService {
         existing.changeColor(color);
         if (initialNote) {
           existing.updateNote(initialNote);
-          const textStrategy = this.toolStrategies.get('assisted-markdown');
-          if (textStrategy) {
-            await textStrategy.applyToHighlight(existing, {
-              target: 'assisted-markdown',
-              action: 'replace-text',
-              text: initialNote,
-            });
-          }
         }
         await this.highlightService.saveHighlight(existing);
         return existing;
@@ -65,51 +43,31 @@ export class AnnotationWorkbenchService {
       initialNote
     );
 
-    if (initialNote) {
-      const textStrategy = this.toolStrategies.get('assisted-markdown');
-      if (textStrategy) {
-        await textStrategy.applyToHighlight(highlight, {
-          target: 'assisted-markdown',
-          action: 'replace-text',
-          text: initialNote,
-        });
-      }
-    }
-
     this.activeHighlights.set(id, highlight);
     await this.highlightService.saveHighlight(highlight);
     return highlight;
   }
 
-  public async interactWithAnnotation(
-    highlightId: string,
-    toolType: RichAnnotationType,
-    command: AnnotationCommand
-  ): Promise<Highlight> {
+  public async updateHighlightNote(highlightId: string, note: string): Promise<Highlight> {
     const highlight = this.activeHighlights.get(highlightId);
     if (!highlight) {
       throw new Error(`Highlight not found: ${highlightId}`);
     }
 
-    const strategy = this.toolStrategies.get(toolType);
-    if (!strategy) {
-      throw new Error(`Annotation tool strategy not registered: ${toolType}`);
-    }
-
-    await strategy.applyToHighlight(highlight, command);
+    highlight.updateNote(note);
     await this.highlightService.saveHighlight(highlight);
     return highlight;
   }
 
-  public formatHighlightAnnotations<R>(
-    highlightId: string,
-    formatterMap: AnnotationFormatterMap<R>
-  ): R[] {
+  public async updateHighlightColor(highlightId: string, color: string): Promise<Highlight> {
     const highlight = this.activeHighlights.get(highlightId);
     if (!highlight) {
       throw new Error(`Highlight not found: ${highlightId}`);
     }
-    return highlight.formatAnnotations(formatterMap);
+
+    highlight.changeColor(color);
+    await this.highlightService.saveHighlight(highlight);
+    return highlight;
   }
 
   public async removeHighlight(id: string): Promise<void> {
