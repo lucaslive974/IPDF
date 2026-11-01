@@ -157,6 +157,18 @@ export class TauriBackend implements BackendService {
     return invoke<string>('sync_book_workspace', { bookHash });
   }
 
+  public async getAppSetting(key: string): Promise<string | null> {
+    return invoke<string | null>('get_app_setting', { key });
+  }
+
+  public async setAppSetting(key: string, value: string): Promise<void> {
+    await invoke<void>('set_app_setting', { key, value });
+  }
+
+  public async setDiscordPresenceEnabled(enabled: boolean): Promise<void> {
+    await invoke<void>('set_discord_presence_enabled', { enabled });
+  }
+
   private deserializeBookMetadata(dto: SerializedBookMetadata): BookMetadata {
     return {
       bookHash: dto.bookHash,

@@ -14,6 +14,7 @@ import { MockBackend } from '../../mocks/MockBackend';
 
 const storedDtos = new Map<string, SerializedHighlight>();
 const storedBooks = new Map<string, SerializedBookMetadata>();
+const storedSettings = new Map<string, string>();
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(async <T>(cmd: string, args: Record<string, unknown> = {}) => {
@@ -129,6 +130,18 @@ vi.mock('@tauri-apps/api/core', () => ({
     if (cmd === 'sync_book_workspace') {
       return `synced:${String(args.bookHash)}` as unknown as T;
     }
+    if (cmd === 'get_app_setting') {
+      const key = String(args.key);
+      return (storedSettings.get(key) ?? null) as unknown as T;
+    }
+    if (cmd === 'set_app_setting') {
+      storedSettings.set(String(args.key), String(args.value));
+      return undefined as unknown as T;
+    }
+    if (cmd === 'set_discord_presence_enabled') {
+      storedSettings.set('discord_presence_enabled', String(args.enabled));
+      return undefined as unknown as T;
+    }
     throw new Error(`Unexpected command: ${cmd}`);
   }),
 }));
@@ -215,6 +228,15 @@ describe('TauriBackend (Direct Tauri IPC)', () => {
     const syncResult = await backend.syncBookWorkspace('sha256-imported-book');
     expect(syncResult).toBe('synced:sha256-imported-book');
 
+    expect(await backend.getAppSetting('theme')).toBeNull();
+    await backend.setAppSetting('theme', 'dark');
+    expect(await backend.getAppSetting('theme')).toBe('dark');
+
+    await backend.setDiscordPresenceEnabled(true);
+    expect(await backend.getAppSetting('discord_presence_enabled')).toBe('true');
+    await backend.setDiscordPresenceEnabled(false);
+    expect(await backend.getAppSetting('discord_presence_enabled')).toBe('false');
+
     await backend.deleteHighlight('hl-direct');
     const afterDelete = await backend.loadBookHighlights('sha256-imported-book');
     expect(afterDelete).toHaveLength(0);
@@ -279,5 +301,12 @@ describe('MockBackend (In-Memory Test Double)', () => {
 
     await mock.deleteHighlight(hl.id);
     expect(await mock.loadBookHighlights(imported.bookHash)).toHaveLength(0);
+
+    expect(await mock.getAppSetting('key1')).toBeNull();
+    await mock.setAppSetting('key1', 'val1');
+    expect(await mock.getAppSetting('key1')).toBe('val1');
+
+    await mock.setDiscordPresenceEnabled(true);
+    expect(await mock.getAppSetting('discord_presence_enabled')).toBe('true');
   });
 });

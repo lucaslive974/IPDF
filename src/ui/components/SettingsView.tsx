@@ -5,6 +5,7 @@ import { SettingsAppearanceSection } from './settings/SettingsAppearanceSection'
 import { SettingsDangerSection } from './settings/SettingsDangerSection';
 import { SettingsFoldersSection } from './settings/SettingsFoldersSection';
 import { SettingsHeader } from './settings/SettingsHeader';
+import { SettingsIntegrationsSection } from './settings/SettingsIntegrationsSection';
 import { SettingsPortabilitySection } from './settings/SettingsPortabilitySection';
 import { SettingsSyncSection } from './settings/SettingsSyncSection';
 
@@ -33,6 +34,11 @@ export function SettingsView() {
           syncStatusMessage={settings.syncStatusMessage}
           onTriggerSync={() => void settings.triggerSync()}
           onToggleDriveConnection={settings.toggleDriveConnection}
+        />
+
+        <SettingsIntegrationsSection
+          isDiscordEnabled={settings.isDiscordEnabled}
+          onToggleDiscord={() => void settings.toggleDiscordPresence()}
         />
 
         <SettingsPortabilitySection

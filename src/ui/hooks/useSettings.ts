@@ -1,10 +1,11 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useServiceContainer } from '../providers/ServiceContainerContext';
 
 export interface SettingsHook {
   readonly monitoredFolders: string[];
   readonly newFolderInput: string;
   readonly isDriveConnected: boolean;
+  readonly isDiscordEnabled: boolean;
   readonly syncStatusMessage: string | null;
   readonly syncExportPreview: string;
   readonly showResetConfirm: boolean;
@@ -13,6 +14,7 @@ export interface SettingsHook {
   addFolder(): void;
   removeFolder(index: number): void;
   toggleDriveConnection(): void;
+  toggleDiscordPresence(): Promise<void>;
   triggerSync(bookHash?: string): Promise<void>;
   resetDatabase(): Promise<void>;
 }
@@ -26,9 +28,28 @@ export function useSettings(): SettingsHook {
   ]);
   const [newFolderInput, setNewFolderInput] = useState<string>('');
   const [isDriveConnected, setIsDriveConnected] = useState<boolean>(true);
+  const [isDiscordEnabled, setIsDiscordEnabled] = useState<boolean>(true);
   const [syncStatusMessage, setSyncStatusMessage] = useState<string | null>(null);
   const [syncExportPreview, setSyncExportPreview] = useState<string>('');
   const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false);
+
+  useEffect(() => {
+    let mounted = true;
+    void services.getAppSetting('discord_presence_enabled').then((val) => {
+      if (mounted && val !== null) {
+        setIsDiscordEnabled(val !== 'false');
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [services]);
+
+  const toggleDiscordPresence = useCallback(async () => {
+    const next = !isDiscordEnabled;
+    setIsDiscordEnabled(next);
+    await services.setDiscordPresenceEnabled(next);
+  }, [isDiscordEnabled, services]);
 
   const addFolder = useCallback(() => {
     if (newFolderInput.trim().length > 0) {
@@ -63,6 +84,7 @@ export function useSettings(): SettingsHook {
     monitoredFolders,
     newFolderInput,
     isDriveConnected,
+    isDiscordEnabled,
     syncStatusMessage,
     syncExportPreview,
     showResetConfirm,
@@ -71,6 +93,7 @@ export function useSettings(): SettingsHook {
     addFolder,
     removeFolder,
     toggleDriveConnection,
+    toggleDiscordPresence,
     triggerSync,
     resetDatabase,
   };

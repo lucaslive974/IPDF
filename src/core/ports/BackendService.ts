@@ -51,4 +51,7 @@ export interface BackendService {
   deleteHighlight(highlightId: string): Promise<void>;
   buildTermLookupRequest(context: ReadingContext, targetLanguage?: string): Promise<LLMRequest>;
   syncBookWorkspace(bookHash: string): Promise<string>;
+  getAppSetting(key: string): Promise<string | null>;
+  setAppSetting(key: string, value: string): Promise<void>;
+  setDiscordPresenceEnabled(enabled: boolean): Promise<void>;
 }

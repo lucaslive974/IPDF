@@ -11,6 +11,7 @@ import type {
 export class MockBackend implements BackendService {
   private readonly books = new Map<string, BookMetadata>();
   private readonly highlights = new Map<string, Highlight>();
+  private readonly settings = new Map<string, string>();
   public syncedBooks: string[] = [];
   public startupBook: BookMetadata | null = null;
 
@@ -183,5 +184,17 @@ export class MockBackend implements BackendService {
       highlightsCount: highlights.length,
       highlights,
     });
+  }
+
+  public async getAppSetting(key: string): Promise<string | null> {
+    return this.settings.get(key) ?? null;
+  }
+
+  public async setAppSetting(key: string, value: string): Promise<void> {
+    this.settings.set(key, value);
+  }
+
+  public async setDiscordPresenceEnabled(enabled: boolean): Promise<void> {
+    this.settings.set('discord_presence_enabled', String(enabled));
   }
 }
