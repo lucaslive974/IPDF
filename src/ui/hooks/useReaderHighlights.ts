@@ -119,8 +119,11 @@ export function useReaderHighlights(
     [highlightService]
   );
 
-  return {
-    ...controller,
-    highlights,
-  };
+  return useMemo(
+    () => ({
+      ...controller,
+      highlights,
+    }),
+    [controller, highlights]
+  );
 }

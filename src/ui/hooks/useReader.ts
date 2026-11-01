@@ -105,7 +105,6 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
   const selectedId = useHighlightStore((s) => s.selectedHighlightId);
   const noteInput = useHighlightStore((s) => s.noteInput);
 
-  const setHighlights = useHighlightStore((s) => s.setHighlights);
   const upsertHighlight = useHighlightStore((s) => s.upsertHighlight);
   const removeHighlight = useHighlightStore((s) => s.removeHighlight);
   const setSelectedId = useHighlightStore((s) => s.setSelectedHighlightId);
@@ -147,7 +146,6 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
   const refreshState = useCallback(
     async (activeHighlightId?: string | null, pageNum = currentPage) => {
       const pageHighlights = readerHighlights.getHighlightsForPage(pageNum);
-      setHighlights([...pageHighlights]);
 
       const targetId = activeHighlightId ?? selectedIdRef.current ?? pageHighlights[0]?.id ?? null;
       if (!targetId) {
@@ -162,7 +160,7 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
         setNoteInput(found.note);
       }
     },
-    [readerHighlights, currentPage, setHighlights, setNoteInput, setSelectedId]
+    [readerHighlights, currentPage, setNoteInput, setSelectedId]
   );
 
   // Bootstrap book & initial pages on mount or book change
@@ -229,9 +227,6 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
 
       await readerHighlights.loadBookHighlights(doc.bookHash);
       if (cancelled) return;
-
-      const existing = readerHighlights.getHighlightsForPage(initialPage);
-      setHighlights([...existing]);
     };
 
     void bootstrapReader();
@@ -249,14 +244,7 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
     setTotalPages,
     setLoadedPages,
     setChapterTitle,
-    setHighlights,
   ]);
-
-  // Sync highlights when current page changes
-  useEffect(() => {
-    const existing = readerHighlights.getHighlightsForPage(currentPage);
-    setHighlights([...existing]);
-  }, [readerHighlights, currentPage, setHighlights]);
 
   const loadMorePages = useCallback(
     async (direction: 'next' | 'prev') => {
@@ -397,14 +385,10 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
       setNoteInput(value);
       const currentId = selectedIdRef.current;
       if (currentId) {
-        void readerHighlights.updateHighlightNote(currentId, value).then((updated) => {
-          const currentHighlights = readerHighlights.getHighlightsForPage(currentPage);
-          setHighlights([...currentHighlights]);
-          upsertHighlight(updated);
-        });
+        void readerHighlights.updateHighlightNote(currentId, value);
       }
     },
-    [readerHighlights, currentPage, setHighlights, setNoteInput, upsertHighlight]
+    [readerHighlights, setNoteInput]
   );
 
   const updateSelectionRange = useCallback((start: number, end: number) => {
