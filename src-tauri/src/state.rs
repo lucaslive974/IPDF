@@ -1,3 +1,4 @@
+use crate::seed::seed_bundled_assets_if_needed;
 use crate::utils::find_file_argument;
 use ipdf_core::adapters::configuration::SqliteConfigurationStore;
 use ipdf_core::adapters::persistence::{SqliteBookRepository, SqliteHighlightRepository};
@@ -41,8 +42,14 @@ impl Default for BackendState {
         let mut library = LibraryManager::new_with_repo(storage, book_repo);
         let _ = library.initialize();
 
-        let config_store = SqliteConfigurationStore::for_platform(&*platform)
+        let mut config_store = SqliteConfigurationStore::for_platform(&*platform)
             .unwrap_or_else(|_| SqliteConfigurationStore::new_in_memory().unwrap());
+
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        seed_bundled_assets_if_needed(&mut library, &mut config_store, now_ms);
 
         let discord_enabled = config_store
             .get("discord_presence_enabled")

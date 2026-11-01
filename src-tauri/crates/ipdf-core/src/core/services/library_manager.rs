@@ -1,34 +1,9 @@
 use crate::core::domain::{BookFormat, BookMetadata, BookPagePayload, BookStorageLocation};
 use crate::core::ports::{BookRepository, StorageProvider};
 use crate::core::services::Sha256BookHasher;
-use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
-
-pub const DEFAULT_ASSET_NAME: &str = "republic-plato.epub";
-pub const DEFAULT_ASSET_HASH: &str =
-    "8c8bf2ed9bff65aaf226bf5db3879eb378a26e72489bd28666abc01c02f2a0c2";
-pub const ASSET_INIT_MARKER: &str = ".installed_assets_v1";
-pub const PROGRESS_FILE: &str = ".reading_progress.json";
-pub const DELETED_BOOKS_FILE: &str = ".deleted_books.json";
-
-pub const BUNDLED_REPUBLIC_EPUB: &[u8] =
-    include_bytes!("../../../../../../assets/republic-plato.epub");
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct ReadingProgress {
-    pub title: String,
-    pub author: String,
-    pub format: BookFormat,
-    pub current_page: u32,
-    pub total_pages: u32,
-    pub percentage: f64,
-    pub last_read_at_ms: i64,
-    pub cover_image_url: Option<String>,
-    pub file_path: Option<String>,
-}
 
 pub struct ImportBookInput {
     pub raw_bytes: Vec<u8>,
@@ -45,24 +20,20 @@ pub struct LibraryManager<
     R: BookRepository = crate::adapters::persistence::SqliteBookRepository,
 > {
     storage: S,
-    book_repo: Option<R>,
-    progress_map: BTreeMap<String, ReadingProgress>,
+    book_repo: R,
     in_memory_books: BTreeMap<String, Vec<u8>>,
     pages_cache: BTreeMap<String, Vec<BookPagePayload>>,
-    deleted_books: BTreeSet<String>,
-    auto_bundle_assets: bool,
 }
 
 impl<S: StorageProvider> LibraryManager<S, crate::adapters::persistence::SqliteBookRepository> {
     pub fn new(storage: S) -> Self {
+        let book_repo = crate::adapters::persistence::SqliteBookRepository::new_in_memory()
+            .expect("Failed to initialize in-memory SQLite book repository");
         Self {
             storage,
-            book_repo: None,
-            progress_map: BTreeMap::new(),
+            book_repo,
             in_memory_books: BTreeMap::new(),
             pages_cache: BTreeMap::new(),
-            deleted_books: BTreeSet::new(),
-            auto_bundle_assets: true,
         }
     }
 }
@@ -71,31 +42,18 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
     pub fn new_with_repo(storage: S, book_repo: R) -> Self {
         Self {
             storage,
-            book_repo: Some(book_repo),
-            progress_map: BTreeMap::new(),
+            book_repo,
             in_memory_books: BTreeMap::new(),
             pages_cache: BTreeMap::new(),
-            deleted_books: BTreeSet::new(),
-            auto_bundle_assets: true,
         }
     }
 
-    pub fn with_book_repo(mut self, book_repo: R) -> Self {
-        self.book_repo = Some(book_repo);
-        self
+    pub fn book_repo(&self) -> &R {
+        &self.book_repo
     }
 
-    pub fn book_repo(&self) -> Option<&R> {
-        self.book_repo.as_ref()
-    }
-
-    pub fn book_repo_mut(&mut self) -> Option<&mut R> {
-        self.book_repo.as_mut()
-    }
-
-    pub fn without_bundled_assets(mut self) -> Self {
-        self.auto_bundle_assets = false;
-        self
+    pub fn book_repo_mut(&mut self) -> &mut R {
+        &mut self.book_repo
     }
 
     pub fn storage(&self) -> &S {
@@ -107,140 +65,20 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
     }
 
     pub fn initialize(&mut self) -> Result<bool, String> {
-        let _ = self.storage.initialize()?;
-        self.load_progress_cache()?;
-        self.load_deleted_books()?;
-
-        if self.auto_bundle_assets {
-            self.ensure_bundled_assets()?;
-        }
-
-        Ok(true)
-    }
-
-    fn ensure_bundled_assets(&mut self) -> Result<(), String> {
-        let marker = self.storage.read_entry(ASSET_INIT_MARKER)?;
-        if marker.is_none() && !self.deleted_books.contains(DEFAULT_ASSET_HASH) {
-            let cover_url = Self::extract_or_generate_cover(
-                &[],
-                "The Republic",
-                "Plato",
-                "Book VII — Allegory of the Cave",
-            );
-
-            self.progress_map
-                .entry(DEFAULT_ASSET_HASH.to_string())
-                .or_insert_with(|| ReadingProgress {
-                    title: "The Republic".to_string(),
-                    author: "Plato".to_string(),
-                    format: BookFormat::Epub,
-                    current_page: 1,
-                    total_pages: 320,
-                    percentage: 0.31,
-                    last_read_at_ms: 0,
-                    cover_image_url: Some(cover_url),
-                    file_path: None,
-                });
-
-            let _ = self
-                .storage
-                .write_entry(ASSET_INIT_MARKER, b"1", "text/plain")?;
-            self.persist_progress_cache()?;
-        }
-        Ok(())
-    }
-
-    fn load_deleted_books(&mut self) -> Result<(), String> {
-        if let Some(bytes) = self.storage.read_entry(DELETED_BOOKS_FILE)? {
-            if let Ok(set) = serde_json::from_slice::<BTreeSet<String>>(&bytes) {
-                self.deleted_books = set;
-            }
-        }
-        Ok(())
-    }
-
-    fn persist_deleted_books(&mut self) -> Result<(), String> {
-        let json = serde_json::to_vec(&self.deleted_books).map_err(|e| e.to_string())?;
-        let _ = self
-            .storage
-            .write_entry(DELETED_BOOKS_FILE, &json, "application/json")?;
-        Ok(())
-    }
-
-    fn load_progress_cache(&mut self) -> Result<(), String> {
-        if let Some(bytes) = self.storage.read_entry(PROGRESS_FILE)? {
-            if let Ok(map) = serde_json::from_slice::<BTreeMap<String, ReadingProgress>>(&bytes) {
-                self.progress_map = map;
-            }
-        }
-        Ok(())
-    }
-
-    fn persist_progress_cache(&mut self) -> Result<(), String> {
-        let json = serde_json::to_vec(&self.progress_map).map_err(|e| e.to_string())?;
-        let _ = self
-            .storage
-            .write_entry(PROGRESS_FILE, &json, "application/json")?;
-        Ok(())
+        self.storage.initialize()
     }
 
     pub fn import_book(&mut self, input: ImportBookInput) -> Result<BookMetadata, String> {
         let book_hash = Sha256BookHasher::hash_bytes(&input.raw_bytes)?;
         let pages = Self::parse_and_paginate_book(&input.raw_bytes, input.total_pages)?;
         let total_pages = (pages.len() as u32).max(1);
-        self.pages_cache.insert(book_hash.clone(), pages.clone());
+        self.pages_cache.insert(book_hash.clone(), pages);
 
-        let existing = self.progress_map.get(&book_hash).cloned();
-
+        let existing = self.book_repo.find_book_by_hash(&book_hash)?;
         let (current_page, percentage) = match existing {
-            Some(ref p) => (p.current_page.clamp(1, total_pages), p.percentage),
+            Some(ref b) => (b.current_page.clamp(1, total_pages), b.percentage),
             None => (1, ((1.0 / total_pages as f64) * 100.0).clamp(0.0, 100.0)),
         };
-
-        let first_page_title = pages
-            .first()
-            .map(|p| p.chapter_title.as_str())
-            .unwrap_or("Chapter 1");
-
-        let cover_image_url = if let Some(ref url) = input.cover_image_url {
-            if !url.is_empty() {
-                Some(url.clone())
-            } else {
-                Some(Self::extract_or_generate_cover(
-                    &input.raw_bytes,
-                    &input.title,
-                    &input.author,
-                    first_page_title,
-                ))
-            }
-        } else {
-            Some(Self::extract_or_generate_cover(
-                &input.raw_bytes,
-                &input.title,
-                &input.author,
-                first_page_title,
-            ))
-        };
-
-        let progress = ReadingProgress {
-            title: input.title.clone(),
-            author: input.author.clone(),
-            format: input.format,
-            current_page,
-            total_pages,
-            percentage,
-            last_read_at_ms: input.now_ms,
-            cover_image_url: cover_image_url.clone(),
-            file_path: None,
-        };
-
-        let _ = self
-            .storage
-            .write_book_binary(&book_hash, input.raw_bytes.clone(), input.format);
-        self.in_memory_books
-            .insert(book_hash.clone(), input.raw_bytes);
-        self.progress_map.insert(book_hash.clone(), progress);
-        self.persist_progress_cache()?;
 
         let metadata = BookMetadata {
             book_hash: book_hash.clone(),
@@ -250,187 +88,63 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
             current_page,
             total_pages,
             percentage,
-            cover_image_url,
+            cover_image_url: input.cover_image_url,
             description: None,
             last_read_at_ms: input.now_ms,
             updated_at_ms: input.now_ms,
         };
 
-        if let Some(repo) = self.book_repo.as_mut() {
-            let _ = repo.save_book(metadata.clone());
-            let loc = BookStorageLocation::new(
-                &book_hash,
-                self.storage.provider_id(),
-                format!(
-                    "/books/{}.{}",
-                    book_hash,
-                    match metadata.format {
-                        BookFormat::Epub => "epub",
-                        BookFormat::Pdf => "pdf",
-                    }
-                ),
-                true,
-                Some(input.now_ms),
-            );
-            let _ = repo.add_storage_location(loc);
-        }
+        let _ = self
+            .storage
+            .write_book_binary(&book_hash, input.raw_bytes.clone(), input.format);
+        self.in_memory_books
+            .insert(book_hash.clone(), input.raw_bytes);
+
+        self.book_repo.save_book(metadata.clone())?;
+
+        let loc = BookStorageLocation::new(
+            &book_hash,
+            self.storage.provider_id(),
+            format!(
+                "/books/{}.{}",
+                book_hash,
+                match metadata.format {
+                    BookFormat::Epub => "epub",
+                    BookFormat::Pdf => "pdf",
+                }
+            ),
+            true,
+            Some(input.now_ms),
+        );
+        let _ = self.book_repo.add_storage_location(loc);
 
         Ok(metadata)
     }
 
     pub fn list_books(&mut self) -> Result<Vec<BookMetadata>, String> {
-        self.load_progress_cache()?;
-        self.load_deleted_books()?;
-
-        if self.auto_bundle_assets
-            && !self.progress_map.contains_key(DEFAULT_ASSET_HASH)
-            && !self.deleted_books.contains(DEFAULT_ASSET_HASH)
-        {
-            let cover_url = Self::extract_or_generate_cover(
-                &[],
-                "The Republic",
-                "Plato",
-                "Book VII — Allegory of the Cave",
-            );
-
-            let bundled_meta = BookMetadata {
-                book_hash: DEFAULT_ASSET_HASH.to_string(),
-                title: "The Republic".to_string(),
-                author: "Plato".to_string(),
-                format: BookFormat::Epub,
-                current_page: 1,
-                total_pages: 320,
-                percentage: 0.31,
-                last_read_at_ms: 0,
-                updated_at_ms: 0,
-                cover_image_url: Some(cover_url.clone()),
-                description: Some("Foundational philosophical dialogue by Plato.".to_string()),
-            };
-
-            if let Some(repo) = self.book_repo.as_mut() {
-                let _ = repo.save_book(bundled_meta);
-            }
-
-            self.progress_map.insert(
-                DEFAULT_ASSET_HASH.to_string(),
-                ReadingProgress {
-                    title: "The Republic".to_string(),
-                    author: "Plato".to_string(),
-                    format: BookFormat::Epub,
-                    current_page: 1,
-                    total_pages: 320,
-                    percentage: 0.31,
-                    last_read_at_ms: 0,
-                    cover_image_url: Some(cover_url),
-                    file_path: None,
-                },
-            );
-        }
-
-        // If repo is available, use it as primary source of truth with auto-migration from progress_map
-        if let Some(repo) = self.book_repo.as_mut() {
-            let mut db_books = repo.list_books()?;
-            if db_books.is_empty() && !self.progress_map.is_empty() {
-                // Auto-migrate from progress_map
-                for (book_hash, progress) in &self.progress_map {
-                    let cover_url = progress.cover_image_url.clone().or_else(|| {
-                        Some(Self::extract_or_generate_cover(
-                            &[],
-                            &progress.title,
-                            &progress.author,
-                            "Page 1",
-                        ))
-                    });
-                    let meta = BookMetadata {
-                        book_hash: book_hash.clone(),
-                        title: progress.title.clone(),
-                        author: progress.author.clone(),
-                        format: progress.format,
-                        current_page: progress.current_page,
-                        total_pages: progress.total_pages,
-                        percentage: progress.percentage,
-                        cover_image_url: cover_url,
-                        description: None,
-                        last_read_at_ms: progress.last_read_at_ms,
-                        updated_at_ms: progress.last_read_at_ms,
-                    };
-                    let _ = repo.save_book(meta.clone());
-                    let loc = BookStorageLocation::new(
-                        book_hash,
-                        self.storage.provider_id(),
-                        progress
-                            .file_path
-                            .clone()
-                            .unwrap_or_else(|| format!("/books/{}.bin", book_hash)),
-                        true,
-                        Some(progress.last_read_at_ms),
-                    );
-                    let _ = repo.add_storage_location(loc);
-                    db_books.push(meta);
-                }
-                db_books.sort_by(|a, b| b.last_read_at_ms.cmp(&a.last_read_at_ms));
-            }
-            return Ok(db_books);
-        }
-
-        let mut books = Vec::new();
-        for (book_hash, progress) in &self.progress_map {
-            let cover_url = progress.cover_image_url.clone().or_else(|| {
-                Some(Self::extract_or_generate_cover(
-                    &[],
-                    &progress.title,
-                    &progress.author,
-                    "Page 1",
-                ))
-            });
-
-            books.push(BookMetadata {
-                book_hash: book_hash.clone(),
-                title: progress.title.clone(),
-                author: progress.author.clone(),
-                format: progress.format,
-                current_page: progress.current_page,
-                total_pages: progress.total_pages,
-                percentage: progress.percentage,
-                cover_image_url: cover_url,
-                description: None,
-                last_read_at_ms: progress.last_read_at_ms,
-                updated_at_ms: progress.last_read_at_ms,
-            });
-        }
-
-        books.sort_by(|a, b| b.last_read_at_ms.cmp(&a.last_read_at_ms));
-        Ok(books)
+        self.book_repo.list_books()
     }
 
     pub fn get_book(&mut self, book_hash: &str) -> Result<Option<BookMetadata>, String> {
-        let all = self.list_books()?;
-        Ok(all.into_iter().find(|b| b.book_hash == book_hash))
+        self.book_repo.find_book_by_hash(book_hash)
     }
 
     pub fn open_book_binary(&mut self, book_hash: &str) -> Result<Vec<u8>, String> {
-        if book_hash == DEFAULT_ASSET_HASH
-            || book_hash == "sha256-plato-republic-book-vii"
-            || book_hash == DEFAULT_ASSET_NAME
-        {
-            return Ok(BUNDLED_REPUBLIC_EPUB.to_vec());
-        }
-
         if let Some(bytes) = self.in_memory_books.get(book_hash) {
             return Ok(bytes.clone());
         }
 
-        if let Some(prog) = self.progress_map.get(book_hash) {
-            if let Some(ref path_str) = prog.file_path {
-                let path = Path::new(path_str);
+        if self.storage.has_book_binary(book_hash)? {
+            return self.storage.read_book_binary(book_hash);
+        }
+
+        if let Ok(locations) = self.book_repo.get_storage_locations(book_hash) {
+            for loc in locations {
+                let path = Path::new(&loc.storage_path);
                 if path.exists() {
                     return fs::read(path).map_err(|e| e.to_string());
                 }
             }
-        }
-
-        if self.storage.has_book_binary(book_hash)? {
-            return self.storage.read_book_binary(book_hash);
         }
 
         Err(format!("Book binary not found for hash: {book_hash}"))
@@ -462,38 +176,15 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
 
         let pages = Self::parse_and_paginate_book(&bytes, 0)?;
         let total_pages = (pages.len() as u32).max(1);
-        self.pages_cache.insert(book_hash.clone(), pages.clone());
+        self.pages_cache.insert(book_hash.clone(), pages);
 
-        let existing = self.progress_map.get(&book_hash).cloned();
-
+        let existing = self.book_repo.find_book_by_hash(&book_hash)?;
         let (current_page, percentage) = match existing {
-            Some(ref p) => (p.current_page.clamp(1, total_pages), p.percentage),
-            None => (1, 1.0),
+            Some(ref b) => (b.current_page.clamp(1, total_pages), b.percentage),
+            None => (1, ((1.0 / total_pages as f64) * 100.0).clamp(0.0, 100.0)),
         };
 
         let now_ms = 0;
-        let first_page_title = pages
-            .first()
-            .map(|p| p.chapter_title.as_str())
-            .unwrap_or("Chapter 1");
-        let cover_url =
-            Self::extract_or_generate_cover(&bytes, &stem, "Local File", first_page_title);
-
-        let progress = ReadingProgress {
-            title: stem.clone(),
-            author: "Local File".to_string(),
-            format,
-            current_page,
-            total_pages,
-            percentage,
-            last_read_at_ms: now_ms,
-            cover_image_url: Some(cover_url.clone()),
-            file_path: Some(path.to_string_lossy().to_string()),
-        };
-
-        self.progress_map.insert(book_hash.clone(), progress);
-        let _ = self.persist_progress_cache();
-
         let metadata = BookMetadata {
             book_hash: book_hash.clone(),
             title: stem,
@@ -502,23 +193,24 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
             current_page,
             total_pages,
             percentage,
-            cover_image_url: Some(cover_url),
+            cover_image_url: None,
             description: None,
             last_read_at_ms: now_ms,
             updated_at_ms: now_ms,
         };
 
-        if let Some(repo) = self.book_repo.as_mut() {
-            let _ = repo.save_book(metadata.clone());
-            let loc = BookStorageLocation::new(
-                &book_hash,
-                self.storage.provider_id(),
-                path.to_string_lossy().to_string(),
-                true,
-                Some(now_ms),
-            );
-            let _ = repo.add_storage_location(loc);
-        }
+        self.in_memory_books
+            .insert(book_hash.clone(), bytes.clone());
+        self.book_repo.save_book(metadata.clone())?;
+
+        let loc = BookStorageLocation::new(
+            &book_hash,
+            self.storage.provider_id(),
+            path.to_string_lossy().to_string(),
+            true,
+            Some(now_ms),
+        );
+        let _ = self.book_repo.add_storage_location(loc);
 
         Ok((metadata, bytes))
     }
@@ -530,60 +222,23 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
         total_pages: u32,
         now_ms: i64,
     ) -> Result<BookMetadata, String> {
+        let mut book = self
+            .book_repo
+            .find_book_by_hash(book_hash)?
+            .ok_or_else(|| format!("Book not found: {book_hash}"))?;
+
         let safe_total = total_pages.max(1);
         let clamped_page = current_page.clamp(1, safe_total);
         let percentage = ((clamped_page as f64 / safe_total as f64) * 100.0).clamp(0.0, 100.0);
-        let existing = self.progress_map.get(book_hash).cloned();
 
-        let title = existing
-            .as_ref()
-            .map(|p| p.title.clone())
-            .unwrap_or_else(|| "The Republic".to_string());
-        let author = existing
-            .as_ref()
-            .map(|p| p.author.clone())
-            .unwrap_or_else(|| "Plato".to_string());
-        let format = existing
-            .as_ref()
-            .map(|p| p.format)
-            .unwrap_or(BookFormat::Epub);
-        let cover_image_url = existing.as_ref().and_then(|p| p.cover_image_url.clone());
-        let file_path = existing.as_ref().and_then(|p| p.file_path.clone());
+        book.current_page = clamped_page;
+        book.total_pages = safe_total;
+        book.percentage = percentage;
+        book.last_read_at_ms = now_ms;
+        book.updated_at_ms = now_ms;
 
-        let progress = ReadingProgress {
-            title: title.clone(),
-            author: author.clone(),
-            format,
-            current_page: clamped_page,
-            total_pages: safe_total,
-            percentage,
-            last_read_at_ms: now_ms,
-            cover_image_url: cover_image_url.clone(),
-            file_path,
-        };
-
-        self.progress_map.insert(book_hash.to_string(), progress);
-        self.persist_progress_cache()?;
-
-        let meta = BookMetadata {
-            book_hash: book_hash.to_string(),
-            title,
-            author,
-            format,
-            current_page: clamped_page,
-            total_pages: safe_total,
-            percentage,
-            cover_image_url,
-            description: None,
-            last_read_at_ms: now_ms,
-            updated_at_ms: now_ms,
-        };
-
-        if let Some(repo) = self.book_repo.as_mut() {
-            let _ = repo.save_book(meta.clone());
-        }
-
-        Ok(meta)
+        self.book_repo.save_book(book.clone())?;
+        Ok(book)
     }
 
     pub fn rename_book(
@@ -596,57 +251,21 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
             return Err("Book title cannot be empty".to_string());
         }
 
-        let mut progress = self
-            .progress_map
-            .get(book_hash)
-            .cloned()
+        let mut book = self
+            .book_repo
+            .find_book_by_hash(book_hash)?
             .ok_or_else(|| format!("Book not found: {book_hash}"))?;
 
-        progress.title = trimmed_title.to_string();
-        self.progress_map
-            .insert(book_hash.to_string(), progress.clone());
-        self.persist_progress_cache()?;
-
-        let meta = BookMetadata {
-            book_hash: book_hash.to_string(),
-            title: progress.title,
-            author: progress.author,
-            format: progress.format,
-            current_page: progress.current_page,
-            total_pages: progress.total_pages,
-            percentage: progress.percentage,
-            cover_image_url: progress.cover_image_url,
-            description: None,
-            last_read_at_ms: progress.last_read_at_ms,
-            updated_at_ms: progress.last_read_at_ms,
-        };
-
-        if let Some(repo) = self.book_repo.as_mut() {
-            let _ = repo.save_book(meta.clone());
-        }
-
-        Ok(meta)
+        book.title = trimmed_title.to_string();
+        self.book_repo.save_book(book.clone())?;
+        Ok(book)
     }
 
     pub fn delete_book(&mut self, book_hash: &str) -> Result<bool, String> {
-        self.load_progress_cache()?;
-        self.load_deleted_books()?;
-
-        let removed =
-            self.progress_map.remove(book_hash).is_some() || book_hash == DEFAULT_ASSET_HASH;
         self.in_memory_books.remove(book_hash);
         self.pages_cache.remove(book_hash);
-        self.deleted_books.insert(book_hash.to_string());
-
         let _ = self.storage.delete_book_binary(book_hash);
-        self.persist_progress_cache()?;
-        self.persist_deleted_books()?;
-
-        if let Some(repo) = self.book_repo.as_mut() {
-            let _ = repo.delete_book(book_hash);
-        }
-
-        Ok(removed)
+        self.book_repo.delete_book(book_hash)
     }
 
     pub fn get_book_pages(
@@ -658,9 +277,9 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
         if !self.pages_cache.contains_key(book_hash) {
             let raw_bytes = self.open_book_binary(book_hash)?;
             let total_pages = self
-                .progress_map
-                .get(book_hash)
-                .map(|p| p.total_pages)
+                .book_repo
+                .find_book_by_hash(book_hash)?
+                .map(|b| b.total_pages)
                 .unwrap_or(320);
 
             let pages = Self::parse_and_paginate_book(&raw_bytes, total_pages)?;
@@ -860,100 +479,5 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
             .replace("&rdquo;", "”")
             .replace("&amp;", "&")
             .replace("&nbsp;", " ")
-    }
-
-    pub fn extract_or_generate_cover(
-        raw_bytes: &[u8],
-        title: &str,
-        author: &str,
-        first_page_subtitle: &str,
-    ) -> String {
-        if raw_bytes.len() > 30 && raw_bytes.starts_with(b"PK\x03\x04") {
-            let cursor = std::io::Cursor::new(raw_bytes);
-            if let Ok(mut archive) = zip::ZipArchive::new(cursor) {
-                for i in 0..archive.len() {
-                    if let Ok(mut file) = archive.by_index(i) {
-                        let Ok(file_name) = file.name() else {
-                            continue;
-                        };
-                        let lower = file_name.to_lowercase();
-                        let is_cover_img = lower.contains("cover")
-                            && (lower.ends_with(".png")
-                                || lower.ends_with(".jpg")
-                                || lower.ends_with(".jpeg")
-                                || lower.ends_with(".webp"));
-
-                        if is_cover_img {
-                            use base64::Engine;
-                            use std::io::Read;
-                            let mut buffer = Vec::new();
-                            if file.read_to_end(&mut buffer).is_ok() && !buffer.is_empty() {
-                                let mime = if lower.ends_with(".png") {
-                                    "image/png"
-                                } else if lower.ends_with(".webp") {
-                                    "image/webp"
-                                } else {
-                                    "image/jpeg"
-                                };
-                                let encoded =
-                                    base64::engine::general_purpose::STANDARD.encode(&buffer);
-                                return format!("data:{};base64,{}", mime, encoded);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Self::generate_svg_cover(title, author, first_page_subtitle)
-    }
-
-    pub fn generate_svg_cover(title: &str, author: &str, subtitle: &str) -> String {
-        let safe_title = Self::escape_xml(title);
-        let safe_author = Self::escape_xml(author);
-        let safe_subtitle = Self::escape_xml(subtitle);
-
-        let svg = format!(
-            r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="100%" height="100%">
-  <defs>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1e293b"/>
-      <stop offset="50%" stop-color="#0f172a"/>
-      <stop offset="100%" stop-color="#020617"/>
-    </linearGradient>
-    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#fbbf24"/>
-      <stop offset="100%" stop-color="#d97706"/>
-    </linearGradient>
-  </defs>
-  <rect width="400" height="600" rx="8" fill="url(#bgGrad)"/>
-  <rect x="0" y="0" width="24" height="600" fill="rgba(255,255,255,0.06)"/>
-  <line x1="24" y1="0" x2="24" y2="600" stroke="rgba(255,255,255,0.12)" stroke-width="2"/>
-  <rect x="36" y="28" width="338" height="544" rx="4" fill="none" stroke="url(#goldGrad)" stroke-width="2"/>
-  <rect x="42" y="34" width="326" height="532" rx="2" fill="none" stroke="rgba(251,191,36,0.35)" stroke-width="1"/>
-  <text x="205" y="85" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="11" font-weight="bold" letter-spacing="3">IPDF ACTIVE STUDY EDITION</text>
-  <line x1="120" y1="100" x2="290" y2="100" stroke="#fbbf24" stroke-width="1"/>
-  <text x="205" y="190" text-anchor="middle" fill="#f8fafc" font-family="serif" font-size="26" font-weight="bold">{}</text>
-  <text x="205" y="235" text-anchor="middle" fill="#cbd5e1" font-family="serif" font-size="14" font-style="italic">{}</text>
-  <circle cx="205" cy="350" r="28" fill="none" stroke="#fbbf24" stroke-width="1.5"/>
-  <text x="205" y="358" text-anchor="middle" fill="#fbbf24" font-family="serif" font-size="22">❦</text>
-  <text x="205" y="440" text-anchor="middle" fill="#f1f5f9" font-family="serif" font-size="18" font-weight="600" letter-spacing="1">{}</text>
-  <line x1="140" y1="475" x2="270" y2="475" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
-  <text x="205" y="520" text-anchor="middle" fill="#64748b" font-family="sans-serif" font-size="10" letter-spacing="2">ACTIVE STUDY READER</text>
-</svg>"##,
-            safe_title, safe_subtitle, safe_author
-        );
-
-        use base64::Engine;
-        let encoded = base64::engine::general_purpose::STANDARD.encode(svg.as_bytes());
-        format!("data:image/svg+xml;base64,{}", encoded)
-    }
-
-    fn escape_xml(s: &str) -> String {
-        s.replace('&', "&amp;")
-            .replace('<', "&lt;")
-            .replace('>', "&gt;")
-            .replace('"', "&quot;")
-            .replace('\'', "&apos;")
     }
 }

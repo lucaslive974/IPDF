@@ -8,7 +8,7 @@ use ipdf_core::core::ports::{
 };
 use std::collections::BTreeMap;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct InMemoryBookRepo {
     pub books: BTreeMap<String, BookMetadata>,
     pub locations: BTreeMap<(String, String), BookStorageLocation>,
@@ -118,6 +118,7 @@ impl HighlightRepository for InMemoryHighlightRepo {
     }
 }
 
+#[derive(Clone)]
 pub struct InMemoryStorage {
     pub id: String,
     pub available: bool,

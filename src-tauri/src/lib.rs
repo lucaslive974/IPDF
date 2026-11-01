@@ -1,6 +1,7 @@
 pub mod bootstrap;
 pub mod commands;
 pub mod dtos;
+pub mod seed;
 pub mod state;
 pub mod utils;
 
