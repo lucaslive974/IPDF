@@ -171,6 +171,9 @@ impl PresenceProvider for SpyPresence {
     fn is_enabled(&self) -> bool {
         self.enabled
     }
+    fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled;
+    }
     fn publish_activity(&mut self, activity: &ReadingActivity) -> Result<(), String> {
         if self.should_fail {
             return Err("Simulated IPC error".to_string());
@@ -256,5 +259,42 @@ impl PowerSaveBlocker for SpyPowerBlocker {
     fn keep_screen_awake(&mut self, enable: bool) -> Result<(), String> {
         self.awake_history.push(enable);
         Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct FakeDiscordIpcTransport {
+    pub connected: bool,
+    pub fail_connect: bool,
+    pub fail_send: bool,
+    pub sent_frames: Vec<(u32, String)>,
+}
+
+impl ipdf_core::adapters::presence::DiscordIpcTransport for FakeDiscordIpcTransport {
+    fn is_connected(&self) -> bool {
+        self.connected
+    }
+
+    fn connect(&mut self) -> Result<(), String> {
+        if self.fail_connect {
+            return Err("Fake Discord connection failed".to_string());
+        }
+        self.connected = true;
+        Ok(())
+    }
+
+    fn send_frame(&mut self, opcode: u32, payload: &str) -> Result<String, String> {
+        if !self.connected {
+            return Err("Not connected".to_string());
+        }
+        if self.fail_send {
+            return Err("Fake frame send failed".to_string());
+        }
+        self.sent_frames.push((opcode, payload.to_string()));
+        Ok(r#"{"cmd":"SET_ACTIVITY","data":{},"evt":null,"nonce":"1"}"#.to_string())
+    }
+
+    fn disconnect(&mut self) {
+        self.connected = false;
     }
 }

@@ -1,6 +1,7 @@
 use crate::dtos::IpcPlatformInfoDto;
 use crate::state::BackendState;
 use ipdf_core::core::domain::BookMetadata;
+use ipdf_core::core::ports::ConfigurationStore;
 use std::sync::Mutex;
 use tauri::State;
 
@@ -33,4 +34,24 @@ pub fn get_startup_book(
 ) -> Result<Option<BookMetadata>, String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
     Ok(guard.startup_book.take())
+}
+
+#[tauri::command]
+pub fn set_discord_presence_enabled(
+    enabled: bool,
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<(), String> {
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    guard
+        .config_store
+        .set("discord_presence_enabled", if enabled { "true" } else { "false" })?;
+    guard.presence_manager.set_provider_enabled("discord", enabled);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn clear_rich_presence(state: State<'_, Mutex<BackendState>>) -> Result<(), String> {
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    guard.presence_manager.clear_all_presence();
+    Ok(())
 }

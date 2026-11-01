@@ -17,6 +17,7 @@ pub struct ReadingActivity {
 pub trait PresenceProvider {
     fn id(&self) -> &str;
     fn is_enabled(&self) -> bool;
+    fn set_enabled(&mut self, enabled: bool);
     fn publish_activity(&mut self, activity: &ReadingActivity) -> Result<(), String>;
     fn clear_activity(&mut self) -> Result<(), String>;
 }

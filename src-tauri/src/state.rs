@@ -5,10 +5,11 @@ use ipdf_core::adapters::persistence::SqliteHighlightRepository;
 use ipdf_core::adapters::platform::{
     AndroidEnvironment, IosEnvironment, LinuxEnvironment, WindowsEnvironment,
 };
+use ipdf_core::adapters::presence::NativeDiscordPresenceAdapter;
 use ipdf_core::adapters::storage::LocalFolderStorageAdapter;
 use ipdf_core::core::domain::BookMetadata;
-use ipdf_core::core::ports::PlatformEnvironment;
-use ipdf_core::core::services::LibraryManager;
+use ipdf_core::core::ports::{ConfigurationStore, PlatformEnvironment};
+use ipdf_core::core::services::{LibraryManager, RichPresenceManager};
 
 pub struct BackendState {
     pub library: LibraryManager<LocalFolderStorageAdapter>,
@@ -16,6 +17,7 @@ pub struct BackendState {
     pub config_store: SqliteConfigurationStore,
     pub platform_env: Box<dyn PlatformEnvironment + Send>,
     pub startup_book: Option<BookMetadata>,
+    pub presence_manager: RichPresenceManager,
 }
 
 impl Default for BackendState {
@@ -40,6 +42,17 @@ impl Default for BackendState {
         let config_store = SqliteConfigurationStore::for_platform(&*platform)
             .unwrap_or_else(|_| SqliteConfigurationStore::new_in_memory().unwrap());
 
+        let discord_enabled = config_store
+            .get("discord_presence_enabled")
+            .ok()
+            .flatten()
+            .map(|val| val != "false")
+            .unwrap_or(true);
+
+        let mut presence_manager = RichPresenceManager::new(3000);
+        let discord_adapter = NativeDiscordPresenceAdapter::create_default(None, discord_enabled);
+        presence_manager.register_provider(discord_adapter);
+
         let mut startup_book = None;
         let args: Vec<String> = std::env::args().collect();
         if let Some(path) = find_file_argument(&args) {
@@ -54,6 +67,7 @@ impl Default for BackendState {
             config_store,
             platform_env: platform,
             startup_book,
+            presence_manager,
         }
     }
 }

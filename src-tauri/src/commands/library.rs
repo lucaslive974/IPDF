@@ -1,6 +1,7 @@
 use crate::state::BackendState;
 use crate::utils::current_epoch_ms;
 use ipdf_core::core::domain::{BookFormat, BookMetadata, BookPagePayload};
+use ipdf_core::core::ports::ReadingActivity;
 use ipdf_core::core::services::{ImportBookInput, Sha256BookHasher};
 use std::io::Cursor;
 use std::path::Path;
@@ -28,6 +29,21 @@ pub fn open_book_file(
     let mut guard = state.lock().map_err(|e| e.to_string())?;
     let path = Path::new(&file_path);
     let (metadata, _bytes) = guard.library.open_book_from_path(path)?;
+    let now = current_epoch_ms();
+    let total = metadata.total_pages.max(1);
+    let pct = (metadata.current_page as f64 / total as f64) * 100.0;
+    let activity = ReadingActivity {
+        book_hash: metadata.book_hash.clone(),
+        book_title: metadata.title.clone(),
+        book_author: metadata.author.clone(),
+        chapter_title: None,
+        current_page: metadata.current_page,
+        total_pages: total,
+        percentage: pct,
+        state: "reading".to_string(),
+        session_started_at_ms: now,
+    };
+    guard.presence_manager.update_activity(&activity, now, true);
     Ok(metadata)
 }
 
@@ -82,9 +98,25 @@ pub fn update_book_progress(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<BookMetadata, String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
-    guard
+    let now = current_epoch_ms();
+    let meta = guard
         .library
-        .update_reading_progress(&book_hash, current_page, total_pages, current_epoch_ms())
+        .update_reading_progress(&book_hash, current_page, total_pages, now)?;
+    let total = total_pages.max(1);
+    let pct = (current_page as f64 / total as f64) * 100.0;
+    let activity = ReadingActivity {
+        book_hash: meta.book_hash.clone(),
+        book_title: meta.title.clone(),
+        book_author: meta.author.clone(),
+        chapter_title: None,
+        current_page,
+        total_pages: total,
+        percentage: pct,
+        state: "reading".to_string(),
+        session_started_at_ms: now,
+    };
+    guard.presence_manager.update_activity(&activity, now, false);
+    Ok(meta)
 }
 
 #[tauri::command]
