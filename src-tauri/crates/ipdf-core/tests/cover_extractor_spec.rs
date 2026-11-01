@@ -1,9 +1,13 @@
+use ipdf_core::adapters::extractor::CoverExtractorAdapter;
 use ipdf_core::core::domain::BookFormat;
-use ipdf_core::core::ports::BookCoverExtractor;
+use ipdf_core::core::ports::{BookCoverExtractor, StorageProvider};
 use ipdf_core::core::services::extractor::{
     BookCoverExtractorFactory, EpubCoverExtractor, PdfCoverExtractor,
 };
 use std::io::Write;
+
+mod fakes;
+use fakes::InMemoryStorage;
 
 #[test]
 fn test_epub_cover_extractor_from_fallback_filename() {
@@ -155,4 +159,72 @@ fn test_pdf_cover_extractor_and_factory() {
 
     let from_factory_pdf = BookCoverExtractorFactory::create(BookFormat::Pdf);
     assert!(from_factory_pdf.extract_cover(b"").is_none());
+}
+
+#[test]
+fn test_cover_extractor_adapter_resolve_and_persist() {
+    let mut storage = InMemoryStorage::new("test_store");
+
+    // 1. Pass-through for existing data: and http(s) URLs
+    let data_url = "data:image/jpeg;base64,1234";
+    assert_eq!(
+        CoverExtractorAdapter::resolve_cover_data_url(&mut storage, "hash1", Some(data_url)),
+        Some(data_url.to_string())
+    );
+    let http_url = "https://example.com/cover.jpg";
+    assert_eq!(
+        CoverExtractorAdapter::resolve_cover_data_url(&mut storage, "hash1", Some(http_url)),
+        Some(http_url.to_string())
+    );
+
+    // 2. Resolve from cover_ref entry in storage
+    let fake_img_bytes = b"fake-jpg-content";
+    storage
+        .write_entry("covers/hash1.jpg", fake_img_bytes, "image/jpeg")
+        .unwrap();
+
+    let resolved_from_ref = CoverExtractorAdapter::resolve_cover_data_url(
+        &mut storage,
+        "hash1",
+        Some("/var/data/covers/hash1.jpg"),
+    )
+    .unwrap();
+    assert!(resolved_from_ref.starts_with("data:image/jpeg;base64,"));
+
+    // 3. Fallback scan without cover_ref
+    let resolved_from_scan =
+        CoverExtractorAdapter::resolve_cover_data_url(&mut storage, "hash1", None).unwrap();
+    assert_eq!(resolved_from_scan, resolved_from_ref);
+
+    // 4. Missing cover returns None
+    assert!(
+        CoverExtractorAdapter::resolve_cover_data_url(&mut storage, "nonexistent", None).is_none()
+    );
+
+    // 5. Extract and persist for EPUB
+    let mut with_cover_zip = Vec::new();
+    let fake_jpeg = vec![
+        0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0xFF, 0xD9,
+    ];
+    {
+        let cursor = std::io::Cursor::new(&mut with_cover_zip);
+        let mut zip = zip::ZipWriter::new(cursor);
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Stored);
+        zip.start_file("cover.jpg", options).unwrap();
+        zip.write_all(&fake_jpeg).unwrap();
+        zip.finish().unwrap();
+    }
+
+    let persisted = CoverExtractorAdapter::extract_and_persist_cover(
+        &mut storage,
+        BookFormat::Epub,
+        "hash_epub",
+        &with_cover_zip,
+    );
+    assert_eq!(persisted, Some("covers/hash_epub.jpg".to_string()));
+
+    let resolved_epub =
+        CoverExtractorAdapter::resolve_cover_data_url(&mut storage, "hash_epub", None).unwrap();
+    assert!(resolved_epub.starts_with("data:image/jpeg;base64,"));
 }
