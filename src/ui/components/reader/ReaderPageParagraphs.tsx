@@ -199,21 +199,25 @@ export const ReaderPageParagraphs = memo(function ReaderPageParagraphs({
     >
       {paragraphs.map((paragraph, pIdx) => {
         const chunks = tokenizeTextWithHighlights(paragraph, highlights);
+        const notesMap = new Map<string, Highlight>();
+        for (const chunk of chunks) {
+          if (chunk.highlight?.note && chunk.highlight.note.trim().length > 0) {
+            notesMap.set(chunk.highlight.id, chunk.highlight);
+          }
+        }
+        const paragraphNotes = Array.from(notesMap.values());
 
         return (
-          <p key={`p-${pageNumber}-${pIdx + 1}`} className="text-justify leading-relaxed">
-            {chunks.map((chunk, cIdx) => {
-              if (!chunk.highlight) {
-                return <span key={`c-${cIdx + 1}`}>{chunk.text}</span>;
-              }
+          <div key={`p-wrap-${pageNumber}-${pIdx + 1}`} className="relative group">
+            <p className="text-justify leading-relaxed">
+              {chunks.map((chunk, cIdx) => {
+                if (!chunk.highlight) {
+                  return <span key={`c-${cIdx + 1}`}>{chunk.text}</span>;
+                }
 
-              const hl = chunk.highlight;
-              const hasNote = Boolean(hl.note && hl.note.trim().length > 0);
-              const nextChunk = chunks[cIdx + 1];
-              const isLastChunkOfHighlight = !nextChunk || nextChunk.highlight?.id !== hl.id;
+                const hl = chunk.highlight;
 
-              return (
-                <span key={`hl-wrapper-${hl.id}-${cIdx + 1}`} className="inline">
+                return (
                   <span
                     key={`hl-${hl.id}-${cIdx + 1}`}
                     className="cursor-pointer select-text transition duration-150 hover:brightness-105 active:opacity-80"
@@ -248,36 +252,40 @@ export const ReaderPageParagraphs = memo(function ReaderPageParagraphs({
                   >
                     {chunk.text}
                   </span>
-                  {hasNote && isLastChunkOfHighlight && (
-                    <span className="relative inline-block h-0 w-0 select-none">
-                      <button
-                        type="button"
-                        aria-label="View annotation note"
-                        title={hl.note}
-                        className="absolute -top-2 left-0.5 inline-flex cursor-pointer items-center justify-center p-0.5 text-tx-faint transition-colors hover:text-tx-secondary"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          onHighlightClick(hl, {
-                            x: rect.left + rect.width / 2,
-                            y: rect.top,
-                          });
-                        }}
-                      >
-                        <svg
-                          className="h-3 w-3 fill-current opacity-70 transition-opacity hover:opacity-100"
-                          viewBox="0 0 16 16"
-                          aria-hidden="true"
-                        >
-                          <path d="M2.5 3A1.5 1.5 0 0 0 1 4.5v7A1.5 1.5 0 0 0 2.5 13h1.75v2.25a.75.75 0 0 0 1.28.53L8.06 13H13.5a1.5 1.5 0 0 0 1.5-1.5v-7A1.5 1.5 0 0 0 13.5 3h-11Z" />
-                        </svg>
-                      </button>
-                    </span>
-                  )}
-                </span>
-              );
-            })}
-          </p>
+                );
+              })}
+            </p>
+
+            {paragraphNotes.length > 0 && (
+              <div className="absolute -right-8 sm:-right-9 top-0.5 flex flex-col gap-1.5 select-none opacity-60 hover:opacity-100 transition-opacity">
+                {paragraphNotes.map((hl) => (
+                  <button
+                    key={`p-note-${hl.id}`}
+                    type="button"
+                    aria-label="View annotation note"
+                    title={hl.note}
+                    className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-surface/80 border border-line-subtle/80 text-tx-muted hover:text-tx-main hover:bg-surface-subtle transition shadow-2xs"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      onHighlightClick(hl, {
+                        x: rect.left,
+                        y: rect.top,
+                      });
+                    }}
+                  >
+                    <svg
+                      className="h-2.5 w-2.5 fill-current"
+                      viewBox="0 0 16 16"
+                      aria-hidden="true"
+                    >
+                      <path d="M2.5 3A1.5 1.5 0 0 0 1 4.5v7A1.5 1.5 0 0 0 2.5 13h1.75v2.25a.75.75 0 0 0 1.28.53L8.06 13H13.5a1.5 1.5 0 0 0 1.5-1.5v-7A1.5 1.5 0 0 0 13.5 3h-11Z" />
+                    </svg>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         );
       })}
     </div>
