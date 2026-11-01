@@ -1,14 +1,61 @@
 use crate::state::BackendState;
 use crate::utils::current_epoch_ms;
+use base64::Engine;
 use ipdf_core::core::domain::{BookFormat, BookMetadata, BookPagePayload};
 use ipdf_core::core::ports::{BookRepository, HighlightRepository, ReadingActivity, StorageProvider};
 use ipdf_core::core::services::{
-    BookCoverExtractorFactory, ImportBookInput, Sha256BookHasher,
+    BookCoverExtractorFactory, ImportBookInput, LibraryManager, Sha256BookHasher,
 };
 use std::io::Cursor;
 use std::path::Path;
 use std::sync::Mutex;
 use tauri::State;
+
+pub(crate) fn resolve_book_cover_data_url<S: StorageProvider, R: BookRepository>(
+    library: &mut LibraryManager<S, R>,
+    book_hash: &str,
+    cover_ref: Option<&str>,
+) -> Option<String> {
+    if let Some(url) = cover_ref {
+        if url.starts_with("data:") || url.starts_with("http://") || url.starts_with("https://") {
+            return Some(url.to_string());
+        }
+    }
+
+    if let Some(path) = cover_ref {
+        let entry_name = if let Some(idx) = path.find("covers/") {
+            &path[idx..]
+        } else {
+            path
+        };
+        if let Ok(Some(bytes)) = library.storage_mut().read_entry(entry_name) {
+            let mime = if entry_name.ends_with(".png") {
+                "image/png"
+            } else if entry_name.ends_with(".webp") {
+                "image/webp"
+            } else {
+                "image/jpeg"
+            };
+            let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
+            return Some(format!("data:{};base64,{}", mime, encoded));
+        }
+    }
+
+    for ext in &["jpg", "jpeg", "png", "webp"] {
+        let candidate = format!("covers/{}.{}", book_hash, ext);
+        if let Ok(Some(bytes)) = library.storage_mut().read_entry(&candidate) {
+            let mime = match *ext {
+                "png" => "image/png",
+                "webp" => "image/webp",
+                _ => "image/jpeg",
+            };
+            let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
+            return Some(format!("data:{};base64,{}", mime, encoded));
+        }
+    }
+
+    None
+}
 
 #[tauri::command]
 pub fn compute_book_sha256(bytes: Vec<u8>) -> Result<String, String> {
@@ -22,13 +69,11 @@ pub fn list_library_books(
     let mut guard = state.lock().map_err(|e| e.to_string())?;
     let mut books = guard.library.list_books()?;
     for book in &mut books {
-        if let Some(ref cover) = book.cover_image_url {
-            if !cover.starts_with('/') && !cover.starts_with("http") && !cover.contains(":\\") {
-                if let Some(resolved) = guard.library.storage().resolve_entry_path(cover) {
-                    book.cover_image_url = Some(resolved.to_string_lossy().to_string());
-                }
-            }
-        }
+        book.cover_image_url = resolve_book_cover_data_url(
+            &mut guard.library,
+            &book.book_hash,
+            book.cover_image_url.as_deref(),
+        );
     }
     Ok(books)
 }
@@ -52,11 +97,7 @@ pub fn open_book_file(
                 .write_entry(&entry_name, &cover.data, &cover.mime_type)
                 .is_ok()
             {
-                let full_path = guard.library.storage().resolve_entry_path(&entry_name);
-                let cover_path = full_path
-                    .map(|p| p.to_string_lossy().to_string())
-                    .unwrap_or_else(|| entry_name.clone());
-                metadata.cover_image_url = Some(cover_path);
+                metadata.cover_image_url = Some(entry_name.clone());
                 if let Some(mut repo_book) = guard
                     .library
                     .book_repo_mut()
@@ -64,12 +105,18 @@ pub fn open_book_file(
                     .ok()
                     .flatten()
                 {
-                    repo_book.cover_image_url = metadata.cover_image_url.clone();
+                    repo_book.cover_image_url = Some(entry_name);
                     let _ = guard.library.book_repo_mut().save_book(repo_book);
                 }
             }
         }
     }
+
+    metadata.cover_image_url = resolve_book_cover_data_url(
+        &mut guard.library,
+        &metadata.book_hash,
+        metadata.cover_image_url.as_deref(),
+    );
 
     let now = current_epoch_ms();
     let total = metadata.total_pages.max(1);
@@ -114,8 +161,7 @@ pub fn import_library_book(
                         .write_entry(&entry_name, &cover.data, &cover.mime_type)
                         .is_ok()
                     {
-                        let full_path = guard.library.storage().resolve_entry_path(&entry_name);
-                        full_path.map(|p| p.to_string_lossy().to_string())
+                        Some(entry_name)
                     } else {
                         None
                     }
@@ -128,7 +174,7 @@ pub fn import_library_book(
         }
     };
 
-    let meta = guard.library.import_book(ImportBookInput {
+    let mut meta = guard.library.import_book(ImportBookInput {
         raw_bytes,
         title,
         author,
@@ -137,6 +183,13 @@ pub fn import_library_book(
         cover_image_url: resolved_cover,
         now_ms: current_epoch_ms(),
     })?;
+
+    meta.cover_image_url = resolve_book_cover_data_url(
+        &mut guard.library,
+        &meta.book_hash,
+        meta.cover_image_url.as_deref(),
+    );
+
     Ok(meta)
 }
 
@@ -169,9 +222,14 @@ pub fn update_book_progress(
 ) -> Result<BookMetadata, String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
     let now = current_epoch_ms();
-    let meta = guard
+    let mut meta = guard
         .library
         .update_reading_progress(&book_hash, current_page, total_pages, now)?;
+    meta.cover_image_url = resolve_book_cover_data_url(
+        &mut guard.library,
+        &meta.book_hash,
+        meta.cover_image_url.as_deref(),
+    );
     let total = total_pages.max(1);
     let pct = (current_page as f64 / total as f64) * 100.0;
     let activity = ReadingActivity {
@@ -196,7 +254,13 @@ pub fn rename_book(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<BookMetadata, String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
-    guard.library.rename_book(&book_hash, &new_title)
+    let mut meta = guard.library.rename_book(&book_hash, &new_title)?;
+    meta.cover_image_url = resolve_book_cover_data_url(
+        &mut guard.library,
+        &meta.book_hash,
+        meta.cover_image_url.as_deref(),
+    );
+    Ok(meta)
 }
 
 #[tauri::command]
