@@ -20,6 +20,7 @@ fn modified_ms_for_path(path: &Path) -> i64 {
     0
 }
 
+#[derive(Clone)]
 pub struct LocalFolderStorageAdapter {
     provider_id: String,
     root_dir: PathBuf,

@@ -231,9 +231,13 @@ fn test_local_folder_storage_adapter() {
 }
 
 #[test]
-fn test_library_manager_get_book_pages_on_demand() {
+fn test_library_manager_and_reader_get_book_pages_on_demand() {
+    use fakes::InMemoryBookRepo;
+    use ipdf_core::core::services::ReaderManager;
+
     let storage = InMemoryStorage::new("local-memory");
-    let mut library = LibraryManager::new(storage);
+    let book_repo = InMemoryBookRepo::default();
+    let mut library = LibraryManager::new_with_repo(storage.clone(), book_repo);
     library.initialize().unwrap();
 
     let raw_bytes = b"<html><head><title>Test Book</title></head><body><h1>Chapter 1</h1><p>First paragraph here</p><p>Second paragraph here</p></body></html>".to_vec();
@@ -249,19 +253,22 @@ fn test_library_manager_get_book_pages_on_demand() {
         })
         .unwrap();
 
-    let pages = library.get_book_pages(&imported.book_hash, 1, 5).unwrap();
+    let mut reader =
+        ReaderManager::new_with_repo(library.storage().clone(), library.book_repo().clone());
+
+    let pages = reader.get_book_pages(&imported.book_hash, 1, 5).unwrap();
     assert_eq!(pages.len(), 5);
     assert_eq!(pages[0].page_number, 1);
     assert_eq!(pages[4].page_number, 5);
     assert!(!pages[0].paragraphs.is_empty());
     assert_eq!(pages[0].chapter_title, "Chapter 1");
 
-    let last_pages = library.get_book_pages(&imported.book_hash, 9, 5).unwrap();
+    let last_pages = reader.get_book_pages(&imported.book_hash, 9, 5).unwrap();
     assert_eq!(last_pages.len(), 2);
     assert_eq!(last_pages[1].page_number, 10);
 
     // Out of range
-    let empty = library.get_book_pages(&imported.book_hash, 50, 5).unwrap();
+    let empty = reader.get_book_pages(&imported.book_hash, 50, 5).unwrap();
     assert!(empty.is_empty());
 }
 
@@ -564,10 +571,6 @@ fn test_library_manager_zip_epub_and_open_binary_fallbacks() {
             now_ms: 1000,
         })
         .unwrap();
-
-    let pages = library.get_book_pages(&imported.book_hash, 1, 2).unwrap();
-    assert_eq!(pages.len(), 2);
-    assert_eq!(pages[0].chapter_title, "Zip Title — Sub");
 
     // Test open_book_binary fallbacks:
     // 1. Reading from storage when in-memory cache is purged

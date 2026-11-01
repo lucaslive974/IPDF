@@ -87,7 +87,7 @@ pub fn get_book_pages(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<Vec<BookPagePayload>, String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
-    guard.library.get_book_pages(&book_hash, start_page, count)
+    guard.reader.get_book_pages(&book_hash, start_page, count)
 }
 
 #[tauri::command]
@@ -136,5 +136,6 @@ pub fn delete_book(
 ) -> Result<bool, String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
     let _ = guard.highlight_repo.delete_by_book(&book_hash)?;
+    guard.reader.clear_cache(&book_hash);
     guard.library.delete_book(&book_hash)
 }

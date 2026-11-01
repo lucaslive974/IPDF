@@ -10,10 +10,11 @@ use ipdf_core::adapters::presence::NativeDiscordPresenceAdapter;
 use ipdf_core::adapters::storage::LocalFolderStorageAdapter;
 use ipdf_core::core::domain::BookMetadata;
 use ipdf_core::core::ports::{ConfigurationStore, PlatformEnvironment};
-use ipdf_core::core::services::{LibraryManager, RichPresenceManager};
+use ipdf_core::core::services::{LibraryManager, ReaderManager, RichPresenceManager};
 
 pub struct BackendState {
     pub library: LibraryManager<LocalFolderStorageAdapter>,
+    pub reader: ReaderManager<LocalFolderStorageAdapter>,
     pub highlight_repo: SqliteHighlightRepository,
     pub config_store: SqliteConfigurationStore,
     pub platform_env: Box<dyn PlatformEnvironment + Send>,
@@ -39,8 +40,11 @@ impl Default for BackendState {
             .unwrap_or_else(|_| SqliteHighlightRepository::new_in_memory().unwrap());
         let book_repo = SqliteBookRepository::open_for_platform(&*platform)
             .unwrap_or_else(|_| SqliteBookRepository::new_in_memory().unwrap());
-        let mut library = LibraryManager::new_with_repo(storage, book_repo);
+        let reader_book_repo = SqliteBookRepository::open_for_platform(&*platform)
+            .unwrap_or_else(|_| SqliteBookRepository::new_in_memory().unwrap());
+        let mut library = LibraryManager::new_with_repo(storage.clone(), book_repo);
         let _ = library.initialize();
+        let reader = ReaderManager::new_with_repo(storage, reader_book_repo);
 
         let mut config_store = SqliteConfigurationStore::for_platform(&*platform)
             .unwrap_or_else(|_| SqliteConfigurationStore::new_in_memory().unwrap());
@@ -72,6 +76,7 @@ impl Default for BackendState {
 
         Self {
             library,
+            reader,
             highlight_repo,
             config_store,
             platform_env: platform,
