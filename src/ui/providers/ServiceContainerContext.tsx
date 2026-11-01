@@ -4,14 +4,30 @@ import {
   DrawioAnnotationStrategy,
   TldrawAnnotationStrategy,
 } from '../../adapters/annotations/DiagramAnnotationStrategies';
-import { TauriBackend } from '../../adapters/ipc/TauriBackend';
+import {
+  TauriHighlightService,
+  TauriLibraryService,
+  TauriPresenceService,
+  TauriReaderService,
+  TauriSettingsService,
+} from '../../adapters/ipc';
 import { EpubViewerAdapter } from '../../adapters/viewers/EpubViewerAdapter';
-import type { BackendService } from '../../core/ports/BackendService';
-import type { IDocumentViewer } from '../../core/ports/IDocumentViewer';
+import type {
+  IDocumentViewer,
+  IHighlightService,
+  ILibraryService,
+  IPresenceService,
+  IReaderService,
+  ISettingsService,
+} from '../../core/ports';
 import { AnnotationWorkbenchService } from '../../core/services/AnnotationWorkbenchService';
 
 export interface ServiceContainer {
-  readonly services: BackendService;
+  readonly libraryService: ILibraryService;
+  readonly highlightService: IHighlightService;
+  readonly readerService: IReaderService;
+  readonly presenceService: IPresenceService;
+  readonly settingsService: ISettingsService;
   readonly annotationWorkbench: AnnotationWorkbenchService;
   readonly epubViewer: IDocumentViewer;
 }
@@ -20,29 +36,54 @@ export const ServiceContainerContext = createContext<ServiceContainer | null>(nu
 
 export interface ServiceContainerProviderProps {
   readonly children: ReactNode;
-  readonly services?: BackendService;
+  readonly libraryService?: ILibraryService;
+  readonly highlightService?: IHighlightService;
+  readonly readerService?: IReaderService;
+  readonly presenceService?: IPresenceService;
+  readonly settingsService?: ISettingsService;
   readonly viewer?: IDocumentViewer;
 }
 
 export function ServiceContainerProvider({
   children,
-  services: injectedServices,
+  libraryService: injectedLibrary,
+  highlightService: injectedHighlights,
+  readerService: injectedReader,
+  presenceService: injectedPresence,
+  settingsService: injectedSettings,
   viewer,
 }: ServiceContainerProviderProps) {
   const container = useMemo<ServiceContainer>(() => {
-    const services = injectedServices ?? new TauriBackend();
-    const annotationWorkbench = new AnnotationWorkbenchService(services, [
+    const libraryService = injectedLibrary ?? new TauriLibraryService();
+    const highlightService = injectedHighlights ?? new TauriHighlightService();
+    const readerService = injectedReader ?? new TauriReaderService();
+    const presenceService = injectedPresence ?? new TauriPresenceService();
+    const settingsService = injectedSettings ?? new TauriSettingsService();
+
+    const annotationWorkbench = new AnnotationWorkbenchService(highlightService, [
       new AssistedRichTextStrategy(),
       new TldrawAnnotationStrategy(),
       new DrawioAnnotationStrategy(),
     ]);
     const epubViewer = viewer ?? new EpubViewerAdapter();
+
     return {
-      services,
+      libraryService,
+      highlightService,
+      readerService,
+      presenceService,
+      settingsService,
       annotationWorkbench,
       epubViewer,
     };
-  }, [injectedServices, viewer]);
+  }, [
+    injectedLibrary,
+    injectedHighlights,
+    injectedReader,
+    injectedPresence,
+    injectedSettings,
+    viewer,
+  ]);
 
   return (
     <ServiceContainerContext.Provider value={container}>

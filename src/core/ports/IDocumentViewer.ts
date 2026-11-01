@@ -1,6 +1,6 @@
 import type { Highlight } from '../domain/Highlight';
 import type { HighlightAnchor, PageInfo, SentenceNode, TextSelection } from '../domain/types';
-import type { DocumentPage } from './BackendService';
+import type { DocumentPage } from './IReaderService';
 
 export type { DocumentPage };
 

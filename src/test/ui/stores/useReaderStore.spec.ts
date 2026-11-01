@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { DocumentPage } from '../../../core/ports/BackendService';
+import type { DocumentPage } from '../../../core/ports/IReaderService';
 import { DEFAULT_DOCUMENT, useReaderStore } from '../../../ui/stores/useReaderStore';
 
 describe('useReaderStore', () => {

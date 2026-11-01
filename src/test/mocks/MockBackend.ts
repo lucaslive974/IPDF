@@ -1,14 +1,20 @@
 import type { BookMetadata } from '../../core/domain/BookMetadata';
 import type { Highlight } from '../../core/domain/Highlight';
 import type {
-  BackendService,
   DocumentPage,
+  IHighlightService,
+  ILibraryService,
+  IPresenceService,
+  IReaderService,
+  ISettingsService,
   ImportLibraryBookInput,
   LLMRequest,
   ReadingContext,
-} from '../../core/ports/BackendService';
+} from '../../core/ports';
 
-export class MockBackend implements BackendService {
+export class MockBackend
+  implements ILibraryService, IHighlightService, IReaderService, IPresenceService, ISettingsService
+{
   private readonly books = new Map<string, BookMetadata>();
   private readonly highlights = new Map<string, Highlight>();
   private readonly settings = new Map<string, string>();
@@ -196,5 +202,9 @@ export class MockBackend implements BackendService {
 
   public async setDiscordPresenceEnabled(enabled: boolean): Promise<void> {
     this.settings.set('discord_presence_enabled', String(enabled));
+  }
+
+  public async clearRichPresence(): Promise<void> {
+    this.settings.set('discord_presence_cleared', 'true');
   }
 }

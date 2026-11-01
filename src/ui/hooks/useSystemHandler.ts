@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
-import type { SerializedBookMetadata } from '../../adapters/ipc/TauriBackend';
+import type { SerializedBookMetadata } from '../../adapters/ipc/TauriLibraryService';
 import type { BookMetadata } from '../../core/domain/BookMetadata';
 import { useServiceContainer } from '../providers/ServiceContainerContext';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { useNavigation } from './useNavigation';
 
 export function useSystemHandler(): void {
-  const { services } = useServiceContainer();
+  const { libraryService } = useServiceContainer();
   const { openReader } = useNavigation();
   const upsertBook = useLibraryStore((s) => s.upsertBook);
 
@@ -14,7 +14,7 @@ export function useSystemHandler(): void {
     let isCancelled = false;
 
     // 1. Cold Start: Check if app was launched with a book argument from the OS
-    void services
+    void libraryService
       .getStartupBook()
       .then((startupBook) => {
         if (!isCancelled && startupBook) {
@@ -66,7 +66,7 @@ export function useSystemHandler(): void {
       const filePath = (file as unknown as { path?: string }).path;
       if (filePath) {
         try {
-          const book = await services.openBookFile(filePath);
+          const book = await libraryService.openBookFile(filePath);
           upsertBook(book);
           openReader(book);
         } catch (err) {
@@ -86,5 +86,5 @@ export function useSystemHandler(): void {
         unlisten();
       }
     };
-  }, [services, openReader, upsertBook]);
+  }, [libraryService, openReader, upsertBook]);
 }

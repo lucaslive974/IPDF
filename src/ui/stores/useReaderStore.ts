@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { DocumentPage } from '../../core/ports/BackendService';
+import type { DocumentPage } from '../../core/ports/IReaderService';
 
 export interface StudyDocumentDescriptor {
   readonly bookHash: string;

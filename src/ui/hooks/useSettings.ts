@@ -20,7 +20,7 @@ export interface SettingsHook {
 }
 
 export function useSettings(): SettingsHook {
-  const { services } = useServiceContainer();
+  const { settingsService, presenceService } = useServiceContainer();
 
   const [monitoredFolders, setMonitoredFolders] = useState<string[]>([
     '~/Documents/PhilosophyBooks',
@@ -35,7 +35,7 @@ export function useSettings(): SettingsHook {
 
   useEffect(() => {
     let mounted = true;
-    void services.getAppSetting('discord_presence_enabled').then((val) => {
+    void settingsService.getAppSetting('discord_presence_enabled').then((val) => {
       if (mounted && val !== null) {
         setIsDiscordEnabled(val !== 'false');
       }
@@ -43,13 +43,13 @@ export function useSettings(): SettingsHook {
     return () => {
       mounted = false;
     };
-  }, [services]);
+  }, [settingsService]);
 
   const toggleDiscordPresence = useCallback(async () => {
     const next = !isDiscordEnabled;
     setIsDiscordEnabled(next);
-    await services.setDiscordPresenceEnabled(next);
-  }, [isDiscordEnabled, services]);
+    await presenceService.setDiscordPresenceEnabled(next);
+  }, [isDiscordEnabled, presenceService]);
 
   const addFolder = useCallback(() => {
     if (newFolderInput.trim().length > 0) {
@@ -68,12 +68,12 @@ export function useSettings(): SettingsHook {
 
   const triggerSync = useCallback(
     async (bookHash = 'sha256-plato-republic-book-vii') => {
-      const exportedJson = await services.syncBookWorkspace(bookHash);
+      const exportedJson = await settingsService.syncBookWorkspace(bookHash);
       setSyncExportPreview(exportedJson);
       setSyncStatusMessage('Last-Write-Wins synchronization completed successfully!');
       setTimeout(() => setSyncStatusMessage(null), 4000);
     },
-    [services]
+    [settingsService]
   );
 
   const resetDatabase = useCallback(async () => {

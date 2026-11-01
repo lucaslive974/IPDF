@@ -22,7 +22,7 @@ export interface LibraryViewModel {
 export type LibraryContextValue = LibraryViewModel;
 
 export function useLibrary(): LibraryViewModel {
-  const { services } = useServiceContainer();
+  const { libraryService, readerService } = useServiceContainer();
   const books = useLibraryStore((s) => s.books);
   const isLoading = useLibraryStore((s) => s.isLoading);
   const setBooks = useLibraryStore((s) => s.setBooks);
@@ -32,13 +32,13 @@ export function useLibrary(): LibraryViewModel {
   const loadBooks = useCallback(async (): Promise<BookMetadata[]> => {
     setLoading(true);
     try {
-      const result = await services.listLibraryBooks();
+      const result = await libraryService.listLibraryBooks();
       setBooks(result);
       return result;
     } finally {
       setLoading(false);
     }
-  }, [services, setBooks, setLoading]);
+  }, [libraryService, setBooks, setLoading]);
 
   const importBookFile = useCallback(
     async (file: File): Promise<BookMetadata> => {
@@ -51,7 +51,7 @@ export function useLibrary(): LibraryViewModel {
         const cleanTitle =
           file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ') || 'Untitled Document';
 
-        const book = await services.importLibraryBook({
+        const book = await libraryService.importLibraryBook({
           rawBytes,
           title: cleanTitle,
           author: '',
@@ -64,7 +64,7 @@ export function useLibrary(): LibraryViewModel {
         setLoading(false);
       }
     },
-    [services, setLoading, upsertBook]
+    [libraryService, setLoading, upsertBook]
   );
 
   const importSampleBook = useCallback(async (): Promise<void> => {
@@ -73,25 +73,25 @@ export function useLibrary(): LibraryViewModel {
 
   const updateBookProgress = useCallback(
     async (bookHash: string, currentPage: number, totalPages: number): Promise<BookMetadata> => {
-      const updated = await services.updateBookProgress(bookHash, currentPage, totalPages);
+      const updated = await readerService.updateBookProgress(bookHash, currentPage, totalPages);
       upsertBook(updated);
       return updated;
     },
-    [services, upsertBook]
+    [readerService, upsertBook]
   );
 
   const renameBook = useCallback(
     async (bookHash: string, newTitle: string): Promise<BookMetadata> => {
       setLoading(true);
       try {
-        const updated = await services.renameBook(bookHash, newTitle);
+        const updated = await libraryService.renameBook(bookHash, newTitle);
         upsertBook(updated);
         return updated;
       } finally {
         setLoading(false);
       }
     },
-    [services, setLoading, upsertBook]
+    [libraryService, setLoading, upsertBook]
   );
 
   useEffect(() => {

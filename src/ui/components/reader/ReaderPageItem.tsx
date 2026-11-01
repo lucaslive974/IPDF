@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import type { Highlight } from '../../../core/domain/Highlight';
-import type { DocumentPage } from '../../../core/ports/BackendService';
+import type { DocumentPage } from '../../../core/ports/IReaderService';
 import { FONT_FAMILY_DEFINITIONS, useTypographyStore } from '../../stores/useTypographyStore';
 import { ReaderPageCover } from './ReaderPageCover';
 import { ReaderPageHeader } from './ReaderPageHeader';

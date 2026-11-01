@@ -1,6 +1,6 @@
 import { type RefObject, memo, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { Highlight } from '../../../core/domain/Highlight';
-import type { DocumentPage } from '../../../core/ports/BackendService';
+import type { DocumentPage } from '../../../core/ports/IReaderService';
 import { useReader } from '../../hooks/useReader';
 import { useReaderUI } from '../../hooks/useReaderUI';
 import { useTypographyStore } from '../../stores/useTypographyStore';

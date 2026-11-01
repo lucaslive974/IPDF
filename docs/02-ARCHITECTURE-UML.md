@@ -52,14 +52,17 @@ O projeto utiliza **Clean Architecture / Hexagonal Architecture (Ports & Adapter
 │   │   │   ├── RichAnnotation.ts         # Discriminated Unions de anotações (AssistedText, Tldraw, Drawio) + FormatterMap
 │   │   │   └── BookMetadata.ts           # Estrutura de metadados do livro
 │   │   ├── ports/
-│   │   │   ├── BackendService.ts         # Porta de serviços unificada conectando o Frontend ao ipdf-core em Rust
+│   │   │   ├── ILibraryService.ts        # Porta de catálogo de livros e importação
+│   │   │   ├── IHighlightService.ts      # Porta de destaques e anotações ricas
+│   │   │   ├── IReaderService.ts         # Porta de leitura binária, paginação e progresso
+│   │   │   ├── IPresenceService.ts       # Porta de Rich Presence (Discord)
+│   │   │   ├── ISettingsService.ts       # Porta de configurações e sync
 │   │   │   ├── IDocumentViewer.ts        # Contrato de renderização DOM/Canvas (EPUB/PDF)
 │   │   │   └── IAnnotationStrategy.ts    # Contratos Strategy para editores visuais a 60fps (Texto Assistido, tldraw, draw.io)
 │   │   └── services/
-│   │       └── AnnotationWorkbenchService.ts # Orquestrador de edição 60fps (Command Dispatch + Formatters) persistindo via BackendService
+│   │       └── AnnotationWorkbenchService.ts # Orquestrador de edição 60fps persistindo via IHighlightService
 │   ├── adapters/
-│   │   ├── ipc/
-│   │   │   └── TauriBackend.ts           # Implementação de BackendService via Tauri invoke()
+│   │   ├── ipc/                          # Adaptadores modulares Tauri invoke() (TauriLibraryService, TauriHighlightService, etc.)
 │   │   └── annotations/                  # AssistedRichTextStrategy.ts, DiagramAnnotationStrategies.ts
 │   ├── ui/                               # Camada de Apresentação em Arquitetura MVVC
 │   │   ├── providers/                    # IoC / Injeção de Dependências e Tema (ServiceContainerContext.tsx, ThemeContext.tsx)

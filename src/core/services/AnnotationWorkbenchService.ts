@@ -1,15 +1,15 @@
 import { Highlight } from '../domain/Highlight';
 import type { AnnotationFormatterMap } from '../domain/RichAnnotation';
 import type { AnnotationCommand, RichAnnotationType, TextSelection } from '../domain/types';
-import type { BackendService } from '../ports/BackendService';
 import type { IAnnotationToolStrategy } from '../ports/IAnnotationStrategy';
+import type { IHighlightService } from '../ports/IHighlightService';
 
 export class AnnotationWorkbenchService {
   private readonly activeHighlights = new Map<string, Highlight>();
   private readonly toolStrategies = new Map<RichAnnotationType, IAnnotationToolStrategy>();
 
   constructor(
-    private readonly services: BackendService,
+    private readonly highlightService: IHighlightService,
     strategies: IAnnotationToolStrategy[] = []
   ) {
     for (const strategy of strategies) {
@@ -22,7 +22,7 @@ export class AnnotationWorkbenchService {
   }
 
   public async loadBookHighlights(bookHash: string): Promise<Highlight[]> {
-    const list = await this.services.loadBookHighlights(bookHash);
+    const list = await this.highlightService.loadBookHighlights(bookHash);
     this.activeHighlights.clear();
     for (const h of list) {
       this.activeHighlights.set(h.id, h);
@@ -50,7 +50,7 @@ export class AnnotationWorkbenchService {
             });
           }
         }
-        await this.services.saveHighlight(existing);
+        await this.highlightService.saveHighlight(existing);
         return existing;
       }
     }
@@ -77,7 +77,7 @@ export class AnnotationWorkbenchService {
     }
 
     this.activeHighlights.set(id, highlight);
-    await this.services.saveHighlight(highlight);
+    await this.highlightService.saveHighlight(highlight);
     return highlight;
   }
 
@@ -97,7 +97,7 @@ export class AnnotationWorkbenchService {
     }
 
     await strategy.applyToHighlight(highlight, command);
-    await this.services.saveHighlight(highlight);
+    await this.highlightService.saveHighlight(highlight);
     return highlight;
   }
 
@@ -114,7 +114,7 @@ export class AnnotationWorkbenchService {
 
   public async removeHighlight(id: string): Promise<void> {
     this.activeHighlights.delete(id);
-    await this.services.deleteHighlight(id);
+    await this.highlightService.deleteHighlight(id);
   }
 
   public getForPage(pageNumber: number): Highlight[] {

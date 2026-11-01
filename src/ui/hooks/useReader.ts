@@ -3,7 +3,7 @@ import type { BookMetadata } from '../../core/domain/BookMetadata';
 import type { Highlight } from '../../core/domain/Highlight';
 import type { AnnotationFormatterMap } from '../../core/domain/RichAnnotation';
 import type { TextFormatStyle } from '../../core/domain/types';
-import type { DocumentPage } from '../../core/ports/BackendService';
+import type { DocumentPage } from '../../core/ports/IReaderService';
 import { isValidAuthor } from '../components/library/BookCover';
 import { getExpandedWordSelection } from '../components/reader/ReaderPageParagraphs';
 import { useNavigation } from '../hooks/useNavigation';
@@ -89,7 +89,8 @@ export interface ReaderViewModel {
 export type ReaderContextValue = ReaderViewModel;
 
 export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
-  const { services, epubViewer, annotationWorkbench } = useServiceContainer();
+  const { readerService, highlightService, epubViewer, annotationWorkbench } =
+    useServiceContainer();
   const navigation = useNavigation();
   const book = bookOverride ?? navigation.selectedBook;
 
@@ -204,7 +205,7 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
 
     const bootstrapReader = async () => {
       try {
-        const pages = await services.getBookPages(doc.bookHash, initialPage, 5);
+        const pages = await readerService.getBookPages(doc.bookHash, initialPage, 5);
         if (!cancelled && pages.length > 0) {
           setLoadedPages(pages);
           const first = pages[0];
@@ -216,7 +217,7 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
             setTotalPages(book.totalPages);
           }
         } else {
-          const rawBytes = await services.readBookBinary(doc.bookHash);
+          const rawBytes = await readerService.readBookBinary(doc.bookHash);
           if (!cancelled && rawBytes.length > 0) {
             const container =
               typeof globalThis !== 'undefined' && globalThis.document?.createElement
@@ -251,7 +252,7 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
     };
   }, [
     book,
-    services,
+    readerService,
     epubViewer,
     annotationWorkbench,
     setDocument,
@@ -278,7 +279,7 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
           const lastPageNum =
             loadedPages.length > 0 ? Math.max(...loadedPages.map((p) => p.pageNumber)) : 0;
           if (lastPageNum >= totalPages) return;
-          const nextPages = await services.getBookPages(document.bookHash, lastPageNum + 1, 5);
+          const nextPages = await readerService.getBookPages(document.bookHash, lastPageNum + 1, 5);
           if (nextPages.length === 0) return;
           upsertPages(nextPages);
         } else {
@@ -287,7 +288,11 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
           if (firstPageNum <= 1) return;
           const prevStart = Math.max(1, firstPageNum - 5);
           const prevCount = firstPageNum - prevStart;
-          const prevPages = await services.getBookPages(document.bookHash, prevStart, prevCount);
+          const prevPages = await readerService.getBookPages(
+            document.bookHash,
+            prevStart,
+            prevCount
+          );
           if (prevPages.length === 0) return;
           upsertPages(prevPages);
         }
@@ -297,7 +302,7 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
         isLoadingMoreRef.current = false;
       }
     },
-    [services, document.bookHash, loadedPages, totalPages, upsertPages]
+    [readerService, document.bookHash, loadedPages, totalPages, upsertPages]
   );
 
   const onPageVisible = useCallback(
@@ -308,10 +313,10 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
       if (visible?.chapterTitle) {
         setChapterTitle(visible.chapterTitle);
       }
-      void services.updateBookProgress(document.bookHash, pageNumber, totalPages);
+      void readerService.updateBookProgress(document.bookHash, pageNumber, totalPages);
     },
     [
-      services,
+      readerService,
       currentPage,
       document.bookHash,
       loadedPages,
@@ -336,7 +341,7 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
       if (!exists) {
         const start = Math.max(1, next - 2);
         const count = Math.min(5, totalPages - start + 1);
-        const pages = await services.getBookPages(document.bookHash, start, count);
+        const pages = await readerService.getBookPages(document.bookHash, start, count);
         if (pages.length > 0) {
           upsertPages(pages);
           const active = pages.find((p) => p.pageNumber === next) ?? pages[0];
@@ -350,11 +355,11 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
           setChapterTitle(active.chapterTitle);
         }
       }
-      await services.updateBookProgress(document.bookHash, next, totalPages);
+      await readerService.updateBookProgress(document.bookHash, next, totalPages);
       await refreshState(null, next);
     },
     [
-      services,
+      readerService,
       document.bookHash,
       loadedPages,
       refreshState,
@@ -494,11 +499,11 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
       if (!target) return;
 
       target.changeColor(colorHex);
-      await services.saveHighlight(target);
+      await highlightService.saveHighlight(target);
       upsertHighlight(target);
       await refreshState(highlightId, currentPage);
     },
-    [services, currentPage, highlights, refreshState, upsertHighlight]
+    [highlightService, currentPage, highlights, refreshState, upsertHighlight]
   );
 
   const deleteHighlight = useCallback(
@@ -507,14 +512,14 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
       if (expandedHighlight?.id === highlightId) {
         closeExpandedStudio();
       }
-      await services.deleteHighlight(highlightId);
+      await highlightService.deleteHighlight(highlightId);
       removeHighlight(highlightId);
       await annotationWorkbench.loadBookHighlights(document.bookHash);
       await refreshState(null, currentPage);
     },
     [
       annotationWorkbench,
-      services,
+      highlightService,
       closeExpandedStudio,
       closeHighlightPopover,
       currentPage,
@@ -584,7 +589,7 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
       const activeId = selectedIdRef.current;
       const active = highlights.find((h) => h.id === activeId);
       const textToQuery = customText ?? active?.text ?? 'noesis';
-      const req = await services.buildTermLookupRequest(
+      const req = await readerService.buildTermLookupRequest(
         {
           bookTitle: document.bookTitle,
           bookAuthor: document.bookAuthor,
@@ -596,7 +601,7 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
       );
       setLlmPromptPreview(JSON.stringify(req, null, 2));
     },
-    [services, document, highlights]
+    [readerService, document, highlights]
   );
 
   return {

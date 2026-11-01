@@ -2,8 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   type SerializedBookMetadata,
   type SerializedHighlight,
-  TauriBackend,
-} from '../../../adapters/ipc/TauriBackend';
+  TauriHighlightService,
+  TauriLibraryService,
+  TauriPresenceService,
+  TauriReaderService,
+  TauriSettingsService,
+} from '../../../adapters/ipc';
 import { Highlight } from '../../../core/domain/Highlight';
 import {
   createAssistedTextAnnotation,
@@ -71,7 +75,7 @@ vi.mock('@tauri-apps/api/core', () => ({
       return updated as unknown as T;
     }
     if (cmd === 'get_startup_book') {
-      return (storedBooks.get('sha256-startup-book') ?? null) as unknown as T;
+      return null as unknown as T;
     }
     if (cmd === 'open_book_file') {
       const filePath = String(args.filePath);
@@ -142,15 +146,19 @@ vi.mock('@tauri-apps/api/core', () => ({
       storedSettings.set('discord_presence_enabled', String(args.enabled));
       return undefined as unknown as T;
     }
+    if (cmd === 'clear_rich_presence') {
+      storedSettings.set('discord_presence_cleared', 'true');
+      return undefined as unknown as T;
+    }
     throw new Error(`Unexpected command: ${cmd}`);
   }),
 }));
 
-describe('TauriBackend (Direct Tauri IPC)', () => {
-  it('should serialize and deserialize highlights and library books across Tauri IPC', async () => {
-    const backend = new TauriBackend();
+describe('Modular Tauri IPC Adapters', () => {
+  it('should manage library books via TauriLibraryService', async () => {
+    const libraryService = new TauriLibraryService();
 
-    const imported = await backend.importLibraryBook({
+    const imported = await libraryService.importLibraryBook({
       rawBytes: new Uint8Array([1, 2, 3]),
       title: 'Direct Tauri Book',
       author: 'Tester',
@@ -159,23 +167,43 @@ describe('TauriBackend (Direct Tauri IPC)', () => {
     });
     expect(imported.bookHash).toBe('sha256-imported-book');
 
-    const books = await backend.listLibraryBooks();
+    const books = await libraryService.listLibraryBooks();
     expect(books).toHaveLength(1);
     expect(books[0]?.title).toBe('Direct Tauri Book');
 
-    const updated = await backend.updateBookProgress('sha256-imported-book', 10, 100);
+    const renamed = await libraryService.renameBook('sha256-imported-book', 'Renamed Tauri Book');
+    expect(renamed.title).toBe('Renamed Tauri Book');
+
+    expect(await libraryService.getStartupBook()).toBeNull();
+
+    const opened = await libraryService.openBookFile('/path/to/my_book.pdf');
+    expect(opened.title).toBe('my_book');
+    expect(opened.format).toBe('pdf');
+  });
+
+  it('should manage reader operations via TauriReaderService', async () => {
+    const readerService = new TauriReaderService();
+
+    const updated = await readerService.updateBookProgress('sha256-imported-book', 10, 100);
     expect(updated.percentage).toBe(10);
 
-    const renamed = await backend.renameBook('sha256-imported-book', 'Renamed Tauri Book');
-    expect(renamed.title).toBe('Renamed Tauri Book');
-    expect(renamed.bookHash).toBe('sha256-imported-book');
+    const bytes = await readerService.readBookBinary('sha256-imported-book');
+    expect(bytes).toEqual(new Uint8Array([1, 2, 3, 4]));
 
-    const startup = await backend.getStartupBook();
-    expect(startup).toBeNull();
+    const pages = await readerService.getBookPages('sha256-imported-book', 1, 1);
+    expect(pages).toHaveLength(1);
+    expect(pages[0]?.pageNumber).toBe(1);
 
-    const openedFromFile = await backend.openBookFile('/path/to/my_book.pdf');
-    expect(openedFromFile.title).toBe('my_book');
-    expect(openedFromFile.format).toBe('pdf');
+    const prompt = await readerService.buildTermLookupRequest({
+      bookTitle: 'Direct Tauri Book',
+      selectedText: 'Direct term',
+      surroundingContext: 'Surrounding context',
+    });
+    expect(prompt.userPrompt).toBe('Direct term');
+  });
+
+  it('should manage highlights via TauriHighlightService', async () => {
+    const highlightService = new TauriHighlightService();
 
     const highlight = new Highlight(
       'hl-direct',
@@ -205,46 +233,38 @@ describe('TauriBackend (Direct Tauri IPC)', () => {
       ]
     );
 
-    await backend.saveHighlight(highlight);
-    const loaded = await backend.loadBookHighlights('sha256-imported-book');
+    await highlightService.saveHighlight(highlight);
+    const loaded = await highlightService.loadBookHighlights('sha256-imported-book');
     expect(loaded).toHaveLength(1);
     expect(loaded[0]?.text).toBe('Important direct quote');
     expect(loaded[0]?.getAllRichAnnotations()).toHaveLength(3);
 
-    const prompt = await backend.buildTermLookupRequest({
-      bookTitle: 'Direct Tauri Book',
-      selectedText: 'Direct term',
-      surroundingContext: 'Surrounding context',
-    });
-    expect(prompt.userPrompt).toBe('Direct term');
+    await highlightService.deleteHighlight('hl-direct');
+    const afterDelete = await highlightService.loadBookHighlights('sha256-imported-book');
+    expect(afterDelete).toHaveLength(0);
+  });
 
-    const bytes = await backend.readBookBinary('sha256-imported-book');
-    expect(bytes).toEqual(new Uint8Array([1, 2, 3, 4]));
+  it('should manage settings and presence via dedicated adapters', async () => {
+    const settingsService = new TauriSettingsService();
+    const presenceService = new TauriPresenceService();
 
-    const pages = await backend.getBookPages('sha256-imported-book', 1, 1);
-    expect(pages).toHaveLength(1);
-    expect(pages[0]?.pageNumber).toBe(1);
+    expect(await settingsService.getAppSetting('theme')).toBeNull();
+    await settingsService.setAppSetting('theme', 'dark');
+    expect(await settingsService.getAppSetting('theme')).toBe('dark');
 
-    const syncResult = await backend.syncBookWorkspace('sha256-imported-book');
+    const syncResult = await settingsService.syncBookWorkspace('sha256-imported-book');
     expect(syncResult).toBe('synced:sha256-imported-book');
 
-    expect(await backend.getAppSetting('theme')).toBeNull();
-    await backend.setAppSetting('theme', 'dark');
-    expect(await backend.getAppSetting('theme')).toBe('dark');
+    await presenceService.setDiscordPresenceEnabled(true);
+    expect(await settingsService.getAppSetting('discord_presence_enabled')).toBe('true');
 
-    await backend.setDiscordPresenceEnabled(true);
-    expect(await backend.getAppSetting('discord_presence_enabled')).toBe('true');
-    await backend.setDiscordPresenceEnabled(false);
-    expect(await backend.getAppSetting('discord_presence_enabled')).toBe('false');
-
-    await backend.deleteHighlight('hl-direct');
-    const afterDelete = await backend.loadBookHighlights('sha256-imported-book');
-    expect(afterDelete).toHaveLength(0);
+    await presenceService.clearRichPresence();
+    expect(await settingsService.getAppSetting('discord_presence_cleared')).toBe('true');
   });
 });
 
-describe('MockBackend (In-Memory Test Double)', () => {
-  it('should implement all BackendService operations in-memory without IPC', async () => {
+describe('MockBackend (In-Memory Modular Double)', () => {
+  it('should implement all modular service operations in-memory without IPC', async () => {
     const mock = new MockBackend();
     const imported = await mock.importLibraryBook({
       rawBytes: new Uint8Array([10, 20]),
@@ -308,5 +328,8 @@ describe('MockBackend (In-Memory Test Double)', () => {
 
     await mock.setDiscordPresenceEnabled(true);
     expect(await mock.getAppSetting('discord_presence_enabled')).toBe('true');
+
+    await mock.clearRichPresence();
+    expect(await mock.getAppSetting('discord_presence_cleared')).toBe('true');
   });
 });
