@@ -1,11 +1,9 @@
 mod fakes;
 
 use fakes::{InMemoryBookRepo, InMemoryStorage};
+use ipdf_core::adapters::pagination::{BookPaginatorFactory, EpubBookPaginator, PdfBookPaginator};
 use ipdf_core::core::domain::{BookFormat, BookMetadata, BookStorageLocation};
 use ipdf_core::core::ports::{BookPaginator, BookRepository, StorageProvider};
-use ipdf_core::core::services::pagination::{
-    BookPaginatorFactory, EpubBookPaginator, PdfBookPaginator,
-};
 use ipdf_core::core::services::ReaderManager;
 use std::env;
 use std::fs;

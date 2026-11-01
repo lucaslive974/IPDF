@@ -1,9 +1,8 @@
-use ipdf_core::adapters::extractor::CoverExtractorAdapter;
+use ipdf_core::adapters::extractor::{
+    BookCoverExtractorFactory, CoverExtractorAdapter, EpubCoverExtractor, PdfCoverExtractor,
+};
 use ipdf_core::core::domain::BookFormat;
 use ipdf_core::core::ports::{BookCoverExtractor, StorageProvider};
-use ipdf_core::core::services::extractor::{
-    BookCoverExtractorFactory, EpubCoverExtractor, PdfCoverExtractor,
-};
 use std::io::Write;
 
 mod fakes;

@@ -1,6 +1,6 @@
+use crate::adapters::pagination::BookPaginatorFactory;
 use crate::core::domain::{BookFormat, BookMetadata, BookStorageLocation};
 use crate::core::ports::{BookRepository, StorageProvider};
-use crate::core::services::pagination::BookPaginatorFactory;
 use crate::core::services::Sha256BookHasher;
 use std::collections::BTreeMap;
 use std::fs;

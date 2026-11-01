@@ -1,4 +1,4 @@
-use crate::commands::{ai, highlights, library, settings, system};
+use crate::commands::{ai, highlights, library, reader, settings, system};
 use crate::state::BackendState;
 use crate::utils::find_file_argument;
 use std::sync::Mutex;
@@ -36,11 +36,12 @@ pub fn run() {
             library::list_library_books,
             library::open_book_file,
             library::import_library_book,
-            library::read_book_binary,
-            library::get_book_pages,
-            library::update_book_progress,
             library::rename_book,
             library::delete_book,
+            // Reader & Content routes
+            reader::read_book_binary,
+            reader::get_book_pages,
+            reader::update_book_progress,
             // Highlights & Annotations routes
             highlights::load_book_highlights,
             highlights::load_all_highlights,

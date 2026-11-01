@@ -1,6 +1,6 @@
+use super::BookCoverExtractorFactory;
 use crate::core::domain::BookFormat;
 use crate::core::ports::StorageProvider;
-use crate::core::services::BookCoverExtractorFactory;
 use base64::Engine;
 
 pub struct CoverExtractorAdapter;

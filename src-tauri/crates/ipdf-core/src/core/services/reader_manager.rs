@@ -1,6 +1,6 @@
+use crate::adapters::pagination::BookPaginatorFactory;
 use crate::core::domain::{BookMetadata, BookPagePayload};
 use crate::core::ports::{BookRepository, StorageProvider};
-use crate::core::services::pagination::BookPaginatorFactory;
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
