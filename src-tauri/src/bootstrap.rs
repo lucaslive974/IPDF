@@ -43,6 +43,7 @@ pub fn run() {
             library::delete_book,
             // Highlights & Annotations routes
             highlights::load_book_highlights,
+            highlights::load_all_highlights,
             highlights::save_highlight,
             highlights::delete_highlight,
             highlights::sync_book_workspace,

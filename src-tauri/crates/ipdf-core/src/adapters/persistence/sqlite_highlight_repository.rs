@@ -39,6 +39,7 @@ const DELETE_BY_ID_SQL: &str = "DELETE FROM highlights WHERE id = ?1";
 const DELETE_BY_BOOK_SQL: &str = "DELETE FROM highlights WHERE book_hash = ?1";
 const FIND_BY_BOOK_SQL: &str = "SELECT id, book_hash, text, color, anchor_json, note, created_at_ms, updated_at_ms, annotations_json FROM highlights WHERE book_hash = ?1 ORDER BY created_at_ms ASC";
 const FIND_BY_BOOK_AND_PAGE_SQL: &str = "SELECT id, book_hash, text, color, anchor_json, note, created_at_ms, updated_at_ms, annotations_json FROM highlights WHERE book_hash = ?1 AND page_number = ?2 ORDER BY created_at_ms ASC";
+const FIND_ALL_SQL: &str = "SELECT id, book_hash, text, color, anchor_json, note, created_at_ms, updated_at_ms, annotations_json FROM highlights ORDER BY updated_at_ms DESC";
 
 pub struct SqliteHighlightRepository {
     conn: Connection,
@@ -191,6 +192,17 @@ impl HighlightRepository for SqliteHighlightRepository {
         let rows = stmt
             .query_map(params![book_hash, page_number], Self::row_to_highlight)
             .map_err(to_err)?;
+
+        let mut list = Vec::new();
+        for row in rows {
+            list.push(row.map_err(to_err)??);
+        }
+        Ok(list)
+    }
+
+    fn find_all(&self) -> Result<Vec<Highlight>, String> {
+        let mut stmt = self.conn.prepare(FIND_ALL_SQL).map_err(to_err)?;
+        let rows = stmt.query_map([], Self::row_to_highlight).map_err(to_err)?;
 
         let mut list = Vec::new();
         for row in rows {

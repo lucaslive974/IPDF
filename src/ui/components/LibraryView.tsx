@@ -102,7 +102,7 @@ export function LibraryView({
           />
         )}
 
-        {activeTab === 'highlights' && <LibraryAnnotationsTab />}
+        {activeTab === 'highlights' && <LibraryAnnotationsTab searchQuery={searchQuery} />}
 
         {activeTab === 'lists' && <LibraryCollectionsTab />}
       </main>

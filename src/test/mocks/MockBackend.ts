@@ -170,6 +170,12 @@ export class MockBackend
     return Array.from(this.highlights.values()).filter((h) => h.bookHash === bookHash);
   }
 
+  public async loadAllHighlights(): Promise<Highlight[]> {
+    return Array.from(this.highlights.values()).sort(
+      (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()
+    );
+  }
+
   public async saveHighlight(highlight: Highlight): Promise<void> {
     this.highlights.set(highlight.id, highlight);
   }

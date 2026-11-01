@@ -236,3 +236,35 @@ export function PencilIcon({ className = 'h-4 w-4', ...props }: SVGProps<SVGSVGE
     </svg>
   );
 }
+
+export function CheckIcon({ className = 'h-4 w-4', ...props }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      className={className}
+      {...props}
+    >
+      <title>Check</title>
+      <path d="m4.5 10 3.5 3.5 7.5-7.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function ArrowRightIcon({ className = 'h-4 w-4', ...props }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      className={className}
+      {...props}
+    >
+      <title>Arrow Right</title>
+      <path d="m7.5 5 5 5-5 5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}

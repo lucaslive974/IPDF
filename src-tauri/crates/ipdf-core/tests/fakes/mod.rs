@@ -54,6 +54,11 @@ impl HighlightRepository for InMemoryHighlightRepo {
             .cloned()
             .collect())
     }
+    fn find_all(&self) -> Result<Vec<Highlight>, String> {
+        let mut list: Vec<Highlight> = self.store.values().cloned().collect();
+        list.sort_by(|a, b| b.updated_at_ms.cmp(&a.updated_at_ms));
+        Ok(list)
+    }
 }
 
 pub struct InMemoryStorage {

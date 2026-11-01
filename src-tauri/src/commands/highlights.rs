@@ -19,6 +19,18 @@ pub fn load_book_highlights(
 }
 
 #[tauri::command]
+pub fn load_all_highlights(
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<Vec<IpcHighlightDto>, String> {
+    let guard = state.lock().map_err(|e| e.to_string())?;
+    let domain_highlights = guard.highlight_repo.find_all()?;
+    Ok(domain_highlights
+        .into_iter()
+        .map(domain_to_ipc_highlight)
+        .collect())
+}
+
+#[tauri::command]
 pub fn save_highlight(
     highlight: IpcHighlightDto,
     state: State<'_, Mutex<BackendState>>,

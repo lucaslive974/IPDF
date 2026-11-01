@@ -74,6 +74,11 @@ export class TauriHighlightService implements IHighlightService {
     return dtos.map(deserializeHighlight);
   }
 
+  public async loadAllHighlights(): Promise<Highlight[]> {
+    const dtos = await invoke<SerializedHighlight[]>('load_all_highlights');
+    return dtos.map(deserializeHighlight);
+  }
+
   public async saveHighlight(highlight: Highlight): Promise<void> {
     await invoke<void>('save_highlight', {
       highlight: serializeHighlight(highlight),

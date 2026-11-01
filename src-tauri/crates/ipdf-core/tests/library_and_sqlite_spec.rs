@@ -145,6 +145,10 @@ fn test_sqlite_highlight_repository() {
 
     hl_repo.save(hl.clone()).unwrap();
 
+    let all_highlights = hl_repo.find_all().unwrap();
+    assert_eq!(all_highlights.len(), 1);
+    assert_eq!(all_highlights[0].id, "hl-spinoza-1");
+
     let by_id = hl_repo.find_by_id("hl-spinoza-1").unwrap().unwrap();
     assert_eq!(by_id.text, "Deus sive Natura");
     assert_eq!(by_id.annotations.len(), 1);

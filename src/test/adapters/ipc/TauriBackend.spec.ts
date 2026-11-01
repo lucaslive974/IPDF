@@ -107,6 +107,9 @@ vi.mock('@tauri-apps/api/core', () => ({
     if (cmd === 'load_book_highlights') {
       return Array.from(storedDtos.values()) as unknown as T;
     }
+    if (cmd === 'load_all_highlights') {
+      return Array.from(storedDtos.values()) as unknown as T;
+    }
     if (cmd === 'delete_highlight') {
       storedDtos.delete(String(args.highlightId));
       return undefined as unknown as T;
@@ -234,6 +237,10 @@ describe('Modular Tauri IPC Adapters', () => {
     expect(loaded[0]?.text).toBe('Important direct quote');
     expect(loaded[0]?.getAllRichAnnotations()).toHaveLength(1);
 
+    const allLoaded = await highlightService.loadAllHighlights();
+    expect(allLoaded).toHaveLength(1);
+    expect(allLoaded[0]?.id).toBe('hl-direct');
+
     await highlightService.deleteHighlight('hl-direct');
     const afterDelete = await highlightService.loadBookHighlights('sha256-imported-book');
     expect(afterDelete).toHaveLength(0);
@@ -302,6 +309,7 @@ describe('MockBackend (In-Memory Modular Double)', () => {
     await mock.saveHighlight(hl);
     const loadedHls = await mock.loadBookHighlights(imported.bookHash);
     expect(loadedHls).toHaveLength(1);
+    expect(await mock.loadAllHighlights()).toHaveLength(1);
 
     const prompt = await mock.buildTermLookupRequest({
       bookTitle: imported.title,
