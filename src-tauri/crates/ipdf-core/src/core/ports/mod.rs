@@ -1,3 +1,4 @@
+pub mod book_repository;
 pub mod configuration_store;
 pub mod export_strategy;
 pub mod llm_provider;
@@ -8,6 +9,7 @@ pub mod storage_provider;
 pub mod system_bridge;
 pub mod tts_provider;
 
+pub use book_repository::BookRepository;
 pub use configuration_store::ConfigurationStore;
 pub use export_strategy::{
     ConflictResolution, ExportOptions, ExportStrategy, ImportReport, SyncPayload,

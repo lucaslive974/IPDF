@@ -1,12 +1,69 @@
 #![allow(dead_code)]
 
-use ipdf_core::core::domain::{BookFormat, Highlight};
+use ipdf_core::core::domain::{BookFormat, BookMetadata, BookStorageLocation, Highlight};
 use ipdf_core::core::ports::{
-    ExportStrategy, HighlightRepository, MediaControlService, MediaMetadata, PlaybackState,
-    PowerSaveBlocker, PresenceProvider, ReadingActivity, SpeakOptions, StorageEntry,
+    BookRepository, ExportStrategy, HighlightRepository, MediaControlService, MediaMetadata,
+    PlaybackState, PowerSaveBlocker, PresenceProvider, ReadingActivity, SpeakOptions, StorageEntry,
     StorageProvider, SyncPayload, TtsProvider,
 };
 use std::collections::BTreeMap;
+
+#[derive(Default)]
+pub struct InMemoryBookRepo {
+    pub books: BTreeMap<String, BookMetadata>,
+    pub locations: BTreeMap<(String, String), BookStorageLocation>,
+}
+
+impl BookRepository for InMemoryBookRepo {
+    fn save_book(&mut self, book: BookMetadata) -> Result<(), String> {
+        self.books.insert(book.book_hash.clone(), book);
+        Ok(())
+    }
+
+    fn find_book_by_hash(&self, hash: &str) -> Result<Option<BookMetadata>, String> {
+        Ok(self.books.get(hash).cloned())
+    }
+
+    fn list_books(&self) -> Result<Vec<BookMetadata>, String> {
+        let mut list: Vec<BookMetadata> = self.books.values().cloned().collect();
+        list.sort_by(|a, b| b.last_read_at_ms.cmp(&a.last_read_at_ms));
+        Ok(list)
+    }
+
+    fn delete_book(&mut self, hash: &str) -> Result<bool, String> {
+        let removed = self.books.remove(hash).is_some();
+        self.locations.retain(|(book_hash, _), _| book_hash != hash);
+        Ok(removed)
+    }
+
+    fn add_storage_location(&mut self, location: BookStorageLocation) -> Result<(), String> {
+        self.locations.insert(
+            (location.book_hash.clone(), location.provider_id.clone()),
+            location,
+        );
+        Ok(())
+    }
+
+    fn get_storage_locations(&self, book_hash: &str) -> Result<Vec<BookStorageLocation>, String> {
+        Ok(self
+            .locations
+            .values()
+            .filter(|loc| loc.book_hash == book_hash)
+            .cloned()
+            .collect())
+    }
+
+    fn remove_storage_location(
+        &mut self,
+        book_hash: &str,
+        provider_id: &str,
+    ) -> Result<bool, String> {
+        Ok(self
+            .locations
+            .remove(&(book_hash.to_string(), provider_id.to_string()))
+            .is_some())
+    }
+}
 
 #[derive(Default)]
 pub struct InMemoryHighlightRepo {

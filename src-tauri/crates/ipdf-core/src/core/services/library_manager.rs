@@ -219,6 +219,7 @@ impl<S: StorageProvider> LibraryManager<S> {
             total_pages,
             percentage,
             cover_image_url,
+            description: None,
             last_read_at_ms: input.now_ms,
             updated_at_ms: input.now_ms,
         })
@@ -275,6 +276,7 @@ impl<S: StorageProvider> LibraryManager<S> {
                 total_pages: progress.total_pages,
                 percentage: progress.percentage,
                 cover_image_url: cover_url,
+                description: None,
                 last_read_at_ms: progress.last_read_at_ms,
                 updated_at_ms: progress.last_read_at_ms,
             });
@@ -384,6 +386,7 @@ impl<S: StorageProvider> LibraryManager<S> {
             total_pages,
             percentage,
             cover_image_url: Some(cover_url),
+            description: None,
             last_read_at_ms: now_ms,
             updated_at_ms: now_ms,
         };
@@ -442,6 +445,7 @@ impl<S: StorageProvider> LibraryManager<S> {
             total_pages: safe_total,
             percentage,
             cover_image_url,
+            description: None,
             last_read_at_ms: now_ms,
             updated_at_ms: now_ms,
         })
@@ -477,6 +481,7 @@ impl<S: StorageProvider> LibraryManager<S> {
             total_pages: progress.total_pages,
             percentage: progress.percentage,
             cover_image_url: progress.cover_image_url,
+            description: None,
             last_read_at_ms: progress.last_read_at_ms,
             updated_at_ms: progress.last_read_at_ms,
         })

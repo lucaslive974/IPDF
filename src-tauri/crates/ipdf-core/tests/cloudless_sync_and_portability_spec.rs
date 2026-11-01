@@ -67,6 +67,7 @@ fn test_highlight_manager_and_cloudless_sync_lww() {
             total_pages: 100,
             percentage: 45.0,
             cover_image_url: None,
+            description: None,
             last_read_at_ms: 3000,
             updated_at_ms: 3000,
         }],
