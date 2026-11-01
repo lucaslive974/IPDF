@@ -5,6 +5,7 @@ export * from './ColorPicker';
 export * from './Dialog';
 export * from './DropdownMenu';
 export * from './EmptyState';
+export * from './FilterButton';
 export * from './IconButton';
 export * from './Input';
 export * from './Modal';

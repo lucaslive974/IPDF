@@ -268,3 +268,19 @@ export function ArrowRightIcon({ className = 'h-4 w-4', ...props }: SVGProps<SVG
     </svg>
   );
 }
+
+export function ChevronDownIcon({ className = 'h-4 w-4', ...props }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      className={className}
+      {...props}
+    >
+      <title>Chevron Down</title>
+      <path d="m5 7.5 5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}

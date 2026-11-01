@@ -5,6 +5,7 @@ export type ButtonVariant =
   | 'secondary'
   | 'outline'
   | 'ghost'
+  | 'minimal'
   | 'danger'
   | 'danger-subtle';
 
@@ -27,6 +28,8 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
     'border border-line-subtle bg-surface/80 text-tx-secondary hover:bg-surface-subtle hover:text-tx-main active:scale-[0.98] disabled:opacity-40',
   ghost:
     'text-tx-muted hover:bg-surface-subtle hover:text-tx-main active:scale-[0.98] disabled:opacity-40',
+  minimal:
+    'text-tx-secondary hover:text-tx-main hover:bg-surface-subtle active:scale-[0.98] disabled:opacity-40',
   danger:
     'bg-red-700 text-white shadow-xs hover:bg-red-800 active:scale-[0.98] disabled:opacity-40',
   'danger-subtle':

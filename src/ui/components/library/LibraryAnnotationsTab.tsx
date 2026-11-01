@@ -1,7 +1,7 @@
-import { memo, useEffect } from 'react';
+import { memo, useEffect, useMemo } from 'react';
 import { useLibraryAnnotations } from '../../hooks/useLibraryAnnotations';
 import { useLibraryStore } from '../../stores/useLibraryStore';
-import { BookIcon, Button, EmptyState } from '../ui';
+import { BookIcon, Button, EmptyState, FilterButton } from '../ui';
 import { BookAnnotationGroupCard } from './BookAnnotationGroupCard';
 
 export interface LibraryAnnotationsTabProps {
@@ -32,6 +32,14 @@ export const LibraryAnnotationsTab = memo(function LibraryAnnotationsTab({
     setSearchQuery(searchQuery);
   }, [searchQuery, setSearchQuery]);
 
+  const bookFilterOptions = useMemo(
+    () => [
+      { value: 'all', label: 'All Books' },
+      ...books.map((b) => ({ value: b.bookHash, label: b.title })),
+    ],
+    [books]
+  );
+
   const hasAnyAnnotationsInLibrary =
     books.length > 0 &&
     (totalAnnotationsCount > 0 ||
@@ -61,26 +69,21 @@ export const LibraryAnnotationsTab = memo(function LibraryAnnotationsTab({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Filters and Controls Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-surface-subtle/50 border border-line-subtle px-3.5 py-2.5">
+      {/* Minimalist Controls Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-subtle pb-2">
         <div className="flex flex-wrap items-center gap-2">
-          {/* Book filter selector */}
-          <select
+          {/* Reusable Minimalist Filter Button */}
+          <FilterButton
+            icon={<BookIcon className="h-3.5 w-3.5" />}
             value={selectedBookHash}
-            onChange={(e) => setSelectedBookHash(e.target.value)}
-            className="rounded-md border border-line-subtle bg-canvas px-2.5 py-1 text-xs text-tx-main shadow-2xs focus:border-tx-main focus:outline-hidden"
-          >
-            <option value="all">All Books</option>
-            {books.map((book) => (
-              <option key={book.bookHash} value={book.bookHash}>
-                {book.title}
-              </option>
-            ))}
-          </select>
+            options={bookFilterOptions}
+            onChange={setSelectedBookHash}
+            ariaLabel="Filter annotations by book"
+          />
 
           {/* Notes only toggle */}
           <Button
-            variant={onlyWithNotes ? 'primary' : 'ghost'}
+            variant={onlyWithNotes ? 'secondary' : 'minimal'}
             size="xs"
             onClick={() => setOnlyWithNotes(!onlyWithNotes)}
             className="text-[0.72rem]"
