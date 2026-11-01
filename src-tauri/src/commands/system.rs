@@ -1,7 +1,8 @@
 use crate::dtos::IpcPlatformInfoDto;
 use crate::state::BackendState;
+use crate::utils::current_epoch_ms;
 use ipdf_core::core::domain::BookMetadata;
-use ipdf_core::core::ports::ConfigurationStore;
+use ipdf_core::core::ports::{ConfigurationStore, PresenceActivity, PresenceHealth};
 use std::sync::Mutex;
 use tauri::State;
 
@@ -54,4 +55,42 @@ pub fn clear_rich_presence(state: State<'_, Mutex<BackendState>>) -> Result<(), 
     let mut guard = state.lock().map_err(|e| e.to_string())?;
     guard.presence_manager.clear_all_presence();
     Ok(())
+}
+
+#[tauri::command]
+pub fn update_library_presence(
+    total_books: u32,
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<(), String> {
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    let now = current_epoch_ms();
+    let activity = PresenceActivity::Library {
+        total_books,
+        session_started_at_ms: now,
+    };
+    guard.presence_manager.update_activity(&activity, now, true);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn update_annotations_presence(
+    total_annotations: u32,
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<(), String> {
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    let now = current_epoch_ms();
+    let activity = PresenceActivity::Annotations {
+        total_annotations,
+        session_started_at_ms: now,
+    };
+    guard.presence_manager.update_activity(&activity, now, true);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_discord_presence_health(
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<PresenceHealth, String> {
+    let guard = state.lock().map_err(|e| e.to_string())?;
+    guard.presence_manager.check_provider_health("discord")
 }

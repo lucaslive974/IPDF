@@ -31,6 +31,9 @@ pub fn run() {
             system::get_startup_book,
             system::set_discord_presence_enabled,
             system::clear_rich_presence,
+            system::update_library_presence,
+            system::update_annotations_presence,
+            system::get_discord_presence_health,
             // Library & Book routes
             library::compute_book_sha256,
             library::list_library_books,

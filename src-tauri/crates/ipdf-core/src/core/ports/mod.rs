@@ -20,7 +20,7 @@ pub use export_strategy::{
 };
 pub use llm_provider::{LlmRequest, ReadingContext};
 pub use platform_environment::PlatformEnvironment;
-pub use presence_provider::{PresenceProvider, ReadingActivity};
+pub use presence_provider::{PresenceActivity, PresenceHealth, PresenceProvider, ReadingActivity};
 pub use repository::HighlightRepository;
 pub use storage_provider::{StorageEntry, StorageProvider};
 pub use system_bridge::{

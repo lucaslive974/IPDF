@@ -156,6 +156,20 @@ vi.mock('@tauri-apps/api/core', () => ({
       storedSettings.set('discord_presence_cleared', 'true');
       return undefined as unknown as T;
     }
+    if (cmd === 'update_library_presence') {
+      storedSettings.set('discord_presence_library', String(args.totalBooks));
+      return undefined as unknown as T;
+    }
+    if (cmd === 'update_annotations_presence') {
+      storedSettings.set('discord_presence_annotations', String(args.totalAnnotations));
+      return undefined as unknown as T;
+    }
+    if (cmd === 'get_discord_presence_health') {
+      return {
+        ok: true,
+        message: 'Connected to Discord client',
+      } as unknown as T;
+    }
     throw new Error(`Unexpected command: ${cmd}`);
   }),
 }));
@@ -264,6 +278,16 @@ describe('Modular Tauri IPC Adapters', () => {
 
     await presenceService.clearRichPresence();
     expect(await settingsService.getAppSetting('discord_presence_cleared')).toBe('true');
+
+    await presenceService.updateLibraryPresence(15);
+    expect(await settingsService.getAppSetting('discord_presence_library')).toBe('15');
+
+    await presenceService.updateAnnotationsPresence(42);
+    expect(await settingsService.getAppSetting('discord_presence_annotations')).toBe('42');
+
+    const health = await presenceService.getDiscordPresenceHealth();
+    expect(health.ok).toBe(true);
+    expect(health.message).toBe('Connected to Discord client');
   });
 });
 
@@ -336,6 +360,16 @@ describe('MockBackend (In-Memory Modular Double)', () => {
 
     await mock.clearRichPresence();
     expect(await mock.getAppSetting('discord_presence_cleared')).toBe('true');
+
+    await mock.updateLibraryPresence(20);
+    expect(await mock.getAppSetting('discord_presence_library')).toBe('20');
+
+    await mock.updateAnnotationsPresence(55);
+    expect(await mock.getAppSetting('discord_presence_annotations')).toBe('55');
+
+    const mockHealth = await mock.getDiscordPresenceHealth();
+    expect(mockHealth.ok).toBe(true);
+    expect(mockHealth.message).toBe('Connected to Discord client');
   });
 
   it('correctly resolves cover image URLs according to protocol and scheme', () => {

@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { IPresenceService } from '../../core/ports/IPresenceService';
+import type { IPresenceService, PresenceHealthStatus } from '../../core/ports/IPresenceService';
 
 export class TauriPresenceService implements IPresenceService {
   public async setDiscordPresenceEnabled(enabled: boolean): Promise<void> {
@@ -8,5 +8,17 @@ export class TauriPresenceService implements IPresenceService {
 
   public async clearRichPresence(): Promise<void> {
     await invoke<void>('clear_rich_presence');
+  }
+
+  public async updateLibraryPresence(totalBooks: number): Promise<void> {
+    await invoke<void>('update_library_presence', { totalBooks });
+  }
+
+  public async updateAnnotationsPresence(totalAnnotations: number): Promise<void> {
+    await invoke<void>('update_annotations_presence', { totalAnnotations });
+  }
+
+  public async getDiscordPresenceHealth(): Promise<PresenceHealthStatus> {
+    return await invoke<PresenceHealthStatus>('get_discord_presence_health');
   }
 }

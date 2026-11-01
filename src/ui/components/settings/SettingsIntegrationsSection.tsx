@@ -1,15 +1,38 @@
 import { memo } from 'react';
-import { Badge, Button, Card } from '../ui';
+import type { PresenceHealthStatus } from '../../../core/ports/IPresenceService';
+import { Badge, type BadgeVariant, Button, Card } from '../ui';
 
 export interface SettingsIntegrationsSectionProps {
   readonly isDiscordEnabled: boolean;
+  readonly discordHealth?: PresenceHealthStatus | null;
+  readonly isCheckingDiscordHealth?: boolean;
   readonly onToggleDiscord: () => void;
+  readonly onCheckDiscordHealth?: () => void;
 }
 
 export const SettingsIntegrationsSection = memo(function SettingsIntegrationsSection({
   isDiscordEnabled,
+  discordHealth,
+  isCheckingDiscordHealth = false,
   onToggleDiscord,
+  onCheckDiscordHealth,
 }: SettingsIntegrationsSectionProps) {
+  let badgeVariant: BadgeVariant = 'faint';
+  let badgeLabel = 'Discord Disabled';
+
+  if (isDiscordEnabled) {
+    if (discordHealth?.ok) {
+      badgeVariant = 'success';
+      badgeLabel = 'Discord Connected';
+    } else if (discordHealth && !discordHealth.ok) {
+      badgeVariant = 'warning';
+      badgeLabel = 'Discord Disconnected';
+    } else {
+      badgeVariant = 'neutral';
+      badgeLabel = 'Checking...';
+    }
+  }
+
   return (
     <Card variant="surface" padding="md" className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -21,8 +44,8 @@ export const SettingsIntegrationsSection = memo(function SettingsIntegrationsSec
             Real-time reading status broadcast for community study sessions:
           </p>
         </div>
-        <Badge variant={isDiscordEnabled ? 'success' : 'faint'} size="xs">
-          {isDiscordEnabled ? 'Discord Active' : 'Discord Off'}
+        <Badge variant={badgeVariant} size="xs">
+          {badgeLabel}
         </Badge>
       </div>
 
@@ -32,14 +55,35 @@ export const SettingsIntegrationsSection = memo(function SettingsIntegrationsSec
         rounded="lg"
         className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
       >
-        <div>
+        <div className="flex flex-col gap-1">
           <span className="text-xs font-medium text-tx-main block">Discord Rich Presence</span>
           <span className="text-[0.68rem] text-tx-muted">
-            Broadcast current book, author, chapter, reading progress, and elapsed time via native
-            IPC
+            Broadcast library browsing, annotation reviews, reading progress, and elapsed time via
+            native IPC
           </span>
+          {isDiscordEnabled && discordHealth && (
+            <span
+              className={`text-[0.68rem] font-medium ${
+                discordHealth.ok
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-amber-600 dark:text-amber-400'
+              }`}
+            >
+              Status: {discordHealth.message}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
+          {isDiscordEnabled && onCheckDiscordHealth && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isCheckingDiscordHealth}
+              onClick={onCheckDiscordHealth}
+            >
+              {isCheckingDiscordHealth ? 'Checking...' : 'Check Status'}
+            </Button>
+          )}
           <Button
             variant={isDiscordEnabled ? 'outline' : 'primary'}
             size="sm"

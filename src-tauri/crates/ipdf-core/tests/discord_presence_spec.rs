@@ -4,11 +4,11 @@ use fakes::FakeDiscordPresenceClient;
 use ipdf_core::adapters::presence::{
     DiscordPresenceAdapter, NativeDiscordPresenceAdapter, DEFAULT_DISCORD_CLIENT_ID,
 };
-use ipdf_core::core::ports::{PresenceProvider, ReadingActivity};
+use ipdf_core::core::ports::{PresenceActivity, PresenceProvider, ReadingActivity};
 use ipdf_core::core::services::RichPresenceManager;
 
 #[test]
-fn test_discord_presence_start_and_publish_activity() {
+fn test_discord_presence_start_and_publish_reading_activity() {
     let client = FakeDiscordPresenceClient::default();
     let mut adapter = DiscordPresenceAdapter::new(1234567890, true, client);
 
@@ -28,12 +28,14 @@ fn test_discord_presence_start_and_publish_activity() {
         session_started_at_ms: 1_700_000_000_000,
     };
 
-    adapter.publish_activity(&activity).unwrap();
+    adapter
+        .publish_activity(&PresenceActivity::Reading(activity.clone()))
+        .unwrap();
 
     // Verify client was started
     assert!(adapter.client().started);
 
-    // Verify activity details and state
+    // Verify activity details and state (in English)
     let activities = &adapter.client().activities;
     assert_eq!(activities.len(), 1);
     assert_eq!(
@@ -42,56 +44,116 @@ fn test_discord_presence_start_and_publish_activity() {
     );
     assert_eq!(
         activities[0].state,
-        "Part 1: Chapter 2 — Pág. 45/350 (12.9%)"
+        "Part 1: Chapter 2 — Page 45 of 350 (12.9%)"
     );
     assert_eq!(activities[0].start_time_secs, 1_700_000_000);
     assert_eq!(activities[0].large_image.as_deref(), Some("app_logo"));
+    assert_eq!(
+        activities[0].large_text.as_deref(),
+        Some("Scholarium — Active Study Reader")
+    );
 
     // Second publish should not re-start the client
-    adapter.publish_activity(&activity).unwrap();
+    adapter
+        .publish_activity(&PresenceActivity::Reading(activity))
+        .unwrap();
     assert_eq!(adapter.client().activities.len(), 2);
 }
 
 #[test]
-fn test_discord_presence_full_lifecycle_and_formatting() {
+fn test_discord_presence_library_and_annotations_formatting() {
     let client = FakeDiscordPresenceClient::default();
     let mut adapter = DiscordPresenceAdapter::new(9999, true, client);
 
-    let activity = ReadingActivity {
-        book_hash: "hash-clean-code".to_string(),
-        book_title: "Clean Code".to_string(),
-        book_author: "Robert C. Martin".to_string(),
-        chapter_title: Some("Meaningful Names".to_string()),
-        current_page: 25,
-        total_pages: 400,
-        percentage: 6.25,
-        state: "reading".to_string(),
-        session_started_at_ms: 1_690_000_000_000,
+    // 1. Library with multiple books
+    let library_activity = PresenceActivity::Library {
+        total_books: 12,
+        session_started_at_ms: 1_700_000_000_000,
     };
-
-    assert!(adapter.publish_activity(&activity).is_ok());
-
-    // Clear activity
-    assert!(adapter.clear_activity().is_ok());
-    assert_eq!(adapter.client().clear_calls, 1);
-
-    // Format check without chapter and unknown author
-    let activity_no_chapter = ReadingActivity {
-        book_hash: "hash-notes".to_string(),
-        book_title: "Study Notes".to_string(),
-        book_author: "Unknown".to_string(),
-        chapter_title: None,
-        current_page: 5,
-        total_pages: 10,
-        percentage: 50.0,
-        state: "listening_tts".to_string(),
-        session_started_at_ms: 1_690_000_000_000,
-    };
-    assert!(adapter.publish_activity(&activity_no_chapter).is_ok());
+    adapter.publish_activity(&library_activity).unwrap();
 
     let activities = &adapter.client().activities;
-    assert_eq!(activities.last().unwrap().details, "Study Notes");
-    assert_eq!(activities.last().unwrap().state, "Página 5 de 10 (50.0%)");
+    assert_eq!(activities.len(), 1);
+    assert_eq!(activities[0].details, "Browsing Library");
+    assert_eq!(activities[0].state, "12 books in collection");
+    assert_eq!(
+        activities[0].large_text.as_deref(),
+        Some("Scholarium — Library")
+    );
+
+    // 2. Library with single book
+    let single_book = PresenceActivity::Library {
+        total_books: 1,
+        session_started_at_ms: 0,
+    };
+    adapter.publish_activity(&single_book).unwrap();
+    assert_eq!(
+        adapter.client().activities.last().unwrap().state,
+        "1 book in collection"
+    );
+
+    // 3. Annotations with multiple notes
+    let notes_activity = PresenceActivity::Annotations {
+        total_annotations: 42,
+        session_started_at_ms: 1_700_000_000_000,
+    };
+    adapter.publish_activity(&notes_activity).unwrap();
+    assert_eq!(
+        adapter.client().activities.last().unwrap().details,
+        "Reviewing Annotations"
+    );
+    assert_eq!(
+        adapter.client().activities.last().unwrap().state,
+        "42 notes taken"
+    );
+    assert_eq!(
+        adapter
+            .client()
+            .activities
+            .last()
+            .unwrap()
+            .large_text
+            .as_deref(),
+        Some("Scholarium — Annotations")
+    );
+
+    // 4. Annotations with single note
+    let single_note = PresenceActivity::Annotations {
+        total_annotations: 1,
+        session_started_at_ms: 0,
+    };
+    adapter.publish_activity(&single_note).unwrap();
+    assert_eq!(
+        adapter.client().activities.last().unwrap().state,
+        "1 note taken"
+    );
+}
+
+#[test]
+fn test_discord_presence_healthcheck() {
+    let client = FakeDiscordPresenceClient {
+        healthy: true,
+        ..Default::default()
+    };
+
+    let mut adapter = DiscordPresenceAdapter::new(8888, true, client);
+
+    // Enabled and healthy
+    let health = adapter.check_health().unwrap();
+    assert!(health.ok);
+    assert_eq!(health.message, "Connected to Discord client");
+
+    // Client reports unhealthy (Discord closed/not detected)
+    adapter.client_mut().healthy = false;
+    let health = adapter.check_health().unwrap();
+    assert!(!health.ok);
+    assert!(health.message.contains("not running or not detected"));
+
+    // Disabled in settings
+    adapter.set_enabled(false);
+    let health = adapter.check_health().unwrap();
+    assert!(!health.ok);
+    assert!(health.message.contains("disabled in settings"));
 }
 
 #[test]
@@ -101,15 +163,8 @@ fn test_discord_presence_disabled_behavior() {
 
     assert!(!adapter.is_enabled());
 
-    let activity = ReadingActivity {
-        book_hash: "hash-1".to_string(),
-        book_title: "Test".to_string(),
-        book_author: "Author".to_string(),
-        chapter_title: None,
-        current_page: 1,
-        total_pages: 100,
-        percentage: 1.0,
-        state: "reading".to_string(),
+    let activity = PresenceActivity::Library {
+        total_books: 5,
         session_started_at_ms: 1000,
     };
 
@@ -137,15 +192,8 @@ fn test_discord_presence_fallback_on_asset_failure() {
     };
 
     let mut adapter = DiscordPresenceAdapter::new(7777, true, client);
-    let activity = ReadingActivity {
-        book_hash: "h".to_string(),
-        book_title: "T".to_string(),
-        book_author: "A".to_string(),
-        chapter_title: None,
-        current_page: 1,
-        total_pages: 10,
-        percentage: 10.0,
-        state: "reading".to_string(),
+    let activity = PresenceActivity::Library {
+        total_books: 1,
         session_started_at_ms: 1000,
     };
 
@@ -161,7 +209,7 @@ fn test_discord_presence_integrated_with_rich_presence_manager() {
     let mut manager = RichPresenceManager::new(3000);
     manager.register_provider(adapter);
 
-    let activity = ReadingActivity {
+    let reading = ReadingActivity {
         book_hash: "h".to_string(),
         book_title: "Book".to_string(),
         book_author: "Author".to_string(),
@@ -173,21 +221,33 @@ fn test_discord_presence_integrated_with_rich_presence_manager() {
         session_started_at_ms: 1000,
     };
 
-    // First dispatch
-    manager.update_activity(&activity, 1000, false);
+    // Reading dispatch with debounce
+    manager.update_reading_activity(&reading, 1000, false);
+    manager.update_reading_activity(&reading, 2000, false);
+    manager.update_reading_activity(&reading, 2500, true);
 
-    // Debounced dispatch (within 3000ms window)
-    manager.update_activity(&activity, 2000, false);
+    // Library dispatch
+    let library_act = PresenceActivity::Library {
+        total_books: 10,
+        session_started_at_ms: 3000,
+    };
+    manager.update_activity(&library_act, 3000, true);
 
-    // Immediate dispatch bypasses debounce
-    manager.update_activity(&activity, 2500, true);
+    // Healthcheck through manager
+    let health = manager.check_provider_health("discord").unwrap();
+    assert!(health.ok);
 
     // Set provider enabled toggle via manager
     manager.set_provider_enabled("discord", false);
+    assert!(!manager.is_provider_enabled("discord"));
     manager.set_provider_enabled("discord", true);
+    assert!(manager.is_provider_enabled("discord"));
 
     // Clear all presence
     manager.clear_all_presence();
+
+    // Check unknown provider health
+    assert!(manager.check_provider_health("unknown").is_err());
 }
 
 #[test]

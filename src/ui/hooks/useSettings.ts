@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import type { PresenceHealthStatus } from '../../core/ports/IPresenceService';
 import { useServiceContainer } from '../providers/ServiceContainerContext';
 
 export interface SettingsHook {
@@ -6,6 +7,8 @@ export interface SettingsHook {
   readonly newFolderInput: string;
   readonly isDriveConnected: boolean;
   readonly isDiscordEnabled: boolean;
+  readonly discordHealth: PresenceHealthStatus | null;
+  readonly isCheckingDiscordHealth: boolean;
   readonly syncStatusMessage: string | null;
   readonly syncExportPreview: string;
   readonly showResetConfirm: boolean;
@@ -15,6 +18,7 @@ export interface SettingsHook {
   removeFolder(index: number): void;
   toggleDriveConnection(): void;
   toggleDiscordPresence(): Promise<void>;
+  checkDiscordHealth(): Promise<void>;
   triggerSync(bookHash?: string): Promise<void>;
   resetDatabase(): Promise<void>;
 }
@@ -29,27 +33,58 @@ export function useSettings(): SettingsHook {
   const [newFolderInput, setNewFolderInput] = useState<string>('');
   const [isDriveConnected, setIsDriveConnected] = useState<boolean>(true);
   const [isDiscordEnabled, setIsDiscordEnabled] = useState<boolean>(true);
+  const [discordHealth, setDiscordHealth] = useState<PresenceHealthStatus | null>(null);
+  const [isCheckingDiscordHealth, setIsCheckingDiscordHealth] = useState<boolean>(false);
   const [syncStatusMessage, setSyncStatusMessage] = useState<string | null>(null);
   const [syncExportPreview, setSyncExportPreview] = useState<string>('');
   const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false);
+
+  const checkDiscordHealth = useCallback(async () => {
+    setIsCheckingDiscordHealth(true);
+    try {
+      const status = await presenceService.getDiscordPresenceHealth();
+      setDiscordHealth(status);
+    } catch (err) {
+      setDiscordHealth({
+        ok: false,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setIsCheckingDiscordHealth(false);
+    }
+  }, [presenceService]);
 
   useEffect(() => {
     let mounted = true;
     void settingsService.getAppSetting('discord_presence_enabled').then((val) => {
       if (mounted && val !== null) {
-        setIsDiscordEnabled(val !== 'false');
+        const enabled = val !== 'false';
+        setIsDiscordEnabled(enabled);
+        if (enabled) {
+          void checkDiscordHealth();
+        }
+      } else if (mounted) {
+        void checkDiscordHealth();
       }
     });
     return () => {
       mounted = false;
     };
-  }, [settingsService]);
+  }, [settingsService, checkDiscordHealth]);
 
   const toggleDiscordPresence = useCallback(async () => {
     const next = !isDiscordEnabled;
     setIsDiscordEnabled(next);
     await presenceService.setDiscordPresenceEnabled(next);
-  }, [isDiscordEnabled, presenceService]);
+    if (next) {
+      await checkDiscordHealth();
+    } else {
+      setDiscordHealth({
+        ok: false,
+        message: 'Discord Rich Presence is disabled in settings',
+      });
+    }
+  }, [isDiscordEnabled, presenceService, checkDiscordHealth]);
 
   const addFolder = useCallback(() => {
     if (newFolderInput.trim().length > 0) {
@@ -85,6 +120,8 @@ export function useSettings(): SettingsHook {
     newFolderInput,
     isDriveConnected,
     isDiscordEnabled,
+    discordHealth,
+    isCheckingDiscordHealth,
     syncStatusMessage,
     syncExportPreview,
     showResetConfirm,
@@ -94,6 +131,7 @@ export function useSettings(): SettingsHook {
     removeFolder,
     toggleDriveConnection,
     toggleDiscordPresence,
+    checkDiscordHealth,
     triggerSync,
     resetDatabase,
   };

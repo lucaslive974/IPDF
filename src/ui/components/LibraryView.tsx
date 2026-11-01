@@ -1,8 +1,9 @@
-import { type ChangeEvent, useRef, useState } from 'react';
+import { type ChangeEvent, useEffect, useRef, useState } from 'react';
 import type { BookMetadata } from '../../core/domain/BookMetadata';
 import { useLibrary } from '../hooks/useLibrary';
 import { useNavigation } from '../hooks/useNavigation';
 import { useTheme } from '../hooks/useTheme';
+import { useServiceContainer } from '../providers/ServiceContainerContext';
 import { BooksGrid } from './library/BooksGrid';
 import { DeleteBookDialog } from './library/DeleteBookDialog';
 import { LibraryAnnotationsTab } from './library/LibraryAnnotationsTab';
@@ -29,6 +30,7 @@ export function LibraryView({
   const library = useLibrary();
   const navigation = useNavigation();
   const { theme, toggleTheme } = useTheme();
+  const { presenceService } = useServiceContainer();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const books = propBooks ?? library.books;
@@ -39,6 +41,12 @@ export function LibraryView({
   const [searchQuery, setSearchQuery] = useState('');
   const [bookToRename, setBookToRename] = useState<BookMetadata | null>(null);
   const [bookToDelete, setBookToDelete] = useState<BookMetadata | null>(null);
+
+  useEffect(() => {
+    if (activeTab !== 'highlights') {
+      void presenceService.updateLibraryPresence(books.length);
+    }
+  }, [activeTab, books.length, presenceService]);
 
   const handleOpenFileInput = () => {
     if (propOnImportNewBook) {

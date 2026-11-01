@@ -3,8 +3,8 @@
 use ipdf_core::core::domain::{BookFormat, BookMetadata, BookStorageLocation, Highlight};
 use ipdf_core::core::ports::{
     BookRepository, ExportStrategy, HighlightRepository, MediaControlService, MediaMetadata,
-    PlaybackState, PowerSaveBlocker, PresenceProvider, ReadingActivity, SpeakOptions, StorageEntry,
-    StorageProvider, SyncPayload, TtsProvider,
+    PlaybackState, PowerSaveBlocker, PresenceActivity, PresenceHealth, PresenceProvider,
+    SpeakOptions, StorageEntry, StorageProvider, SyncPayload, TtsProvider,
 };
 use std::collections::BTreeMap;
 
@@ -237,7 +237,7 @@ pub struct SpyPresence {
     pub id: String,
     pub enabled: bool,
     pub should_fail: bool,
-    pub published: Vec<ReadingActivity>,
+    pub published: Vec<PresenceActivity>,
 }
 
 impl PresenceProvider for SpyPresence {
@@ -250,7 +250,7 @@ impl PresenceProvider for SpyPresence {
     fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
     }
-    fn publish_activity(&mut self, activity: &ReadingActivity) -> Result<(), String> {
+    fn publish_activity(&mut self, activity: &PresenceActivity) -> Result<(), String> {
         if self.should_fail {
             return Err("Simulated IPC error".to_string());
         }
@@ -260,6 +260,19 @@ impl PresenceProvider for SpyPresence {
     fn clear_activity(&mut self) -> Result<(), String> {
         self.published.clear();
         Ok(())
+    }
+    fn check_health(&self) -> Result<PresenceHealth, String> {
+        if self.should_fail {
+            Ok(PresenceHealth {
+                ok: false,
+                message: "Simulated health error".to_string(),
+            })
+        } else {
+            Ok(PresenceHealth {
+                ok: true,
+                message: "Healthy".to_string(),
+            })
+        }
     }
 }
 
@@ -347,13 +360,26 @@ pub struct RecordedActivity {
     pub large_text: Option<String>,
 }
 
-#[derive(Default)]
 pub struct FakeDiscordPresenceClient {
     pub started: bool,
     pub fail_start: bool,
     pub fail_set: bool,
+    pub healthy: bool,
     pub activities: Vec<RecordedActivity>,
     pub clear_calls: usize,
+}
+
+impl Default for FakeDiscordPresenceClient {
+    fn default() -> Self {
+        Self {
+            started: false,
+            fail_start: false,
+            fail_set: false,
+            healthy: true,
+            activities: Vec::new(),
+            clear_calls: 0,
+        }
+    }
 }
 
 impl ipdf_core::adapters::presence::DiscordPresenceClient for FakeDiscordPresenceClient {
@@ -393,5 +419,19 @@ impl ipdf_core::adapters::presence::DiscordPresenceClient for FakeDiscordPresenc
     fn clear_activity(&mut self) -> Result<(), String> {
         self.clear_calls += 1;
         Ok(())
+    }
+
+    fn check_health(&self) -> Result<PresenceHealth, String> {
+        if self.healthy {
+            Ok(PresenceHealth {
+                ok: true,
+                message: "Connected to Discord client".to_string(),
+            })
+        } else {
+            Ok(PresenceHealth {
+                ok: false,
+                message: "Discord client is not running or not detected".to_string(),
+            })
+        }
     }
 }

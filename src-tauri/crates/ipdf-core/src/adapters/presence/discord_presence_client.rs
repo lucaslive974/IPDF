@@ -1,5 +1,7 @@
+use crate::core::ports::PresenceHealth;
 use discord_presence::Client as DiscordRpcClient;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{channel, Sender};
 use std::sync::Arc;
 
 pub trait DiscordPresenceClient: Send {
@@ -14,24 +16,94 @@ pub trait DiscordPresenceClient: Send {
         large_text: Option<&str>,
     ) -> Result<(), String>;
     fn clear_activity(&mut self) -> Result<(), String>;
+    fn check_health(&self) -> Result<PresenceHealth, String>;
+}
+
+enum DiscordWorkerCommand {
+    Start,
+    SetActivity {
+        details: String,
+        state: String,
+        start_time_secs: i64,
+        large_image: Option<String>,
+        large_text: Option<String>,
+    },
+    ClearActivity,
 }
 
 pub struct NativeDiscordPresenceClient {
-    client: DiscordRpcClient,
+    tx: Sender<DiscordWorkerCommand>,
     started: Arc<AtomicBool>,
+    ready: Arc<AtomicBool>,
 }
 
 impl NativeDiscordPresenceClient {
     pub fn new(client_id: u64) -> Self {
-        let client = DiscordRpcClient::new(client_id);
+        let mut client = DiscordRpcClient::new(client_id);
         let started = Arc::new(AtomicBool::new(false));
-        let started_clone = Arc::clone(&started);
+        let ready = Arc::new(AtomicBool::new(false));
+
+        let ready_clone = Arc::clone(&ready);
         client
             .on_ready(move |_| {
-                started_clone.store(true, Ordering::SeqCst);
+                ready_clone.store(true, Ordering::SeqCst);
             })
             .persist();
-        Self { client, started }
+
+        let ready_for_err = Arc::clone(&ready);
+        client
+            .on_error(move |_| {
+                ready_for_err.store(false, Ordering::SeqCst);
+            })
+            .persist();
+
+        let (tx, rx) = channel::<DiscordWorkerCommand>();
+
+        let _ = std::thread::Builder::new()
+            .name("discord-presence-worker".to_string())
+            .spawn(move || {
+                while let Ok(cmd) = rx.recv() {
+                    match cmd {
+                        DiscordWorkerCommand::Start => {
+                            client.start();
+                        }
+                        DiscordWorkerCommand::SetActivity {
+                            details,
+                            state,
+                            start_time_secs,
+                            large_image,
+                            large_text,
+                        } => {
+                            let res = client.set_activity(|act| {
+                                let mut act = act.details(details.clone()).state(state.clone());
+                                if start_time_secs > 0 {
+                                    act = act.timestamps(|t| t.start(start_time_secs as u64));
+                                }
+                                if let (Some(ref img), Some(ref txt)) = (&large_image, &large_text)
+                                {
+                                    act = act.assets(|a| a.large_image(img).large_text(txt));
+                                }
+                                act
+                            });
+
+                            if res.is_err() && (large_image.is_some() || large_text.is_some()) {
+                                let _ = client.set_activity(|act| {
+                                    let mut act = act.details(details).state(state);
+                                    if start_time_secs > 0 {
+                                        act = act.timestamps(|t| t.start(start_time_secs as u64));
+                                    }
+                                    act
+                                });
+                            }
+                        }
+                        DiscordWorkerCommand::ClearActivity => {
+                            let _ = client.clear_activity();
+                        }
+                    }
+                }
+            });
+
+        Self { tx, started, ready }
     }
 }
 
@@ -41,8 +113,10 @@ impl DiscordPresenceClient for NativeDiscordPresenceClient {
     }
 
     fn start(&mut self) -> Result<(), String> {
-        self.client.start();
-        Ok(())
+        self.started.store(true, Ordering::SeqCst);
+        self.tx
+            .send(DiscordWorkerCommand::Start)
+            .map_err(|e| e.to_string())
     }
 
     fn set_activity(
@@ -53,30 +127,35 @@ impl DiscordPresenceClient for NativeDiscordPresenceClient {
         large_image: Option<&str>,
         large_text: Option<&str>,
     ) -> Result<(), String> {
-        let details = details.to_string();
-        let state = state.to_string();
-        let large_image = large_image.map(|s| s.to_string());
-        let large_text = large_text.map(|s| s.to_string());
-
-        self.client
-            .set_activity(|act| {
-                let mut act = act.details(details).state(state);
-                if start_time_secs > 0 {
-                    act = act.timestamps(|t| t.start(start_time_secs as u64));
-                }
-                if let (Some(img), Some(txt)) = (large_image, large_text) {
-                    act = act.assets(|a| a.large_image(img).large_text(txt));
-                }
-                act
+        self.tx
+            .send(DiscordWorkerCommand::SetActivity {
+                details: details.to_string(),
+                state: state.to_string(),
+                start_time_secs,
+                large_image: large_image.map(|s| s.to_string()),
+                large_text: large_text.map(|s| s.to_string()),
             })
-            .map(|_| ())
             .map_err(|e| e.to_string())
     }
 
     fn clear_activity(&mut self) -> Result<(), String> {
-        self.client
-            .clear_activity()
-            .map(|_| ())
+        self.tx
+            .send(DiscordWorkerCommand::ClearActivity)
             .map_err(|e| e.to_string())
+    }
+
+    fn check_health(&self) -> Result<PresenceHealth, String> {
+        let is_ready = self.ready.load(Ordering::SeqCst) || DiscordRpcClient::is_ready();
+        if is_ready {
+            Ok(PresenceHealth {
+                ok: true,
+                message: "Connected to Discord client".to_string(),
+            })
+        } else {
+            Ok(PresenceHealth {
+                ok: false,
+                message: "Discord client is not running or not detected".to_string(),
+            })
+        }
     }
 }

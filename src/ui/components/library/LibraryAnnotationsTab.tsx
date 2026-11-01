@@ -1,5 +1,6 @@
 import { memo, useEffect, useMemo } from 'react';
 import { useLibraryAnnotations } from '../../hooks/useLibraryAnnotations';
+import { useServiceContainer } from '../../providers/ServiceContainerContext';
 import { useLibraryStore } from '../../stores/useLibraryStore';
 import { BookIcon, Button, EmptyState, FilterButton } from '../ui';
 import { BookAnnotationGroupCard } from './BookAnnotationGroupCard';
@@ -12,6 +13,7 @@ export const LibraryAnnotationsTab = memo(function LibraryAnnotationsTab({
   searchQuery = '',
 }: LibraryAnnotationsTabProps) {
   const { books } = useLibraryStore();
+  const { presenceService } = useServiceContainer();
   const {
     groupedByBook,
     isLoading,
@@ -26,6 +28,11 @@ export const LibraryAnnotationsTab = memo(function LibraryAnnotationsTab({
     jumpToReader,
     copyQuote,
   } = useLibraryAnnotations();
+
+  // Sync presence when reviewing annotations
+  useEffect(() => {
+    void presenceService.updateAnnotationsPresence(totalAnnotationsCount);
+  }, [totalAnnotationsCount, presenceService]);
 
   // Sync external search query from LibraryView header
   useEffect(() => {

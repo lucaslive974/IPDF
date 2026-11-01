@@ -79,9 +79,9 @@ fn test_cached_storage_decorator_and_presence_debounce() {
         session_started_at_ms: 1000,
     };
 
-    presence.update_activity(&activity, 1000, false);
-    presence.update_activity(&activity, 2000, false);
-    presence.update_activity(&activity, 2500, true);
+    presence.update_reading_activity(&activity, 1000, false);
+    presence.update_reading_activity(&activity, 2000, false);
+    presence.update_reading_activity(&activity, 2500, true);
     presence.clear_all_presence();
 
     let ctx = ReadingContext {

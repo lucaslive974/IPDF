@@ -56,6 +56,6 @@ pub fn update_book_progress(
         state: "reading".to_string(),
         session_started_at_ms: now,
     };
-    guard.presence_manager.update_activity(&activity, now, false);
+    guard.presence_manager.update_reading_activity(&activity, now, false);
     Ok(meta)
 }

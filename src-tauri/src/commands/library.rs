@@ -80,7 +80,7 @@ pub fn open_book_file(
         state: "reading".to_string(),
         session_started_at_ms: now,
     };
-    guard.presence_manager.update_activity(&activity, now, true);
+    guard.presence_manager.update_reading_activity(&activity, now, true);
     Ok(metadata)
 }
 

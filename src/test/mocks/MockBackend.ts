@@ -9,6 +9,7 @@ import type {
   ISettingsService,
   ImportLibraryBookInput,
   LLMRequest,
+  PresenceHealthStatus,
   ReadingContext,
 } from '../../core/ports';
 
@@ -222,5 +223,23 @@ export class MockBackend
 
   public async clearRichPresence(): Promise<void> {
     this.settings.set('discord_presence_cleared', 'true');
+  }
+
+  public async updateLibraryPresence(totalBooks: number): Promise<void> {
+    this.settings.set('discord_presence_library', String(totalBooks));
+  }
+
+  public async updateAnnotationsPresence(totalAnnotations: number): Promise<void> {
+    this.settings.set('discord_presence_annotations', String(totalAnnotations));
+  }
+
+  public async getDiscordPresenceHealth(): Promise<PresenceHealthStatus> {
+    const isEnabled = this.settings.get('discord_presence_enabled') !== 'false';
+    return {
+      ok: isEnabled,
+      message: isEnabled
+        ? 'Connected to Discord client'
+        : 'Discord Rich Presence is disabled in settings',
+    };
   }
 }
