@@ -7,24 +7,7 @@ export interface AssistedTextAnnotationData {
   readonly updatedAt: Date;
 }
 
-export interface TldrawBoardAnnotationData {
-  readonly type: 'tldraw';
-  readonly rawData: string;
-  readonly svgPreview?: string;
-  readonly updatedAt: Date;
-}
-
-export interface DrawioDiagramAnnotationData {
-  readonly type: 'drawio';
-  readonly rawData: string;
-  readonly svgPreview?: string;
-  readonly updatedAt: Date;
-}
-
-export type IRichAnnotation =
-  | AssistedTextAnnotationData
-  | TldrawBoardAnnotationData
-  | DrawioDiagramAnnotationData;
+export type IRichAnnotation = AssistedTextAnnotationData;
 
 export function createAssistedTextAnnotation(
   rawData: string,
@@ -33,32 +16,6 @@ export function createAssistedTextAnnotation(
   return {
     type: 'assisted-markdown',
     rawData,
-    updatedAt,
-  };
-}
-
-export function createTldrawBoardAnnotation(
-  rawData: string,
-  svgPreview?: string,
-  updatedAt: Date = new Date()
-): TldrawBoardAnnotationData {
-  return {
-    type: 'tldraw',
-    rawData,
-    svgPreview,
-    updatedAt,
-  };
-}
-
-export function createDrawioDiagramAnnotation(
-  rawData: string,
-  svgPreview?: string,
-  updatedAt: Date = new Date()
-): DrawioDiagramAnnotationData {
-  return {
-    type: 'drawio',
-    rawData,
-    svgPreview,
     updatedAt,
   };
 }

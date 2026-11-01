@@ -3,8 +3,6 @@ import { Highlight } from '../../core/domain/Highlight';
 import {
   type IRichAnnotation,
   createAssistedTextAnnotation,
-  createDrawioDiagramAnnotation,
-  createTldrawBoardAnnotation,
 } from '../../core/domain/RichAnnotation';
 import type { HighlightAnchor, RichAnnotationType } from '../../core/domain/types';
 import type { IHighlightService } from '../../core/ports/IHighlightService';
@@ -32,10 +30,6 @@ type AnnotationDeserializer = (dto: SerializedRichAnnotation) => IRichAnnotation
 
 const ANNOTATION_DESERIALIZERS: Record<RichAnnotationType, AnnotationDeserializer> = {
   'assisted-markdown': (dto) => createAssistedTextAnnotation(dto.rawData, new Date(dto.updatedAt)),
-  tldraw: (dto) =>
-    createTldrawBoardAnnotation(dto.rawData, dto.svgPreview, new Date(dto.updatedAt)),
-  drawio: (dto) =>
-    createDrawioDiagramAnnotation(dto.rawData, dto.svgPreview, new Date(dto.updatedAt)),
 };
 
 export function serializeHighlight(highlight: Highlight): SerializedHighlight {

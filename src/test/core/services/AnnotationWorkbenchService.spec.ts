@@ -1,9 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AssistedRichTextStrategy } from '../../../adapters/annotations/AssistedRichTextStrategy';
-import {
-  DrawioAnnotationStrategy,
-  TldrawAnnotationStrategy,
-} from '../../../adapters/annotations/DiagramAnnotationStrategies';
 import type { AnnotationFormatterMap } from '../../../core/domain/RichAnnotation';
 import { AnnotationWorkbenchService } from '../../../core/services/AnnotationWorkbenchService';
 import { MockBackend } from '../../mocks/MockBackend';
@@ -27,11 +23,7 @@ describe('AnnotationWorkbenchService (60fps Frontend Strategy + Backend Persiste
 
   beforeEach(() => {
     backend = new MockBackend();
-    service = new AnnotationWorkbenchService(backend, [
-      new AssistedRichTextStrategy(),
-      new TldrawAnnotationStrategy(),
-      new DrawioAnnotationStrategy(),
-    ]);
+    service = new AnnotationWorkbenchService(backend, [new AssistedRichTextStrategy()]);
   });
 
   it('should create a highlight, persist via gateway, and merge overlapping selections', async () => {
@@ -151,42 +143,12 @@ describe('AnnotationWorkbenchService (60fps Frontend Strategy + Backend Persiste
       text: 'Added appendix',
     });
 
-    await service.interactWithAnnotation(hl.id, 'tldraw', {
-      target: 'tldraw',
-      action: 'save-snapshot',
-      snapshotJson: '{"shapes":[1]}',
-      svgPreview: '<svg>tldraw</svg>',
-    });
-
-    await service.interactWithAnnotation(hl.id, 'drawio', {
-      target: 'drawio',
-      action: 'save-diagram',
-      xmlOrJsonDiagram: '<mxGraphModel/>',
-      svgPreview: '<svg>drawio</svg>',
-    });
-
     const formatterMap: AnnotationFormatterMap<string> = {
       'assisted-markdown': (n) => `TEXT:${n.rawData.length > 0}`,
-      tldraw: (n) => `TLDRAW:${n.svgPreview}`,
-      drawio: (n) => `DRAWIO:${n.svgPreview}`,
     };
 
     const formatted = service.formatHighlightAnnotations(hl.id, formatterMap);
-    expect(formatted).toEqual([
-      'TEXT:true',
-      'TLDRAW:<svg>tldraw</svg>',
-      'DRAWIO:<svg>drawio</svg>',
-    ]);
-
-    await service.interactWithAnnotation(hl.id, 'tldraw', {
-      target: 'tldraw',
-      action: 'clear-canvas',
-    });
-
-    await service.interactWithAnnotation(hl.id, 'drawio', {
-      target: 'drawio',
-      action: 'clear-diagram',
-    });
+    expect(formatted).toEqual(['TEXT:true']);
 
     await service.removeHighlight(hl.id);
     expect(service.getForPage(2)).toHaveLength(0);
@@ -231,8 +193,6 @@ describe('AnnotationWorkbenchService (60fps Frontend Strategy + Backend Persiste
     expect(() =>
       bareService.formatHighlightAnnotations('missing_id', {
         'assisted-markdown': () => 'text',
-        tldraw: () => 'canvas',
-        drawio: () => 'diagram',
       })
     ).toThrow('Highlight not found');
   });

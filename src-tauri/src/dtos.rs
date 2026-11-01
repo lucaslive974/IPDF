@@ -48,22 +48,10 @@ pub fn domain_to_ipc_highlight(h: Highlight) -> IpcHighlightDto {
     for (k, v) in &h.annotations {
         let (raw_data, svg_preview) = match v {
             RichAnnotation::AssistedMarkdown { raw_data, .. } => (raw_data.clone(), None),
-            RichAnnotation::Tldraw {
-                raw_data,
-                svg_preview,
-                ..
-            } => (raw_data.clone(), svg_preview.clone()),
-            RichAnnotation::Drawio {
-                raw_data,
-                svg_preview,
-                ..
-            } => (raw_data.clone(), svg_preview.clone()),
         };
         annots.push(IpcRichAnnotationDto {
             r#type: match k {
                 RichAnnotationType::AssistedMarkdown => "assisted-markdown".to_string(),
-                RichAnnotationType::Tldraw => "tldraw".to_string(),
-                RichAnnotationType::Drawio => "drawio".to_string(),
             },
             raw_data,
             svg_preview,
@@ -98,16 +86,6 @@ pub fn ipc_highlight_to_domain(highlight: &IpcHighlightDto, now_ms: i64) -> High
         let rich = match a.r#type.as_str() {
             "assisted-markdown" => RichAnnotation::AssistedMarkdown {
                 raw_data: a.raw_data.clone(),
-                updated_at_ms: now_ms,
-            },
-            "tldraw" => RichAnnotation::Tldraw {
-                raw_data: a.raw_data.clone(),
-                svg_preview: a.svg_preview.clone(),
-                updated_at_ms: now_ms,
-            },
-            "drawio" => RichAnnotation::Drawio {
-                raw_data: a.raw_data.clone(),
-                svg_preview: a.svg_preview.clone(),
                 updated_at_ms: now_ms,
             },
             _ => continue,

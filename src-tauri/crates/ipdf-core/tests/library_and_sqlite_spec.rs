@@ -142,20 +142,12 @@ fn test_sqlite_highlight_repository() {
         },
         11_000,
     );
-    hl.set_rich_annotation(
-        RichAnnotation::Tldraw {
-            raw_data: "{\"shapes\":[]}".to_string(),
-            svg_preview: Some("<svg>board</svg>".to_string()),
-            updated_at_ms: 11_500,
-        },
-        11_500,
-    );
 
     hl_repo.save(hl.clone()).unwrap();
 
     let by_id = hl_repo.find_by_id("hl-spinoza-1").unwrap().unwrap();
     assert_eq!(by_id.text, "Deus sive Natura");
-    assert_eq!(by_id.annotations.len(), 2);
+    assert_eq!(by_id.annotations.len(), 1);
 
     let by_page = hl_repo
         .find_by_book_and_page("sha256-ethics-spinoza", 12)

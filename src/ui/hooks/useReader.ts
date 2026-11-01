@@ -39,8 +39,6 @@ export const createEmptyRect = (): DOMRect =>
 
 export const ANNOTATION_FORMATTERS: AnnotationFormatterMap<string> = {
   'assisted-markdown': (node) => `[Assisted Text] ${node.rawData}`,
-  tldraw: (node) => `[tldraw Board] ${node.rawData} | SVG: ${node.svgPreview}`,
-  drawio: (node) => `[draw.io Diagram] ${node.rawData} | SVG: ${node.svgPreview}`,
 };
 
 export interface ReaderViewModel {
@@ -82,7 +80,6 @@ export interface ReaderViewModel {
   updateNoteDraft(value: string): void;
   updateSelectionRange(start: number, end: number): void;
   applyAssistedFormat(style: TextFormatStyle): Promise<void>;
-  attachVisualBoard(kind: 'tldraw' | 'drawio'): Promise<void>;
   generateContextualPrompt(customText?: string): Promise<void>;
 }
 
@@ -558,32 +555,6 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
     [annotationWorkbench, currentPage, noteInput, refreshState, selectionRange]
   );
 
-  const attachVisualBoard = useCallback(
-    async (kind: 'tldraw' | 'drawio') => {
-      const activeId = selectedIdRef.current;
-      if (!activeId) return;
-
-      if (kind === 'tldraw') {
-        await annotationWorkbench.interactWithAnnotation(activeId, 'tldraw', {
-          target: 'tldraw',
-          action: 'save-snapshot',
-          snapshotJson: '{"shapes":[{"type":"arrow","from":"Doxa","to":"Noesis"}]}',
-          svgPreview: '<svg viewBox="0 0 120 40"><text>tldraw: Doxa -> Noesis</text></svg>',
-        });
-      } else {
-        await annotationWorkbench.interactWithAnnotation(activeId, 'drawio', {
-          target: 'drawio',
-          action: 'save-diagram',
-          xmlOrJsonDiagram:
-            '<mxGraphModel><root><mxCell id="intelligible-realm"/></root></mxGraphModel>',
-          svgPreview: '<svg viewBox="0 0 120 40"><text>draw.io: Divided Line</text></svg>',
-        });
-      }
-      await refreshState(activeId, currentPage);
-    },
-    [annotationWorkbench, currentPage, refreshState]
-  );
-
   const generateContextualPrompt = useCallback(
     async (customText?: string) => {
       const activeId = selectedIdRef.current;
@@ -637,7 +608,6 @@ export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
     updateNoteDraft,
     updateSelectionRange,
     applyAssistedFormat,
-    attachVisualBoard,
     generateContextualPrompt,
   };
 }

@@ -12,16 +12,14 @@ export interface HighlightDetailModalProps {
   readonly onNoteChange: (text: string) => void;
   readonly onSelectionChange: (start: number, end: number) => void;
   readonly onApplyFormat: (style: TextFormatStyle) => void;
-  readonly onAttachBoard: (kind: 'tldraw' | 'drawio') => void;
   readonly onGeneratePrompt: () => void;
   readonly onClose: () => void;
 }
 
-type StudioTabId = 'text' | 'visual' | 'ai';
+type StudioTabId = 'text' | 'ai';
 
 const STUDIO_TABS: readonly SegmentedControlOption<StudioTabId>[] = [
   { id: 'text', label: 'Assisted Notes' },
-  { id: 'visual', label: 'Diagram Boards' },
   { id: 'ai', label: 'Contextual Synthesis' },
 ];
 
@@ -33,11 +31,10 @@ export function HighlightDetailModal({
   onNoteChange,
   onSelectionChange,
   onApplyFormat,
-  onAttachBoard,
   onGeneratePrompt,
   onClose,
 }: HighlightDetailModalProps) {
-  const [activeTab, setActiveTab] = useState<'text' | 'visual' | 'ai'>('text');
+  const [activeTab, setActiveTab] = useState<'text' | 'ai'>('text');
 
   const titleNode = (
     <div className="flex items-center gap-3">
@@ -108,61 +105,6 @@ export function HighlightDetailModal({
               </div>
             </div>
           )}
-        </div>
-      )}
-
-      {activeTab === 'visual' && (
-        <div className="flex flex-col gap-5">
-          <p className="text-xs text-tx-muted">
-            Attach freehand concept maps (
-            <code className="text-tx-secondary font-semibold">tldraw</code>) or structured
-            architectural flowcharts (
-            <code className="text-tx-secondary font-semibold">draw.io</code>) tied directly to this
-            passage:
-          </p>
-
-          <div className="flex gap-3">
-            <Card
-              variant="interactive"
-              padding="sm"
-              rounded="xl"
-              className="flex-1 text-left"
-              onClick={() => onAttachBoard('tldraw')}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-tx-main">tldraw Canvas</span>
-                <span className="text-xs text-tx-muted font-medium">+ Attach</span>
-              </div>
-              <p className="mt-1 text-xs text-tx-muted">
-                Freeform infinite sketching canvas for conceptual mind maps.
-              </p>
-            </Card>
-
-            <Card
-              variant="interactive"
-              padding="sm"
-              rounded="xl"
-              className="flex-1 text-left"
-              onClick={() => onAttachBoard('drawio')}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-tx-main">draw.io Diagram</span>
-                <span className="text-xs text-tx-muted font-medium">+ Attach</span>
-              </div>
-              <p className="mt-1 text-xs text-tx-muted">
-                Structured nodes, logical hierarchies, and relational diagrams.
-              </p>
-            </Card>
-          </div>
-
-          <Card
-            variant="dashed"
-            padding="lg"
-            rounded="xl"
-            className="text-center text-xs text-tx-faint"
-          >
-            Visual studio canvas viewport will load interactively in this container.
-          </Card>
         </div>
       )}
 

@@ -34,7 +34,7 @@ export interface SentenceNode {
   anchor: HighlightAnchor;
 }
 
-export type RichAnnotationType = 'assisted-markdown' | 'tldraw' | 'drawio';
+export type RichAnnotationType = 'assisted-markdown';
 
 export type TextFormatStyle =
   | { kind: 'bold' }
@@ -66,30 +66,4 @@ export type AssistedMarkdownCommand =
       formatStyle: TextFormatStyle;
     };
 
-export type TldrawCommand =
-  | {
-      target: 'tldraw';
-      action: 'save-snapshot';
-      snapshotJson: string;
-      svgPreview?: string;
-    }
-  | {
-      target: 'tldraw';
-      action: 'clear-canvas';
-      svgPreview?: string;
-    };
-
-export type DrawioCommand =
-  | {
-      target: 'drawio';
-      action: 'save-diagram';
-      xmlOrJsonDiagram: string;
-      svgPreview?: string;
-    }
-  | {
-      target: 'drawio';
-      action: 'clear-diagram';
-      svgPreview?: string;
-    };
-
-export type AnnotationCommand = AssistedMarkdownCommand | TldrawCommand | DrawioCommand;
+export type AnnotationCommand = AssistedMarkdownCommand;

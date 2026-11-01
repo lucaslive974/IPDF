@@ -9,11 +9,7 @@ import {
   TauriSettingsService,
 } from '../../../adapters/ipc';
 import { Highlight } from '../../../core/domain/Highlight';
-import {
-  createAssistedTextAnnotation,
-  createDrawioDiagramAnnotation,
-  createTldrawBoardAnnotation,
-} from '../../../core/domain/RichAnnotation';
+import { createAssistedTextAnnotation } from '../../../core/domain/RichAnnotation';
 import { MockBackend } from '../../mocks/MockBackend';
 
 const storedDtos = new Map<string, SerializedHighlight>();
@@ -218,26 +214,14 @@ describe('Modular Tauri IPC Adapters', () => {
       'User note',
       new Date('2026-03-01T10:00:00.000Z'),
       new Date('2026-03-01T10:00:00.000Z'),
-      [
-        createAssistedTextAnnotation('markdown summary', new Date('2026-03-01T10:00:00.000Z')),
-        createTldrawBoardAnnotation(
-          '{"nodes":[]}',
-          '<svg></svg>',
-          new Date('2026-03-01T10:00:00.000Z')
-        ),
-        createDrawioDiagramAnnotation(
-          '<mxfile></mxfile>',
-          '<svg></svg>',
-          new Date('2026-03-01T10:00:00.000Z')
-        ),
-      ]
+      [createAssistedTextAnnotation('markdown summary', new Date('2026-03-01T10:00:00.000Z'))]
     );
 
     await highlightService.saveHighlight(highlight);
     const loaded = await highlightService.loadBookHighlights('sha256-imported-book');
     expect(loaded).toHaveLength(1);
     expect(loaded[0]?.text).toBe('Important direct quote');
-    expect(loaded[0]?.getAllRichAnnotations()).toHaveLength(3);
+    expect(loaded[0]?.getAllRichAnnotations()).toHaveLength(1);
 
     await highlightService.deleteHighlight('hl-direct');
     const afterDelete = await highlightService.loadBookHighlights('sha256-imported-book');

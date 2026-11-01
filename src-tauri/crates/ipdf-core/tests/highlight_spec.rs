@@ -73,22 +73,8 @@ fn test_highlight_overlap_and_pattern_matching() {
     }
     .attach_to(&mut hl);
 
-    RichAnnotation::Tldraw {
-        raw_data: "{}".to_string(),
-        svg_preview: Some("<svg>board</svg>".to_string()),
-        updated_at_ms: 2500,
-    }
-    .attach_to(&mut hl);
-
-    RichAnnotation::Drawio {
-        raw_data: "<mxGraphModel/>".to_string(),
-        svg_preview: Some("<svg>diagram</svg>".to_string()),
-        updated_at_ms: 2700,
-    }
-    .attach_to(&mut hl);
-
     assert_eq!(hl.note, "**Plato**");
-    assert_eq!(hl.updated_at_ms, 2700);
+    assert_eq!(hl.updated_at_ms, 2000);
 
     // Native pattern matching in Rust
     let formatted: Vec<String> = hl
@@ -96,24 +82,12 @@ fn test_highlight_overlap_and_pattern_matching() {
         .values()
         .map(|ann| match ann {
             RichAnnotation::AssistedMarkdown { raw_data, .. } => format!("MD:{raw_data}"),
-            RichAnnotation::Tldraw { svg_preview, .. } => {
-                format!("TLDRAW:{}", svg_preview.as_deref().unwrap_or_default())
-            }
-            RichAnnotation::Drawio { svg_preview, .. } => {
-                format!("DRAWIO:{}", svg_preview.as_deref().unwrap_or_default())
-            }
         })
         .collect();
 
-    assert_eq!(
-        formatted,
-        vec![
-            "MD:**Plato**",
-            "TLDRAW:<svg>board</svg>",
-            "DRAWIO:<svg>diagram</svg>"
-        ]
-    );
+    assert_eq!(formatted, vec!["MD:**Plato**"]);
 
-    hl.remove_rich_annotation(RichAnnotationType::Tldraw, 3000);
+    hl.remove_rich_annotation(RichAnnotationType::AssistedMarkdown, 3000);
     assert_eq!(hl.updated_at_ms, 3000);
+    assert!(hl.annotations.is_empty());
 }

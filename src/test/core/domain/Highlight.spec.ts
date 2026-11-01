@@ -3,8 +3,6 @@ import { Highlight } from '../../../core/domain/Highlight';
 import {
   type AnnotationFormatterMap,
   createAssistedTextAnnotation,
-  createDrawioDiagramAnnotation,
-  createTldrawBoardAnnotation,
 } from '../../../core/domain/RichAnnotation';
 
 describe('Highlight & RichAnnotation Domain Entities', () => {
@@ -34,14 +32,14 @@ describe('Highlight & RichAnnotation Domain Entities', () => {
     expect(afterColorTime).toBeGreaterThan(afterNoteTime);
 
     vi.advanceTimersByTime(5000);
-    const tldrawAnnotation = createTldrawBoardAnnotation('{"shapes":[]}', '<svg>board</svg>');
-    highlight.setRichAnnotation(tldrawAnnotation);
+    const mdAnnotation = createAssistedTextAnnotation('**Delphic maxim**');
+    highlight.setRichAnnotation(mdAnnotation);
     const afterSetAnnotationTime = highlight.updatedAt.getTime();
     expect(afterSetAnnotationTime).toBeGreaterThan(afterColorTime);
 
     vi.advanceTimersByTime(5000);
-    highlight.removeRichAnnotation('tldraw');
-    expect(highlight.getRichAnnotation('tldraw')).toBeUndefined();
+    highlight.removeRichAnnotation('assisted-markdown');
+    expect(highlight.getRichAnnotation('assisted-markdown')).toBeUndefined();
     expect(highlight.updatedAt.getTime()).toBeGreaterThan(afterSetAnnotationTime);
 
     vi.useRealTimers();
@@ -55,28 +53,17 @@ describe('Highlight & RichAnnotation Domain Entities', () => {
     });
 
     const textAnnotation = createAssistedTextAnnotation('**Plato** _Republic_ Book VII');
-    const tldrawAnnotation = createTldrawBoardAnnotation('{"store":{}}', '<svg>tldraw</svg>');
-    const drawioAnnotation = createDrawioDiagramAnnotation('<mxGraphModel/>', '<svg>drawio</svg>');
-
     highlight.setRichAnnotation(textAnnotation);
-    highlight.setRichAnnotation(tldrawAnnotation);
-    highlight.setRichAnnotation(drawioAnnotation);
 
     expect(highlight.note).toBe('**Plato** _Republic_ Book VII');
-    expect(highlight.getAllRichAnnotations()).toHaveLength(3);
+    expect(highlight.getAllRichAnnotations()).toHaveLength(1);
 
     const formatterMap: AnnotationFormatterMap<string> = {
       'assisted-markdown': (node) => `MD:${node.rawData}`,
-      tldraw: (node) => `TLDRAW:${node.svgPreview}`,
-      drawio: (node) => `DRAWIO:${node.svgPreview}`,
     };
 
     const formattedResults = highlight.formatAnnotations(formatterMap);
-    expect(formattedResults).toEqual([
-      'MD:**Plato** _Republic_ Book VII',
-      'TLDRAW:<svg>tldraw</svg>',
-      'DRAWIO:<svg>drawio</svg>',
-    ]);
+    expect(formattedResults).toEqual(['MD:**Plato** _Republic_ Book VII']);
   });
 
   it('detects exact CFI collision for EPUB highlights', () => {

@@ -47,8 +47,6 @@ pub struct BookPagePayload {
 #[serde(rename_all = "kebab-case")]
 pub enum RichAnnotationType {
     AssistedMarkdown,
-    Tldraw,
-    Drawio,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

@@ -185,7 +185,6 @@ export const ReaderOverlays = memo(function ReaderOverlays() {
           onNoteChange={reader.updateNoteDraft}
           onSelectionChange={reader.updateSelectionRange}
           onApplyFormat={(style) => void reader.applyAssistedFormat(style)}
-          onAttachBoard={(kind) => void reader.attachVisualBoard(kind)}
           onGeneratePrompt={() => void reader.generateContextualPrompt()}
           onClose={reader.closeExpandedStudio}
         />

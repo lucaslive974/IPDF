@@ -208,40 +208,64 @@ export const ReaderPageParagraphs = memo(function ReaderPageParagraphs({
               }
 
               const hl = chunk.highlight;
+              const hasNote = Boolean(hl.note && hl.note.trim().length > 0);
+              const nextChunk = chunks[cIdx + 1];
+              const isLastChunkOfHighlight = !nextChunk || nextChunk.highlight?.id !== hl.id;
+
               return (
-                <span
-                  key={`hl-${hl.id}-${cIdx + 1}`}
-                  className="cursor-pointer select-text transition duration-150 hover:brightness-105 active:opacity-80"
-                  style={{
-                    backgroundColor: `${hl.color}33`,
-                    borderBottom: `1.5px solid ${hl.color}aa`,
-                    borderRadius: '2px',
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    onHighlightClick(hl, {
-                      x: rect.left + rect.width / 2,
-                      y: rect.top,
-                    });
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
+                <span key={`hl-wrapper-${hl.id}-${cIdx + 1}`} className="inline">
+                  <span
+                    key={`hl-${hl.id}-${cIdx + 1}`}
+                    className="cursor-pointer select-text transition duration-150 hover:brightness-105 active:opacity-80"
+                    style={{
+                      backgroundColor: `${hl.color}33`,
+                      borderBottom: `1.5px solid ${hl.color}aa`,
+                      borderRadius: '2px',
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
                       const rect = e.currentTarget.getBoundingClientRect();
                       onHighlightClick(hl, {
                         x: rect.left + rect.width / 2,
                         y: rect.top,
                       });
-                    }
-                  }}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onHighlightContextMenu(e, hl.text, pageNumber);
-                  }}
-                >
-                  {chunk.text}
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        onHighlightClick(hl, {
+                          x: rect.left + rect.width / 2,
+                          y: rect.top,
+                        });
+                      }
+                    }}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onHighlightContextMenu(e, hl.text, pageNumber);
+                    }}
+                  >
+                    {chunk.text}
+                  </span>
+                  {hasNote && isLastChunkOfHighlight && (
+                    <button
+                      type="button"
+                      aria-label="View annotation note"
+                      title={hl.note}
+                      className="inline-flex items-center justify-center align-middle mx-1 px-1 py-0.5 rounded text-[11px] leading-none bg-surface-subtle border border-line-subtle text-tx-secondary hover:text-tx-main hover:bg-surface-hover transition shadow-xs cursor-pointer select-none"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        onHighlightClick(hl, {
+                          x: rect.left + rect.width / 2,
+                          y: rect.top,
+                        });
+                      }}
+                    >
+                      💬
+                    </button>
+                  )}
                 </span>
               );
             })}
