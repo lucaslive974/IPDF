@@ -27,7 +27,12 @@ pub fn seed_bundled_assets_if_needed<S: StorageProvider, R: BookRepository, C: C
                     let _ = library
                         .storage_mut()
                         .write_entry(&entry_name, &cover.data, &cover.mime_type);
-                    Some(entry_name)
+                    let full_path = library
+                        .storage()
+                        .resolve_entry_path(&entry_name)
+                        .map(|p| p.to_string_lossy().to_string())
+                        .unwrap_or(entry_name);
+                    Some(full_path)
                 } else {
                     None
                 }

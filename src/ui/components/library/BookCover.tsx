@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { BookIcon } from '../ui';
 
 export function isValidAuthor(author?: string | null): boolean {
@@ -24,6 +24,9 @@ export const BookCover = memo(function BookCover({
   className = '',
   onClick,
 }: BookCoverProps) {
+  const [failedUrls, setFailedUrls] = useState<Set<string>>(() => new Set());
+  const hasError = coverImageUrl ? failedUrls.has(coverImageUrl) : false;
+
   const interactiveClasses = onClick
     ? 'cursor-pointer hover:opacity-95 active:scale-[0.99] transition duration-150'
     : '';
@@ -37,7 +40,7 @@ export const BookCover = memo(function BookCover({
       }
     : undefined;
 
-  if (coverImageUrl) {
+  if (coverImageUrl && !hasError) {
     return (
       <div
         className={`relative aspect-3/4 w-full overflow-hidden rounded-md bg-surface-subtle shadow-xs border border-line-subtle/60 flex items-center justify-center ${interactiveClasses} ${className}`}
@@ -51,6 +54,11 @@ export const BookCover = memo(function BookCover({
           alt={`Cover of ${title}`}
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
           loading="lazy"
+          onError={() => {
+            if (coverImageUrl) {
+              setFailedUrls((prev) => new Set(prev).add(coverImageUrl));
+            }
+          }}
         />
       </div>
     );

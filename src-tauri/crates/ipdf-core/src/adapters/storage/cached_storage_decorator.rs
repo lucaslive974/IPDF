@@ -117,4 +117,8 @@ impl<L: StorageProvider, P: StorageProvider> StorageProvider for CachedStorageDe
         }
         cache_res
     }
+
+    fn resolve_entry_path(&self, name: &str) -> Option<std::path::PathBuf> {
+        self.local_cache.resolve_entry_path(name)
+    }
 }

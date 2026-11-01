@@ -20,7 +20,17 @@ pub fn list_library_books(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<Vec<BookMetadata>, String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
-    guard.library.list_books()
+    let mut books = guard.library.list_books()?;
+    for book in &mut books {
+        if let Some(ref cover) = book.cover_image_url {
+            if !cover.starts_with('/') && !cover.starts_with("http") && !cover.contains(":\\") {
+                if let Some(resolved) = guard.library.storage().resolve_entry_path(cover) {
+                    book.cover_image_url = Some(resolved.to_string_lossy().to_string());
+                }
+            }
+        }
+    }
+    Ok(books)
 }
 
 #[tauri::command]
@@ -43,7 +53,9 @@ pub fn open_book_file(
                 .is_ok()
             {
                 let full_path = guard.library.storage().resolve_entry_path(&entry_name);
-                let cover_path = full_path.to_string_lossy().to_string();
+                let cover_path = full_path
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or_else(|| entry_name.clone());
                 metadata.cover_image_url = Some(cover_path);
                 if let Some(mut repo_book) = guard
                     .library
@@ -103,7 +115,7 @@ pub fn import_library_book(
                         .is_ok()
                     {
                         let full_path = guard.library.storage().resolve_entry_path(&entry_name);
-                        Some(full_path.to_string_lossy().to_string())
+                        full_path.map(|p| p.to_string_lossy().to_string())
                     } else {
                         None
                     }

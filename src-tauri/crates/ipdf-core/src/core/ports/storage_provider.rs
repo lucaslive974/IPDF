@@ -34,4 +34,7 @@ pub trait StorageProvider {
         mime_type: &str,
     ) -> Result<StorageEntry, String>;
     fn rename_entry(&mut self, old_name: &str, new_name: &str) -> Result<(), String>;
+    fn resolve_entry_path(&self, _name: &str) -> Option<std::path::PathBuf> {
+        None
+    }
 }

@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { isValidAuthor } from '../library/BookCover';
 
 export interface ReaderPageCoverProps {
@@ -12,14 +12,22 @@ export const ReaderPageCover = memo(function ReaderPageCover({
   bookAuthor,
   coverImageUrl,
 }: ReaderPageCoverProps) {
+  const [failedUrls, setFailedUrls] = useState<Set<string>>(() => new Set());
+  const hasError = coverImageUrl ? failedUrls.has(coverImageUrl) : false;
+
   return (
     <div className="w-full flex flex-col items-center justify-center pt-2 pb-8">
-      {coverImageUrl ? (
+      {coverImageUrl && !hasError ? (
         <div className="w-full max-w-xs aspect-3/4 rounded-lg overflow-hidden shadow-lg border border-line-subtle/60 bg-surface-subtle">
           <img
             src={coverImageUrl}
             alt={`Book cover of ${bookTitle}`}
             className="h-full w-full object-cover"
+            onError={() => {
+              if (coverImageUrl) {
+                setFailedUrls((prev) => new Set(prev).add(coverImageUrl));
+              }
+            }}
           />
         </div>
       ) : (

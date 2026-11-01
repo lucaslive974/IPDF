@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import type { Highlight } from '../../../core/domain/Highlight';
 import type { BookAnnotationGroup } from '../../hooks/useLibraryAnnotations';
 import { Badge, BookIcon } from '../ui';
@@ -19,16 +19,24 @@ export const BookAnnotationGroupCard = memo(function BookAnnotationGroupCard({
   onDeleteHighlight,
   onJumpToReader,
 }: BookAnnotationGroupCardProps) {
+  const [failedUrls, setFailedUrls] = useState<Set<string>>(() => new Set());
+  const hasError = group.coverImageUrl ? failedUrls.has(group.coverImageUrl) : false;
+
   return (
     <section className="flex flex-col gap-3 rounded-xl border border-line-subtle bg-surface/50 p-4 shadow-2xs">
       {/* Book header */}
       <div className="flex items-center justify-between gap-3 border-b border-line-subtle pb-3">
         <div className="flex items-center gap-3 min-w-0">
-          {group.coverImageUrl ? (
+          {group.coverImageUrl && !hasError ? (
             <img
               src={group.coverImageUrl}
               alt={group.bookTitle}
               className="h-9 w-7 shrink-0 rounded object-cover shadow-2xs border border-line-subtle"
+              onError={() => {
+                if (group.coverImageUrl) {
+                  setFailedUrls((prev) => new Set(prev).add(group.coverImageUrl as string));
+                }
+              }}
             />
           ) : (
             <div className="flex h-9 w-7 shrink-0 items-center justify-center rounded bg-surface-subtle text-tx-muted border border-line-subtle">

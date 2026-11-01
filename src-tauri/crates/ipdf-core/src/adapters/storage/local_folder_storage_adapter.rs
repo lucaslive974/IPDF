@@ -59,10 +59,6 @@ impl LocalFolderStorageAdapter {
     pub fn root_dir(&self) -> &Path {
         &self.root_dir
     }
-
-    pub fn resolve_entry_path(&self, name: &str) -> PathBuf {
-        self.root_dir.join(name)
-    }
 }
 
 impl StorageProvider for LocalFolderStorageAdapter {
@@ -205,5 +201,9 @@ impl StorageProvider for LocalFolderStorageAdapter {
             }
         }
         fs::rename(&old_path, &new_path).map_err(to_err)
+    }
+
+    fn resolve_entry_path(&self, name: &str) -> Option<PathBuf> {
+        Some(self.root_dir.join(name))
     }
 }
