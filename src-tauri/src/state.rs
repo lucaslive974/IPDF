@@ -1,6 +1,6 @@
 use crate::utils::find_file_argument;
 use ipdf_core::adapters::configuration::SqliteConfigurationStore;
-use ipdf_core::adapters::persistence::SqliteHighlightRepository;
+use ipdf_core::adapters::persistence::{SqliteBookRepository, SqliteHighlightRepository};
 #[allow(unused_imports)]
 use ipdf_core::adapters::platform::{
     AndroidEnvironment, IosEnvironment, LinuxEnvironment, WindowsEnvironment,
@@ -36,7 +36,9 @@ impl Default for BackendState {
 
         let highlight_repo = SqliteHighlightRepository::open_for_platform(&*platform)
             .unwrap_or_else(|_| SqliteHighlightRepository::new_in_memory().unwrap());
-        let mut library = LibraryManager::new(storage);
+        let book_repo = SqliteBookRepository::open_for_platform(&*platform)
+            .unwrap_or_else(|_| SqliteBookRepository::new_in_memory().unwrap());
+        let mut library = LibraryManager::new_with_repo(storage, book_repo);
         let _ = library.initialize();
 
         let config_store = SqliteConfigurationStore::for_platform(&*platform)

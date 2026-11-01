@@ -1,5 +1,5 @@
-use crate::core::domain::{BookFormat, BookMetadata, BookPagePayload};
-use crate::core::ports::StorageProvider;
+use crate::core::domain::{BookFormat, BookMetadata, BookPagePayload, BookStorageLocation};
+use crate::core::ports::{BookRepository, StorageProvider};
 use crate::core::services::Sha256BookHasher;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -40,8 +40,12 @@ pub struct ImportBookInput {
     pub now_ms: i64,
 }
 
-pub struct LibraryManager<S: StorageProvider> {
+pub struct LibraryManager<
+    S: StorageProvider,
+    R: BookRepository = crate::adapters::persistence::SqliteBookRepository,
+> {
     storage: S,
+    book_repo: Option<R>,
     progress_map: BTreeMap<String, ReadingProgress>,
     in_memory_books: BTreeMap<String, Vec<u8>>,
     pages_cache: BTreeMap<String, Vec<BookPagePayload>>,
@@ -49,16 +53,44 @@ pub struct LibraryManager<S: StorageProvider> {
     auto_bundle_assets: bool,
 }
 
-impl<S: StorageProvider> LibraryManager<S> {
+impl<S: StorageProvider> LibraryManager<S, crate::adapters::persistence::SqliteBookRepository> {
     pub fn new(storage: S) -> Self {
         Self {
             storage,
+            book_repo: None,
             progress_map: BTreeMap::new(),
             in_memory_books: BTreeMap::new(),
             pages_cache: BTreeMap::new(),
             deleted_books: BTreeSet::new(),
             auto_bundle_assets: true,
         }
+    }
+}
+
+impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
+    pub fn new_with_repo(storage: S, book_repo: R) -> Self {
+        Self {
+            storage,
+            book_repo: Some(book_repo),
+            progress_map: BTreeMap::new(),
+            in_memory_books: BTreeMap::new(),
+            pages_cache: BTreeMap::new(),
+            deleted_books: BTreeSet::new(),
+            auto_bundle_assets: true,
+        }
+    }
+
+    pub fn with_book_repo(mut self, book_repo: R) -> Self {
+        self.book_repo = Some(book_repo);
+        self
+    }
+
+    pub fn book_repo(&self) -> Option<&R> {
+        self.book_repo.as_ref()
+    }
+
+    pub fn book_repo_mut(&mut self) -> Option<&mut R> {
+        self.book_repo.as_mut()
     }
 
     pub fn without_bundled_assets(mut self) -> Self {
@@ -210,8 +242,8 @@ impl<S: StorageProvider> LibraryManager<S> {
         self.progress_map.insert(book_hash.clone(), progress);
         self.persist_progress_cache()?;
 
-        Ok(BookMetadata {
-            book_hash,
+        let metadata = BookMetadata {
+            book_hash: book_hash.clone(),
             title: input.title,
             author: input.author,
             format: input.format,
@@ -222,7 +254,28 @@ impl<S: StorageProvider> LibraryManager<S> {
             description: None,
             last_read_at_ms: input.now_ms,
             updated_at_ms: input.now_ms,
-        })
+        };
+
+        if let Some(repo) = self.book_repo.as_mut() {
+            let _ = repo.save_book(metadata.clone());
+            let loc = BookStorageLocation::new(
+                &book_hash,
+                self.storage.provider_id(),
+                format!(
+                    "/books/{}.{}",
+                    book_hash,
+                    match metadata.format {
+                        BookFormat::Epub => "epub",
+                        BookFormat::Pdf => "pdf",
+                    }
+                ),
+                true,
+                Some(input.now_ms),
+            );
+            let _ = repo.add_storage_location(loc);
+        }
+
+        Ok(metadata)
     }
 
     pub fn list_books(&mut self) -> Result<Vec<BookMetadata>, String> {
@@ -240,6 +293,24 @@ impl<S: StorageProvider> LibraryManager<S> {
                 "Book VII — Allegory of the Cave",
             );
 
+            let bundled_meta = BookMetadata {
+                book_hash: DEFAULT_ASSET_HASH.to_string(),
+                title: "The Republic".to_string(),
+                author: "Plato".to_string(),
+                format: BookFormat::Epub,
+                current_page: 1,
+                total_pages: 320,
+                percentage: 0.31,
+                last_read_at_ms: 0,
+                updated_at_ms: 0,
+                cover_image_url: Some(cover_url.clone()),
+                description: Some("Foundational philosophical dialogue by Plato.".to_string()),
+            };
+
+            if let Some(repo) = self.book_repo.as_mut() {
+                let _ = repo.save_book(bundled_meta);
+            }
+
             self.progress_map.insert(
                 DEFAULT_ASSET_HASH.to_string(),
                 ReadingProgress {
@@ -254,6 +325,52 @@ impl<S: StorageProvider> LibraryManager<S> {
                     file_path: None,
                 },
             );
+        }
+
+        // If repo is available, use it as primary source of truth with auto-migration from progress_map
+        if let Some(repo) = self.book_repo.as_mut() {
+            let mut db_books = repo.list_books()?;
+            if db_books.is_empty() && !self.progress_map.is_empty() {
+                // Auto-migrate from progress_map
+                for (book_hash, progress) in &self.progress_map {
+                    let cover_url = progress.cover_image_url.clone().or_else(|| {
+                        Some(Self::extract_or_generate_cover(
+                            &[],
+                            &progress.title,
+                            &progress.author,
+                            "Page 1",
+                        ))
+                    });
+                    let meta = BookMetadata {
+                        book_hash: book_hash.clone(),
+                        title: progress.title.clone(),
+                        author: progress.author.clone(),
+                        format: progress.format,
+                        current_page: progress.current_page,
+                        total_pages: progress.total_pages,
+                        percentage: progress.percentage,
+                        cover_image_url: cover_url,
+                        description: None,
+                        last_read_at_ms: progress.last_read_at_ms,
+                        updated_at_ms: progress.last_read_at_ms,
+                    };
+                    let _ = repo.save_book(meta.clone());
+                    let loc = BookStorageLocation::new(
+                        book_hash,
+                        self.storage.provider_id(),
+                        progress
+                            .file_path
+                            .clone()
+                            .unwrap_or_else(|| format!("/books/{}.bin", book_hash)),
+                        true,
+                        Some(progress.last_read_at_ms),
+                    );
+                    let _ = repo.add_storage_location(loc);
+                    db_books.push(meta);
+                }
+                db_books.sort_by(|a, b| b.last_read_at_ms.cmp(&a.last_read_at_ms));
+            }
+            return Ok(db_books);
         }
 
         let mut books = Vec::new();
@@ -378,7 +495,7 @@ impl<S: StorageProvider> LibraryManager<S> {
         let _ = self.persist_progress_cache();
 
         let metadata = BookMetadata {
-            book_hash,
+            book_hash: book_hash.clone(),
             title: stem,
             author: "Local File".to_string(),
             format,
@@ -390,6 +507,18 @@ impl<S: StorageProvider> LibraryManager<S> {
             last_read_at_ms: now_ms,
             updated_at_ms: now_ms,
         };
+
+        if let Some(repo) = self.book_repo.as_mut() {
+            let _ = repo.save_book(metadata.clone());
+            let loc = BookStorageLocation::new(
+                &book_hash,
+                self.storage.provider_id(),
+                path.to_string_lossy().to_string(),
+                true,
+                Some(now_ms),
+            );
+            let _ = repo.add_storage_location(loc);
+        }
 
         Ok((metadata, bytes))
     }
@@ -436,7 +565,7 @@ impl<S: StorageProvider> LibraryManager<S> {
         self.progress_map.insert(book_hash.to_string(), progress);
         self.persist_progress_cache()?;
 
-        Ok(BookMetadata {
+        let meta = BookMetadata {
             book_hash: book_hash.to_string(),
             title,
             author,
@@ -448,7 +577,13 @@ impl<S: StorageProvider> LibraryManager<S> {
             description: None,
             last_read_at_ms: now_ms,
             updated_at_ms: now_ms,
-        })
+        };
+
+        if let Some(repo) = self.book_repo.as_mut() {
+            let _ = repo.save_book(meta.clone());
+        }
+
+        Ok(meta)
     }
 
     pub fn rename_book(
@@ -472,7 +607,7 @@ impl<S: StorageProvider> LibraryManager<S> {
             .insert(book_hash.to_string(), progress.clone());
         self.persist_progress_cache()?;
 
-        Ok(BookMetadata {
+        let meta = BookMetadata {
             book_hash: book_hash.to_string(),
             title: progress.title,
             author: progress.author,
@@ -484,7 +619,13 @@ impl<S: StorageProvider> LibraryManager<S> {
             description: None,
             last_read_at_ms: progress.last_read_at_ms,
             updated_at_ms: progress.last_read_at_ms,
-        })
+        };
+
+        if let Some(repo) = self.book_repo.as_mut() {
+            let _ = repo.save_book(meta.clone());
+        }
+
+        Ok(meta)
     }
 
     pub fn delete_book(&mut self, book_hash: &str) -> Result<bool, String> {
@@ -500,6 +641,10 @@ impl<S: StorageProvider> LibraryManager<S> {
         let _ = self.storage.delete_book_binary(book_hash);
         self.persist_progress_cache()?;
         self.persist_deleted_books()?;
+
+        if let Some(repo) = self.book_repo.as_mut() {
+            let _ = repo.delete_book(book_hash);
+        }
 
         Ok(removed)
     }

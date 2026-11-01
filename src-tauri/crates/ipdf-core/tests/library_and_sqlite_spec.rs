@@ -436,3 +436,122 @@ fn test_library_manager_and_sqlite_delete_book_cascades() {
         .iter()
         .any(|b| b.book_hash == DEFAULT_ASSET_HASH));
 }
+
+#[test]
+fn test_library_manager_with_sqlite_book_repo_integration() {
+    use fakes::InMemoryBookRepo;
+    use ipdf_core::core::ports::BookRepository;
+
+    let storage = InMemoryStorage::new("local-storage");
+    let book_repo = InMemoryBookRepo::default();
+
+    let mut library = LibraryManager::new_with_repo(storage, book_repo);
+    assert!(library.initialize().unwrap());
+
+    // 1. Initial list should populate book_repo
+    let initial_books = library.list_books().unwrap();
+    assert_eq!(initial_books.len(), 1);
+    assert_eq!(library.book_repo().unwrap().list_books().unwrap().len(), 1);
+
+    // 2. Import book
+    let raw_bytes = b"sample epub bytes".to_vec();
+    let imported = library
+        .import_book(ImportBookInput {
+            raw_bytes,
+            title: "Phaedo".to_string(),
+            author: "Plato".to_string(),
+            format: BookFormat::Epub,
+            total_pages: 180,
+            cover_image_url: None,
+            now_ms: 5000,
+        })
+        .unwrap();
+
+    let hash = imported.book_hash;
+    // Check book was saved in repo
+    let repo_book = library
+        .book_repo()
+        .unwrap()
+        .find_book_by_hash(&hash)
+        .unwrap()
+        .expect("should exist in book repo");
+    assert_eq!(repo_book.title, "Phaedo");
+
+    // Check storage location was registered
+    let locs = library
+        .book_repo()
+        .unwrap()
+        .get_storage_locations(&hash)
+        .unwrap();
+    assert_eq!(locs.len(), 1);
+    assert_eq!(locs[0].provider_id, "local-storage");
+    assert!(locs[0].is_downloaded);
+
+    // 3. Rename book
+    let renamed = library
+        .rename_book(&hash, "Phaedo on the Immortality of the Soul")
+        .unwrap();
+    assert_eq!(renamed.title, "Phaedo on the Immortality of the Soul");
+    let repo_renamed = library
+        .book_repo()
+        .unwrap()
+        .find_book_by_hash(&hash)
+        .unwrap()
+        .unwrap();
+    assert_eq!(repo_renamed.title, "Phaedo on the Immortality of the Soul");
+
+    // 4. Update progress
+    let updated = library
+        .update_reading_progress(&hash, 90, 180, 8000)
+        .unwrap();
+    assert_eq!(updated.current_page, 90);
+    assert_eq!(updated.percentage, 50.0);
+    let repo_prog = library
+        .book_repo()
+        .unwrap()
+        .find_book_by_hash(&hash)
+        .unwrap()
+        .unwrap();
+    assert_eq!(repo_prog.current_page, 90);
+
+    // 5. Delete book
+    let deleted = library.delete_book(&hash).unwrap();
+    assert!(deleted);
+    assert!(library
+        .book_repo()
+        .unwrap()
+        .find_book_by_hash(&hash)
+        .unwrap()
+        .is_none());
+
+    // 6. Test auto-migration from progress_map to empty repo
+    let mut empty_repo_library = LibraryManager::new_with_repo(
+        InMemoryStorage::new("migrated-storage"),
+        InMemoryBookRepo::default(),
+    );
+    // Pre-populate progress_map
+    empty_repo_library.initialize().unwrap();
+    // Verify repo now has the books migrated
+    let migrated_books = empty_repo_library.list_books().unwrap();
+    assert!(!migrated_books.is_empty());
+    assert_eq!(
+        empty_repo_library
+            .book_repo_mut()
+            .unwrap()
+            .list_books()
+            .unwrap()
+            .len(),
+        migrated_books.len()
+    );
+
+    // 7. Test open_book_from_path with repo
+    let temp_book_path =
+        std::env::temp_dir().join(format!("test_repo_book_{}.epub", std::process::id()));
+    std::fs::write(&temp_book_path, b"dummy epub content").unwrap();
+    let (opened_meta, _bytes) = library.open_book_from_path(&temp_book_path).unwrap();
+    assert_eq!(
+        opened_meta.title,
+        temp_book_path.file_stem().unwrap().to_str().unwrap()
+    );
+    let _ = std::fs::remove_file(&temp_book_path);
+}
