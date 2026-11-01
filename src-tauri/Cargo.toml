@@ -1,12 +1,12 @@
 [package]
-name = "ipdf-active-study-reader"
+name = "scholarium"
 version = "0.1.0"
-description = "Active Study Book Reader (EPUB & PDF) with Hexagonal Architecture"
+description = "Scholarium — Active Study Reader (EPUB & PDF) with Hexagonal Architecture"
 authors = ["lucaslive974"]
 edition = "2021"
 
 [lib]
-name = "ipdf_active_study_reader_lib"
+name = "scholarium_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

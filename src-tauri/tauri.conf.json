@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "IPDF Study Reader",
+  "productName": "Scholarium",
   "version": "0.1.0",
-  "identifier": "com.ipdf.activestudyreader",
+  "identifier": "com.scholarium.reader",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "IPDF — Active Study Book Reader",
+        "title": "Scholarium — Active Study Reader",
         "width": 1280,
         "height": 820,
         "resizable": true

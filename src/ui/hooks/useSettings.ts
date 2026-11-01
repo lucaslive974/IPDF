@@ -24,7 +24,7 @@ export function useSettings(): SettingsHook {
 
   const [monitoredFolders, setMonitoredFolders] = useState<string[]>([
     '~/Documents/PhilosophyBooks',
-    '~/.var/app/com.ipdf.reader/data/books',
+    '~/.var/app/com.scholarium.reader/data/books',
   ]);
   const [newFolderInput, setNewFolderInput] = useState<string>('');
   const [isDriveConnected, setIsDriveConnected] = useState<boolean>(true);

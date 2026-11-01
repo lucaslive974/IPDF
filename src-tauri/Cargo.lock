@@ -1732,18 +1732,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ipdf-active-study-reader"
-version = "0.1.0"
-dependencies = [
- "ipdf-core",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-single-instance",
-]
-
-[[package]]
 name = "ipdf-core"
 version = "0.1.0"
 dependencies = [
@@ -2941,6 +2929,18 @@ dependencies = [
  "quote",
  "serde_derive_internals",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "scholarium"
+version = "0.1.0"
+dependencies = [
+ "ipdf-core",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-single-instance",
 ]
 
 [[package]]

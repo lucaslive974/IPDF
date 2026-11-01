@@ -37,7 +37,7 @@ export const SettingsSyncSection = memo(function SettingsSyncSection({
         className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
       >
         <div>
-          <span className="text-xs font-medium text-tx-main block">Target: /IPDF_Sync/</span>
+          <span className="text-xs font-medium text-tx-main block">Target: /Scholarium_Sync/</span>
           <span className="text-[0.68rem] text-tx-muted">
             Highlights, reading metrics, and margin notes
           </span>

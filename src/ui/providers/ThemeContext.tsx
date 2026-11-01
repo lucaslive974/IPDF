@@ -17,7 +17,7 @@ export interface ThemeContextValue {
   toggleTheme(): void;
 }
 
-const STORAGE_KEY = 'ipdf_theme';
+const STORAGE_KEY = 'scholarium_theme';
 const DEFAULT_THEME: ThemeMode = 'light';
 
 export const ThemeContext = createContext<ThemeContextValue | null>(null);

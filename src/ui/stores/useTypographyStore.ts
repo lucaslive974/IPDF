@@ -40,7 +40,7 @@ export const FONT_FAMILY_DEFINITIONS: Record<FontFamilyChoice, FontFamilyDefinit
   },
 };
 
-const STORAGE_KEY = 'ipdf_typography_settings';
+const STORAGE_KEY = 'scholarium_typography_settings';
 
 export const MIN_FONT_SIZE = 12;
 export const MAX_FONT_SIZE = 36;
