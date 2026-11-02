@@ -42,10 +42,12 @@ export function resolveCoverUrl(url?: string | null): string | undefined {
 }
 
 export function deserializeBookMetadata(dto: SerializedBookMetadata): BookMetadata {
+  const authorTrimmed = dto.author?.trim() ?? '';
+  const author = authorTrimmed.toLowerCase() === 'local file' ? 'Unknown' : dto.author;
   return {
     bookHash: dto.bookHash,
     title: dto.title,
-    author: dto.author,
+    author,
     format: dto.format,
     currentPage: dto.currentPage,
     totalPages: dto.totalPages,

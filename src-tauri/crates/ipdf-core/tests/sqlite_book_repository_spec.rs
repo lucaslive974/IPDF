@@ -278,4 +278,7 @@ fn test_sqlite_book_metadata_editing_and_orphan_cleanup() {
 
     let authors_after_placeholders = repo.list_authors().unwrap();
     assert_eq!(authors_after_placeholders, vec!["I. Kant"]);
+
+    let found_b3 = repo.find_book_by_hash("hash-local").unwrap().unwrap();
+    assert_eq!(found_b3.author, "Unknown");
 }

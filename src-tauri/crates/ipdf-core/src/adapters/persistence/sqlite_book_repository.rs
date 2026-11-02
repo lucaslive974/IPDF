@@ -149,6 +149,11 @@ impl SqliteBookRepository {
         self.conn
             .execute_batch(CREATE_AUTHORS_TAGS_TABLES_SQL)
             .map_err(to_err)?;
+        let _ = self.conn.execute(
+            "UPDATE books SET author = 'Unknown' WHERE LOWER(TRIM(author)) = 'local file';",
+            [],
+        );
+        let _ = Self::prune_orphaned_metadata(&self.conn);
         Ok(())
     }
 
@@ -234,10 +239,17 @@ impl SqliteBookRepository {
             _ => BookFormat::Epub,
         };
 
+        let raw_author: String = row.get(2)?;
+        let author = if raw_author.trim().eq_ignore_ascii_case("local file") {
+            "Unknown".to_string()
+        } else {
+            raw_author
+        };
+
         Ok(BookMetadata {
             book_hash: row.get(0)?,
             title: row.get(1)?,
-            author: row.get(2)?,
+            author,
             format,
             current_page: row.get(4)?,
             total_pages: row.get(5)?,
@@ -269,13 +281,19 @@ impl BookRepository for SqliteBookRepository {
             BookFormat::Pdf => "pdf",
         };
 
+        let author = if book.author.trim().eq_ignore_ascii_case("local file") {
+            "Unknown".to_string()
+        } else {
+            book.author
+        };
+
         self.conn
             .execute(
                 UPSERT_BOOK_SQL,
                 params![
                     book.book_hash,
                     book.title,
-                    book.author,
+                    author,
                     format_str,
                     book.current_page,
                     book.total_pages,
@@ -291,7 +309,7 @@ impl BookRepository for SqliteBookRepository {
         Self::save_book_tags_and_author(
             &self.conn,
             &book.book_hash,
-            &book.author,
+            &author,
             &book.tags,
             book.updated_at_ms,
         )
@@ -373,11 +391,17 @@ impl BookRepository for SqliteBookRepository {
             .map(|d| d.as_millis() as i64)
             .unwrap_or(0);
 
+        let safe_author = if author.trim().eq_ignore_ascii_case("local file") {
+            "Unknown"
+        } else {
+            author
+        };
+
         let rows_affected = self
             .conn
             .execute(
                 "UPDATE books SET title = ?1, author = ?2, description = ?3, updated_at_ms = ?4 WHERE hash = ?5",
-                params![title, author, description, now_ms, hash],
+                params![title, safe_author, description, now_ms, hash],
             )
             .map_err(to_err)?;
 
@@ -385,7 +409,8 @@ impl BookRepository for SqliteBookRepository {
             return Err(format!("Book not found: {hash}"));
         }
 
-        Self::save_book_tags_and_author(&self.conn, hash, author, tags, now_ms).map_err(to_err)?;
+        Self::save_book_tags_and_author(&self.conn, hash, safe_author, tags, now_ms)
+            .map_err(to_err)?;
 
         self.find_book_by_hash(hash)?
             .ok_or_else(|| format!("Book not found after update: {hash}"))

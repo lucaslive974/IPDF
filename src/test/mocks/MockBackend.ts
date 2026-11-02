@@ -57,7 +57,7 @@ export class MockBackend
     const metadata: BookMetadata = {
       bookHash,
       title: cleanTitle,
-      author: 'Local File',
+      author: 'Unknown',
       format: filePath.endsWith('.pdf') ? 'pdf' : 'epub',
       currentPage: 1,
       totalPages: 100,
