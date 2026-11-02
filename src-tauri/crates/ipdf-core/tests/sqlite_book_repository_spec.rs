@@ -242,4 +242,40 @@ fn test_sqlite_book_metadata_editing_and_orphan_cleanup() {
 
     let tags = repo.list_tags().unwrap();
     assert_eq!(tags, vec!["Epistemology", "Philosophy"]);
+
+    // Saving books with placeholder authors ("Local File", "Unknown", "Unknown Author") must not pollute authors
+    let b3 = BookMetadata {
+        book_hash: "hash-local".to_string(),
+        title: "Local Document".to_string(),
+        author: "Local File".to_string(),
+        format: BookFormat::Pdf,
+        current_page: 1,
+        total_pages: 10,
+        percentage: 10.0,
+        cover_image_url: None,
+        description: None,
+        tags: vec![],
+        last_read_at_ms: 3000,
+        updated_at_ms: 3000,
+    };
+    repo.save_book(b3).unwrap();
+
+    let b4 = BookMetadata {
+        book_hash: "hash-unknown".to_string(),
+        title: "Another Document".to_string(),
+        author: "Unknown".to_string(),
+        format: BookFormat::Epub,
+        current_page: 1,
+        total_pages: 10,
+        percentage: 10.0,
+        cover_image_url: None,
+        description: None,
+        tags: vec![],
+        last_read_at_ms: 4000,
+        updated_at_ms: 4000,
+    };
+    repo.save_book(b4).unwrap();
+
+    let authors_after_placeholders = repo.list_authors().unwrap();
+    assert_eq!(authors_after_placeholders, vec!["I. Kant"]);
 }

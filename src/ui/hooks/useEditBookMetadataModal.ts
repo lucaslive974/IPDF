@@ -1,3 +1,4 @@
+import { isValidAuthor } from '@components/library/BookCover';
 import type { BookMetadata } from '@domain/BookMetadata';
 import type { UpdateBookMetadataInput } from '@ports/ILibraryService';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
@@ -26,6 +27,33 @@ export function addTagDeduplicated(existingTags: readonly string[], newTag: stri
   return exists ? [...existingTags] : [...existingTags, candidate];
 }
 
+export async function readFileAsDataUrl(file: File): Promise<string> {
+  if (typeof FileReader !== 'undefined') {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+        } else {
+          reject(new Error('Failed to read file as data URL'));
+        }
+      };
+      reader.onerror = () => reject(reader.error ?? new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  const arrayBuffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  const base64 = btoa(binary);
+  const mime = file.type || 'image/png';
+  return `data:${mime};base64,${base64}`;
+}
+
 export function buildUpdateBookMetadataPayload(
   values: BookMetadataFormValues,
   tags: readonly string[]
@@ -43,7 +71,11 @@ export function buildUpdateBookMetadataPayload(
 export interface UseEditBookMetadataModalProps {
   readonly book: BookMetadata | null;
   readonly isOpen: boolean;
-  readonly onSave: (bookHash: string, input: UpdateBookMetadataInput) => Promise<void> | void;
+  readonly onSave: (
+    bookHash: string,
+    input: UpdateBookMetadataInput,
+    coverImageUrl?: string
+  ) => Promise<void> | void;
   readonly onClose: () => void;
 }
 
@@ -58,6 +90,10 @@ export interface EditBookMetadataModalViewModel {
   readonly availableTags: readonly string[];
   readonly addTag: (tag: string) => void;
   readonly removeTag: (tag: string) => void;
+  readonly coverImageUrl: string | null;
+  readonly isCoverDirty: boolean;
+  readonly handleUploadCover: (file: File) => Promise<void>;
+  readonly handleRemoveCover: () => void;
   readonly onSubmit: () => Promise<void>;
 }
 
@@ -72,6 +108,8 @@ export function useEditBookMetadataModal({
   const [tags, setTags] = useState<string[]>([]);
   const [availableAuthors, setAvailableAuthors] = useState<string[]>([]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
+  const [isCoverDirty, setIsCoverDirty] = useState(false);
 
   const {
     register,
@@ -96,6 +134,8 @@ export function useEditBookMetadataModal({
         description: book.description ?? '',
       });
       setTags(book.tags ?? []);
+      setCoverImageUrl(book.coverImageUrl ?? null);
+      setIsCoverDirty(false);
     }
   }, [book, isOpen, reset]);
 
@@ -103,7 +143,7 @@ export function useEditBookMetadataModal({
     if (isOpen) {
       void libraryService
         .listAuthors()
-        .then(setAvailableAuthors)
+        .then((authors) => setAvailableAuthors(authors.filter(isValidAuthor)))
         .catch(() => {});
       void libraryService
         .listTags()
@@ -120,16 +160,31 @@ export function useEditBookMetadataModal({
     setTags((prev) => prev.filter((t) => t !== tagToRemove));
   }, []);
 
+  const handleUploadCover = useCallback(async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      return;
+    }
+    const dataUrl = await readFileAsDataUrl(file);
+    setCoverImageUrl(dataUrl);
+    setIsCoverDirty(true);
+  }, []);
+
+  const handleRemoveCover = useCallback(() => {
+    setCoverImageUrl(null);
+    setIsCoverDirty(true);
+  }, []);
+
   const handleValidSubmit = useCallback(
     async (values: BookMetadataFormValues) => {
       if (!book) return;
       const payload = buildUpdateBookMetadataPayload(values, tags);
       if (!payload) return;
 
-      await onSave(book.bookHash, payload);
+      const coverToSave = isCoverDirty ? (coverImageUrl ?? '') : undefined;
+      await onSave(book.bookHash, payload, coverToSave);
       onClose();
     },
-    [book, onSave, onClose, tags]
+    [book, onSave, onClose, tags, isCoverDirty, coverImageUrl]
   );
 
   const onSubmit = useCallback(
@@ -148,6 +203,10 @@ export function useEditBookMetadataModal({
     availableTags,
     addTag,
     removeTag,
+    coverImageUrl,
+    isCoverDirty,
+    handleUploadCover,
+    handleRemoveCover,
     onSubmit,
   };
 }

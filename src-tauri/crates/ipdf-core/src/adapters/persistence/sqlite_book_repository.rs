@@ -104,6 +104,11 @@ pub struct SqliteBookRepository {
     conn: Connection,
 }
 
+fn is_system_or_placeholder_author(author: &str) -> bool {
+    let lower = author.trim().to_lowercase();
+    lower.is_empty() || lower == "unknown" || lower == "unknown author" || lower == "local file"
+}
+
 impl SqliteBookRepository {
     pub fn new(conn: Connection) -> Result<Self, String> {
         let repo = Self { conn };
@@ -153,7 +158,8 @@ impl SqliteBookRepository {
             [],
         )?;
         conn.execute(
-            "DELETE FROM authors WHERE name NOT IN (SELECT DISTINCT author FROM books WHERE trim(author) != '' AND author != 'Unknown')",
+            "DELETE FROM authors WHERE LOWER(TRIM(name)) IN ('unknown', 'unknown author', 'local file', '')
+             OR name NOT IN (SELECT DISTINCT author FROM books WHERE TRIM(author) != '')",
             [],
         )?;
         Ok(())
@@ -167,7 +173,7 @@ impl SqliteBookRepository {
         now_ms: i64,
     ) -> Result<(), rusqlite::Error> {
         let trimmed_author = author.trim();
-        if !trimmed_author.is_empty() && trimmed_author != "Unknown" {
+        if !is_system_or_placeholder_author(trimmed_author) {
             conn.execute(
                 "INSERT OR IGNORE INTO authors (name, created_at_ms) VALUES (?1, ?2)",
                 params![trimmed_author, now_ms],
@@ -388,7 +394,7 @@ impl BookRepository for SqliteBookRepository {
     fn list_authors(&self) -> Result<Vec<String>, String> {
         let mut stmt = self
             .conn
-            .prepare("SELECT name FROM authors ORDER BY name COLLATE NOCASE ASC")
+            .prepare("SELECT name FROM authors WHERE LOWER(TRIM(name)) NOT IN ('unknown', 'unknown author', 'local file', '') ORDER BY name COLLATE NOCASE ASC")
             .map_err(to_err)?;
         let rows = stmt
             .query_map([], |r| r.get::<_, String>(0))

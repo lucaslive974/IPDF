@@ -199,7 +199,7 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
         let metadata = BookMetadata {
             book_hash: book_hash.clone(),
             title: stem,
-            author: "Local File".to_string(),
+            author: "Unknown".to_string(),
             format,
             current_page,
             total_pages,
@@ -325,6 +325,8 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
 
         if let Some(entry_name) = entry {
             book.cover_image_url = Some(entry_name);
+        } else if cover_image_url.trim().is_empty() {
+            book.cover_image_url = None;
         } else {
             book.cover_image_url = Some(cover_image_url.to_string());
         }

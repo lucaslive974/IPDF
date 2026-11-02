@@ -8,6 +8,7 @@ import {
   TauriSettingsService,
   resolveCoverUrl,
 } from '@adapters/ipc';
+import { isValidAuthor } from '@components/library/BookCover';
 import { Highlight } from '@domain/Highlight';
 import { createAssistedTextAnnotation } from '@domain/RichAnnotation';
 import { describe, expect, it, vi } from 'vitest';
@@ -102,7 +103,7 @@ vi.mock('@tauri-apps/api/core', () => ({
     if (cmd === 'list_authors') {
       const authors = new Set<string>();
       for (const b of storedBooks.values()) {
-        if (b.author && b.author !== 'Unknown') authors.add(b.author);
+        if (isValidAuthor(b.author)) authors.add(b.author);
       }
       return Array.from(authors).sort() as unknown as T;
     }
@@ -131,7 +132,7 @@ vi.mock('@tauri-apps/api/core', () => ({
       const dto: SerializedBookMetadata = {
         bookHash: 'sha256-opened-file',
         title: cleanTitle,
-        author: 'Local File',
+        author: 'Unknown',
         format: filePath.endsWith('.pdf') ? 'pdf' : 'epub',
         currentPage: 1,
         totalPages: 120,

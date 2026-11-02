@@ -1,3 +1,4 @@
+import { isValidAuthor } from '@components/library/BookCover';
 import type { BookMetadata } from '@domain/BookMetadata';
 import type { Highlight } from '@domain/Highlight';
 import type {
@@ -190,7 +191,7 @@ export class MockBackend
     }
     const updated: BookMetadata = {
       ...existing,
-      coverImageUrl,
+      coverImageUrl: coverImageUrl.trim() ? coverImageUrl : undefined,
       updatedAt: new Date(),
     };
     this.books.set(bookHash, updated);
@@ -201,7 +202,7 @@ export class MockBackend
     const authors = new Set<string>();
     for (const book of this.books.values()) {
       const a = book.author.trim();
-      if (a && a !== 'Unknown') {
+      if (isValidAuthor(a)) {
         authors.add(a);
       }
     }

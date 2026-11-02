@@ -284,3 +284,23 @@ export function ChevronDownIcon({ className = 'h-4 w-4', ...props }: SVGProps<SV
     </svg>
   );
 }
+
+export function UploadIcon({ className = 'h-4 w-4', ...props }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      className={className}
+      {...props}
+    >
+      <title>Upload</title>
+      <path
+        d="M3.5 13.5v2a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5v-2M10 3.5v9M6.5 6.5 10 3l3.5 3.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}

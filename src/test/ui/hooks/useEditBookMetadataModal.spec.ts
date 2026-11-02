@@ -1,12 +1,14 @@
+import { isValidAuthor } from '@components/library/BookCover';
 import {
   addTagDeduplicated,
   buildUpdateBookMetadataPayload,
   normalizeAuthor,
+  readFileAsDataUrl,
 } from '@hooks/useEditBookMetadataModal';
 import { describe, expect, it } from 'vitest';
 
 describe('useEditBookMetadataModal logic and helpers', () => {
-  describe('normalizeAuthor', () => {
+  describe('normalizeAuthor and isValidAuthor', () => {
     it('returns empty string for fallback placeholder authors', () => {
       expect(normalizeAuthor('Local File')).toBe('');
       expect(normalizeAuthor('Unknown')).toBe('');
@@ -18,6 +20,20 @@ describe('useEditBookMetadataModal logic and helpers', () => {
     it('preserves valid author names with trimming', () => {
       expect(normalizeAuthor('  Marcus Aurelius  ')).toBe('Marcus Aurelius');
       expect(normalizeAuthor('Plato')).toBe('Plato');
+    });
+
+    it('filters out placeholder authors from suggestion lists', () => {
+      const candidates = ['Local File', 'Plato', 'Unknown', 'Aristotle', 'Unknown Author', '   '];
+      const filtered = candidates.filter(isValidAuthor);
+      expect(filtered).toEqual(['Plato', 'Aristotle']);
+    });
+  });
+
+  describe('readFileAsDataUrl', () => {
+    it('reads File binary into a data URL', async () => {
+      const file = new File(['test image data'], 'cover.png', { type: 'image/png' });
+      const dataUrl = await readFileAsDataUrl(file);
+      expect(dataUrl).toMatch(/^data:image\/png;base64,/);
     });
   });
 

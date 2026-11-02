@@ -21,6 +21,7 @@ export interface LibraryViewModel {
   ): Promise<BookMetadata>;
   renameBook(bookHash: string, newTitle: string): Promise<BookMetadata>;
   updateBookMetadata(bookHash: string, input: UpdateBookMetadataInput): Promise<BookMetadata>;
+  updateBookCover(bookHash: string, coverImageUrl: string): Promise<BookMetadata>;
   deleteBook(bookHash: string): Promise<boolean>;
 }
 
@@ -194,6 +195,23 @@ export function useLibrary(): LibraryViewModel {
     [libraryService, setLoading, upsertBook]
   );
 
+  const updateBookCover = useCallback(
+    async (bookHash: string, coverImageUrl: string): Promise<BookMetadata> => {
+      setLoading(true);
+      try {
+        if (!libraryService.updateBookCover) {
+          throw new Error('updateBookCover is not supported');
+        }
+        const updated = await libraryService.updateBookCover(bookHash, coverImageUrl);
+        upsertBook(updated);
+        return updated;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [libraryService, setLoading, upsertBook]
+  );
+
   const deleteBook = useCallback(
     async (bookHash: string): Promise<boolean> => {
       setLoading(true);
@@ -230,6 +248,7 @@ export function useLibrary(): LibraryViewModel {
     updateBookProgress,
     renameBook,
     updateBookMetadata,
+    updateBookCover,
     deleteBook,
   };
 }

@@ -60,7 +60,12 @@ impl BookRepository for InMemoryBookRepo {
         let mut authors: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
         for b in self.books.values() {
             let a = b.author.trim();
-            if !a.is_empty() && a != "Unknown" {
+            let lower = a.to_lowercase();
+            if !lower.is_empty()
+                && lower != "unknown"
+                && lower != "unknown author"
+                && lower != "local file"
+            {
                 authors.insert(a.to_string());
             }
         }
