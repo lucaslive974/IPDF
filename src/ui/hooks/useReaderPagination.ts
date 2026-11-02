@@ -2,10 +2,10 @@ import type { PdfPageProxy } from '@adapters/viewers/IPdfEngine';
 import { isValidAuthor } from '@components/library/BookCover';
 import type { BookMetadata } from '@domain/BookMetadata';
 import { BookFormat } from '@domain/types';
-import { useNavigation } from '@hooks/useNavigation';
 import type { IDocumentViewer } from '@ports/IDocumentViewer';
 import type { ILibraryService } from '@ports/ILibraryService';
 import type { DocumentPage, IReaderService } from '@ports/IReaderService';
+import { useNavigation } from '@providers/NavigationContext';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import {
   EMPTY_DOCUMENT,

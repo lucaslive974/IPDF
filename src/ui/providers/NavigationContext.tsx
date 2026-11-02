@@ -16,7 +16,7 @@ export interface NavigationContextValue {
 export const NavigationContext = createContext<NavigationContextValue | null>(null);
 
 export interface NavigationProviderProps {
-  readonly children: ReactNode;
+  readonly children?: ReactNode;
   readonly initialView?: AppViewMode;
 }
 
@@ -59,10 +59,10 @@ export function NavigationProvider({ children, initialView = 'library' }: Naviga
   return <NavigationContext.Provider value={value}>{children}</NavigationContext.Provider>;
 }
 
-export function useNavigationContext(): NavigationContextValue {
+export function useNavigation(): NavigationContextValue {
   const context = useContext(NavigationContext);
   if (!context) {
-    throw new Error('useNavigationContext must be used within a NavigationProvider');
+    throw new Error('useNavigation must be used within a NavigationProvider');
   }
   return context;
 }

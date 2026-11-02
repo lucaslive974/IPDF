@@ -1,8 +1,8 @@
 import { isValidAuthor } from '@components/library/BookCover';
 import type { BookMetadata } from '@domain/BookMetadata';
+import { useNavigation } from '@providers/NavigationContext';
 import { useLibraryStore } from '@stores/useLibraryStore';
 import { useMemo } from 'react';
-import { useNavigation } from './useNavigation';
 
 export function groupBooksByTag(books: readonly BookMetadata[]): Array<[string, BookMetadata[]]> {
   const map = new Map<string, BookMetadata[]>();

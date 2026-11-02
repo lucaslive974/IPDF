@@ -1,7 +1,7 @@
 import type { BookMetadata } from '@domain/BookMetadata';
 import type { Highlight } from '@domain/Highlight';
-import { useNavigation } from '@hooks/useNavigation';
 import type { IHighlightService } from '@ports/IHighlightService';
+import { useNavigation } from '@providers/NavigationContext';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useLibraryStore } from '@stores/useLibraryStore';
 import { useReaderStore } from '@stores/useReaderStore';

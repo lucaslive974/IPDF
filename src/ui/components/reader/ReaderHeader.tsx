@@ -1,6 +1,6 @@
-import { useNavigation } from '@hooks/useNavigation';
 import { useReader } from '@hooks/useReader';
 import { useReaderUI } from '@hooks/useReaderUI';
+import { useNavigation } from '@providers/NavigationContext';
 import { useTypographyStore } from '@stores/useTypographyStore';
 import { ArrowLeftIcon, Button, IconButton, SettingsIcon } from '@ui';
 import { memo } from 'react';

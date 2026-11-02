@@ -1,5 +1,5 @@
-import { useNavigation } from '@hooks/useNavigation';
 import { useSettings } from '@hooks/useSettings';
+import { useNavigation } from '@providers/NavigationContext';
 import { useTheme } from '@providers/ThemeContext';
 import { SettingsAppearanceSection } from './settings/SettingsAppearanceSection';
 import { SettingsDangerSection } from './settings/SettingsDangerSection';

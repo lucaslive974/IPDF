@@ -1,6 +1,6 @@
+import { useNavigation } from '@providers/NavigationContext';
 import { type RefObject, useCallback, useEffect, useRef } from 'react';
 import { useLibrary } from './useLibrary';
-import { useNavigation } from './useNavigation';
 import { useReader } from './useReader';
 import { useReaderUI } from './useReaderUI';
 

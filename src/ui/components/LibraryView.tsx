@@ -1,6 +1,6 @@
 import type { BookMetadata } from '@domain/BookMetadata';
 import { useLibrary } from '@hooks/useLibrary';
-import { useNavigation } from '@hooks/useNavigation';
+import { useNavigation } from '@providers/NavigationContext';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useTheme } from '@providers/ThemeContext';
 import { type ChangeEvent, useEffect, useRef, useState } from 'react';
