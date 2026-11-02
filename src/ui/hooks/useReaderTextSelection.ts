@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef } from 'react';
 import type { Highlight } from '../../core/domain/Highlight';
-import { getExpandedWordSelection } from '../components/reader/ReaderPageParagraphs';
 import { useReaderUIStore } from '../stores/useReaderUIStore';
+import { getExpandedWordSelection } from '../utils/domSelection';
 import type { ReaderHighlightsController } from './useReaderHighlights';
 
 export const createEmptyRect = (): DOMRect =>

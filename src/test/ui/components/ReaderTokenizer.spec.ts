@@ -7,6 +7,7 @@ import {
   tokenizeTextWithHighlights,
 } from '../../../ui/components/reader/ReaderPageParagraphs';
 import { DEFAULT_HIGHLIGHT_COLORS } from '../../../ui/components/ui/ColorPicker';
+import { extractParagraphNotes } from '../../../ui/utils/readerTokenizer';
 
 describe('ReaderTokenizer & UI Constants', () => {
   it('returns whole paragraph when no highlights exist', () => {
@@ -118,6 +119,51 @@ describe('ReaderTokenizer & UI Constants', () => {
         toString: () => '  sample text  ',
       } as unknown as Selection;
       expect(getExpandedWordSelection(mockSelection)).toBe('');
+    });
+  });
+
+  describe('extractParagraphNotes', () => {
+    it('returns empty array when chunks have no highlights or no notes', () => {
+      const chunks = [{ text: 'Plain text without highlights' }];
+      expect(extractParagraphNotes(chunks)).toEqual([]);
+
+      const hlWithoutNote = new Highlight('hl-1', 'book-1', 'highlight', '#FFEB3B', {
+        format: 'epub',
+        pageNumber: 1,
+      });
+      expect(extractParagraphNotes([{ text: 'highlight', highlight: hlWithoutNote }])).toEqual([]);
+    });
+
+    it('extracts and deduplicates highlights with notes', () => {
+      const hlWithNote1 = new Highlight(
+        'hl-note-1',
+        'book-1',
+        'first phrase',
+        '#FFEB3B',
+        { format: 'epub', pageNumber: 1 },
+        'Key insight on metaphysics'
+      );
+      const hlWithNote2 = new Highlight(
+        'hl-note-2',
+        'book-1',
+        'second phrase',
+        '#4CAF50',
+        { format: 'epub', pageNumber: 1 },
+        'Compare with Kant'
+      );
+
+      const chunks = [
+        { text: 'first phrase', highlight: hlWithNote1 },
+        { text: ' and ' },
+        { text: 'first phrase again', highlight: hlWithNote1 },
+        { text: ' plus ' },
+        { text: 'second phrase', highlight: hlWithNote2 },
+      ];
+
+      const notes = extractParagraphNotes(chunks);
+      expect(notes).toHaveLength(2);
+      expect(notes[0]?.id).toBe('hl-note-1');
+      expect(notes[1]?.id).toBe('hl-note-2');
     });
   });
 });
