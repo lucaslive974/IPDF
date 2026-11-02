@@ -5,3 +5,5 @@ export * from './IPresenceService';
 export * from './ISettingsService';
 export * from './IDocumentViewer';
 export * from './IDocumentViewerFactory';
+export * from './IPdfEngine';
+export * from './IPdfViewer';

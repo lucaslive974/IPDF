@@ -1,9 +1,9 @@
-import type { PdfPageProxy } from '@adapters/viewers/IPdfEngine';
 import { isValidAuthor } from '@components/library/BookCover';
 import type { BookMetadata } from '@domain/BookMetadata';
 import { BookFormat } from '@domain/types';
 import type { IDocumentViewer } from '@ports/IDocumentViewer';
 import type { ILibraryService } from '@ports/ILibraryService';
+import type { IPdfViewer } from '@ports/IPdfViewer';
 import type { DocumentPage, IReaderService } from '@ports/IReaderService';
 import { useNavigation } from '@providers/NavigationContext';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
@@ -41,6 +41,7 @@ export interface ReaderPaginationDependencies {
   readonly libraryService?: ILibraryService;
   readonly getViewer?: (format: BookFormat) => IDocumentViewer;
   readonly epubViewer?: IDocumentViewer;
+  readonly pdfViewer?: IPdfViewer;
   readonly store?: typeof useReaderStore;
 }
 
@@ -75,6 +76,13 @@ export function createReaderPaginationController(
       return deps.epubViewer;
     }
     throw new Error('No document viewer available in dependencies');
+  };
+
+  const resolvePdfViewer = (): IPdfViewer => {
+    if (deps.pdfViewer) {
+      return deps.pdfViewer;
+    }
+    return resolveViewer(BookFormat.PDF) as IPdfViewer;
   };
 
   return {
@@ -168,33 +176,26 @@ export function createReaderPaginationController(
             }
           }
 
-          if ('ensurePagesExtracted' in viewer) {
-            await (
-              viewer as {
-                ensurePagesExtracted(start: number, count: number): Promise<DocumentPage[]>;
+          if (format === BookFormat.PDF) {
+            const pdfViewer = resolvePdfViewer();
+            await pdfViewer.ensurePagesExtracted(startPage, count);
+            const chunk = pdfViewer.getPagesChunk(startPage, count);
+            if (chunk.length > 0) {
+              store.getState().setLoadedPages(chunk);
+              const active = chunk.find((p) => p.pageNumber === initialPage) ?? chunk[0];
+              if (active?.chapterTitle) {
+                store.getState().setChapterTitle(active.chapterTitle);
               }
-            ).ensurePagesExtracted(startPage, count);
-          }
-          const chunk = viewer.getPagesChunk(startPage, count);
-          if (chunk.length > 0) {
-            store.getState().setLoadedPages(chunk);
-            const active = chunk.find((p) => p.pageNumber === initialPage) ?? chunk[0];
-            if (active?.chapterTitle) {
-              store.getState().setChapterTitle(active.chapterTitle);
             }
-          }
-          const info = viewer.getCurrentPage();
-          if (info.totalPages > 0) {
-            store.getState().setTotalPages(info.totalPages);
-          }
+            const info = pdfViewer.getCurrentPage();
+            if (info.totalPages > 0) {
+              store.getState().setTotalPages(info.totalPages);
+            }
 
-          if (format === BookFormat.PDF && 'getPageProxy' in viewer) {
             const hasCover = doc.coverImageUrl?.startsWith('data:image/webp');
             if (!hasCover) {
               try {
-                const pageProxy = await (
-                  viewer as { getPageProxy(n: number): Promise<PdfPageProxy | null> }
-                ).getPageProxy(1);
+                const pageProxy = await pdfViewer.getPageProxy(1);
                 if (pageProxy) {
                   const coverUrl = await renderPdfPageToDataUrl(pageProxy);
                   if (coverUrl) {
@@ -242,12 +243,9 @@ export function createReaderPaginationController(
               : 0;
           if (lastPageNum >= state.totalPages) return;
 
-          if (format === BookFormat.PDF && 'ensurePagesExtracted' in viewer) {
-            const extracted = await (
-              viewer as {
-                ensurePagesExtracted(start: number, count: number): Promise<DocumentPage[]>;
-              }
-            ).ensurePagesExtracted(lastPageNum + 1, 5);
+          if (format === BookFormat.PDF) {
+            const pdfViewer = resolvePdfViewer();
+            const extracted = await pdfViewer.ensurePagesExtracted(lastPageNum + 1, 5);
             if (extracted.length > 0) {
               store.getState().upsertPages(extracted);
               return;
@@ -270,12 +268,9 @@ export function createReaderPaginationController(
           const prevStart = Math.max(1, firstPageNum - 5);
           const prevCount = firstPageNum - prevStart;
 
-          if (format === BookFormat.PDF && 'ensurePagesExtracted' in viewer) {
-            const extracted = await (
-              viewer as {
-                ensurePagesExtracted(start: number, count: number): Promise<DocumentPage[]>;
-              }
-            ).ensurePagesExtracted(prevStart, prevCount);
+          if (format === BookFormat.PDF) {
+            const pdfViewer = resolvePdfViewer();
+            const extracted = await pdfViewer.ensurePagesExtracted(prevStart, prevCount);
             if (extracted.length > 0) {
               store.getState().upsertPages(extracted);
               return;
@@ -352,7 +347,7 @@ export function useReaderPagination(
   options: UseReaderPaginationOptions = {}
 ): ReaderPaginationState {
   const { bookOverride, onBookLoaded, onPageChanged } = options;
-  const { readerService, libraryService, getViewer, epubViewer } = useServiceContainer();
+  const { readerService, libraryService, getViewer, epubViewer, pdfViewer } = useServiceContainer();
   const navigation = useNavigation();
   const book = bookOverride ?? navigation.selectedBook;
 
@@ -365,8 +360,14 @@ export function useReaderPagination(
 
   const controller = useMemo(
     () =>
-      createReaderPaginationController({ readerService, libraryService, getViewer, epubViewer }),
-    [readerService, libraryService, getViewer, epubViewer]
+      createReaderPaginationController({
+        readerService,
+        libraryService,
+        getViewer,
+        epubViewer,
+        pdfViewer,
+      }),
+    [readerService, libraryService, getViewer, epubViewer, pdfViewer]
   );
 
   const paragraphs = useMemo(() => {

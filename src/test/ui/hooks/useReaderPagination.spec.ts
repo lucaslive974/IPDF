@@ -3,6 +3,7 @@ import type { BookMetadata } from '@domain/BookMetadata';
 import { BookFormat } from '@domain/types';
 import { createReaderPaginationController } from '@hooks/useReaderPagination';
 import type { IDocumentViewer } from '@ports/IDocumentViewer';
+import type { IPdfViewer } from '@ports/IPdfViewer';
 import { EMPTY_DOCUMENT, useReaderStore } from '@stores/useReaderStore';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MockBackend } from '../../mocks/MockBackend';
@@ -199,12 +200,15 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       getPagesChunk: vi.fn().mockReturnValue([]),
       getCurrentPage: vi.fn().mockReturnValue({ pageNumber: 1, totalPages: 50 }),
       getPageProxy: vi.fn().mockResolvedValue(null),
+      ensurePagesExtracted: vi.fn().mockResolvedValue([]),
+      renderPageCanvas: vi.fn().mockResolvedValue({ width: 100, height: 100 }),
     };
 
     const controller = createReaderPaginationController({
       readerService: backend,
       libraryService: backend,
       getViewer: () => mockPdfViewer as unknown as IDocumentViewer,
+      pdfViewer: mockPdfViewer as unknown as IPdfViewer,
     });
 
     const doc = await controller.bootstrapBook(pdfBook);

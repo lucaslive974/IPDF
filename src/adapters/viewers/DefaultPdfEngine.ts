@@ -1,4 +1,4 @@
-import type { IPdfEngine, PdfDocumentProxy } from './IPdfEngine';
+import type { IPdfEngine, PdfDocumentProxy } from '@ports/IPdfEngine';
 
 export class DefaultPdfEngine implements IPdfEngine {
   private ensureWorkerConfigured(pdfjsLib: typeof import('pdfjs-dist')): void {

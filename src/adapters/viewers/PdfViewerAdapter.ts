@@ -7,9 +7,10 @@ import {
   type SentenceNode,
   type TextSelection,
 } from '@domain/types';
-import type { DocumentPage, IDocumentViewer } from '@ports/IDocumentViewer';
+import type { DocumentPage } from '@ports/IDocumentViewer';
+import type { IPdfEngine, PdfDocumentProxy, PdfPageProxy } from '@ports/IPdfEngine';
+import type { IPdfViewer } from '@ports/IPdfViewer';
 import { DefaultPdfEngine } from './DefaultPdfEngine';
-import type { IPdfEngine, PdfDocumentProxy, PdfPageProxy } from './IPdfEngine';
 
 interface InlineAnnotationEntry {
   readonly anchor: HighlightAnchor;
@@ -30,7 +31,7 @@ const createDefaultClientRect = (): DOMRect =>
     toJSON: () => ({}),
   }) as DOMRect;
 
-export class PdfViewerAdapter implements IDocumentViewer {
+export class PdfViewerAdapter implements IPdfViewer {
   private container: HTMLElement | null = null;
   private readonly engine: IPdfEngine;
   private documentProxy: PdfDocumentProxy | null = null;

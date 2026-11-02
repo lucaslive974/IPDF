@@ -1,7 +1,7 @@
-import type { IPdfEngine, PdfDocumentProxy, PdfPageProxy } from '@adapters/viewers/IPdfEngine';
 import { PdfViewerAdapter } from '@adapters/viewers/PdfViewerAdapter';
 import { Highlight } from '@domain/Highlight';
 import { BookFormat, type PageInfo, type TextSelection } from '@domain/types';
+import type { IPdfEngine, PdfDocumentProxy, PdfPageProxy } from '@ports/IPdfEngine';
 import { describe, expect, it, vi } from 'vitest';
 
 function createFakeContainer(): HTMLElement {

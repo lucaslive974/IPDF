@@ -1,5 +1,4 @@
 import type { Highlight } from '@domain/Highlight';
-import { BookFormat } from '@domain/types';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { memo, useEffect, useMemo, useRef } from 'react';
 import { ParagraphMarginNotes } from './ParagraphMarginNotes';
@@ -27,20 +26,13 @@ export const ReaderPagePdf = memo(function ReaderPagePdf({
   onHighlightContextMenu,
 }: ReaderPagePdfProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { getViewer } = useServiceContainer();
+  const { pdfViewer } = useServiceContainer();
 
   useEffect(() => {
-    const viewer = getViewer(BookFormat.PDF);
-    if (canvasRef.current && 'renderPageCanvas' in viewer) {
-      const pdfViewer = viewer as {
-        renderPageCanvas(
-          pageNumber: number,
-          canvas: HTMLCanvasElement
-        ): Promise<{ width: number; height: number }>;
-      };
+    if (canvasRef.current) {
       void pdfViewer.renderPageCanvas(pageNumber, canvasRef.current);
     }
-  }, [getViewer, pageNumber]);
+  }, [pdfViewer, pageNumber]);
 
   const pageNotes = useMemo(
     () =>

@@ -11,6 +11,7 @@ import type {
   IDocumentViewer,
   IHighlightService,
   ILibraryService,
+  IPdfViewer,
   IPresenceService,
   IReaderService,
   ISettingsService,
@@ -25,7 +26,7 @@ export interface ServiceContainer {
   readonly settingsService: ISettingsService;
   readonly getViewer: (format: BookFormat) => IDocumentViewer;
   readonly epubViewer: IDocumentViewer;
-  readonly pdfViewer: IDocumentViewer;
+  readonly pdfViewer: IPdfViewer;
 }
 
 export interface ServiceContainerOverrides {
@@ -36,7 +37,7 @@ export interface ServiceContainerOverrides {
   readonly settingsService?: ISettingsService;
   readonly epubViewer?: IDocumentViewer;
   readonly viewer?: IDocumentViewer;
-  readonly pdfViewer?: IDocumentViewer;
+  readonly pdfViewer?: IPdfViewer;
   readonly getViewer?: (format: BookFormat) => IDocumentViewer;
 }
 

@@ -2,16 +2,16 @@ import { EpubViewerAdapter } from '@adapters/viewers/EpubViewerAdapter';
 import { PdfViewerAdapter } from '@adapters/viewers/PdfViewerAdapter';
 import { BookFormat } from '@domain/types';
 import type { ILibraryService, IReaderService } from '@ports';
-import React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
 import {
   type ServiceContainer,
   ServiceContainerProvider,
   createServiceContainer,
   useOptionalServiceContainer,
   useServiceContainer,
-} from '../../../ui/providers/ServiceContainerContext';
+} from '@providers/ServiceContainerContext';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { describe, expect, it, vi } from 'vitest';
 
 describe('ServiceContainer Factory & Context (Static Composition)', () => {
   it('creates default service container with all services and viewers wired', () => {
