@@ -366,6 +366,7 @@ pub struct FakeDiscordPresenceClient {
     pub fail_set: bool,
     pub healthy: bool,
     pub activities: Vec<RecordedActivity>,
+    pub shared_activities: Option<std::sync::Arc<std::sync::Mutex<Vec<RecordedActivity>>>>,
     pub clear_calls: usize,
 }
 
@@ -377,6 +378,7 @@ impl Default for FakeDiscordPresenceClient {
             fail_set: false,
             healthy: true,
             activities: Vec::new(),
+            shared_activities: None,
             clear_calls: 0,
         }
     }
@@ -406,13 +408,17 @@ impl ipdf_core::adapters::presence::DiscordPresenceClient for FakeDiscordPresenc
         if self.fail_set {
             return Err("Fake set_activity failed".to_string());
         }
-        self.activities.push(RecordedActivity {
+        let rec = RecordedActivity {
             details: details.to_string(),
             state: state.to_string(),
             start_time_secs,
             large_image: large_image.map(|s| s.to_string()),
             large_text: large_text.map(|s| s.to_string()),
-        });
+        };
+        if let Some(ref shared) = self.shared_activities {
+            shared.lock().unwrap().push(rec.clone());
+        }
+        self.activities.push(rec);
         Ok(())
     }
 

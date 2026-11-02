@@ -68,7 +68,8 @@ impl Default for BackendState {
             .flatten()
             .and_then(|id_str| id_str.parse::<u64>().ok());
 
-        let mut presence_manager = RichPresenceManager::new(3000);
+        let now = crate::utils::current_epoch_ms();
+        let mut presence_manager = RichPresenceManager::new_with_start_time(3000, now);
         let discord_adapter =
             NativeDiscordPresenceAdapter::create_default(discord_client_id, discord_enabled);
         presence_manager.register_provider(discord_adapter);

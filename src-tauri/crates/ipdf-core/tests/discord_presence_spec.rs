@@ -251,6 +251,80 @@ fn test_discord_presence_integrated_with_rich_presence_manager() {
 }
 
 #[test]
+fn test_rich_presence_global_monotonic_timer_and_context_bypass() {
+    let recorded = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let client = FakeDiscordPresenceClient {
+        shared_activities: Some(std::sync::Arc::clone(&recorded)),
+        ..Default::default()
+    };
+    let adapter = DiscordPresenceAdapter::new(5555, true, client);
+
+    let app_start = 1_700_000_000_000;
+    let mut manager = RichPresenceManager::new_with_start_time(3000, app_start);
+    assert_eq!(manager.app_started_at_ms(), app_start);
+    manager.register_provider(adapter);
+
+    // 1. In Library at T = +10s
+    let lib_activity = PresenceActivity::Library {
+        total_books: 5,
+        session_started_at_ms: 1_700_000_010_000,
+    };
+    manager.update_activity(&lib_activity, 1_700_000_010_000, false);
+
+    // 2. User opens Book A at T = +11s (< 3000ms after library, must bypass debounce!)
+    let reading_book_a = ReadingActivity {
+        book_hash: "hash-book-a".to_string(),
+        book_title: "Book A".to_string(),
+        book_author: "Author A".to_string(),
+        chapter_title: None,
+        current_page: 1,
+        total_pages: 100,
+        percentage: 1.0,
+        state: "reading".to_string(),
+        session_started_at_ms: 1_700_000_011_000,
+    };
+    manager.update_reading_activity(&reading_book_a, 1_700_000_011_000, false);
+
+    // 3. Page turn on Book A at T = +12s (same book, < 3000ms -> should be debounced)
+    let mut page_2 = reading_book_a.clone();
+    page_2.current_page = 2;
+    manager.update_reading_activity(&page_2, 1_700_000_012_000, false);
+
+    // 4. Page turn on Book A at T = +15s (same book, >= 3000ms -> dispatched)
+    let mut page_3 = reading_book_a;
+    page_3.current_page = 3;
+    manager.update_reading_activity(&page_3, 1_700_000_015_000, false);
+
+    // 5. User switches to Annotations at T = +16s (context change -> bypasses debounce!)
+    let annot_activity = PresenceActivity::Annotations {
+        total_annotations: 20,
+        session_started_at_ms: 1_700_000_016_000,
+    };
+    manager.update_activity(&annot_activity, 1_700_000_016_000, false);
+
+    // Verify all activities have the EXACT same start timestamp (1_700_000_000s)
+    let expected_start_secs = app_start / 1000;
+    let list = recorded.lock().unwrap();
+    // Exactly 4 dispatched activities: Library (1), Book A open (2), Book A page 3 (4), Annotations (5).
+    // Page 2 was debounced.
+    assert_eq!(list.len(), 4);
+
+    assert_eq!(list[0].details, "Browsing Library");
+    assert_eq!(list[0].start_time_secs, expected_start_secs);
+
+    assert_eq!(list[1].details, "Book A — Author A");
+    assert_eq!(list[1].state, "Page 1 of 100 (1.0%)");
+    assert_eq!(list[1].start_time_secs, expected_start_secs);
+
+    assert_eq!(list[2].details, "Book A — Author A");
+    assert_eq!(list[2].state, "Page 3 of 100 (1.0%)");
+    assert_eq!(list[2].start_time_secs, expected_start_secs);
+
+    assert_eq!(list[3].details, "Reviewing Annotations");
+    assert_eq!(list[3].start_time_secs, expected_start_secs);
+}
+
+#[test]
 fn test_native_discord_presence_adapter_creation() {
     let default_adapter = NativeDiscordPresenceAdapter::create_default(None, false);
     assert_eq!(default_adapter.id(), "discord");

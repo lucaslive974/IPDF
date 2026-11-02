@@ -124,6 +124,9 @@ export function createReaderPaginationController(
         await onBookLoaded(doc.bookHash);
       }
 
+      const currentTotal = store.getState().totalPages;
+      void deps.readerService.updateBookProgress(doc.bookHash, initialPage, currentTotal);
+
       return doc;
     },
 

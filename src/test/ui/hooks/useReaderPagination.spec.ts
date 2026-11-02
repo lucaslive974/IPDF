@@ -54,6 +54,8 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       },
     ]);
 
+    const updateProgressSpy = vi.spyOn(backend, 'updateBookProgress');
+
     const controller = createReaderPaginationController({
       readerService: backend,
       epubViewer: viewer,
@@ -67,6 +69,7 @@ describe('useReaderPagination / createReaderPaginationController', () => {
     expect(state.totalPages).toBe(300);
     expect(state.loadedPages).toHaveLength(1);
     expect(state.chapterTitle).toBe('Book VII - Cave Allegory');
+    expect(updateProgressSpy).toHaveBeenCalledWith('hash-socrates', 10, 300);
   });
 
   it('loads more pages forward and backward', async () => {
