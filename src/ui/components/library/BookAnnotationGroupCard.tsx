@@ -1,8 +1,9 @@
-import { memo, useState } from 'react';
+import { memo } from 'react';
 import type { Highlight } from '../../../core/domain/Highlight';
 import type { BookAnnotationGroup } from '../../hooks/useLibraryAnnotations';
-import { Badge, BookIcon } from '../ui';
+import { Badge, Card } from '../ui';
 import { AnnotationItemCard } from './AnnotationItemCard';
+import { BookThumbnail } from './BookThumbnail';
 
 export interface BookAnnotationGroupCardProps {
   readonly group: BookAnnotationGroup;
@@ -19,30 +20,12 @@ export const BookAnnotationGroupCard = memo(function BookAnnotationGroupCard({
   onDeleteHighlight,
   onJumpToReader,
 }: BookAnnotationGroupCardProps) {
-  const [failedUrls, setFailedUrls] = useState<Set<string>>(() => new Set());
-  const hasError = group.coverImageUrl ? failedUrls.has(group.coverImageUrl) : false;
-
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-line-subtle bg-surface/50 p-4 shadow-2xs">
+    <Card variant="surface" padding="md" className="flex flex-col gap-3">
       {/* Book header */}
       <div className="flex items-center justify-between gap-3 border-b border-line-subtle pb-3">
         <div className="flex items-center gap-3 min-w-0">
-          {group.coverImageUrl && !hasError ? (
-            <img
-              src={group.coverImageUrl}
-              alt={group.bookTitle}
-              className="h-9 w-7 shrink-0 rounded object-cover shadow-2xs border border-line-subtle"
-              onError={() => {
-                if (group.coverImageUrl) {
-                  setFailedUrls((prev) => new Set(prev).add(group.coverImageUrl as string));
-                }
-              }}
-            />
-          ) : (
-            <div className="flex h-9 w-7 shrink-0 items-center justify-center rounded bg-surface-subtle text-tx-muted border border-line-subtle">
-              <BookIcon className="h-4 w-4" />
-            </div>
-          )}
+          <BookThumbnail coverImageUrl={group.coverImageUrl} title={group.bookTitle} />
 
           <div className="min-w-0">
             <h4 className="text-sm font-semibold text-tx-main truncate">{group.bookTitle}</h4>
@@ -70,6 +53,6 @@ export const BookAnnotationGroupCard = memo(function BookAnnotationGroupCard({
           />
         ))}
       </div>
-    </section>
+    </Card>
   );
 });
