@@ -1,8 +1,7 @@
 import { type KeyboardEvent, memo, useState } from 'react';
 import { AutocompleteInput } from './AutocompleteInput';
 import { Badge } from './Badge';
-import { Button } from './Button';
-import { CloseIcon, PlusIcon } from './icons';
+import { CloseIcon } from './icons';
 
 export interface TagInputProps {
   readonly tags: readonly string[];
@@ -68,32 +67,20 @@ export const TagInput = memo(function TagInput({
         </div>
       )}
 
-      <div className="flex items-start gap-2">
-        <div className="flex-1">
-          <AutocompleteInput
-            id={id}
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            suggestions={availableSuggestions}
-            onSelectSuggestion={(selected) => handleAdd(selected)}
-            placeholder={placeholder}
-            disabled={disabled}
-            error={error}
-          />
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="xs"
-          onClick={() => handleAdd()}
-          disabled={disabled || !inputValue.trim()}
-          className="h-8 shrink-0 mt-0.5"
-        >
-          <PlusIcon className="h-3 w-3 mr-1" />
-          Add
-        </Button>
-      </div>
+      <AutocompleteInput
+        id={id}
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+        suggestions={availableSuggestions}
+        onSelectSuggestion={(selected) => handleAdd(selected)}
+        clearOnSelect={true}
+        allowCustomInput={true}
+        customInputLabel={(query) => `Add tag "${query}"`}
+        placeholder={placeholder}
+        disabled={disabled}
+        error={error}
+      />
     </div>
   );
 });
