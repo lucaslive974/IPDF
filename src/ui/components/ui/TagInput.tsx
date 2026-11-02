@@ -1,7 +1,7 @@
-import { type KeyboardEvent, type MouseEvent, memo, useId, useState } from 'react';
+import { type KeyboardEvent, memo, useState } from 'react';
+import { AutocompleteInput } from './AutocompleteInput';
 import { Badge } from './Badge';
 import { Button } from './Button';
-import { Input } from './Input';
 import { CloseIcon, PlusIcon } from './icons';
 
 export interface TagInputProps {
@@ -27,24 +27,19 @@ export const TagInput = memo(function TagInput({
   containerClassName = '',
   id,
 }: TagInputProps) {
-  const generatedId = useId();
-  const inputId = id ?? `tag-input-${generatedId}`;
-  const datalistId = `tag-datalist-${generatedId}`;
-
   const [inputValue, setInputValue] = useState('');
 
-  const handleAdd = (e?: MouseEvent | KeyboardEvent) => {
-    e?.preventDefault();
-    const trimmed = inputValue.trim();
-    if (!trimmed || disabled) return;
-    onAddTag(trimmed);
+  const handleAdd = (val?: string) => {
+    const candidate = (val ?? inputValue).trim();
+    if (!candidate || disabled) return;
+    onAddTag(candidate);
     setInputValue('');
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
-      handleAdd(e);
+      handleAdd();
     }
   };
 
@@ -73,14 +68,15 @@ export const TagInput = memo(function TagInput({
         </div>
       )}
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-start gap-2">
         <div className="flex-1">
-          <Input
-            id={inputId}
-            list={datalistId}
+          <AutocompleteInput
+            id={id}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
+            suggestions={availableSuggestions}
+            onSelectSuggestion={(selected) => handleAdd(selected)}
             placeholder={placeholder}
             disabled={disabled}
             error={error}
@@ -90,22 +86,14 @@ export const TagInput = memo(function TagInput({
           type="button"
           variant="outline"
           size="xs"
-          onClick={handleAdd}
+          onClick={() => handleAdd()}
           disabled={disabled || !inputValue.trim()}
-          className="h-8 shrink-0"
+          className="h-8 shrink-0 mt-0.5"
         >
           <PlusIcon className="h-3 w-3 mr-1" />
           Add
         </Button>
       </div>
-
-      {availableSuggestions.length > 0 && (
-        <datalist id={datalistId}>
-          {availableSuggestions.map((item) => (
-            <option key={item} value={item} />
-          ))}
-        </datalist>
-      )}
     </div>
   );
 });

@@ -2,7 +2,7 @@ import { memo } from 'react';
 import type { BookMetadata } from '../../../core/domain/BookMetadata';
 import type { UpdateBookMetadataInput } from '../../../core/ports/ILibraryService';
 import { useEditBookMetadataModal } from '../../hooks/useEditBookMetadataModal';
-import { Button, Dialog, Input, TagInput, Textarea } from '../ui';
+import { AutocompleteInput, Button, Dialog, Input, TagInput, Textarea } from '../ui';
 
 export interface EditBookMetadataModalProps {
   readonly isOpen: boolean;
@@ -19,6 +19,7 @@ export const EditBookMetadataModal = memo(function EditBookMetadataModal({
 }: EditBookMetadataModalProps) {
   const {
     register,
+    setValue,
     errors,
     isValid,
     isSubmitting,
@@ -83,19 +84,15 @@ export const EditBookMetadataModal = memo(function EditBookMetadataModal({
           <label htmlFor="edit-book-author" className="text-xs font-medium text-tx-secondary">
             Author
           </label>
-          <Input
+          <AutocompleteInput
             id="edit-book-author"
-            list="authors-datalist"
             placeholder="Author name (e.g., Plato, Marcus Aurelius)..."
+            suggestions={availableAuthors}
+            onSelectSuggestion={(selected) =>
+              setValue('author', selected, { shouldDirty: true, shouldValidate: true })
+            }
             {...register('author')}
           />
-          {availableAuthors.length > 0 && (
-            <datalist id="authors-datalist">
-              {availableAuthors.map((a) => (
-                <option key={a} value={a} />
-              ))}
-            </datalist>
-          )}
         </div>
 
         {/* Tags */}

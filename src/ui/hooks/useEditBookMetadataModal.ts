@@ -49,6 +49,7 @@ export interface UseEditBookMetadataModalProps {
 
 export interface EditBookMetadataModalViewModel {
   readonly register: ReturnType<typeof useForm<BookMetadataFormValues>>['register'];
+  readonly setValue: ReturnType<typeof useForm<BookMetadataFormValues>>['setValue'];
   readonly errors: ReturnType<typeof useForm<BookMetadataFormValues>>['formState']['errors'];
   readonly isValid: boolean;
   readonly isSubmitting: boolean;
@@ -74,6 +75,7 @@ export function useEditBookMetadataModal({
 
   const {
     register,
+    setValue,
     handleSubmit,
     reset,
     formState: { errors, isValid, isSubmitting },
@@ -137,6 +139,7 @@ export function useEditBookMetadataModal({
 
   return {
     register,
+    setValue,
     errors,
     isValid,
     isSubmitting,
