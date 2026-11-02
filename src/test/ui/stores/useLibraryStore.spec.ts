@@ -22,6 +22,7 @@ describe('useLibraryStore', () => {
       currentPage: 1,
       totalPages: 100,
       percentage: 1,
+      tags: [],
       lastReadAt: new Date(),
       updatedAt: new Date(),
     };
@@ -45,6 +46,7 @@ describe('useLibraryStore', () => {
       currentPage: 1,
       totalPages: 50,
       percentage: 2,
+      tags: [],
       lastReadAt: new Date(),
       updatedAt: new Date(),
     };
@@ -56,6 +58,7 @@ describe('useLibraryStore', () => {
       currentPage: 5,
       totalPages: 100,
       percentage: 5,
+      tags: [],
       lastReadAt: new Date(),
       updatedAt: new Date(),
     };
@@ -76,6 +79,7 @@ describe('useLibraryStore', () => {
       currentPage: 1,
       totalPages: 50,
       percentage: 2,
+      tags: [],
       lastReadAt: new Date(),
       updatedAt: new Date(),
     };
@@ -102,6 +106,7 @@ describe('useLibraryStore', () => {
       currentPage: 1,
       totalPages: 50,
       percentage: 2,
+      tags: [],
       lastReadAt: new Date(),
       updatedAt: new Date(),
     };
@@ -122,6 +127,7 @@ describe('useLibraryStore', () => {
       currentPage: 1,
       totalPages: 50,
       percentage: 2,
+      tags: [],
       lastReadAt: new Date(),
       updatedAt: new Date(),
     };
@@ -133,6 +139,7 @@ describe('useLibraryStore', () => {
       currentPage: 5,
       totalPages: 100,
       percentage: 5,
+      tags: [],
       lastReadAt: new Date(),
       updatedAt: new Date(),
     };

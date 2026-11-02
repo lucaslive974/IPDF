@@ -10,11 +10,21 @@ export interface ImportLibraryBookInput {
   readonly coverImageUrl?: string;
 }
 
+export interface UpdateBookMetadataInput {
+  readonly title: string;
+  readonly author: string;
+  readonly tags: readonly string[];
+  readonly description?: string;
+}
+
 export interface ILibraryService {
   listLibraryBooks(): Promise<BookMetadata[]>;
   getStartupBook(): Promise<BookMetadata | null>;
   openBookFile(filePath: string): Promise<BookMetadata>;
   importLibraryBook(input: ImportLibraryBookInput): Promise<BookMetadata>;
   renameBook(bookHash: string, newTitle: string): Promise<BookMetadata>;
+  updateBookMetadata(bookHash: string, input: UpdateBookMetadataInput): Promise<BookMetadata>;
+  listAuthors(): Promise<string[]>;
+  listTags(): Promise<string[]>;
   deleteBook(bookHash: string): Promise<boolean>;
 }

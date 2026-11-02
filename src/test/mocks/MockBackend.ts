@@ -12,6 +12,7 @@ import type {
   PlatformInfo,
   PresenceHealthStatus,
   ReadingContext,
+  UpdateBookMetadataInput,
 } from '../../core/ports';
 
 export class MockBackend
@@ -60,6 +61,7 @@ export class MockBackend
       currentPage: 1,
       totalPages: 100,
       percentage: 1,
+      tags: [],
       lastReadAt: now,
       updatedAt: now,
     };
@@ -114,6 +116,7 @@ export class MockBackend
       totalPages: Math.max(1, input.totalPages),
       percentage: Math.round((1 / Math.max(1, input.totalPages)) * 100),
       coverImageUrl: input.coverImageUrl,
+      tags: [],
       lastReadAt: now,
       updatedAt: now,
     };
@@ -137,6 +140,8 @@ export class MockBackend
       totalPages,
       percentage: Math.round((currentPage / totalPages) * 100),
       coverImageUrl: existing?.coverImageUrl,
+      description: existing?.description,
+      tags: existing?.tags ?? [],
       lastReadAt: now,
       updatedAt: now,
     };
@@ -156,6 +161,50 @@ export class MockBackend
     };
     this.books.set(bookHash, updated);
     return updated;
+  }
+
+  public async updateBookMetadata(
+    bookHash: string,
+    input: UpdateBookMetadataInput
+  ): Promise<BookMetadata> {
+    const existing = this.books.get(bookHash);
+    if (!existing) {
+      throw new Error(`Book not found: ${bookHash}`);
+    }
+    const updated: BookMetadata = {
+      ...existing,
+      title: input.title,
+      author: input.author,
+      tags: Array.from(input.tags),
+      description: input.description,
+      updatedAt: new Date(),
+    };
+    this.books.set(bookHash, updated);
+    return updated;
+  }
+
+  public async listAuthors(): Promise<string[]> {
+    const authors = new Set<string>();
+    for (const book of this.books.values()) {
+      const a = book.author.trim();
+      if (a && a !== 'Unknown') {
+        authors.add(a);
+      }
+    }
+    return Array.from(authors).sort((a, b) => a.localeCompare(b));
+  }
+
+  public async listTags(): Promise<string[]> {
+    const tags = new Set<string>();
+    for (const book of this.books.values()) {
+      for (const t of book.tags) {
+        const trimmed = t.trim();
+        if (trimmed) {
+          tags.add(trimmed);
+        }
+      }
+    }
+    return Array.from(tags).sort((a, b) => a.localeCompare(b));
   }
 
   public async deleteBook(bookHash: string): Promise<boolean> {

@@ -36,6 +36,50 @@ impl BookRepository for InMemoryBookRepo {
         Ok(removed)
     }
 
+    fn update_book_metadata(
+        &mut self,
+        hash: &str,
+        title: &str,
+        author: &str,
+        tags: &[String],
+        description: Option<&str>,
+    ) -> Result<BookMetadata, String> {
+        let book = self
+            .books
+            .get_mut(hash)
+            .ok_or_else(|| format!("Book not found: {hash}"))?;
+        book.title = title.to_string();
+        book.author = author.to_string();
+        book.tags = tags.to_vec();
+        book.description = description.map(|d| d.to_string());
+        book.updated_at_ms += 1;
+        Ok(book.clone())
+    }
+
+    fn list_authors(&self) -> Result<Vec<String>, String> {
+        let mut authors: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+        for b in self.books.values() {
+            let a = b.author.trim();
+            if !a.is_empty() && a != "Unknown" {
+                authors.insert(a.to_string());
+            }
+        }
+        Ok(authors.into_iter().collect())
+    }
+
+    fn list_tags(&self) -> Result<Vec<String>, String> {
+        let mut tags: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+        for b in self.books.values() {
+            for t in &b.tags {
+                let trimmed = t.trim();
+                if !trimmed.is_empty() {
+                    tags.insert(trimmed.to_string());
+                }
+            }
+        }
+        Ok(tags.into_iter().collect())
+    }
+
     fn add_storage_location(&mut self, location: BookStorageLocation) -> Result<(), String> {
         self.locations.insert(
             (location.book_hash.clone(), location.provider_id.clone()),

@@ -18,6 +18,7 @@ fn test_sqlite_book_repository_lifecycle() {
         percentage: 4.28,
         cover_image_url: Some("cover://republic.png".to_string()),
         description: Some("Foundational philosophical work on justice and state.".to_string()),
+        tags: vec!["Philosophy".to_string(), "Politics".to_string()],
         last_read_at_ms: 1_700_000_100,
         updated_at_ms: 1_700_000_100,
     };
@@ -32,6 +33,7 @@ fn test_sqlite_book_repository_lifecycle() {
         percentage: 25.0,
         cover_image_url: None,
         description: None,
+        tags: vec!["Philosophy".to_string(), "Stoicism".to_string()],
         last_read_at_ms: 1_700_000_200, // Read more recently
         updated_at_ms: 1_700_000_200,
     };
@@ -96,6 +98,7 @@ fn test_sqlite_book_storage_locations() {
         percentage: 0.33,
         cover_image_url: None,
         description: None,
+        tags: Vec::new(),
         last_read_at_ms: 1_700_000_000,
         updated_at_ms: 1_700_000_000,
     };
@@ -157,4 +160,86 @@ fn test_sqlite_book_storage_locations() {
     let platform_repo = SqliteBookRepository::open_for_platform(&env);
     assert!(platform_repo.is_ok());
     let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
+fn test_sqlite_book_metadata_editing_and_orphan_cleanup() {
+    let mut repo = SqliteBookRepository::new_in_memory().expect("failed to create in-memory repo");
+
+    let b1 = BookMetadata {
+        book_hash: "hash-critique".to_string(),
+        title: "Critique of Pure Reason".to_string(),
+        author: "Immanuel Kant".to_string(),
+        format: BookFormat::Pdf,
+        current_page: 1,
+        total_pages: 500,
+        percentage: 0.2,
+        cover_image_url: None,
+        description: Some("Epistemology magnum opus.".to_string()),
+        tags: vec!["Philosophy".to_string(), "German Idealism".to_string()],
+        last_read_at_ms: 1000,
+        updated_at_ms: 1000,
+    };
+
+    let b2 = BookMetadata {
+        book_hash: "hash-beyond".to_string(),
+        title: "Beyond Good and Evil".to_string(),
+        author: "Friedrich Nietzsche".to_string(),
+        format: BookFormat::Epub,
+        current_page: 1,
+        total_pages: 250,
+        percentage: 0.4,
+        cover_image_url: None,
+        description: None,
+        tags: vec!["Philosophy".to_string(), "Existentialism".to_string()],
+        last_read_at_ms: 2000,
+        updated_at_ms: 2000,
+    };
+
+    repo.save_book(b1).unwrap();
+    repo.save_book(b2).unwrap();
+
+    // Check authors and tags
+    let authors = repo.list_authors().unwrap();
+    assert_eq!(authors, vec!["Friedrich Nietzsche", "Immanuel Kant"]);
+
+    let tags = repo.list_tags().unwrap();
+    assert_eq!(
+        tags,
+        vec!["Existentialism", "German Idealism", "Philosophy"]
+    );
+
+    // Update book b1: change author, change tags (remove German Idealism, add Epistemology)
+    let updated = repo
+        .update_book_metadata(
+            "hash-critique",
+            "Critique of Pure Reason (Second Edition)",
+            "I. Kant",
+            &["Philosophy".to_string(), "Epistemology".to_string()],
+            Some("Updated description"),
+        )
+        .unwrap();
+
+    assert_eq!(updated.title, "Critique of Pure Reason (Second Edition)");
+    assert_eq!(updated.author, "I. Kant");
+    assert_eq!(updated.description.as_deref(), Some("Updated description"));
+    assert_eq!(updated.tags, vec!["Epistemology", "Philosophy"]);
+
+    // Verify orphaned author "Immanuel Kant" was pruned and replaced by "I. Kant"
+    let authors = repo.list_authors().unwrap();
+    assert_eq!(authors, vec!["Friedrich Nietzsche", "I. Kant"]);
+
+    // Verify orphaned tag "German Idealism" was pruned, "Epistemology" was added
+    let tags = repo.list_tags().unwrap();
+    assert_eq!(tags, vec!["Epistemology", "Existentialism", "Philosophy"]);
+
+    // Delete book b2: should remove Nietzsche from authors and Existentialism from tags
+    let deleted = repo.delete_book("hash-beyond").unwrap();
+    assert!(deleted);
+
+    let authors = repo.list_authors().unwrap();
+    assert_eq!(authors, vec!["I. Kant"]);
+
+    let tags = repo.list_tags().unwrap();
+    assert_eq!(tags, vec!["Epistemology", "Philosophy"]);
 }

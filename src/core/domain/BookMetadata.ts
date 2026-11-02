@@ -11,6 +11,8 @@ export interface BookMetadata {
   coverImageBuffer?: Uint8Array;
   coverMimeType?: 'image/webp' | 'image/png' | 'image/jpeg';
   coverImageUrl?: string;
+  description?: string;
+  tags: string[];
   lastReadAt: Date;
   updatedAt: Date;
 }

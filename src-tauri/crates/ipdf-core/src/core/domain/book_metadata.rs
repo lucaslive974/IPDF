@@ -14,6 +14,8 @@ pub struct BookMetadata {
     pub cover_image_url: Option<String>,
     #[serde(default)]
     pub description: Option<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
     pub last_read_at_ms: i64,
     pub updated_at_ms: i64,
 }

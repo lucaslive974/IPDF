@@ -41,6 +41,7 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       totalPages: 300,
       currentPage: 10,
       percentage: 3,
+      tags: [],
       lastReadAt: new Date(),
       updatedAt: new Date(),
     };

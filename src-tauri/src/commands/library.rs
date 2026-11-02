@@ -148,6 +148,47 @@ pub fn rename_book(
 }
 
 #[tauri::command]
+pub fn update_book_metadata(
+    book_hash: String,
+    title: String,
+    author: String,
+    tags: Vec<String>,
+    description: Option<String>,
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<BookMetadata, String> {
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    let mut meta = guard.library.update_book_metadata(
+        &book_hash,
+        &title,
+        &author,
+        &tags,
+        description.as_deref(),
+    )?;
+    meta.cover_image_url = CoverExtractorAdapter::resolve_cover_data_url(
+        guard.library.storage_mut(),
+        &meta.book_hash,
+        meta.cover_image_url.as_deref(),
+    );
+    Ok(meta)
+}
+
+#[tauri::command]
+pub fn list_authors(
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<Vec<String>, String> {
+    let guard = state.lock().map_err(|e| e.to_string())?;
+    guard.library.list_authors()
+}
+
+#[tauri::command]
+pub fn list_tags(
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<Vec<String>, String> {
+    let guard = state.lock().map_err(|e| e.to_string())?;
+    guard.library.list_tags()
+}
+
+#[tauri::command]
 pub fn delete_book(
     book_hash: String,
     state: State<'_, Mutex<BackendState>>,

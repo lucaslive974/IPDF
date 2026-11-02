@@ -41,7 +41,7 @@ export const BookCard = memo(function BookCard({
               <IconButton
                 variant="ghost"
                 size="xs"
-                label="Rename document"
+                label="Edit details"
                 className="opacity-0 group-hover:opacity-100 transition-opacity text-tx-muted hover:text-tx-main"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -83,6 +83,20 @@ export const BookCard = memo(function BookCard({
           </h3>
           {showAuthor && (
             <p className="mt-0.5 text-[0.72rem] text-tx-muted font-normal">{book.author}</p>
+          )}
+          {book.tags && book.tags.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {book.tags.slice(0, 2).map((tag) => (
+                <Badge key={tag} variant="faint" size="xs">
+                  {tag}
+                </Badge>
+              ))}
+              {book.tags.length > 2 && (
+                <span className="text-[0.65rem] text-tx-muted self-center">
+                  +{book.tags.length - 2}
+                </span>
+              )}
+            </div>
           )}
         </div>
       </div>

@@ -40,6 +40,9 @@ pub fn run() {
             library::open_book_file,
             library::import_library_book,
             library::rename_book,
+            library::update_book_metadata,
+            library::list_authors,
+            library::list_tags,
             library::delete_book,
             // Reader & Content routes
             reader::read_book_binary,

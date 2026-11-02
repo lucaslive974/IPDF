@@ -96,6 +96,7 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
             percentage,
             cover_image_url: input.cover_image_url,
             description: None,
+            tags: Vec::new(),
             last_read_at_ms: input.now_ms,
             updated_at_ms: input.now_ms,
         };
@@ -204,6 +205,7 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
             percentage,
             cover_image_url: None,
             description: None,
+            tags: Vec::new(),
             last_read_at_ms: now_ms,
             updated_at_ms: now_ms,
         };
@@ -260,14 +262,53 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
             return Err("Book title cannot be empty".to_string());
         }
 
-        let mut book = self
+        let book = self
             .book_repo
             .find_book_by_hash(book_hash)?
             .ok_or_else(|| format!("Book not found: {book_hash}"))?;
 
-        book.title = trimmed_title.to_string();
-        self.book_repo.save_book(book.clone())?;
-        Ok(book)
+        self.update_book_metadata(
+            book_hash,
+            trimmed_title,
+            &book.author,
+            &book.tags,
+            book.description.as_deref(),
+        )
+    }
+
+    pub fn update_book_metadata(
+        &mut self,
+        book_hash: &str,
+        title: &str,
+        author: &str,
+        tags: &[String],
+        description: Option<&str>,
+    ) -> Result<BookMetadata, String> {
+        let trimmed_title = title.trim();
+        if trimmed_title.is_empty() {
+            return Err("Book title cannot be empty".to_string());
+        }
+        let trimmed_author = author.trim();
+        let final_author = if trimmed_author.is_empty() {
+            "Unknown Author"
+        } else {
+            trimmed_author
+        };
+        self.book_repo.update_book_metadata(
+            book_hash,
+            trimmed_title,
+            final_author,
+            tags,
+            description,
+        )
+    }
+
+    pub fn list_authors(&self) -> Result<Vec<String>, String> {
+        self.book_repo.list_authors()
+    }
+
+    pub fn list_tags(&self) -> Result<Vec<String>, String> {
+        self.book_repo.list_tags()
     }
 
     pub fn delete_book(&mut self, book_hash: &str) -> Result<bool, String> {

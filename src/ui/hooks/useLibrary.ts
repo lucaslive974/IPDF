@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import type { BookMetadata } from '../../core/domain/BookMetadata';
 import type { BookFormat } from '../../core/domain/types';
+import type { UpdateBookMetadataInput } from '../../core/ports/ILibraryService';
 import { useServiceContainer } from '../providers/ServiceContainerContext';
 import { useHighlightStore } from '../stores/useHighlightStore';
 import { useLibraryStore } from '../stores/useLibraryStore';
@@ -17,6 +18,7 @@ export interface LibraryViewModel {
     totalPages: number
   ): Promise<BookMetadata>;
   renameBook(bookHash: string, newTitle: string): Promise<BookMetadata>;
+  updateBookMetadata(bookHash: string, input: UpdateBookMetadataInput): Promise<BookMetadata>;
   deleteBook(bookHash: string): Promise<boolean>;
 }
 
@@ -97,6 +99,20 @@ export function useLibrary(): LibraryViewModel {
     [libraryService, setLoading, upsertBook]
   );
 
+  const updateBookMetadata = useCallback(
+    async (bookHash: string, input: UpdateBookMetadataInput): Promise<BookMetadata> => {
+      setLoading(true);
+      try {
+        const updated = await libraryService.updateBookMetadata(bookHash, input);
+        upsertBook(updated);
+        return updated;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [libraryService, setLoading, upsertBook]
+  );
+
   const deleteBook = useCallback(
     async (bookHash: string): Promise<boolean> => {
       setLoading(true);
@@ -131,6 +147,7 @@ export function useLibrary(): LibraryViewModel {
     importSampleBook,
     updateBookProgress,
     renameBook,
+    updateBookMetadata,
     deleteBook,
   };
 }

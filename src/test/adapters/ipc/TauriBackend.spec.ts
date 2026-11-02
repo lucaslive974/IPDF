@@ -72,6 +72,35 @@ vi.mock('@tauri-apps/api/core', () => ({
       storedBooks.set(bookHash, updated);
       return updated as unknown as T;
     }
+    if (cmd === 'update_book_metadata') {
+      const bookHash = String(args.bookHash);
+      const existing = storedBooks.get(bookHash);
+      if (!existing) throw new Error(`Book not found: ${bookHash}`);
+      const updated: SerializedBookMetadata = {
+        ...existing,
+        title: String(args.title),
+        author: String(args.author),
+        tags: (args.tags as string[]) ?? [],
+        description: args.description ? String(args.description) : undefined,
+        updatedAtMs: 1_700_000_250_000,
+      };
+      storedBooks.set(bookHash, updated);
+      return updated as unknown as T;
+    }
+    if (cmd === 'list_authors') {
+      const authors = new Set<string>();
+      for (const b of storedBooks.values()) {
+        if (b.author && b.author !== 'Unknown') authors.add(b.author);
+      }
+      return Array.from(authors).sort() as unknown as T;
+    }
+    if (cmd === 'list_tags') {
+      const tags = new Set<string>();
+      for (const b of storedBooks.values()) {
+        for (const t of b.tags ?? []) tags.add(t);
+      }
+      return Array.from(tags).sort() as unknown as T;
+    }
     if (cmd === 'delete_book') {
       const bookHash = String(args.bookHash);
       const existed = storedBooks.delete(bookHash);
@@ -204,6 +233,24 @@ describe('Modular Tauri IPC Adapters', () => {
     const renamed = await libraryService.renameBook('sha256-imported-book', 'Renamed Tauri Book');
     expect(renamed.title).toBe('Renamed Tauri Book');
 
+    const updatedMeta = await libraryService.updateBookMetadata('sha256-imported-book', {
+      title: 'Updated Metas',
+      author: 'Tauri Author',
+      tags: ['TauriTag1', 'TauriTag2'],
+      description: 'A great Tauri book description.',
+    });
+    expect(updatedMeta.title).toBe('Updated Metas');
+    expect(updatedMeta.author).toBe('Tauri Author');
+    expect(updatedMeta.tags).toEqual(['TauriTag1', 'TauriTag2']);
+    expect(updatedMeta.description).toBe('A great Tauri book description.');
+
+    const authors = await libraryService.listAuthors();
+    expect(authors).toContain('Tauri Author');
+
+    const tags = await libraryService.listTags();
+    expect(tags).toContain('TauriTag1');
+    expect(tags).toContain('TauriTag2');
+
     expect(await libraryService.getStartupBook()).toBeNull();
 
     const opened = await libraryService.openBookFile('/path/to/my_book.pdf');
@@ -325,6 +372,23 @@ describe('MockBackend (In-Memory Modular Double)', () => {
 
     const renamedMock = await mock.renameBook(imported.bookHash, 'Renamed Mock Book');
     expect(renamedMock.title).toBe('Renamed Mock Book');
+
+    const updatedMetaMock = await mock.updateBookMetadata(imported.bookHash, {
+      title: 'Plato - Republic Extended',
+      author: 'Plato of Athens',
+      tags: ['Philosophy', 'Classics'],
+      description: 'The definitive philosophical work.',
+    });
+    expect(updatedMetaMock.title).toBe('Plato - Republic Extended');
+    expect(updatedMetaMock.author).toBe('Plato of Athens');
+    expect(updatedMetaMock.tags).toEqual(['Philosophy', 'Classics']);
+    expect(updatedMetaMock.description).toBe('The definitive philosophical work.');
+
+    const mockAuthors = await mock.listAuthors();
+    expect(mockAuthors).toContain('Plato of Athens');
+
+    const mockTags = await mock.listTags();
+    expect(mockTags).toEqual(['Classics', 'Philosophy']);
 
     const mockStartup = await mock.getStartupBook();
     expect(mockStartup).toBeNull();

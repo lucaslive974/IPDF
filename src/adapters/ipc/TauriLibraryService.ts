@@ -1,7 +1,11 @@
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import type { BookMetadata } from '../../core/domain/BookMetadata';
 import type { BookFormat } from '../../core/domain/types';
-import type { ILibraryService, ImportLibraryBookInput } from '../../core/ports/ILibraryService';
+import type {
+  ILibraryService,
+  ImportLibraryBookInput,
+  UpdateBookMetadataInput,
+} from '../../core/ports/ILibraryService';
 
 export interface SerializedBookMetadata {
   readonly bookHash: string;
@@ -12,6 +16,8 @@ export interface SerializedBookMetadata {
   readonly totalPages: number;
   readonly percentage: number;
   readonly coverImageUrl?: string;
+  readonly description?: string;
+  readonly tags?: string[];
   readonly lastReadAtMs: number;
   readonly updatedAtMs: number;
 }
@@ -45,6 +51,8 @@ export function deserializeBookMetadata(dto: SerializedBookMetadata): BookMetada
     totalPages: dto.totalPages,
     percentage: dto.percentage,
     coverImageUrl: resolveCoverUrl(dto.coverImageUrl),
+    description: dto.description ?? undefined,
+    tags: dto.tags ?? [],
     lastReadAt: new Date(dto.lastReadAtMs),
     updatedAt: new Date(dto.updatedAtMs),
   };
@@ -84,6 +92,28 @@ export class TauriLibraryService implements ILibraryService {
       newTitle,
     });
     return deserializeBookMetadata(dto);
+  }
+
+  public async updateBookMetadata(
+    bookHash: string,
+    input: UpdateBookMetadataInput
+  ): Promise<BookMetadata> {
+    const dto = await invoke<SerializedBookMetadata>('update_book_metadata', {
+      bookHash,
+      title: input.title,
+      author: input.author,
+      tags: Array.from(input.tags),
+      description: input.description ?? null,
+    });
+    return deserializeBookMetadata(dto);
+  }
+
+  public async listAuthors(): Promise<string[]> {
+    return invoke<string[]>('list_authors');
+  }
+
+  public async listTags(): Promise<string[]> {
+    return invoke<string[]>('list_tags');
   }
 
   public async deleteBook(bookHash: string): Promise<boolean> {

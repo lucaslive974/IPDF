@@ -6,10 +6,10 @@ import { useTheme } from '../hooks/useTheme';
 import { useServiceContainer } from '../providers/ServiceContainerContext';
 import { BooksGrid } from './library/BooksGrid';
 import { DeleteBookDialog } from './library/DeleteBookDialog';
+import { EditBookMetadataModal } from './library/EditBookMetadataModal';
 import { LibraryAnnotationsTab } from './library/LibraryAnnotationsTab';
 import { LibraryCollectionsTab } from './library/LibraryCollectionsTab';
 import { LibraryHeader } from './library/LibraryHeader';
-import { RenameBookDialog } from './library/RenameBookDialog';
 import type { SegmentedControlOption } from './ui';
 
 export type LibraryTabId = 'recents' | 'all' | 'highlights' | 'lists';
@@ -112,15 +112,15 @@ export function LibraryView({
 
         {activeTab === 'highlights' && <LibraryAnnotationsTab searchQuery={searchQuery} />}
 
-        {activeTab === 'lists' && <LibraryCollectionsTab />}
+        {activeTab === 'lists' && <LibraryCollectionsTab onOpenBook={onOpenBook} />}
       </main>
 
-      <RenameBookDialog
+      <EditBookMetadataModal
         isOpen={Boolean(bookToRename)}
         book={bookToRename}
         onClose={() => setBookToRename(null)}
-        onRename={async (hash, newTitle) => {
-          await library.renameBook(hash, newTitle);
+        onSave={async (hash, input) => {
+          await library.updateBookMetadata(hash, input);
         }}
       />
 

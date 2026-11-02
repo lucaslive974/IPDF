@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
-import type { SerializedBookMetadata } from '../../adapters/ipc/TauriLibraryService';
-import type { BookMetadata } from '../../core/domain/BookMetadata';
+import {
+  type SerializedBookMetadata,
+  deserializeBookMetadata,
+} from '../../adapters/ipc/TauriLibraryService';
 import { useServiceContainer } from '../providers/ServiceContainerContext';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { useNavigation } from './useNavigation';
@@ -35,11 +37,7 @@ export function useSystemHandler(): void {
 
         unlisten = await listen<SerializedBookMetadata>('open-book-from-system', (event) => {
           if (!event.payload) return;
-          const book: BookMetadata = {
-            ...event.payload,
-            lastReadAt: new Date(event.payload.lastReadAtMs),
-            updatedAt: new Date(event.payload.updatedAtMs),
-          };
+          const book = deserializeBookMetadata(event.payload);
           upsertBook(book);
           openReader(book);
         });

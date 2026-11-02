@@ -39,6 +39,31 @@ const CREATE_LOCATIONS_TABLE_SQL: &str = "
         ON book_storage_locations (book_hash);
 ";
 
+const CREATE_AUTHORS_TAGS_TABLES_SQL: &str = "
+    CREATE TABLE IF NOT EXISTS authors (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        created_at_ms INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_authors_name ON authors(name);
+
+    CREATE TABLE IF NOT EXISTS tags (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE COLLATE NOCASE
+    );
+    CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name);
+
+    CREATE TABLE IF NOT EXISTS book_tags (
+        book_hash TEXT NOT NULL,
+        tag_id INTEGER NOT NULL,
+        PRIMARY KEY (book_hash, tag_id),
+        FOREIGN KEY (book_hash) REFERENCES books(hash) ON DELETE CASCADE,
+        FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_book_tags_hash ON book_tags(book_hash);
+    CREATE INDEX IF NOT EXISTS idx_book_tags_tag_id ON book_tags(tag_id);
+";
+
 const UPSERT_BOOK_SQL: &str = "
     INSERT OR REPLACE INTO books (
         hash, title, author, format, current_page, total_pages,
@@ -116,7 +141,84 @@ impl SqliteBookRepository {
         self.conn
             .execute_batch(CREATE_LOCATIONS_TABLE_SQL)
             .map_err(to_err)?;
+        self.conn
+            .execute_batch(CREATE_AUTHORS_TAGS_TABLES_SQL)
+            .map_err(to_err)?;
         Ok(())
+    }
+
+    fn prune_orphaned_metadata(conn: &Connection) -> Result<(), rusqlite::Error> {
+        conn.execute(
+            "DELETE FROM tags WHERE id NOT IN (SELECT DISTINCT tag_id FROM book_tags)",
+            [],
+        )?;
+        conn.execute(
+            "DELETE FROM authors WHERE name NOT IN (SELECT DISTINCT author FROM books WHERE trim(author) != '' AND author != 'Unknown')",
+            [],
+        )?;
+        Ok(())
+    }
+
+    fn save_book_tags_and_author(
+        conn: &Connection,
+        book_hash: &str,
+        author: &str,
+        tags: &[String],
+        now_ms: i64,
+    ) -> Result<(), rusqlite::Error> {
+        let trimmed_author = author.trim();
+        if !trimmed_author.is_empty() && trimmed_author != "Unknown" {
+            conn.execute(
+                "INSERT OR IGNORE INTO authors (name, created_at_ms) VALUES (?1, ?2)",
+                params![trimmed_author, now_ms],
+            )?;
+        }
+
+        conn.execute(
+            "DELETE FROM book_tags WHERE book_hash = ?1",
+            params![book_hash],
+        )?;
+
+        for tag in tags {
+            let trimmed = tag.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            conn.execute(
+                "INSERT OR IGNORE INTO tags (name) VALUES (?1)",
+                params![trimmed],
+            )?;
+            let tag_id: i64 = conn.query_row(
+                "SELECT id FROM tags WHERE name = ?1 COLLATE NOCASE",
+                params![trimmed],
+                |r| r.get(0),
+            )?;
+            conn.execute(
+                "INSERT OR IGNORE INTO book_tags (book_hash, tag_id) VALUES (?1, ?2)",
+                params![book_hash, tag_id],
+            )?;
+        }
+
+        Self::prune_orphaned_metadata(conn)?;
+        Ok(())
+    }
+
+    fn load_tags_for_book(
+        conn: &Connection,
+        book_hash: &str,
+    ) -> Result<Vec<String>, rusqlite::Error> {
+        let mut stmt = conn.prepare(
+            "SELECT t.name FROM tags t
+             JOIN book_tags bt ON t.id = bt.tag_id
+             WHERE bt.book_hash = ?1
+             ORDER BY t.name COLLATE NOCASE ASC",
+        )?;
+        let rows = stmt.query_map(params![book_hash], |r| r.get::<_, String>(0))?;
+        let mut tags = Vec::new();
+        for t in rows {
+            tags.push(t?);
+        }
+        Ok(tags)
     }
 
     fn row_to_book(row: &Row<'_>) -> rusqlite::Result<BookMetadata> {
@@ -136,6 +238,7 @@ impl SqliteBookRepository {
             percentage: row.get(6)?,
             cover_image_url: row.get(7)?,
             description: row.get(8)?,
+            tags: Vec::new(),
             last_read_at_ms: row.get(9)?,
             updated_at_ms: row.get(10)?,
         })
@@ -178,6 +281,16 @@ impl BookRepository for SqliteBookRepository {
                 ],
             )
             .map_err(to_err)?;
+
+        Self::save_book_tags_and_author(
+            &self.conn,
+            &book.book_hash,
+            &book.author,
+            &book.tags,
+            book.updated_at_ms,
+        )
+        .map_err(to_err)?;
+
         Ok(())
     }
 
@@ -188,7 +301,8 @@ impl BookRepository for SqliteBookRepository {
             .map_err(to_err)?;
 
         if let Some(row) = rows.next() {
-            let book = row.map_err(to_err)?;
+            let mut book = row.map_err(to_err)?;
+            book.tags = Self::load_tags_for_book(&self.conn, hash).map_err(to_err)?;
             Ok(Some(book))
         } else {
             Ok(None)
@@ -203,6 +317,29 @@ impl BookRepository for SqliteBookRepository {
         for r in rows {
             books.push(r.map_err(to_err)?);
         }
+
+        let mut tag_stmt = self
+            .conn
+            .prepare(
+                "SELECT bt.book_hash, t.name
+                 FROM book_tags bt
+                 JOIN tags t ON t.id = bt.tag_id
+                 ORDER BY t.name COLLATE NOCASE ASC",
+            )
+            .map_err(to_err)?;
+        let mut tag_rows = tag_stmt.query([]).map_err(to_err)?;
+        let mut tags_by_hash: std::collections::HashMap<String, Vec<String>> =
+            std::collections::HashMap::new();
+        while let Some(row) = tag_rows.next().map_err(to_err)? {
+            let hash: String = row.get(0).map_err(to_err)?;
+            let tag: String = row.get(1).map_err(to_err)?;
+            tags_by_hash.entry(hash).or_default().push(tag);
+        }
+
+        for book in &mut books {
+            book.tags = tags_by_hash.remove(&book.book_hash).unwrap_or_default();
+        }
+
         Ok(books)
     }
 
@@ -211,7 +348,71 @@ impl BookRepository for SqliteBookRepository {
             .conn
             .execute(DELETE_BOOK_SQL, params![hash])
             .map_err(to_err)?;
+        if count > 0 {
+            Self::prune_orphaned_metadata(&self.conn).map_err(to_err)?;
+        }
         Ok(count > 0)
+    }
+
+    fn update_book_metadata(
+        &mut self,
+        hash: &str,
+        title: &str,
+        author: &str,
+        tags: &[String],
+        description: Option<&str>,
+    ) -> Result<BookMetadata, String> {
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+
+        let rows_affected = self
+            .conn
+            .execute(
+                "UPDATE books SET title = ?1, author = ?2, description = ?3, updated_at_ms = ?4 WHERE hash = ?5",
+                params![title, author, description, now_ms, hash],
+            )
+            .map_err(to_err)?;
+
+        if rows_affected == 0 {
+            return Err(format!("Book not found: {hash}"));
+        }
+
+        Self::save_book_tags_and_author(&self.conn, hash, author, tags, now_ms).map_err(to_err)?;
+
+        self.find_book_by_hash(hash)?
+            .ok_or_else(|| format!("Book not found after update: {hash}"))
+    }
+
+    fn list_authors(&self) -> Result<Vec<String>, String> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT name FROM authors ORDER BY name COLLATE NOCASE ASC")
+            .map_err(to_err)?;
+        let rows = stmt
+            .query_map([], |r| r.get::<_, String>(0))
+            .map_err(to_err)?;
+        let mut authors = Vec::new();
+        for a in rows {
+            authors.push(a.map_err(to_err)?);
+        }
+        Ok(authors)
+    }
+
+    fn list_tags(&self) -> Result<Vec<String>, String> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT name FROM tags ORDER BY name COLLATE NOCASE ASC")
+            .map_err(to_err)?;
+        let rows = stmt
+            .query_map([], |r| r.get::<_, String>(0))
+            .map_err(to_err)?;
+        let mut tags = Vec::new();
+        for t in rows {
+            tags.push(t.map_err(to_err)?);
+        }
+        Ok(tags)
     }
 
     fn add_storage_location(&mut self, location: BookStorageLocation) -> Result<(), String> {

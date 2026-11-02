@@ -68,6 +68,7 @@ fn test_highlight_manager_and_cloudless_sync_lww() {
             percentage: 45.0,
             cover_image_url: None,
             description: None,
+            tags: Vec::new(),
             last_read_at_ms: 3000,
             updated_at_ms: 3000,
         }],

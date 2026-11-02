@@ -5,6 +5,16 @@ pub trait BookRepository {
     fn find_book_by_hash(&self, hash: &str) -> Result<Option<BookMetadata>, String>;
     fn list_books(&self) -> Result<Vec<BookMetadata>, String>;
     fn delete_book(&mut self, hash: &str) -> Result<bool, String>;
+    fn update_book_metadata(
+        &mut self,
+        hash: &str,
+        title: &str,
+        author: &str,
+        tags: &[String],
+        description: Option<&str>,
+    ) -> Result<BookMetadata, String>;
+    fn list_authors(&self) -> Result<Vec<String>, String>;
+    fn list_tags(&self) -> Result<Vec<String>, String>;
 
     fn add_storage_location(&mut self, location: BookStorageLocation) -> Result<(), String>;
     fn get_storage_locations(&self, book_hash: &str) -> Result<Vec<BookStorageLocation>, String>;

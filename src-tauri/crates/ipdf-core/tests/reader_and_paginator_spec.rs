@@ -80,6 +80,7 @@ fn test_reader_manager_lifecycle_and_caching() {
         percentage: 20.0,
         cover_image_url: None,
         description: None,
+        tags: Vec::new(),
         last_read_at_ms: 1000,
         updated_at_ms: 1000,
     };
@@ -138,6 +139,7 @@ fn test_reader_manager_lifecycle_and_caching() {
             percentage: 50.0,
             cover_image_url: None,
             description: None,
+            tags: Vec::new(),
             last_read_at_ms: 2000,
             updated_at_ms: 2000,
         })

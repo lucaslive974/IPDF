@@ -486,7 +486,7 @@ fn test_library_manager_with_sqlite_book_repo_integration() {
     assert_eq!(locs[0].provider_id, "local-storage");
     assert!(locs[0].is_downloaded);
 
-    // 3. Rename book
+    // 3. Rename book and update metadata
     let renamed = library
         .rename_book(&hash, "Phaedo on the Immortality of the Soul")
         .unwrap();
@@ -497,6 +497,30 @@ fn test_library_manager_with_sqlite_book_repo_integration() {
         .unwrap()
         .unwrap();
     assert_eq!(repo_renamed.title, "Phaedo on the Immortality of the Soul");
+
+    // 3b. Update full metadata via LibraryManager
+    let updated_meta = library
+        .update_book_metadata(
+            &hash,
+            "Phaedo Dialogues",
+            "Plato of Athens",
+            &["Ancient Philosophy".to_string(), "Soul".to_string()],
+            Some("A dialogue on immortality."),
+        )
+        .unwrap();
+    assert_eq!(updated_meta.title, "Phaedo Dialogues");
+    assert_eq!(updated_meta.author, "Plato of Athens");
+    assert_eq!(updated_meta.tags, vec!["Ancient Philosophy", "Soul"]);
+    assert_eq!(
+        updated_meta.description.as_deref(),
+        Some("A dialogue on immortality.")
+    );
+
+    let authors = library.list_authors().unwrap();
+    assert_eq!(authors, vec!["Plato of Athens"]);
+
+    let tags = library.list_tags().unwrap();
+    assert_eq!(tags, vec!["Ancient Philosophy", "Soul"]);
 
     // 4. Update progress
     let updated = library
@@ -595,6 +619,7 @@ fn test_library_manager_zip_epub_and_open_binary_fallbacks() {
             percentage: 10.0,
             cover_image_url: None,
             description: None,
+            tags: Vec::new(),
             last_read_at_ms: 1000,
             updated_at_ms: 1000,
         })
