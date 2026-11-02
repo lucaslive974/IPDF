@@ -28,67 +28,101 @@ export interface ServiceContainer {
   readonly pdfViewer: IDocumentViewer;
 }
 
-export const ServiceContainerContext = createContext<ServiceContainer | null>(null);
-
-export interface ServiceContainerProviderProps {
-  readonly children: ReactNode;
+export interface ServiceContainerOverrides {
   readonly libraryService?: ILibraryService;
   readonly highlightService?: IHighlightService;
   readonly readerService?: IReaderService;
   readonly presenceService?: IPresenceService;
   readonly settingsService?: ISettingsService;
+  readonly epubViewer?: IDocumentViewer;
   readonly viewer?: IDocumentViewer;
   readonly pdfViewer?: IDocumentViewer;
   readonly getViewer?: (format: BookFormat) => IDocumentViewer;
 }
 
+/**
+ * Pure Factory to instantiate and wire Scholarium services.
+ * Decouples service graph creation from React rendering and facilitates unit testing.
+ */
+export function createServiceContainer(
+  overrides: ServiceContainerOverrides = {}
+): ServiceContainer {
+  const libraryService = overrides.libraryService ?? new TauriLibraryService();
+  const highlightService = overrides.highlightService ?? new TauriHighlightService();
+  const readerService = overrides.readerService ?? new TauriReaderService();
+  const presenceService = overrides.presenceService ?? new TauriPresenceService();
+  const settingsService = overrides.settingsService ?? new TauriSettingsService();
+
+  const epubViewer = overrides.epubViewer ?? overrides.viewer ?? new EpubViewerAdapter();
+  const pdfViewer = overrides.pdfViewer ?? new PdfViewerAdapter();
+
+  const getViewer =
+    overrides.getViewer ??
+    ((format: BookFormat) => {
+      if (format === BookFormat.PDF) {
+        return pdfViewer;
+      }
+      return epubViewer;
+    });
+
+  return {
+    libraryService,
+    highlightService,
+    readerService,
+    presenceService,
+    settingsService,
+    getViewer,
+    epubViewer,
+    pdfViewer,
+  };
+}
+
+export const ServiceContainerContext = createContext<ServiceContainer | null>(null);
+
+export interface ServiceContainerProviderProps extends ServiceContainerOverrides {
+  readonly children?: ReactNode;
+  readonly container?: ServiceContainer;
+}
+
 export function ServiceContainerProvider({
   children,
-  libraryService: injectedLibrary,
-  highlightService: injectedHighlights,
-  readerService: injectedReader,
-  presenceService: injectedPresence,
-  settingsService: injectedSettings,
+  container: injectedContainer,
+  libraryService,
+  highlightService,
+  readerService,
+  presenceService,
+  settingsService,
+  epubViewer,
   viewer,
-  pdfViewer: injectedPdfViewer,
-  getViewer: injectedGetViewer,
+  pdfViewer,
+  getViewer,
 }: ServiceContainerProviderProps) {
   const container = useMemo<ServiceContainer>(() => {
-    const libraryService = injectedLibrary ?? new TauriLibraryService();
-    const highlightService = injectedHighlights ?? new TauriHighlightService();
-    const readerService = injectedReader ?? new TauriReaderService();
-    const presenceService = injectedPresence ?? new TauriPresenceService();
-    const settingsService = injectedSettings ?? new TauriSettingsService();
-    const epubViewer = viewer ?? new EpubViewerAdapter();
-    const pdfViewer = injectedPdfViewer ?? new PdfViewerAdapter();
-    const getViewer =
-      injectedGetViewer ??
-      ((format: BookFormat) => {
-        if (format === BookFormat.PDF) {
-          return pdfViewer;
-        }
-        return epubViewer;
-      });
-
-    return {
+    if (injectedContainer) {
+      return injectedContainer;
+    }
+    return createServiceContainer({
       libraryService,
       highlightService,
       readerService,
       presenceService,
       settingsService,
-      getViewer,
       epubViewer,
+      viewer,
       pdfViewer,
-    };
+      getViewer,
+    });
   }, [
-    injectedLibrary,
-    injectedHighlights,
-    injectedReader,
-    injectedPresence,
-    injectedSettings,
-    injectedPdfViewer,
-    injectedGetViewer,
+    injectedContainer,
+    libraryService,
+    highlightService,
+    readerService,
+    presenceService,
+    settingsService,
+    epubViewer,
     viewer,
+    pdfViewer,
+    getViewer,
   ]);
 
   return (
@@ -104,4 +138,8 @@ export function useServiceContainer(): ServiceContainer {
     throw new Error('useServiceContainer must be used within a ServiceContainerProvider');
   }
   return context;
+}
+
+export function useOptionalServiceContainer(): ServiceContainer | null {
+  return useContext(ServiceContainerContext);
 }
