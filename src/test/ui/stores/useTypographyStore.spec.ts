@@ -1,11 +1,11 @@
-import { beforeEach, describe, expect, it } from 'vitest';
 import {
   MAX_FONT_SIZE,
   MAX_ZOOM,
   MIN_FONT_SIZE,
   MIN_ZOOM,
   useTypographyStore,
-} from '../../../ui/stores/useTypographyStore';
+} from '@stores/useTypographyStore';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 describe('useTypographyStore', () => {
   beforeEach(() => {

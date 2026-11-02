@@ -1,8 +1,8 @@
+import type { Highlight } from '@domain/Highlight';
+import { BookFormat } from '@domain/types';
+import type { DocumentPage } from '@ports/IReaderService';
+import { FONT_FAMILY_DEFINITIONS, useTypographyStore } from '@stores/useTypographyStore';
 import { memo } from 'react';
-import type { Highlight } from '../../../core/domain/Highlight';
-import { BookFormat } from '../../../core/domain/types';
-import type { DocumentPage } from '../../../core/ports/IReaderService';
-import { FONT_FAMILY_DEFINITIONS, useTypographyStore } from '../../stores/useTypographyStore';
 import { ReaderPageCover } from './ReaderPageCover';
 import { ReaderPageHeader } from './ReaderPageHeader';
 import { ReaderPageParagraphs, type ReaderPageParagraphsProps } from './ReaderPageParagraphs';

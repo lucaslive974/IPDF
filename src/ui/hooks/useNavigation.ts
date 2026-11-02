@@ -2,7 +2,7 @@ import {
   type AppViewMode,
   type NavigationContextValue,
   useNavigationContext,
-} from '../providers/NavigationContext';
+} from '@providers/NavigationContext';
 
 export type { AppViewMode, NavigationContextValue };
 

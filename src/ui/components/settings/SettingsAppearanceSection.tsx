@@ -1,5 +1,5 @@
+import { Card, MoonIcon, SunIcon } from '@ui';
 import { memo } from 'react';
-import { Card, MoonIcon, SunIcon } from '../ui';
 
 export interface SettingsAppearanceSectionProps {
   readonly theme: string;

@@ -1,5 +1,5 @@
+import { FONT_FAMILY_DEFINITIONS, type FontFamilyChoice } from '@stores/useTypographyStore';
 import { memo } from 'react';
-import { FONT_FAMILY_DEFINITIONS, type FontFamilyChoice } from '../../stores/useTypographyStore';
 
 export interface ReaderTypefaceSelectorProps {
   readonly fontFamily: FontFamilyChoice;

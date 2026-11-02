@@ -1,16 +1,16 @@
-import { useCallback, useMemo, useRef } from 'react';
-import type { BookMetadata } from '../../core/domain/BookMetadata';
-import type { Highlight } from '../../core/domain/Highlight';
-import type { TextFormatStyle } from '../../core/domain/types';
-import type { DocumentPage } from '../../core/ports/IReaderService';
-import { useServiceContainer } from '../providers/ServiceContainerContext';
-import { useHighlightStore } from '../stores/useHighlightStore';
-import { EMPTY_DOCUMENT, type StudyDocumentDescriptor } from '../stores/useReaderStore';
+import type { BookMetadata } from '@domain/BookMetadata';
+import type { Highlight } from '@domain/Highlight';
+import type { TextFormatStyle } from '@domain/types';
+import type { DocumentPage } from '@ports/IReaderService';
+import { useServiceContainer } from '@providers/ServiceContainerContext';
+import { useHighlightStore } from '@stores/useHighlightStore';
+import { EMPTY_DOCUMENT, type StudyDocumentDescriptor } from '@stores/useReaderStore';
 import {
   type ActiveHighlightPopoverState,
   type SelectionPopoverState,
   useReaderUIStore,
-} from '../stores/useReaderUIStore';
+} from '@stores/useReaderUIStore';
+import { useCallback, useMemo, useRef } from 'react';
 import { useReaderHighlights } from './useReaderHighlights';
 import { useReaderNotesEditor } from './useReaderNotesEditor';
 import { useReaderPagination } from './useReaderPagination';

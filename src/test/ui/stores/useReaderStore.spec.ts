@@ -1,6 +1,6 @@
+import type { DocumentPage } from '@ports/IReaderService';
+import { EMPTY_DOCUMENT, useReaderStore } from '@stores/useReaderStore';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { DocumentPage } from '../../../core/ports/IReaderService';
-import { EMPTY_DOCUMENT, useReaderStore } from '../../../ui/stores/useReaderStore';
 
 describe('useReaderStore', () => {
   beforeEach(() => {

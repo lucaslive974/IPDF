@@ -1,6 +1,6 @@
+import type { Highlight } from '@domain/Highlight';
+import { extractParagraphNotes, tokenizeTextWithHighlights } from '@utils/readerTokenizer';
 import { memo, useMemo } from 'react';
-import type { Highlight } from '../../../core/domain/Highlight';
-import { extractParagraphNotes, tokenizeTextWithHighlights } from '../../utils/readerTokenizer';
 import { HighlightedParagraph } from './HighlightedParagraph';
 import { ParagraphMarginNotes } from './ParagraphMarginNotes';
 

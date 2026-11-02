@@ -1,7 +1,7 @@
+import type { BookMetadata } from '@domain/BookMetadata';
+import { useLibraryCollections } from '@hooks/useLibraryCollections';
+import { BookIcon, EmptyState } from '@ui';
 import { memo } from 'react';
-import type { BookMetadata } from '../../../core/domain/BookMetadata';
-import { useLibraryCollections } from '../../hooks/useLibraryCollections';
-import { BookIcon, EmptyState } from '../ui';
 import { CollectionGroupCard } from './CollectionGroupCard';
 
 export interface LibraryCollectionsTabProps {

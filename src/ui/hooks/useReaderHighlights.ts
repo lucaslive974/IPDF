@@ -1,9 +1,9 @@
+import { Highlight } from '@domain/Highlight';
+import type { TextSelection } from '@domain/types';
+import type { IHighlightService } from '@ports/IHighlightService';
+import { useServiceContainer } from '@providers/ServiceContainerContext';
+import { useHighlightStore } from '@stores/useHighlightStore';
 import { useMemo } from 'react';
-import { Highlight } from '../../core/domain/Highlight';
-import type { TextSelection } from '../../core/domain/types';
-import type { IHighlightService } from '../../core/ports/IHighlightService';
-import { useServiceContainer } from '../providers/ServiceContainerContext';
-import { useHighlightStore } from '../stores/useHighlightStore';
 
 export interface ReaderHighlightsController {
   readonly highlights: readonly Highlight[];

@@ -1,5 +1,5 @@
+import { getExpandedWordSelection } from '@utils/domSelection';
 import { type RefObject, useCallback, useEffect } from 'react';
-import { getExpandedWordSelection } from '../utils/domSelection';
 import { useReaderUI } from './useReaderUI';
 
 export function resolveContextMenuPayload(

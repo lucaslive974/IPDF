@@ -1,6 +1,6 @@
+import type { Highlight } from '@domain/Highlight';
+import type { TextChunk } from '@utils/readerTokenizer';
 import { memo } from 'react';
-import type { Highlight } from '../../../core/domain/Highlight';
-import type { TextChunk } from '../../utils/readerTokenizer';
 
 export interface HighlightedParagraphProps {
   readonly chunks: readonly TextChunk[];

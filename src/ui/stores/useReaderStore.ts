@@ -1,6 +1,6 @@
+import type { BookFormat } from '@domain/types';
+import type { DocumentPage } from '@ports/IReaderService';
 import { create } from 'zustand';
-import type { BookFormat } from '../../core/domain/types';
-import type { DocumentPage } from '../../core/ports/IReaderService';
 
 export interface StudyDocumentDescriptor {
   readonly bookHash: string;

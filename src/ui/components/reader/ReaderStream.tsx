@@ -1,14 +1,14 @@
+import type { Highlight } from '@domain/Highlight';
+import { BookFormat } from '@domain/types';
+import { useReader } from '@hooks/useReader';
+import { useReaderFocalPageTracker } from '@hooks/useReaderFocalPageTracker';
+import { useReaderInfiniteScroll } from '@hooks/useReaderInfiniteScroll';
+import { useReaderStreamContextMenu } from '@hooks/useReaderStreamContextMenu';
+import { useReaderUI } from '@hooks/useReaderUI';
+import { useReaderZoomGestures } from '@hooks/useReaderZoomGestures';
+import type { DocumentPage } from '@ports/IReaderService';
+import { useTypographyStore } from '@stores/useTypographyStore';
 import { type RefObject, memo, useCallback, useMemo, useRef } from 'react';
-import type { Highlight } from '../../../core/domain/Highlight';
-import { BookFormat } from '../../../core/domain/types';
-import type { DocumentPage } from '../../../core/ports/IReaderService';
-import { useReader } from '../../hooks/useReader';
-import { useReaderFocalPageTracker } from '../../hooks/useReaderFocalPageTracker';
-import { useReaderInfiniteScroll } from '../../hooks/useReaderInfiniteScroll';
-import { useReaderStreamContextMenu } from '../../hooks/useReaderStreamContextMenu';
-import { useReaderUI } from '../../hooks/useReaderUI';
-import { useReaderZoomGestures } from '../../hooks/useReaderZoomGestures';
-import { useTypographyStore } from '../../stores/useTypographyStore';
 import { ReaderPageItem } from './ReaderPageItem';
 
 export interface ReaderStreamProps {

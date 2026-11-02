@@ -1,4 +1,3 @@
-import { describe, expect, it, vi } from 'vitest';
 import {
   type SerializedBookMetadata,
   type SerializedHighlight,
@@ -8,9 +7,10 @@ import {
   TauriReaderService,
   TauriSettingsService,
   resolveCoverUrl,
-} from '../../../adapters/ipc';
-import { Highlight } from '../../../core/domain/Highlight';
-import { createAssistedTextAnnotation } from '../../../core/domain/RichAnnotation';
+} from '@adapters/ipc';
+import { Highlight } from '@domain/Highlight';
+import { createAssistedTextAnnotation } from '@domain/RichAnnotation';
+import { describe, expect, it, vi } from 'vitest';
 import { MockBackend } from '../../mocks/MockBackend';
 
 const storedDtos = new Map<string, SerializedHighlight>();

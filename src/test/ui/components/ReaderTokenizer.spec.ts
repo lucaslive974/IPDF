@@ -1,13 +1,13 @@
-import { describe, expect, it } from 'vitest';
-import { Highlight } from '../../../core/domain/Highlight';
-import { isValidAuthor } from '../../../ui/components/library/BookCover';
+import { isValidAuthor } from '@components/library/BookCover';
 import {
   findHighlightMatchesInParagraph,
   getExpandedWordSelection,
   tokenizeTextWithHighlights,
-} from '../../../ui/components/reader/ReaderPageParagraphs';
-import { DEFAULT_HIGHLIGHT_COLORS } from '../../../ui/components/ui/ColorPicker';
-import { extractParagraphNotes } from '../../../ui/utils/readerTokenizer';
+} from '@components/reader/ReaderPageParagraphs';
+import { Highlight } from '@domain/Highlight';
+import { DEFAULT_HIGHLIGHT_COLORS } from '@ui';
+import { extractParagraphNotes } from '@utils/readerTokenizer';
+import { describe, expect, it } from 'vitest';
 
 describe('ReaderTokenizer & UI Constants', () => {
   it('returns whole paragraph when no highlights exist', () => {

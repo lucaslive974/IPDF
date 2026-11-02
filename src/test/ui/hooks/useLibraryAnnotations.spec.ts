@@ -1,12 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { BookMetadata } from '../../../core/domain/BookMetadata';
-import { Highlight } from '../../../core/domain/Highlight';
+import type { BookMetadata } from '@domain/BookMetadata';
+import { Highlight } from '@domain/Highlight';
 import {
   type LibraryAnnotationsController,
   createLibraryAnnotationsController,
   formatQuoteForClipboard,
-} from '../../../ui/hooks/useLibraryAnnotations';
-import { useReaderStore } from '../../../ui/stores/useReaderStore';
+} from '@hooks/useLibraryAnnotations';
+import { useReaderStore } from '@stores/useReaderStore';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MockBackend } from '../../mocks/MockBackend';
 
 describe('useLibraryAnnotations Controller', () => {

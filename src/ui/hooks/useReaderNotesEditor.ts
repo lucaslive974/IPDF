@@ -1,10 +1,10 @@
+import type { Highlight } from '@domain/Highlight';
+import type { TextFormatStyle } from '@domain/types';
+import type { IReaderService } from '@ports/IReaderService';
+import { useServiceContainer } from '@providers/ServiceContainerContext';
+import type { StudyDocumentDescriptor } from '@stores/useReaderStore';
+import { formatMarkdownSelection } from '@utils/markdownFormatting';
 import { useCallback, useMemo, useState } from 'react';
-import type { Highlight } from '../../core/domain/Highlight';
-import type { TextFormatStyle } from '../../core/domain/types';
-import type { IReaderService } from '../../core/ports/IReaderService';
-import { useServiceContainer } from '../providers/ServiceContainerContext';
-import type { StudyDocumentDescriptor } from '../stores/useReaderStore';
-import { formatMarkdownSelection } from '../utils/markdownFormatting';
 
 export interface UseReaderNotesEditorOptions {
   readonly document: StudyDocumentDescriptor;

@@ -1,4 +1,4 @@
-import type { TextFormatStyle } from '../../core/domain/types';
+import type { TextFormatStyle } from '@domain/types';
 
 export function formatMarkdownStyle(selected: string, style: TextFormatStyle): string {
   switch (style.kind) {

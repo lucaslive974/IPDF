@@ -1,5 +1,5 @@
-import type { BookMetadata } from '../../core/domain/BookMetadata';
-import type { Highlight } from '../../core/domain/Highlight';
+import type { BookMetadata } from '@domain/BookMetadata';
+import type { Highlight } from '@domain/Highlight';
 import type {
   DocumentPage,
   IHighlightService,
@@ -13,7 +13,7 @@ import type {
   PresenceHealthStatus,
   ReadingContext,
   UpdateBookMetadataInput,
-} from '../../core/ports';
+} from '@ports';
 
 export class MockBackend
   implements ILibraryService, IHighlightService, IReaderService, IPresenceService, ISettingsService

@@ -1,5 +1,5 @@
+import type { BookMetadata } from '@domain/BookMetadata';
 import { create } from 'zustand';
-import type { BookMetadata } from '../../core/domain/BookMetadata';
 
 export interface LibraryState {
   readonly books: readonly BookMetadata[];

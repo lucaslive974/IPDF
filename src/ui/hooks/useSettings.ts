@@ -1,6 +1,6 @@
+import type { PresenceHealthStatus } from '@ports/IPresenceService';
+import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useCallback, useEffect, useState } from 'react';
-import type { PresenceHealthStatus } from '../../core/ports/IPresenceService';
-import { useServiceContainer } from '../providers/ServiceContainerContext';
 
 export interface SettingsHook {
   readonly monitoredFolders: string[];

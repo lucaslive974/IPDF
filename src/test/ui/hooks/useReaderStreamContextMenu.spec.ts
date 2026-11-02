@@ -1,5 +1,5 @@
+import { resolveContextMenuPayload } from '@hooks/useReaderStreamContextMenu';
 import { describe, expect, it } from 'vitest';
-import { resolveContextMenuPayload } from '../../../ui/hooks/useReaderStreamContextMenu';
 
 describe('useReaderStreamContextMenu logic', () => {
   it('returns null when text is empty or blank', () => {

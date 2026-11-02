@@ -1,13 +1,12 @@
-import { type ReactNode, createContext, useContext, useMemo } from 'react';
 import {
   TauriHighlightService,
   TauriLibraryService,
   TauriPresenceService,
   TauriReaderService,
   TauriSettingsService,
-} from '../../adapters/ipc';
-import { EpubViewerAdapter, PdfViewerAdapter } from '../../adapters/viewers';
-import { BookFormat } from '../../core/domain/types';
+} from '@adapters/ipc';
+import { EpubViewerAdapter, PdfViewerAdapter } from '@adapters/viewers';
+import { BookFormat } from '@domain/types';
 import type {
   IDocumentViewer,
   IHighlightService,
@@ -15,7 +14,8 @@ import type {
   IPresenceService,
   IReaderService,
   ISettingsService,
-} from '../../core/ports';
+} from '@ports';
+import { type ReactNode, createContext, useContext, useMemo } from 'react';
 
 export interface ServiceContainer {
   readonly libraryService: ILibraryService;

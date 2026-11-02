@@ -1,5 +1,5 @@
+import { type ArticleRect, findFocalPageNumber } from '@hooks/useReaderFocalPageTracker';
 import { describe, expect, it } from 'vitest';
-import { type ArticleRect, findFocalPageNumber } from '../../../ui/hooks/useReaderFocalPageTracker';
 
 describe('useReaderFocalPageTracker logic', () => {
   it('returns null when articles list is empty', () => {

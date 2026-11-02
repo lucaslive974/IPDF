@@ -1,10 +1,7 @@
+import { Highlight } from '@domain/Highlight';
+import { type AnnotationFormatterMap, createAssistedTextAnnotation } from '@domain/RichAnnotation';
+import { BookFormat } from '@domain/types';
 import { describe, expect, it, vi } from 'vitest';
-import { Highlight } from '../../../core/domain/Highlight';
-import {
-  type AnnotationFormatterMap,
-  createAssistedTextAnnotation,
-} from '../../../core/domain/RichAnnotation';
-import { BookFormat } from '../../../core/domain/types';
 
 describe('Highlight & RichAnnotation Domain Entities', () => {
   it('updates updatedAt when calling updateNote, changeColor, setRichAnnotation, and removeRichAnnotation', () => {

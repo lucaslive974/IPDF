@@ -1,9 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
 import {
   calculatePinchZoomRatio,
   calculateWheelZoomDelta,
   handleKeyboardZoomKey,
-} from '../../../ui/hooks/useReaderZoomGestures';
+} from '@hooks/useReaderZoomGestures';
+import { describe, expect, it, vi } from 'vitest';
 
 describe('useReaderZoomGestures logic', () => {
   describe('calculateWheelZoomDelta', () => {

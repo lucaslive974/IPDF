@@ -1,7 +1,7 @@
+import { isValidAuthor } from '@components/library/BookCover';
+import type { BookMetadata } from '@domain/BookMetadata';
+import { useLibraryStore } from '@stores/useLibraryStore';
 import { useMemo } from 'react';
-import type { BookMetadata } from '../../core/domain/BookMetadata';
-import { isValidAuthor } from '../components/library/BookCover';
-import { useLibraryStore } from '../stores/useLibraryStore';
 import { useNavigation } from './useNavigation';
 
 export function groupBooksByTag(books: readonly BookMetadata[]): Array<[string, BookMetadata[]]> {

@@ -1,4 +1,4 @@
-import type { Highlight } from '../../core/domain/Highlight';
+import type { Highlight } from '@domain/Highlight';
 import {
   BookFormat,
   type BoundingBox,
@@ -6,8 +6,8 @@ import {
   type PageInfo,
   type SentenceNode,
   type TextSelection,
-} from '../../core/domain/types';
-import type { DocumentPage, IDocumentViewer } from '../../core/ports/IDocumentViewer';
+} from '@domain/types';
+import type { DocumentPage, IDocumentViewer } from '@ports/IDocumentViewer';
 import { DefaultPdfEngine } from './DefaultPdfEngine';
 import type { IPdfEngine, PdfDocumentProxy, PdfPageProxy } from './IPdfEngine';
 

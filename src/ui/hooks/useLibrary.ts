@@ -1,11 +1,11 @@
+import type { BookMetadata } from '@domain/BookMetadata';
+import { BookFormat } from '@domain/types';
+import type { UpdateBookMetadataInput } from '@ports/ILibraryService';
+import { useServiceContainer } from '@providers/ServiceContainerContext';
+import { useHighlightStore } from '@stores/useHighlightStore';
+import { useLibraryStore } from '@stores/useLibraryStore';
+import { generatePdfPageCoverDataUrl } from '@utils/pdfCoverGenerator';
 import { useCallback, useEffect } from 'react';
-import type { BookMetadata } from '../../core/domain/BookMetadata';
-import { BookFormat } from '../../core/domain/types';
-import type { UpdateBookMetadataInput } from '../../core/ports/ILibraryService';
-import { useServiceContainer } from '../providers/ServiceContainerContext';
-import { useHighlightStore } from '../stores/useHighlightStore';
-import { useLibraryStore } from '../stores/useLibraryStore';
-import { generatePdfPageCoverDataUrl } from '../utils/pdfCoverGenerator';
 
 export interface LibraryViewModel {
   readonly books: readonly BookMetadata[];

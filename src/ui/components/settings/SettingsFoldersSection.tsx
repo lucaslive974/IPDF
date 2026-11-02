@@ -1,5 +1,5 @@
+import { Button, Card, CloseIcon, IconButton, Input } from '@ui';
 import { memo } from 'react';
-import { Button, Card, CloseIcon, IconButton, Input } from '../ui';
 
 export interface SettingsFoldersSectionProps {
   readonly monitoredFolders: readonly string[];

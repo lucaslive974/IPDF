@@ -1,6 +1,6 @@
+import type { Highlight } from '@domain/Highlight';
+import type { TextFormatStyle } from '@domain/types';
 import { useState } from 'react';
-import type { Highlight } from '../../core/domain/Highlight';
-import type { TextFormatStyle } from '../../core/domain/types';
 import { AssistedFormattingToolbar } from './AssistedFormattingToolbar';
 import { Button, Card, Modal, SegmentedControl, type SegmentedControlOption } from './ui';
 

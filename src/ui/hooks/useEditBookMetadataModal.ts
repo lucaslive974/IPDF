@@ -1,8 +1,8 @@
+import type { BookMetadata } from '@domain/BookMetadata';
+import type { UpdateBookMetadataInput } from '@ports/ILibraryService';
+import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import type { BookMetadata } from '../../core/domain/BookMetadata';
-import type { UpdateBookMetadataInput } from '../../core/ports/ILibraryService';
-import { useServiceContainer } from '../providers/ServiceContainerContext';
 
 export interface BookMetadataFormValues {
   title: string;

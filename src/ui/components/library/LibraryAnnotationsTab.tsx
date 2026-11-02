@@ -1,6 +1,6 @@
+import { useLibraryAnnotations } from '@hooks/useLibraryAnnotations';
+import { BookIcon, Button, EmptyState } from '@ui';
 import { memo } from 'react';
-import { useLibraryAnnotations } from '../../hooks/useLibraryAnnotations';
-import { BookIcon, Button, EmptyState } from '../ui';
 import { AnnotationsToolbar } from './AnnotationsToolbar';
 import { BookAnnotationGroupCard } from './BookAnnotationGroupCard';
 

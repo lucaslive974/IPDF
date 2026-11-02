@@ -1,10 +1,10 @@
+import { EpubViewerAdapter } from '@adapters/viewers/EpubViewerAdapter';
+import type { BookMetadata } from '@domain/BookMetadata';
+import { BookFormat } from '@domain/types';
+import { createReaderPaginationController } from '@hooks/useReaderPagination';
+import type { IDocumentViewer } from '@ports/IDocumentViewer';
+import { EMPTY_DOCUMENT, useReaderStore } from '@stores/useReaderStore';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { EpubViewerAdapter } from '../../../adapters/viewers/EpubViewerAdapter';
-import type { BookMetadata } from '../../../core/domain/BookMetadata';
-import { BookFormat } from '../../../core/domain/types';
-import type { IDocumentViewer } from '../../../core/ports/IDocumentViewer';
-import { createReaderPaginationController } from '../../../ui/hooks/useReaderPagination';
-import { EMPTY_DOCUMENT, useReaderStore } from '../../../ui/stores/useReaderStore';
 import { MockBackend } from '../../mocks/MockBackend';
 
 describe('useReaderPagination / createReaderPaginationController', () => {

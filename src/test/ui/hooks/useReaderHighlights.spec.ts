@@ -1,7 +1,7 @@
+import { Highlight } from '@domain/Highlight';
+import { createReaderHighlightsController } from '@hooks/useReaderHighlights';
+import { useHighlightStore } from '@stores/useHighlightStore';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { Highlight } from '../../../core/domain/Highlight';
-import { createReaderHighlightsController } from '../../../ui/hooks/useReaderHighlights';
-import { useHighlightStore } from '../../../ui/stores/useHighlightStore';
 import { MockBackend } from '../../mocks/MockBackend';
 
 const createEmptyRect = (): DOMRect =>

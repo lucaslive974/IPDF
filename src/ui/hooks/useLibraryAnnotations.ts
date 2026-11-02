@@ -1,11 +1,11 @@
+import type { BookMetadata } from '@domain/BookMetadata';
+import type { Highlight } from '@domain/Highlight';
+import { useNavigation } from '@hooks/useNavigation';
+import type { IHighlightService } from '@ports/IHighlightService';
+import { useServiceContainer } from '@providers/ServiceContainerContext';
+import { useLibraryStore } from '@stores/useLibraryStore';
+import { useReaderStore } from '@stores/useReaderStore';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { BookMetadata } from '../../core/domain/BookMetadata';
-import type { Highlight } from '../../core/domain/Highlight';
-import type { IHighlightService } from '../../core/ports/IHighlightService';
-import { useNavigation } from '../hooks/useNavigation';
-import { useServiceContainer } from '../providers/ServiceContainerContext';
-import { useLibraryStore } from '../stores/useLibraryStore';
-import { useReaderStore } from '../stores/useReaderStore';
 
 export interface BookAnnotationGroup {
   readonly bookHash: string;

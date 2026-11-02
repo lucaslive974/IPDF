@@ -1,5 +1,5 @@
+import type { StudyDocumentDescriptor } from '@stores/useReaderStore';
 import { memo } from 'react';
-import type { StudyDocumentDescriptor } from '../../stores/useReaderStore';
 import { BookCover, isValidAuthor } from '../library/BookCover';
 
 export interface ReaderLoadingViewProps {

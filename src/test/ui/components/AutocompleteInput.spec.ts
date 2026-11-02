@@ -1,5 +1,5 @@
+import { filterSuggestions } from '@ui';
 import { describe, expect, it } from 'vitest';
-import { filterSuggestions } from '../../../ui/components/ui/AutocompleteInput';
 
 describe('AutocompleteInput logic', () => {
   describe('filterSuggestions', () => {

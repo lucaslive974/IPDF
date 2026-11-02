@@ -1,11 +1,11 @@
-import { memo } from 'react';
-import type { Highlight } from '../../../core/domain/Highlight';
-import { getExpandedWordSelection } from '../../utils/domSelection';
+import type { Highlight } from '@domain/Highlight';
+import { getExpandedWordSelection } from '@utils/domSelection';
 import {
   type TextChunk,
   findHighlightMatchesInParagraph,
   tokenizeTextWithHighlights,
-} from '../../utils/readerTokenizer';
+} from '@utils/readerTokenizer';
+import { memo } from 'react';
 import { ReaderParagraphItem } from './ReaderParagraphItem';
 
 export {

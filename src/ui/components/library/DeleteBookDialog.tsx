@@ -1,6 +1,6 @@
+import type { BookMetadata } from '@domain/BookMetadata';
+import { Button, Dialog } from '@ui';
 import { memo, useState } from 'react';
-import type { BookMetadata } from '../../../core/domain/BookMetadata';
-import { Button, Dialog } from '../ui';
 
 export interface DeleteBookDialogProps {
   readonly isOpen: boolean;

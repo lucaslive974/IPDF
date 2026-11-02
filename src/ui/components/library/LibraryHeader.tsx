@@ -1,6 +1,3 @@
-import type { ChangeEvent, RefObject } from 'react';
-import { memo } from 'react';
-import type { LibraryTabId } from '../LibraryView';
 import {
   Button,
   IconButton,
@@ -12,7 +9,10 @@ import {
   type SegmentedControlOption,
   SettingsIcon,
   SunIcon,
-} from '../ui';
+} from '@ui';
+import type { ChangeEvent, RefObject } from 'react';
+import { memo } from 'react';
+import type { LibraryTabId } from '../LibraryView';
 
 export interface LibraryHeaderProps {
   readonly activeTab: LibraryTabId;

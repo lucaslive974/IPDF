@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest';
 import {
   addTagDeduplicated,
   buildUpdateBookMetadataPayload,
   normalizeAuthor,
-} from '../../../ui/hooks/useEditBookMetadataModal';
+} from '@hooks/useEditBookMetadataModal';
+import { describe, expect, it } from 'vitest';
 
 describe('useEditBookMetadataModal logic and helpers', () => {
   describe('normalizeAuthor', () => {

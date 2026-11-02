@@ -1,5 +1,5 @@
+import type { BookMetadata } from '@domain/BookMetadata';
 import { type ReactNode, createContext, useCallback, useContext, useMemo, useState } from 'react';
-import type { BookMetadata } from '../../core/domain/BookMetadata';
 
 export type AppViewMode = 'library' | 'reader' | 'settings';
 

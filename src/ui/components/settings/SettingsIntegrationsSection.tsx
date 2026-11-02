@@ -1,6 +1,6 @@
+import type { PresenceHealthStatus } from '@ports/IPresenceService';
+import { Badge, type BadgeVariant, Button, Card } from '@ui';
 import { memo } from 'react';
-import type { PresenceHealthStatus } from '../../../core/ports/IPresenceService';
-import { Badge, type BadgeVariant, Button, Card } from '../ui';
 
 export interface SettingsIntegrationsSectionProps {
   readonly isDiscordEnabled: boolean;

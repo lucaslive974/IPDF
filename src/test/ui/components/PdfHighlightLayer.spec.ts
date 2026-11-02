@@ -1,13 +1,13 @@
+import { PdfHighlightLayer } from '@components/reader/PdfHighlightLayer';
+import { PAGE_RENDERERS, ReaderPageItem } from '@components/reader/ReaderPageItem';
+import { ReaderPageParagraphs } from '@components/reader/ReaderPageParagraphs';
+import { ReaderPagePdf } from '@components/reader/ReaderPagePdf';
+import { Highlight } from '@domain/Highlight';
+import { BookFormat } from '@domain/types';
+import { ServiceContainerProvider } from '@providers/ServiceContainerContext';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import { Highlight } from '../../../core/domain/Highlight';
-import { BookFormat } from '../../../core/domain/types';
-import { PdfHighlightLayer } from '../../../ui/components/reader/PdfHighlightLayer';
-import { PAGE_RENDERERS, ReaderPageItem } from '../../../ui/components/reader/ReaderPageItem';
-import { ReaderPageParagraphs } from '../../../ui/components/reader/ReaderPageParagraphs';
-import { ReaderPagePdf } from '../../../ui/components/reader/ReaderPagePdf';
-import { ServiceContainerProvider } from '../../../ui/providers/ServiceContainerContext';
 
 describe('PdfHighlightLayer and PAGE_RENDERERS', () => {
   it('registers correct components in PAGE_RENDERERS handler map', () => {

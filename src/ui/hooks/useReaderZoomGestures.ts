@@ -1,5 +1,5 @@
+import { useTypographyStore } from '@stores/useTypographyStore';
 import { useEffect } from 'react';
-import { useTypographyStore } from '../stores/useTypographyStore';
 
 export interface ZoomActions {
   readonly increaseZoom: (step: number) => void;

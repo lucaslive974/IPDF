@@ -1,8 +1,8 @@
+import { ReaderLoadingView } from '@components/reader/ReaderLoadingView';
+import type { StudyDocumentDescriptor } from '@stores/useReaderStore';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { ReaderLoadingView } from '../../../ui/components/reader/ReaderLoadingView';
-import type { StudyDocumentDescriptor } from '../../../ui/stores/useReaderStore';
 
 describe('ReaderLoadingView', () => {
   const mockDoc: StudyDocumentDescriptor = {

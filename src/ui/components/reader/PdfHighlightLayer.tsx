@@ -1,5 +1,5 @@
+import type { Highlight } from '@domain/Highlight';
 import { memo } from 'react';
-import type { Highlight } from '../../../core/domain/Highlight';
 
 export interface PdfHighlightLayerProps {
   readonly pageNumber: number;

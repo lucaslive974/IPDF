@@ -1,6 +1,6 @@
+import type { BookMetadata } from '@domain/BookMetadata';
+import { Badge, Button, Card, IconButton, PencilIcon, ProgressBar, TrashIcon } from '@ui';
 import { memo } from 'react';
-import type { BookMetadata } from '../../../core/domain/BookMetadata';
-import { Badge, Button, Card, IconButton, PencilIcon, ProgressBar, TrashIcon } from '../ui';
 import { BookCover, isValidAuthor } from './BookCover';
 
 export interface BookCardProps {

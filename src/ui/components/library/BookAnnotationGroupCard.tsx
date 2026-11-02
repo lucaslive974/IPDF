@@ -1,7 +1,7 @@
+import type { Highlight } from '@domain/Highlight';
+import type { BookAnnotationGroup } from '@hooks/useLibraryAnnotations';
+import { Badge, Card } from '@ui';
 import { memo } from 'react';
-import type { Highlight } from '../../../core/domain/Highlight';
-import type { BookAnnotationGroup } from '../../hooks/useLibraryAnnotations';
-import { Badge, Card } from '../ui';
 import { AnnotationItemCard } from './AnnotationItemCard';
 import { BookThumbnail } from './BookThumbnail';
 

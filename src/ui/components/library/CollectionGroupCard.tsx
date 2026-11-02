@@ -1,6 +1,6 @@
+import type { BookMetadata } from '@domain/BookMetadata';
+import { Badge, Card } from '@ui';
 import { memo } from 'react';
-import type { BookMetadata } from '../../../core/domain/BookMetadata';
-import { Badge, Card } from '../ui';
 
 export interface CollectionGroupCardProps {
   readonly title: string;

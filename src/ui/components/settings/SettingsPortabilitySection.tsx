@@ -1,5 +1,5 @@
+import { Card } from '@ui';
 import { memo } from 'react';
-import { Card } from '../ui';
 
 export interface SettingsPortabilitySectionProps {
   readonly onExportAnnotations: () => void;

@@ -1,7 +1,7 @@
+import type { Highlight } from '@domain/Highlight';
+import { BookFormat } from '@domain/types';
+import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { memo, useEffect, useMemo, useRef } from 'react';
-import type { Highlight } from '../../../core/domain/Highlight';
-import { BookFormat } from '../../../core/domain/types';
-import { useServiceContainer } from '../../providers/ServiceContainerContext';
 import { ParagraphMarginNotes } from './ParagraphMarginNotes';
 import { PdfHighlightLayer } from './PdfHighlightLayer';
 

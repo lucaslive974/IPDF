@@ -1,5 +1,5 @@
+import type { ISettingsService, PlatformInfo } from '@ports/ISettingsService';
 import { invoke } from '@tauri-apps/api/core';
-import type { ISettingsService, PlatformInfo } from '../../core/ports/ISettingsService';
 
 export class TauriSettingsService implements ISettingsService {
   public async getAppSetting(key: string): Promise<string | null> {

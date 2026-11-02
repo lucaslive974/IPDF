@@ -1,7 +1,7 @@
+import type { Highlight } from '@domain/Highlight';
+import { useReaderUIStore } from '@stores/useReaderUIStore';
+import { getExpandedWordSelection } from '@utils/domSelection';
 import { useCallback, useMemo, useRef } from 'react';
-import type { Highlight } from '../../core/domain/Highlight';
-import { useReaderUIStore } from '../stores/useReaderUIStore';
-import { getExpandedWordSelection } from '../utils/domSelection';
 import type { ReaderHighlightsController } from './useReaderHighlights';
 
 export const createEmptyRect = (): DOMRect =>

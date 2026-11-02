@@ -1,12 +1,12 @@
-import { describe, expect, it } from 'vitest';
-import type { BoundingBox } from '../../../core/domain/types';
+import type { BoundingBox } from '@domain/types';
 import {
   denormalizeBoundingBox,
   doBoxesOverlap,
   isPointInsideBox,
   normalizeBoundingBox,
   normalizeSelectionRects,
-} from '../../../ui/utils/pdfCoordinates';
+} from '@utils/pdfCoordinates';
+import { describe, expect, it } from 'vitest';
 
 describe('pdfCoordinates utilities', () => {
   describe('normalizeBoundingBox', () => {

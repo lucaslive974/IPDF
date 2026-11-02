@@ -1,5 +1,5 @@
+import { resolveThemeMode } from '@providers/ThemeContext';
 import { describe, expect, it } from 'vitest';
-import { resolveThemeMode } from '../../ui/providers/ThemeContext';
 
 describe('resolveThemeMode', () => {
   it('returns light when no value is stored', () => {

@@ -1,13 +1,6 @@
+import type { IPdfEngine, PdfDocumentProxy, PdfPageProxy } from '@adapters/viewers/IPdfEngine';
+import { generatePdfPageCoverDataUrl, renderPdfPageToDataUrl } from '@utils/pdfCoverGenerator';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type {
-  IPdfEngine,
-  PdfDocumentProxy,
-  PdfPageProxy,
-} from '../../../adapters/viewers/IPdfEngine';
-import {
-  generatePdfPageCoverDataUrl,
-  renderPdfPageToDataUrl,
-} from '../../../ui/utils/pdfCoverGenerator';
 
 describe('pdfCoverGenerator', () => {
   let mockPage: PdfPageProxy;

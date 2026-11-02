@@ -1,19 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import type { PdfPageProxy } from '../../adapters/viewers/IPdfEngine';
-import type { BookMetadata } from '../../core/domain/BookMetadata';
-import { BookFormat } from '../../core/domain/types';
-import type { IDocumentViewer } from '../../core/ports/IDocumentViewer';
-import type { ILibraryService } from '../../core/ports/ILibraryService';
-import type { DocumentPage, IReaderService } from '../../core/ports/IReaderService';
-import { isValidAuthor } from '../components/library/BookCover';
-import { useNavigation } from '../hooks/useNavigation';
-import { useServiceContainer } from '../providers/ServiceContainerContext';
+import type { PdfPageProxy } from '@adapters/viewers/IPdfEngine';
+import { isValidAuthor } from '@components/library/BookCover';
+import type { BookMetadata } from '@domain/BookMetadata';
+import { BookFormat } from '@domain/types';
+import { useNavigation } from '@hooks/useNavigation';
+import type { IDocumentViewer } from '@ports/IDocumentViewer';
+import type { ILibraryService } from '@ports/ILibraryService';
+import type { DocumentPage, IReaderService } from '@ports/IReaderService';
+import { useServiceContainer } from '@providers/ServiceContainerContext';
 import {
   EMPTY_DOCUMENT,
   type StudyDocumentDescriptor,
   useReaderStore,
-} from '../stores/useReaderStore';
-import { renderPdfPageToDataUrl } from '../utils/pdfCoverGenerator';
+} from '@stores/useReaderStore';
+import { renderPdfPageToDataUrl } from '@utils/pdfCoverGenerator';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 export interface UseReaderPaginationOptions {
   readonly bookOverride?: BookMetadata | null;

@@ -1,5 +1,5 @@
+import { isImmersiveBackgroundClick, shouldSaveProgress } from '@hooks/useReaderView';
 import { describe, expect, it } from 'vitest';
-import { isImmersiveBackgroundClick, shouldSaveProgress } from '../../../ui/hooks/useReaderView';
 
 describe('useReaderView pure logic', () => {
   describe('shouldSaveProgress', () => {

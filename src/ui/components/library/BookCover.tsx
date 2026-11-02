@@ -1,5 +1,5 @@
+import { BookIcon } from '@ui';
 import { memo, useState } from 'react';
-import { BookIcon } from '../ui';
 
 export function isValidAuthor(author?: string | null): boolean {
   if (!author) return false;

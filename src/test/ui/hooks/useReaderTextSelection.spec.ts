@@ -1,10 +1,10 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { createReaderHighlightsController } from '../../../ui/hooks/useReaderHighlights';
+import { createReaderHighlightsController } from '@hooks/useReaderHighlights';
 import {
   createEmptyRect,
   createReaderTextSelectionController,
-} from '../../../ui/hooks/useReaderTextSelection';
-import { useHighlightStore } from '../../../ui/stores/useHighlightStore';
+} from '@hooks/useReaderTextSelection';
+import { useHighlightStore } from '@stores/useHighlightStore';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { MockBackend } from '../../mocks/MockBackend';
 
 describe('useReaderTextSelection / createReaderTextSelectionController', () => {

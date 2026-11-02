@@ -1,6 +1,6 @@
+import type { BookMetadata } from '@domain/BookMetadata';
+import { groupBooksByAuthor, groupBooksByTag } from '@hooks/useLibraryCollections';
 import { describe, expect, it } from 'vitest';
-import type { BookMetadata } from '../../../core/domain/BookMetadata';
-import { groupBooksByAuthor, groupBooksByTag } from '../../../ui/hooks/useLibraryCollections';
 
 const makeBook = (
   hash: string,

@@ -1,6 +1,6 @@
+import { useTypographyStore } from '@stores/useTypographyStore';
+import { Popover } from '@ui';
 import { memo } from 'react';
-import { useTypographyStore } from '../../stores/useTypographyStore';
-import { Popover } from '../ui';
 import { ReaderFontSizeControl } from './ReaderFontSizeControl';
 import { ReaderTypefaceSelector } from './ReaderTypefaceSelector';
 import { ReaderZoomControl } from './ReaderZoomControl';

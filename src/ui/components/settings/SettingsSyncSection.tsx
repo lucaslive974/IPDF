@@ -1,5 +1,5 @@
+import { Badge, Button, Card } from '@ui';
 import { memo } from 'react';
-import { Badge, Button, Card } from '../ui';
 
 export interface SettingsSyncSectionProps {
   readonly isDriveConnected: boolean;

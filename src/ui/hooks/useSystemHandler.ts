@@ -1,10 +1,10 @@
-import { useEffect } from 'react';
 import {
   type SerializedBookMetadata,
   deserializeBookMetadata,
-} from '../../adapters/ipc/TauriLibraryService';
-import { useServiceContainer } from '../providers/ServiceContainerContext';
-import { useLibraryStore } from '../stores/useLibraryStore';
+} from '@adapters/ipc/TauriLibraryService';
+import { useServiceContainer } from '@providers/ServiceContainerContext';
+import { useLibraryStore } from '@stores/useLibraryStore';
+import { useEffect } from 'react';
 import { useNavigation } from './useNavigation';
 
 export function useSystemHandler(): void {

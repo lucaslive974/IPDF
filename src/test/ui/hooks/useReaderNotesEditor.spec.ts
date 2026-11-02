@@ -1,7 +1,7 @@
+import { createReaderNotesEditorController } from '@hooks/useReaderNotesEditor';
+import type { LLMRequest } from '@ports/IReaderService';
+import type { StudyDocumentDescriptor } from '@stores/useReaderStore';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { LLMRequest } from '../../../core/ports/IReaderService';
-import { createReaderNotesEditorController } from '../../../ui/hooks/useReaderNotesEditor';
-import type { StudyDocumentDescriptor } from '../../../ui/stores/useReaderStore';
 import { MockBackend } from '../../mocks/MockBackend';
 
 describe('useReaderNotesEditor / createReaderNotesEditorController', () => {

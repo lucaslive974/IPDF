@@ -1,4 +1,4 @@
-import type { BoundingBox } from '../../core/domain/types';
+import type { BoundingBox } from '@domain/types';
 
 export interface RectLike {
   left: number;

@@ -1,5 +1,5 @@
+import type { IPresenceService, PresenceHealthStatus } from '@ports/IPresenceService';
 import { invoke } from '@tauri-apps/api/core';
-import type { IPresenceService, PresenceHealthStatus } from '../../core/ports/IPresenceService';
 
 export class TauriPresenceService implements IPresenceService {
   public async setDiscordPresenceEnabled(enabled: boolean): Promise<void> {

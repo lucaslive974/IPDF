@@ -1,11 +1,6 @@
-import type { Highlight } from '../../core/domain/Highlight';
-import type {
-  HighlightAnchor,
-  PageInfo,
-  SentenceNode,
-  TextSelection,
-} from '../../core/domain/types';
-import type { DocumentPage, IDocumentViewer } from '../../core/ports/IDocumentViewer';
+import type { Highlight } from '@domain/Highlight';
+import type { HighlightAnchor, PageInfo, SentenceNode, TextSelection } from '@domain/types';
+import type { DocumentPage, IDocumentViewer } from '@ports/IDocumentViewer';
 
 export interface EpubChapterDescriptor {
   readonly title: string;

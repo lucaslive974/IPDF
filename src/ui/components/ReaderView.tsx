@@ -1,6 +1,6 @@
+import { useReaderView } from '@hooks/useReaderView';
+import { useReaderStore } from '@stores/useReaderStore';
 import { memo } from 'react';
-import { useReaderView } from '../hooks/useReaderView';
-import { useReaderStore } from '../stores/useReaderStore';
 import { ReaderBottomBar } from './reader/ReaderBottomBar';
 import { ReaderHeader } from './reader/ReaderHeader';
 import { ReaderLoadingView } from './reader/ReaderLoadingView';

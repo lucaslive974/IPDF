@@ -1,6 +1,6 @@
+import { Highlight } from '@domain/Highlight';
+import { useHighlightStore } from '@stores/useHighlightStore';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { Highlight } from '../../../core/domain/Highlight';
-import { useHighlightStore } from '../../../ui/stores/useHighlightStore';
 
 describe('useHighlightStore', () => {
   beforeEach(() => {

@@ -1,10 +1,10 @@
+import { useNavigation } from '@hooks/useNavigation';
+import { useReader } from '@hooks/useReader';
+import { useReaderUI } from '@hooks/useReaderUI';
+import { useTypographyStore } from '@stores/useTypographyStore';
+import { ArrowLeftIcon, Button, IconButton, SettingsIcon } from '@ui';
 import { memo } from 'react';
-import { useNavigation } from '../../hooks/useNavigation';
-import { useReader } from '../../hooks/useReader';
-import { useReaderUI } from '../../hooks/useReaderUI';
-import { useTypographyStore } from '../../stores/useTypographyStore';
 import { isValidAuthor } from '../library/BookCover';
-import { ArrowLeftIcon, Button, IconButton, SettingsIcon } from '../ui';
 
 export interface ReaderHeaderProps {
   readonly onClose: () => void;

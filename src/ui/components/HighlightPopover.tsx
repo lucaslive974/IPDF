@@ -1,4 +1,4 @@
-import type { Highlight } from '../../core/domain/Highlight';
+import type { Highlight } from '@domain/Highlight';
 import { Badge, Button, CloseIcon, IconButton, Popover, TrashIcon } from './ui';
 
 export interface HighlightPopoverProps {

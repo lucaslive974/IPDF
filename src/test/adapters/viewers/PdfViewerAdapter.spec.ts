@@ -1,12 +1,8 @@
+import type { IPdfEngine, PdfDocumentProxy, PdfPageProxy } from '@adapters/viewers/IPdfEngine';
+import { PdfViewerAdapter } from '@adapters/viewers/PdfViewerAdapter';
+import { Highlight } from '@domain/Highlight';
+import { BookFormat, type PageInfo, type TextSelection } from '@domain/types';
 import { describe, expect, it, vi } from 'vitest';
-import type {
-  IPdfEngine,
-  PdfDocumentProxy,
-  PdfPageProxy,
-} from '../../../adapters/viewers/IPdfEngine';
-import { PdfViewerAdapter } from '../../../adapters/viewers/PdfViewerAdapter';
-import { Highlight } from '../../../core/domain/Highlight';
-import { BookFormat, type PageInfo, type TextSelection } from '../../../core/domain/types';
 
 function createFakeContainer(): HTMLElement {
   const attributes = new Map<string, string>();

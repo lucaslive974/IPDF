@@ -1,5 +1,5 @@
+import { ArrowLeftIcon, Button } from '@ui';
 import { memo } from 'react';
-import { ArrowLeftIcon, Button } from '../ui';
 
 export interface SettingsHeaderProps {
   readonly onBack: () => void;

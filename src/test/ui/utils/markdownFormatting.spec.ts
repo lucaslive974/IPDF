@@ -1,5 +1,5 @@
+import { formatMarkdownSelection, formatMarkdownStyle } from '@utils/markdownFormatting';
 import { describe, expect, it } from 'vitest';
-import { formatMarkdownSelection, formatMarkdownStyle } from '../../../ui/utils/markdownFormatting';
 
 describe('markdownFormatting utility', () => {
   it('formats text for each supported style kind', () => {

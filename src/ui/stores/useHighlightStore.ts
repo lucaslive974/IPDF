@@ -1,5 +1,5 @@
+import type { Highlight } from '@domain/Highlight';
 import { create } from 'zustand';
-import type { Highlight } from '../../core/domain/Highlight';
 
 export interface HighlightState {
   readonly highlights: readonly Highlight[];

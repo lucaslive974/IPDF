@@ -1,7 +1,7 @@
+import { EpubViewerAdapter } from '@adapters/viewers/EpubViewerAdapter';
+import { Highlight } from '@domain/Highlight';
+import type { PageInfo, TextSelection } from '@domain/types';
 import { describe, expect, it } from 'vitest';
-import { EpubViewerAdapter } from '../../../adapters/viewers/EpubViewerAdapter';
-import { Highlight } from '../../../core/domain/Highlight';
-import type { PageInfo, TextSelection } from '../../../core/domain/types';
 
 function createFakeContainer(): HTMLElement {
   const attributes = new Map<string, string>();

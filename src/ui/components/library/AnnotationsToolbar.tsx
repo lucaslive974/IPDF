@@ -1,6 +1,6 @@
+import type { BookFilterOption } from '@hooks/useLibraryAnnotations';
+import { BookIcon, Button, FilterButton } from '@ui';
 import { memo } from 'react';
-import type { BookFilterOption } from '../../hooks/useLibraryAnnotations';
-import { BookIcon, Button, FilterButton } from '../ui';
 
 export interface AnnotationsToolbarProps {
   readonly selectedBookHash: string | 'all';

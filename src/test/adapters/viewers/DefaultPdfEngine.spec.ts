@@ -1,5 +1,5 @@
+import { DefaultPdfEngine } from '@adapters/viewers/DefaultPdfEngine';
 import { describe, expect, it, vi } from 'vitest';
-import { DefaultPdfEngine } from '../../../adapters/viewers/DefaultPdfEngine';
 
 describe('DefaultPdfEngine', () => {
   it('instantiates cleanly and provides loadDocument interface', () => {

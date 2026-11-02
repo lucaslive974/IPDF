@@ -1,6 +1,6 @@
+import type { BookMetadata } from '@domain/BookMetadata';
+import { useLibraryStore } from '@stores/useLibraryStore';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { BookMetadata } from '../../../core/domain/BookMetadata';
-import { useLibraryStore } from '../../../ui/stores/useLibraryStore';
 
 describe('useLibraryStore', () => {
   beforeEach(() => {

@@ -13,7 +13,28 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "baseUrl": ".",
+    "paths": {
+      "@domain/*": ["src/core/domain/*"],
+      "@domain": ["src/core/domain/index.ts"],
+      "@ports/*": ["src/core/ports/*"],
+      "@ports": ["src/core/ports/index.ts"],
+      "@core/*": ["src/core/*"],
+      "@adapters/*": ["src/adapters/*"],
+      "@adapters": ["src/adapters/index.ts"],
+      "@hooks/*": ["src/ui/hooks/*"],
+      "@hooks": ["src/ui/hooks/index.ts"],
+      "@providers/*": ["src/ui/providers/*"],
+      "@providers": ["src/ui/providers/index.ts"],
+      "@stores/*": ["src/ui/stores/*"],
+      "@stores": ["src/ui/stores/index.ts"],
+      "@utils/*": ["src/ui/utils/*"],
+      "@utils": ["src/ui/utils/index.ts"],
+      "@components/*": ["src/ui/components/*"],
+      "@ui/*": ["src/ui/*"],
+      "@ui": ["src/ui/components/ui/index.ts"]
+    }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"]
 }

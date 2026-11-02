@@ -1,6 +1,21 @@
+import path from 'node:path';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@domain': path.resolve(__dirname, 'src/core/domain'),
+      '@ports': path.resolve(__dirname, 'src/core/ports'),
+      '@core': path.resolve(__dirname, 'src/core'),
+      '@adapters': path.resolve(__dirname, 'src/adapters'),
+      '@hooks': path.resolve(__dirname, 'src/ui/hooks'),
+      '@providers': path.resolve(__dirname, 'src/ui/providers'),
+      '@stores': path.resolve(__dirname, 'src/ui/stores'),
+      '@utils': path.resolve(__dirname, 'src/ui/utils'),
+      '@components': path.resolve(__dirname, 'src/ui/components'),
+      '@ui': path.resolve(__dirname, 'src/ui/components/ui'),
+    },
+  },
   test: {
     environment: 'node',
     include: ['src/test/**/*.spec.ts'],

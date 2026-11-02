@@ -1,6 +1,6 @@
+import type { BookMetadata } from '@domain/BookMetadata';
+import { BookIcon, EmptyState } from '@ui';
 import { memo } from 'react';
-import type { BookMetadata } from '../../../core/domain/BookMetadata';
-import { BookIcon, EmptyState } from '../ui';
 import { BookCard } from './BookCard';
 
 export interface BooksGridProps {

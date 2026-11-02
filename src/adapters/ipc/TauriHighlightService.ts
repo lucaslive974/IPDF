@@ -1,11 +1,8 @@
+import { Highlight } from '@domain/Highlight';
+import { type IRichAnnotation, createAssistedTextAnnotation } from '@domain/RichAnnotation';
+import type { HighlightAnchor, RichAnnotationType } from '@domain/types';
+import type { IHighlightService } from '@ports/IHighlightService';
 import { invoke } from '@tauri-apps/api/core';
-import { Highlight } from '../../core/domain/Highlight';
-import {
-  type IRichAnnotation,
-  createAssistedTextAnnotation,
-} from '../../core/domain/RichAnnotation';
-import type { HighlightAnchor, RichAnnotationType } from '../../core/domain/types';
-import type { IHighlightService } from '../../core/ports/IHighlightService';
 
 export interface SerializedRichAnnotation {
   readonly type: RichAnnotationType;

@@ -1,4 +1,4 @@
-import type { TextFormatStyle } from '../../core/domain/types';
+import type { TextFormatStyle } from '@domain/types';
 import { Button } from './ui';
 
 export interface FormattingActionItem {

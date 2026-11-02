@@ -1,5 +1,5 @@
+import { Button, Card } from '@ui';
 import { memo } from 'react';
-import { Button, Card } from '../ui';
 
 export interface SettingsDangerSectionProps {
   readonly showResetConfirm: boolean;

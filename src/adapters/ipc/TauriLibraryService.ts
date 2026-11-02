@@ -1,11 +1,11 @@
-import { convertFileSrc, invoke } from '@tauri-apps/api/core';
-import type { BookMetadata } from '../../core/domain/BookMetadata';
-import type { BookFormat } from '../../core/domain/types';
+import type { BookMetadata } from '@domain/BookMetadata';
+import type { BookFormat } from '@domain/types';
 import type {
   ILibraryService,
   ImportLibraryBookInput,
   UpdateBookMetadataInput,
-} from '../../core/ports/ILibraryService';
+} from '@ports/ILibraryService';
+import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 
 export interface SerializedBookMetadata {
   readonly bookHash: string;

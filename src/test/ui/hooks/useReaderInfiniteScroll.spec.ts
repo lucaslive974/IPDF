@@ -1,5 +1,5 @@
+import { calculateScrollOffsetCompensation } from '@hooks/useReaderInfiniteScroll';
 import { describe, expect, it } from 'vitest';
-import { calculateScrollOffsetCompensation } from '../../../ui/hooks/useReaderInfiniteScroll';
 
 describe('useReaderInfiniteScroll logic', () => {
   it('calculates scroll offset compensation for newly prepended pages', () => {

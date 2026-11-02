@@ -1,7 +1,7 @@
+import { useReader } from '@hooks/useReader';
+import { useReaderUI } from '@hooks/useReaderUI';
+import { useTypographyStore } from '@stores/useTypographyStore';
 import { memo } from 'react';
-import { useReader } from '../../hooks/useReader';
-import { useReaderUI } from '../../hooks/useReaderUI';
-import { useTypographyStore } from '../../stores/useTypographyStore';
 import { ExplainDialog } from '../ExplainDialog';
 import { HighlightDetailModal } from '../HighlightDetailModal';
 import { HighlightPopover } from '../HighlightPopover';

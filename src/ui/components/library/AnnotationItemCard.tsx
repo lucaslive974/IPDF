@@ -1,6 +1,6 @@
+import type { Highlight } from '@domain/Highlight';
+import { ArrowRightIcon, Badge, Card, CheckIcon, CopyIcon, IconButton, TrashIcon } from '@ui';
 import { memo } from 'react';
-import type { Highlight } from '../../../core/domain/Highlight';
-import { ArrowRightIcon, Badge, Card, CheckIcon, CopyIcon, IconButton, TrashIcon } from '../ui';
 
 export interface AnnotationItemCardProps {
   readonly highlight: Highlight;

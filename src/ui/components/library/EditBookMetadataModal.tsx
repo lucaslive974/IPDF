@@ -1,8 +1,8 @@
+import type { BookMetadata } from '@domain/BookMetadata';
+import { useEditBookMetadataModal } from '@hooks/useEditBookMetadataModal';
+import type { UpdateBookMetadataInput } from '@ports/ILibraryService';
+import { AutocompleteInput, Button, Dialog, Input, TagInput, Textarea } from '@ui';
 import { memo } from 'react';
-import type { BookMetadata } from '../../../core/domain/BookMetadata';
-import type { UpdateBookMetadataInput } from '../../../core/ports/ILibraryService';
-import { useEditBookMetadataModal } from '../../hooks/useEditBookMetadataModal';
-import { AutocompleteInput, Button, Dialog, Input, TagInput, Textarea } from '../ui';
 
 export interface EditBookMetadataModalProps {
   readonly isOpen: boolean;

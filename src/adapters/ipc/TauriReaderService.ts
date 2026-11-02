@@ -1,11 +1,11 @@
-import { invoke } from '@tauri-apps/api/core';
-import type { BookMetadata } from '../../core/domain/BookMetadata';
+import type { BookMetadata } from '@domain/BookMetadata';
 import type {
   DocumentPage,
   IReaderService,
   LLMRequest,
   ReadingContext,
-} from '../../core/ports/IReaderService';
+} from '@ports/IReaderService';
+import { invoke } from '@tauri-apps/api/core';
 import { type SerializedBookMetadata, deserializeBookMetadata } from './TauriLibraryService';
 
 export class TauriReaderService implements IReaderService {

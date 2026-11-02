@@ -4,7 +4,7 @@ import {
   type SelectionPopoverState,
   type TextDialogState,
   useReaderUIStore,
-} from '../stores/useReaderUIStore';
+} from '@stores/useReaderUIStore';
 
 export type {
   ActiveHighlightPopoverState,

@@ -1,5 +1,5 @@
-import { DefaultPdfEngine } from '../../adapters/viewers/DefaultPdfEngine';
-import type { IPdfEngine, PdfPageProxy } from '../../adapters/viewers/IPdfEngine';
+import { DefaultPdfEngine } from '@adapters/viewers/DefaultPdfEngine';
+import type { IPdfEngine, PdfPageProxy } from '@adapters/viewers/IPdfEngine';
 
 export interface RenderCoverOptions {
   readonly maxWidth?: number;

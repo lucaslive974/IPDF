@@ -1,6 +1,6 @@
+import { useReader } from '@hooks/useReader';
+import { useReaderUI } from '@hooks/useReaderUI';
 import { memo, useEffect, useRef, useState } from 'react';
-import { useReader } from '../../hooks/useReader';
-import { useReaderUI } from '../../hooks/useReaderUI';
 
 export interface ReaderBottomBarProps {
   readonly onScrollToPage: (targetPage: number) => void;
