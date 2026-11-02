@@ -129,6 +129,16 @@ fn test_platform_environments_path_resolution() {
         assert_eq!(boxed.platform_kind(), kind);
     }
 
+    // Platform capability assertions
+    assert!(PlatformKind::Linux.is_desktop());
+    assert!(PlatformKind::Linux.supports_discord_presence());
+    assert!(PlatformKind::Windows.is_desktop());
+    assert!(PlatformKind::Windows.supports_discord_presence());
+    assert!(!PlatformKind::Android.is_desktop());
+    assert!(!PlatformKind::Android.supports_discord_presence());
+    assert!(!PlatformKind::Ios.is_desktop());
+    assert!(!PlatformKind::Ios.supports_discord_presence());
+
     let _ = fs::remove_dir_all(&temp_base);
 }
 

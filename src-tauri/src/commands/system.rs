@@ -17,6 +17,8 @@ pub fn get_platform_info(
 ) -> Result<IpcPlatformInfoDto, String> {
     let guard = state.lock().map_err(|e| e.to_string())?;
     let env = &guard.platform_env;
+    let supports_discord = env.platform_kind().supports_discord_presence()
+        && cfg!(not(any(target_os = "android", target_os = "ios")));
     Ok(IpcPlatformInfoDto {
         platform: format!("{:?}", env.platform_kind()),
         config_dir: env.config_dir()?.to_string_lossy().to_string(),
@@ -26,6 +28,7 @@ pub fn get_platform_info(
             .resolve_database_path("ipdf.db")?
             .to_string_lossy()
             .to_string(),
+        supports_discord_presence: supports_discord,
     })
 }
 
@@ -92,5 +95,14 @@ pub fn get_discord_presence_health(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<PresenceHealth, String> {
     let guard = state.lock().map_err(|e| e.to_string())?;
+    if !guard.platform_env.platform_kind().supports_discord_presence()
+        || cfg!(any(target_os = "android", target_os = "ios"))
+    {
+        return Ok(PresenceHealth {
+            ok: false,
+            message: "Discord Rich Presence requires a Desktop OS (Linux, Windows, macOS)"
+                .to_string(),
+        });
+    }
     guard.presence_manager.check_provider_health("discord")
 }

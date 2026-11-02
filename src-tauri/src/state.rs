@@ -68,11 +68,16 @@ impl Default for BackendState {
             .flatten()
             .and_then(|id_str| id_str.parse::<u64>().ok());
 
+        let supports_discord = platform.platform_kind().supports_discord_presence()
+            && cfg!(not(any(target_os = "android", target_os = "ios")));
+
         let now = crate::utils::current_epoch_ms();
         let mut presence_manager = RichPresenceManager::new_with_start_time(3000, now);
-        let discord_adapter =
-            NativeDiscordPresenceAdapter::create_default(discord_client_id, discord_enabled);
-        presence_manager.register_provider(discord_adapter);
+        if supports_discord {
+            let discord_adapter =
+                NativeDiscordPresenceAdapter::create_default(discord_client_id, discord_enabled);
+            presence_manager.register_provider(discord_adapter);
+        }
 
         let mut startup_book = None;
         let args: Vec<String> = std::env::args().collect();

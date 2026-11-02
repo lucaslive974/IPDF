@@ -170,6 +170,16 @@ vi.mock('@tauri-apps/api/core', () => ({
         message: 'Connected to Discord client',
       } as unknown as T;
     }
+    if (cmd === 'get_platform_info') {
+      return {
+        platform: 'Linux',
+        configDir: '/mock/config',
+        dataDir: '/mock/data',
+        cacheDir: '/mock/cache',
+        databasePath: '/mock/data/ipdf.db',
+        supportsDiscordPresence: true,
+      } as unknown as T;
+    }
     throw new Error(`Unexpected command: ${cmd}`);
   }),
 }));
@@ -288,6 +298,10 @@ describe('Modular Tauri IPC Adapters', () => {
     const health = await presenceService.getDiscordPresenceHealth();
     expect(health.ok).toBe(true);
     expect(health.message).toBe('Connected to Discord client');
+
+    const platformInfo = await settingsService.getPlatformInfo();
+    expect(platformInfo.platform).toBe('Linux');
+    expect(platformInfo.supportsDiscordPresence).toBe(true);
   });
 });
 
@@ -370,6 +384,9 @@ describe('MockBackend (In-Memory Modular Double)', () => {
     const mockHealth = await mock.getDiscordPresenceHealth();
     expect(mockHealth.ok).toBe(true);
     expect(mockHealth.message).toBe('Connected to Discord client');
+
+    const mockPlatform = await mock.getPlatformInfo();
+    expect(mockPlatform.supportsDiscordPresence).toBe(true);
   });
 
   it('correctly resolves cover image URLs according to protocol and scheme', () => {

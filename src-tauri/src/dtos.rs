@@ -41,6 +41,7 @@ pub struct IpcPlatformInfoDto {
     pub data_dir: String,
     pub cache_dir: String,
     pub database_path: String,
+    pub supports_discord_presence: bool,
 }
 
 pub fn domain_to_ipc_highlight(h: Highlight) -> IpcHighlightDto {

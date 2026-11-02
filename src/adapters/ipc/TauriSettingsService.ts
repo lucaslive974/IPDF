@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { ISettingsService } from '../../core/ports/ISettingsService';
+import type { ISettingsService, PlatformInfo } from '../../core/ports/ISettingsService';
 
 export class TauriSettingsService implements ISettingsService {
   public async getAppSetting(key: string): Promise<string | null> {
@@ -12,5 +12,9 @@ export class TauriSettingsService implements ISettingsService {
 
   public async syncBookWorkspace(bookHash: string): Promise<string> {
     return invoke<string>('sync_book_workspace', { bookHash });
+  }
+
+  public async getPlatformInfo(): Promise<PlatformInfo> {
+    return invoke<PlatformInfo>('get_platform_info');
   }
 }

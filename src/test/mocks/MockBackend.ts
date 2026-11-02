@@ -9,6 +9,7 @@ import type {
   ISettingsService,
   ImportLibraryBookInput,
   LLMRequest,
+  PlatformInfo,
   PresenceHealthStatus,
   ReadingContext,
 } from '../../core/ports';
@@ -240,6 +241,18 @@ export class MockBackend
       message: isEnabled
         ? 'Connected to Discord client'
         : 'Discord Rich Presence is disabled in settings',
+    };
+  }
+
+  public async getPlatformInfo(): Promise<PlatformInfo> {
+    const isDesktop = this.settings.get('platform_is_desktop') !== 'false';
+    return {
+      platform: isDesktop ? 'Linux' : 'Android',
+      configDir: '/mock/config',
+      dataDir: '/mock/data',
+      cacheDir: '/mock/cache',
+      databasePath: '/mock/data/ipdf.db',
+      supportsDiscordPresence: isDesktop,
     };
   }
 }

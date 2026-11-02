@@ -36,13 +36,15 @@ export function SettingsView() {
           onToggleDriveConnection={settings.toggleDriveConnection}
         />
 
-        <SettingsIntegrationsSection
-          isDiscordEnabled={settings.isDiscordEnabled}
-          discordHealth={settings.discordHealth}
-          isCheckingDiscordHealth={settings.isCheckingDiscordHealth}
-          onToggleDiscord={() => void settings.toggleDiscordPresence()}
-          onCheckDiscordHealth={() => void settings.checkDiscordHealth()}
-        />
+        {settings.supportsDiscordPresence && (
+          <SettingsIntegrationsSection
+            isDiscordEnabled={settings.isDiscordEnabled}
+            discordHealth={settings.discordHealth}
+            isCheckingDiscordHealth={settings.isCheckingDiscordHealth}
+            onToggleDiscord={() => void settings.toggleDiscordPresence()}
+            onCheckDiscordHealth={() => void settings.checkDiscordHealth()}
+          />
+        )}
 
         <SettingsPortabilitySection
           onExportAnnotations={() => void settings.triggerSync()}

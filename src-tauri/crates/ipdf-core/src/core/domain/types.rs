@@ -57,3 +57,13 @@ pub enum PlatformKind {
     Windows,
     Ios,
 }
+
+impl PlatformKind {
+    pub fn is_desktop(&self) -> bool {
+        matches!(self, PlatformKind::Linux | PlatformKind::Windows)
+    }
+
+    pub fn supports_discord_presence(&self) -> bool {
+        self.is_desktop()
+    }
+}

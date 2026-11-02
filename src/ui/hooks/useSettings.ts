@@ -7,6 +7,7 @@ export interface SettingsHook {
   readonly newFolderInput: string;
   readonly isDriveConnected: boolean;
   readonly isDiscordEnabled: boolean;
+  readonly supportsDiscordPresence: boolean;
   readonly discordHealth: PresenceHealthStatus | null;
   readonly isCheckingDiscordHealth: boolean;
   readonly syncStatusMessage: string | null;
@@ -33,6 +34,7 @@ export function useSettings(): SettingsHook {
   const [newFolderInput, setNewFolderInput] = useState<string>('');
   const [isDriveConnected, setIsDriveConnected] = useState<boolean>(true);
   const [isDiscordEnabled, setIsDiscordEnabled] = useState<boolean>(true);
+  const [supportsDiscordPresence, setSupportsDiscordPresence] = useState<boolean>(true);
   const [discordHealth, setDiscordHealth] = useState<PresenceHealthStatus | null>(null);
   const [isCheckingDiscordHealth, setIsCheckingDiscordHealth] = useState<boolean>(false);
   const [syncStatusMessage, setSyncStatusMessage] = useState<string | null>(null);
@@ -56,6 +58,11 @@ export function useSettings(): SettingsHook {
 
   useEffect(() => {
     let mounted = true;
+    void settingsService.getPlatformInfo().then((info) => {
+      if (mounted) {
+        setSupportsDiscordPresence(info.supportsDiscordPresence);
+      }
+    });
     void settingsService.getAppSetting('discord_presence_enabled').then((val) => {
       if (mounted && val !== null) {
         const enabled = val !== 'false';
@@ -120,6 +127,7 @@ export function useSettings(): SettingsHook {
     newFolderInput,
     isDriveConnected,
     isDiscordEnabled,
+    supportsDiscordPresence,
     discordHealth,
     isCheckingDiscordHealth,
     syncStatusMessage,
