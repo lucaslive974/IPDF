@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { BookFormat } from '../../core/domain/types';
 import type { DocumentPage } from '../../core/ports/IReaderService';
 
 export interface StudyDocumentDescriptor {
@@ -8,6 +9,7 @@ export interface StudyDocumentDescriptor {
   readonly chapterTitle: string;
   readonly sampleParagraph: string;
   readonly coverImageUrl?: string;
+  readonly format?: BookFormat;
 }
 
 export const DEFAULT_BOOK_HASH = '8c8bf2ed9bff65aaf226bf5db3879eb378a26e72489bd28666abc01c02f2a0c2';
@@ -17,6 +19,7 @@ export const DEFAULT_DOCUMENT: StudyDocumentDescriptor = {
   bookTitle: 'The Republic',
   bookAuthor: 'Plato',
   chapterTitle: 'Book VII — Allegory of the Cave',
+  format: BookFormat.EPUB,
   sampleParagraph:
     'Behold! human beings living in an underground den, which has a mouth open towards the light ' +
     'and reaching all along the den; here they have been from their childhood, and have their legs ' +
@@ -51,10 +54,11 @@ export const useReaderStore = create<ReaderState>((set) => ({
   isLoadingPages: false,
 
   setDocument: (document) =>
-    set({
+    set((state) => ({
       document,
       chapterTitle: document.chapterTitle,
-    }),
+      loadedPages: state.document.bookHash === document.bookHash ? state.loadedPages : [],
+    })),
 
   setCurrentPage: (currentPage) => set({ currentPage }),
 

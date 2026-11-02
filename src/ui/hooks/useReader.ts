@@ -30,6 +30,7 @@ export interface ReaderViewModel {
   readonly chapterTitle: string;
   readonly paragraphs: readonly string[];
   readonly loadedPages: readonly DocumentPage[];
+  readonly isLoadingPages: boolean;
   readonly highlights: readonly Highlight[];
   readonly selectedId: string | null;
   readonly noteInput: string;

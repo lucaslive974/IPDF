@@ -23,9 +23,18 @@
       "assetProtocol": {
         "enable": true,
         "scope": [
+          "**",
           "**/*",
+          "$HOME/**",
+          "$HOME/**/*",
           "$APPDATA/**",
-          "$RESOURCE/**"
+          "$APPDATA/**/*",
+          "$DOWNLOAD/**",
+          "$DOWNLOAD/**/*",
+          "$DOCUMENT/**",
+          "$DOCUMENT/**/*",
+          "$RESOURCE/**",
+          "$RESOURCE/**/*"
         ]
       }
     }

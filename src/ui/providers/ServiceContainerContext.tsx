@@ -6,7 +6,8 @@ import {
   TauriReaderService,
   TauriSettingsService,
 } from '../../adapters/ipc';
-import { EpubViewerAdapter } from '../../adapters/viewers/EpubViewerAdapter';
+import { EpubViewerAdapter, PdfViewerAdapter } from '../../adapters/viewers';
+import { BookFormat } from '../../core/domain/types';
 import type {
   IDocumentViewer,
   IHighlightService,
@@ -22,7 +23,9 @@ export interface ServiceContainer {
   readonly readerService: IReaderService;
   readonly presenceService: IPresenceService;
   readonly settingsService: ISettingsService;
+  readonly getViewer: (format: BookFormat) => IDocumentViewer;
   readonly epubViewer: IDocumentViewer;
+  readonly pdfViewer: IDocumentViewer;
 }
 
 export const ServiceContainerContext = createContext<ServiceContainer | null>(null);
@@ -35,6 +38,8 @@ export interface ServiceContainerProviderProps {
   readonly presenceService?: IPresenceService;
   readonly settingsService?: ISettingsService;
   readonly viewer?: IDocumentViewer;
+  readonly pdfViewer?: IDocumentViewer;
+  readonly getViewer?: (format: BookFormat) => IDocumentViewer;
 }
 
 export function ServiceContainerProvider({
@@ -45,6 +50,8 @@ export function ServiceContainerProvider({
   presenceService: injectedPresence,
   settingsService: injectedSettings,
   viewer,
+  pdfViewer: injectedPdfViewer,
+  getViewer: injectedGetViewer,
 }: ServiceContainerProviderProps) {
   const container = useMemo<ServiceContainer>(() => {
     const libraryService = injectedLibrary ?? new TauriLibraryService();
@@ -53,6 +60,15 @@ export function ServiceContainerProvider({
     const presenceService = injectedPresence ?? new TauriPresenceService();
     const settingsService = injectedSettings ?? new TauriSettingsService();
     const epubViewer = viewer ?? new EpubViewerAdapter();
+    const pdfViewer = injectedPdfViewer ?? new PdfViewerAdapter();
+    const getViewer =
+      injectedGetViewer ??
+      ((format: BookFormat) => {
+        if (format === BookFormat.PDF) {
+          return pdfViewer;
+        }
+        return epubViewer;
+      });
 
     return {
       libraryService,
@@ -60,7 +76,9 @@ export function ServiceContainerProvider({
       readerService,
       presenceService,
       settingsService,
+      getViewer,
       epubViewer,
+      pdfViewer,
     };
   }, [
     injectedLibrary,
@@ -68,6 +86,8 @@ export function ServiceContainerProvider({
     injectedReader,
     injectedPresence,
     injectedSettings,
+    injectedPdfViewer,
+    injectedGetViewer,
     viewer,
   ]);
 

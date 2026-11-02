@@ -43,7 +43,7 @@ export const BookCover = memo(function BookCover({
   if (coverImageUrl && !hasError) {
     return (
       <div
-        className={`relative aspect-3/4 w-full overflow-hidden rounded-md bg-surface-subtle shadow-xs border border-line-subtle/60 flex items-center justify-center ${interactiveClasses} ${className}`}
+        className={`relative aspect-3/4 w-full overflow-hidden rounded-md bg-surface-subtle shadow-xs border border-line-subtle/60 flex items-center justify-center p-1.5 ${interactiveClasses} ${className}`}
         onClick={onClick}
         onKeyDown={handleKeyDown}
         role={onClick ? 'button' : undefined}
@@ -52,7 +52,7 @@ export const BookCover = memo(function BookCover({
         <img
           src={coverImageUrl}
           alt={`Cover of ${title}`}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+          className="h-full w-full object-contain rounded-xs transition-transform duration-300 group-hover:scale-[1.02]"
           loading="lazy"
           onError={() => {
             if (coverImageUrl) {

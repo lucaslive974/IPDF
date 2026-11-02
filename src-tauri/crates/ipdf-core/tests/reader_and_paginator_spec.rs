@@ -50,6 +50,13 @@ fn test_epub_and_pdf_paginators() {
     assert_eq!(pdf_pages[0].cfi_base, "pdf(page=1)");
     assert_eq!(pdf_pages[1].cfi_base, "pdf(page=2)");
 
+    // Binary PDF format with /Type /Page
+    let pdf_binary = b"%PDF-1.4\n1 0 obj\n<< /Type /Pages /Count 2 >>\nendobj\n2 0 obj\n<< /Type /Page >>\nendobj\n3 0 obj\n<< /Type /Page >>\nendobj\n%%EOF";
+    let binary_pages = pdf_paginator.paginate(pdf_binary, 0).unwrap();
+    assert_eq!(binary_pages.len(), 2);
+    assert_eq!(binary_pages[0].page_number, 1);
+    assert_eq!(binary_pages[1].page_number, 2);
+
     // 3. Factory
     let from_factory_epub = BookPaginatorFactory::create(BookFormat::Epub);
     assert_eq!(from_factory_epub.paginate(b"test", 1).unwrap().len(), 1);

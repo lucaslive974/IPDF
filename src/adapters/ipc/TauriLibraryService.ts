@@ -74,6 +74,11 @@ export class TauriLibraryService implements ILibraryService {
     return deserializeBookMetadata(dto);
   }
 
+  public async pickAndImportBook(): Promise<BookMetadata | null> {
+    const dto = await invoke<SerializedBookMetadata | null>('pick_and_import_book');
+    return dto ? deserializeBookMetadata(dto) : null;
+  }
+
   public async importLibraryBook(input: ImportLibraryBookInput): Promise<BookMetadata> {
     const dto = await invoke<SerializedBookMetadata>('import_library_book', {
       rawBytes: Array.from(input.rawBytes),
@@ -118,5 +123,13 @@ export class TauriLibraryService implements ILibraryService {
 
   public async deleteBook(bookHash: string): Promise<boolean> {
     return invoke<boolean>('delete_book', { bookHash });
+  }
+
+  public async updateBookCover(bookHash: string, coverImageUrl: string): Promise<BookMetadata> {
+    const dto = await invoke<SerializedBookMetadata>('update_book_cover', {
+      bookHash,
+      coverImageUrl,
+    });
+    return deserializeBookMetadata(dto);
   }
 }

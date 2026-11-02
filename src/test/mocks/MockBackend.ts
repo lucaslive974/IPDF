@@ -183,6 +183,20 @@ export class MockBackend
     return updated;
   }
 
+  public async updateBookCover(bookHash: string, coverImageUrl: string): Promise<BookMetadata> {
+    const existing = this.books.get(bookHash);
+    if (!existing) {
+      throw new Error(`Book not found: ${bookHash}`);
+    }
+    const updated: BookMetadata = {
+      ...existing,
+      coverImageUrl,
+      updatedAt: new Date(),
+    };
+    this.books.set(bookHash, updated);
+    return updated;
+  }
+
   public async listAuthors(): Promise<string[]> {
     const authors = new Set<string>();
     for (const book of this.books.values()) {

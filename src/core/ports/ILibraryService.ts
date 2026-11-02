@@ -27,4 +27,6 @@ export interface ILibraryService {
   listAuthors(): Promise<string[]>;
   listTags(): Promise<string[]>;
   deleteBook(bookHash: string): Promise<boolean>;
+  pickAndImportBook?(): Promise<BookMetadata | null>;
+  updateBookCover?(bookHash: string, coverImageUrl: string): Promise<BookMetadata>;
 }

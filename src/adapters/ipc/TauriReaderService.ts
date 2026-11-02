@@ -10,8 +10,16 @@ import { type SerializedBookMetadata, deserializeBookMetadata } from './TauriLib
 
 export class TauriReaderService implements IReaderService {
   public async readBookBinary(bookHash: string): Promise<Uint8Array> {
-    const bytes = await invoke<number[]>('read_book_binary', { bookHash });
-    return new Uint8Array(bytes);
+    const raw = await invoke<ArrayBuffer | Uint8Array | number[]>('read_book_binary', {
+      bookHash,
+    });
+    if (raw instanceof ArrayBuffer) {
+      return new Uint8Array(raw);
+    }
+    if (ArrayBuffer.isView(raw)) {
+      return new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength);
+    }
+    return new Uint8Array(raw);
   }
 
   public async getBookPages(
@@ -37,6 +45,15 @@ export class TauriReaderService implements IReaderService {
       totalPages,
     });
     return deserializeBookMetadata(dto);
+  }
+
+  public async getBookFilePath(bookHash: string): Promise<string | null> {
+    try {
+      const path = await invoke<string>('get_book_file_path', { bookHash });
+      return path && path.trim().length > 0 ? path : null;
+    } catch {
+      return null;
+    }
   }
 
   public async buildTermLookupRequest(

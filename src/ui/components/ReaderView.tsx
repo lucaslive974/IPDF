@@ -1,7 +1,9 @@
 import { memo } from 'react';
 import { useReaderView } from '../hooks/useReaderView';
+import { useReaderStore } from '../stores/useReaderStore';
 import { ReaderBottomBar } from './reader/ReaderBottomBar';
 import { ReaderHeader } from './reader/ReaderHeader';
+import { ReaderLoadingView } from './reader/ReaderLoadingView';
 import { ReaderOverlays } from './reader/ReaderOverlays';
 import { ReaderStream } from './reader/ReaderStream';
 
@@ -13,6 +15,9 @@ export const ReaderView = memo(function ReaderView() {
     handleViewportClick,
     toggleChrome,
   } = useReaderView();
+  const isLoadingPages = useReaderStore((s) => s.isLoadingPages);
+  const loadedPages = useReaderStore((s) => s.loadedPages);
+  const document = useReaderStore((s) => s.document);
 
   return (
     <section
@@ -26,7 +31,11 @@ export const ReaderView = memo(function ReaderView() {
       }}
     >
       <ReaderHeader onClose={handleCloseReader} />
-      <ReaderStream isProgrammaticScrollRef={isProgrammaticScrollRef} />
+      {isLoadingPages && loadedPages.length === 0 ? (
+        <ReaderLoadingView document={document} />
+      ) : (
+        <ReaderStream isProgrammaticScrollRef={isProgrammaticScrollRef} />
+      )}
       <ReaderBottomBar onScrollToPage={scrollToPage} />
       <ReaderOverlays />
     </section>

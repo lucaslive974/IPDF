@@ -6,7 +6,7 @@ use ipdf_core::adapters::storage::LocalFolderStorageAdapter;
 use ipdf_core::core::domain::{
     BookFormat, BoundingBox, Highlight, HighlightAnchor, RichAnnotation,
 };
-use ipdf_core::core::ports::{HighlightRepository, StorageProvider};
+use ipdf_core::core::ports::{BookRepository, HighlightRepository, StorageProvider};
 use ipdf_core::core::services::{ImportBookInput, LibraryManager, Sha256BookHasher};
 use std::env;
 use std::fs;
@@ -641,4 +641,53 @@ fn test_library_manager_zip_epub_and_open_binary_fallbacks() {
 
     // 3. Error on completely nonexistent hash
     assert!(library2.open_book_binary("nonexistent-hash-xyz").is_err());
+}
+
+#[test]
+fn test_library_manager_update_book_cover() {
+    let storage = InMemoryStorage::new("local-memory");
+    let mut library = LibraryManager::new(storage);
+    library.initialize().unwrap();
+
+    let raw_bytes = b"%PDF-1.4-dummy-pdf-content".to_vec();
+    let imported = library
+        .import_book(ImportBookInput {
+            raw_bytes,
+            title: "PDF Without Cover".to_string(),
+            author: "Author".to_string(),
+            format: BookFormat::Pdf,
+            total_pages: 50,
+            cover_image_url: None,
+            now_ms: 1000,
+        })
+        .unwrap();
+
+    assert!(imported.cover_image_url.is_none());
+
+    let webp_data_url = "data:image/webp;base64,UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==";
+    let updated = library
+        .update_book_cover(&imported.book_hash, webp_data_url, 2000)
+        .unwrap();
+
+    assert_eq!(
+        updated.cover_image_url,
+        Some("covers/".to_string() + &imported.book_hash + ".webp")
+    );
+    assert_eq!(updated.updated_at_ms, 2000);
+
+    // Verify retrieval from repo
+    let fetched = library
+        .book_repo()
+        .find_book_by_hash(&imported.book_hash)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        fetched.cover_image_url,
+        Some("covers/".to_string() + &imported.book_hash + ".webp")
+    );
+
+    // Verify non-existent book returns Err
+    assert!(library
+        .update_book_cover("unknown-hash", webp_data_url, 3000)
+        .is_err());
 }

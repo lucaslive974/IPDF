@@ -4,6 +4,7 @@ import {
   type AnnotationFormatterMap,
   createAssistedTextAnnotation,
 } from '../../../core/domain/RichAnnotation';
+import { BookFormat } from '../../../core/domain/types';
 
 describe('Highlight & RichAnnotation Domain Entities', () => {
   it('updates updatedAt when calling updateNote, changeColor, setRichAnnotation, and removeRichAnnotation', () => {
@@ -12,7 +13,7 @@ describe('Highlight & RichAnnotation Domain Entities', () => {
     vi.setSystemTime(initialDate);
 
     const highlight = new Highlight('h-1', 'hash-123', 'Know thyself', '#eab308', {
-      format: 'epub',
+      format: BookFormat.EPUB,
       pageNumber: 12,
       epubCfi: 'epubcfi(/6/4[chap01ref]!/4/2/1:0)',
     });
@@ -47,7 +48,7 @@ describe('Highlight & RichAnnotation Domain Entities', () => {
 
   it('supports Discriminated Union annotations and Handler Map formatting', () => {
     const highlight = new Highlight('h-2', 'hash-123', 'Allegory of the Cave', '#3b82f6', {
-      format: 'epub',
+      format: BookFormat.EPUB,
       pageNumber: 42,
       epubCfi: 'epubcfi(/6/8!/4/2/1:0)',
     });
@@ -68,14 +69,14 @@ describe('Highlight & RichAnnotation Domain Entities', () => {
 
   it('detects exact CFI collision for EPUB highlights', () => {
     const highlight = new Highlight('h-epub', 'hash-1', 'Logos', '#f59e0b', {
-      format: 'epub',
+      format: BookFormat.EPUB,
       pageNumber: 5,
       epubCfi: 'epubcfi(/6/2!/4/10:2)',
     });
 
     expect(
       highlight.overlapsWith({
-        format: 'epub',
+        format: BookFormat.EPUB,
         pageNumber: 5,
         epubCfi: 'epubcfi(/6/2!/4/10:2)',
       })
@@ -83,7 +84,7 @@ describe('Highlight & RichAnnotation Domain Entities', () => {
 
     expect(
       highlight.overlapsWith({
-        format: 'epub',
+        format: BookFormat.EPUB,
         pageNumber: 5,
         epubCfi: 'epubcfi(/6/2!/4/12:0)',
       })
@@ -91,7 +92,7 @@ describe('Highlight & RichAnnotation Domain Entities', () => {
 
     expect(
       highlight.overlapsWith({
-        format: 'epub',
+        format: BookFormat.EPUB,
         pageNumber: 6,
         epubCfi: 'epubcfi(/6/2!/4/10:2)',
       })
@@ -100,14 +101,14 @@ describe('Highlight & RichAnnotation Domain Entities', () => {
 
   it('detects geometric AABB BoundingBox intersection for PDF highlights', () => {
     const highlight = new Highlight('h-pdf', 'hash-2', 'Critique of Pure Reason', '#ef4444', {
-      format: 'pdf',
+      format: BookFormat.PDF,
       pageNumber: 10,
       pdfRects: [{ x: 100, y: 200, width: 150, height: 20 }],
     });
 
     expect(
       highlight.overlapsWith({
-        format: 'pdf',
+        format: BookFormat.PDF,
         pageNumber: 10,
         pdfRects: [{ x: 120, y: 205, width: 50, height: 15 }],
       })
@@ -115,7 +116,7 @@ describe('Highlight & RichAnnotation Domain Entities', () => {
 
     expect(
       highlight.overlapsWith({
-        format: 'pdf',
+        format: BookFormat.PDF,
         pageNumber: 10,
         pdfRects: [{ x: 300, y: 400, width: 80, height: 20 }],
       })
@@ -123,7 +124,7 @@ describe('Highlight & RichAnnotation Domain Entities', () => {
 
     expect(
       highlight.overlapsWith({
-        format: 'pdf',
+        format: BookFormat.PDF,
         pageNumber: 11,
         pdfRects: [{ x: 120, y: 205, width: 50, height: 15 }],
       })

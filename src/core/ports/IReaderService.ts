@@ -30,5 +30,6 @@ export interface IReaderService {
     currentPage: number,
     totalPages: number
   ): Promise<BookMetadata>;
+  getBookFilePath?(bookHash: string): Promise<string | null>;
   buildTermLookupRequest(context: ReadingContext, targetLanguage?: string): Promise<LLMRequest>;
 }

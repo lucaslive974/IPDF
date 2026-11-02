@@ -87,6 +87,18 @@ vi.mock('@tauri-apps/api/core', () => ({
       storedBooks.set(bookHash, updated);
       return updated as unknown as T;
     }
+    if (cmd === 'update_book_cover') {
+      const bookHash = String(args.bookHash);
+      const existing = storedBooks.get(bookHash);
+      if (!existing) throw new Error(`Book not found: ${bookHash}`);
+      const updated: SerializedBookMetadata = {
+        ...existing,
+        coverImageUrl: String(args.coverImageUrl),
+        updatedAtMs: 1_700_000_300_000,
+      };
+      storedBooks.set(bookHash, updated);
+      return updated as unknown as T;
+    }
     if (cmd === 'list_authors') {
       const authors = new Set<string>();
       for (const b of storedBooks.values()) {
@@ -129,6 +141,26 @@ vi.mock('@tauri-apps/api/core', () => ({
       };
       storedBooks.set(dto.bookHash, dto);
       return dto as unknown as T;
+    }
+    if (cmd === 'pick_and_import_book') {
+      const dto: SerializedBookMetadata = {
+        bookHash: 'sha256-picked-book',
+        title: 'Picked Native Book',
+        author: 'Native Author',
+        format: 'pdf',
+        currentPage: 1,
+        totalPages: 250,
+        percentage: 1,
+        lastReadAtMs: 1_700_000_350_000,
+        updatedAtMs: 1_700_000_350_000,
+      };
+      storedBooks.set(dto.bookHash, dto);
+      return dto as unknown as T;
+    }
+    if (cmd === 'get_book_file_path') {
+      const hash = String(args.bookHash);
+      if (hash === 'non-existent') throw new Error('Not found');
+      return `/home/test/books/${hash}.pdf` as unknown as T;
     }
     if (cmd === 'save_highlight') {
       const dto = args.highlight as SerializedHighlight;
@@ -244,6 +276,12 @@ describe('Modular Tauri IPC Adapters', () => {
     expect(updatedMeta.tags).toEqual(['TauriTag1', 'TauriTag2']);
     expect(updatedMeta.description).toBe('A great Tauri book description.');
 
+    const updatedCover = await libraryService.updateBookCover(
+      'sha256-imported-book',
+      'data:image/webp;base64,mockCoverData'
+    );
+    expect(updatedCover.coverImageUrl).toBe('data:image/webp;base64,mockCoverData');
+
     const authors = await libraryService.listAuthors();
     expect(authors).toContain('Tauri Author');
 
@@ -257,8 +295,13 @@ describe('Modular Tauri IPC Adapters', () => {
     expect(opened.title).toBe('my_book');
     expect(opened.format).toBe('pdf');
 
+    const picked = await libraryService.pickAndImportBook();
+    expect(picked).not.toBeNull();
+    expect(picked?.title).toBe('Picked Native Book');
+
     const deleted = await libraryService.deleteBook('sha256-imported-book');
     expect(deleted).toBe(true);
+    await libraryService.deleteBook('sha256-picked-book');
     const booksAfterDelete = await libraryService.listLibraryBooks();
     expect(booksAfterDelete).toHaveLength(1);
     expect(booksAfterDelete[0]?.bookHash).toBe('sha256-opened-file');
@@ -272,6 +315,11 @@ describe('Modular Tauri IPC Adapters', () => {
 
     const bytes = await readerService.readBookBinary('sha256-imported-book');
     expect(bytes).toEqual(new Uint8Array([1, 2, 3, 4]));
+
+    const path = await readerService.getBookFilePath('sha256-imported-book');
+    expect(path).toBe('/home/test/books/sha256-imported-book.pdf');
+    const notFoundPath = await readerService.getBookFilePath('non-existent');
+    expect(notFoundPath).toBeNull();
 
     const pages = await readerService.getBookPages('sha256-imported-book', 1, 1);
     expect(pages).toHaveLength(1);

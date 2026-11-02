@@ -1,3 +1,4 @@
+use crate::adapters::extractor::CoverExtractorAdapter;
 use crate::adapters::pagination::BookPaginatorFactory;
 use crate::core::domain::{BookFormat, BookMetadata, BookStorageLocation};
 use crate::core::ports::{BookRepository, StorageProvider};
@@ -210,6 +211,9 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
             updated_at_ms: now_ms,
         };
 
+        let _ = self
+            .storage
+            .write_book_binary(&book_hash, bytes.clone(), format);
         self.in_memory_books
             .insert(book_hash.clone(), bytes.clone());
         self.book_repo.save_book(metadata.clone())?;
@@ -301,6 +305,32 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
             tags,
             description,
         )
+    }
+
+    pub fn update_book_cover(
+        &mut self,
+        book_hash: &str,
+        cover_image_url: &str,
+        now_ms: i64,
+    ) -> Result<BookMetadata, String> {
+        let entry = CoverExtractorAdapter::persist_cover_data_url(
+            &mut self.storage,
+            book_hash,
+            cover_image_url,
+        );
+        let mut book = self
+            .book_repo
+            .find_book_by_hash(book_hash)?
+            .ok_or_else(|| format!("Book not found: {book_hash}"))?;
+
+        if let Some(entry_name) = entry {
+            book.cover_image_url = Some(entry_name);
+        } else {
+            book.cover_image_url = Some(cover_image_url.to_string());
+        }
+        book.updated_at_ms = now_ms;
+        self.book_repo.save_book(book.clone())?;
+        Ok(book)
     }
 
     pub fn list_authors(&self) -> Result<Vec<String>, String> {

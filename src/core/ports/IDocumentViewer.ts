@@ -5,7 +5,7 @@ import type { DocumentPage } from './IReaderService';
 export type { DocumentPage };
 
 export interface IDocumentViewer {
-  render(container: HTMLElement, fileData: ArrayBuffer): Promise<void>;
+  render(container: HTMLElement, fileData: ArrayBuffer | string): Promise<void>;
   destroy(): void;
 
   goToPage(target: number | string): Promise<void>;

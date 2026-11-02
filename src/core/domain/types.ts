@@ -1,4 +1,9 @@
-export type BookFormat = 'epub' | 'pdf';
+export const BookFormat = {
+  EPUB: 'epub',
+  PDF: 'pdf',
+} as const;
+
+export type BookFormat = (typeof BookFormat)[keyof typeof BookFormat];
 
 export interface BoundingBox {
   x: number;

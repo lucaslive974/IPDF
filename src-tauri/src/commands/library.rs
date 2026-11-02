@@ -33,10 +33,13 @@ pub fn list_library_books(
 #[tauri::command]
 pub fn open_book_file(
     file_path: String,
+    app: tauri::AppHandle,
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<BookMetadata, String> {
-    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    use tauri::Manager;
     let path = Path::new(&file_path);
+    let _ = app.asset_protocol_scope().allow_file(path);
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
     let (mut metadata, bytes) = guard.library.open_book_from_path(path)?;
 
     if metadata.cover_image_url.is_none() {
@@ -82,6 +85,73 @@ pub fn open_book_file(
     };
     guard.presence_manager.update_reading_activity(&activity, now, true);
     Ok(metadata)
+}
+
+#[tauri::command]
+pub async fn pick_and_import_book(
+    app: tauri::AppHandle,
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<Option<BookMetadata>, String> {
+    use tauri::Manager;
+    let handle = rfd::AsyncFileDialog::new()
+        .add_filter("Books (*.epub, *.pdf)", &["epub", "pdf"])
+        .set_title("Import Book")
+        .pick_file()
+        .await;
+
+    let Some(file_handle) = handle else {
+        return Ok(None);
+    };
+
+    let path = file_handle.path();
+    let _ = app.asset_protocol_scope().allow_file(path);
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    let (mut metadata, bytes) = guard.library.open_book_from_path(path)?;
+
+    if metadata.cover_image_url.is_none() {
+        if let Some(entry_name) = CoverExtractorAdapter::extract_and_persist_cover(
+            guard.library.storage_mut(),
+            metadata.format,
+            &metadata.book_hash,
+            &bytes,
+        ) {
+            metadata.cover_image_url = Some(entry_name.clone());
+            if let Some(mut repo_book) = guard
+                .library
+                .book_repo_mut()
+                .find_book_by_hash(&metadata.book_hash)
+                .ok()
+                .flatten()
+            {
+                repo_book.cover_image_url = Some(entry_name);
+                let _ = guard.library.book_repo_mut().save_book(repo_book);
+            }
+        }
+    }
+
+    metadata.cover_image_url = CoverExtractorAdapter::resolve_cover_data_url(
+        guard.library.storage_mut(),
+        &metadata.book_hash,
+        metadata.cover_image_url.as_deref(),
+    );
+
+    let now = current_epoch_ms();
+    let total = metadata.total_pages.max(1);
+    let pct = (metadata.current_page as f64 / total as f64) * 100.0;
+    let activity = ReadingActivity {
+        book_hash: metadata.book_hash.clone(),
+        book_title: metadata.title.clone(),
+        book_author: metadata.author.clone(),
+        chapter_title: None,
+        current_page: metadata.current_page,
+        total_pages: total,
+        percentage: pct,
+        state: "reading".to_string(),
+        session_started_at_ms: now,
+    };
+    guard.presence_manager.update_reading_activity(&activity, now, true);
+
+    Ok(Some(metadata))
 }
 
 #[tauri::command]
@@ -139,6 +209,24 @@ pub fn rename_book(
 ) -> Result<BookMetadata, String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
     let mut meta = guard.library.rename_book(&book_hash, &new_title)?;
+    meta.cover_image_url = CoverExtractorAdapter::resolve_cover_data_url(
+        guard.library.storage_mut(),
+        &meta.book_hash,
+        meta.cover_image_url.as_deref(),
+    );
+    Ok(meta)
+}
+
+#[tauri::command]
+pub fn update_book_cover(
+    book_hash: String,
+    cover_image_url: String,
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<BookMetadata, String> {
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    let mut meta = guard
+        .library
+        .update_book_cover(&book_hash, &cover_image_url, current_epoch_ms())?;
     meta.cover_image_url = CoverExtractorAdapter::resolve_cover_data_url(
         guard.library.storage_mut(),
         &meta.book_hash,

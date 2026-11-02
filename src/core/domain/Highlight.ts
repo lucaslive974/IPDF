@@ -3,7 +3,7 @@ import {
   type IRichAnnotation,
   formatRichAnnotation,
 } from './RichAnnotation';
-import type { HighlightAnchor, RichAnnotationType } from './types';
+import { BookFormat, type HighlightAnchor, type RichAnnotationType } from './types';
 
 export class Highlight {
   private readonly annotationsMap = new Map<RichAnnotationType, IRichAnnotation>();
@@ -69,10 +69,10 @@ export class Highlight {
     ) {
       return false;
     }
-    if (this.anchor.format === 'epub') {
+    if (this.anchor.format === BookFormat.EPUB) {
       return Boolean(this.anchor.epubCfi && this.anchor.epubCfi === otherAnchor.epubCfi);
     }
-    if (this.anchor.format === 'pdf' && this.anchor.pdfRects && otherAnchor.pdfRects) {
+    if (this.anchor.format === BookFormat.PDF && this.anchor.pdfRects && otherAnchor.pdfRects) {
       const otherRects = otherAnchor.pdfRects;
       return this.anchor.pdfRects.some((r1) =>
         otherRects.some(

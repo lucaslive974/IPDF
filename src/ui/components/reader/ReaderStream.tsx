@@ -1,5 +1,6 @@
 import { type RefObject, memo, useCallback, useMemo, useRef } from 'react';
 import type { Highlight } from '../../../core/domain/Highlight';
+import { BookFormat } from '../../../core/domain/types';
 import type { DocumentPage } from '../../../core/ports/IReaderService';
 import { useReader } from '../../hooks/useReader';
 import { useReaderFocalPageTracker } from '../../hooks/useReaderFocalPageTracker';
@@ -66,14 +67,26 @@ export const ReaderStream = memo(function ReaderStream({
     [openHighlightPopover]
   );
 
+  const isPdf = reader.document.format === BookFormat.PDF;
+
   return (
-    <main className="flex-1 w-full py-12 sm:py-20 px-4 sm:px-8">
+    <main
+      className={
+        isPdf
+          ? 'flex-1 w-full py-4 sm:py-8 px-2 sm:px-4'
+          : 'flex-1 w-full py-12 sm:py-20 px-4 sm:px-8'
+      }
+    >
       <div
         ref={contentAreaRef}
-        className="mx-auto flex flex-col gap-12"
+        className={
+          isPdf
+            ? 'mx-auto flex flex-col shadow-md rounded-md overflow-hidden bg-surface'
+            : 'mx-auto flex flex-col gap-12'
+        }
         style={{
           zoom: zoomLevel,
-          width: 'min(calc(100vw - 2rem), 42rem)',
+          width: isPdf ? 'min(calc(100vw - 2rem), 48rem)' : 'min(calc(100vw - 2rem), 42rem)',
         }}
       >
         {/* Top sentinel for reverse scrolling */}
@@ -88,6 +101,7 @@ export const ReaderStream = memo(function ReaderStream({
             bookTitle={reader.document.bookTitle}
             bookAuthor={reader.document.bookAuthor}
             coverImageUrl={reader.document.coverImageUrl}
+            bookFormat={reader.document.format ?? BookFormat.EPUB}
             highlights={reader.getHighlightsForPage(page.pageNumber)}
             onHighlightClick={handleHighlightClick}
             onHighlightContextMenu={handleHighlightContextMenu}

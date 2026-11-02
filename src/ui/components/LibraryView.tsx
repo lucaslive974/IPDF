@@ -48,10 +48,19 @@ export function LibraryView({
     }
   }, [activeTab, books.length, presenceService]);
 
-  const handleOpenFileInput = () => {
+  const handleOpenFileInput = async () => {
     if (propOnImportNewBook) {
       propOnImportNewBook();
-    } else {
+      return;
+    }
+    try {
+      const book = await library.pickAndImportBook();
+      if (book) {
+        onOpenBook(book);
+        return;
+      }
+      return;
+    } catch {
       fileInputRef.current?.click();
     }
   };

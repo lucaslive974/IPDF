@@ -130,29 +130,11 @@ fn test_epub_cover_extractor_from_opf_manifest() {
 fn test_pdf_cover_extractor_and_factory() {
     let pdf_extractor = PdfCoverExtractor::new();
 
-    // 1. Non-PDF returns None
+    // 1. All raw binary extraction returns None (deferred to frontend viewer)
     assert!(pdf_extractor.extract_cover(b"not-a-pdf").is_none());
+    assert!(pdf_extractor.extract_cover(b"%PDF-1.4").is_none());
 
-    // 2. PDF without JPEG stream returns None
-    let empty_pdf = b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF";
-    assert!(pdf_extractor.extract_cover(empty_pdf).is_none());
-
-    // 3. PDF with embedded JPEG SOI and EOI
-    let mut pdf_with_jpeg =
-        b"%PDF-1.7\n1 0 obj\n<< /Type /XObject /Subtype /Image /Filter /DCTDecode >>\nstream\n"
-            .to_vec();
-    let mut fake_jpeg = vec![0xFF, 0xD8, 0xFF, 0xE0];
-    fake_jpeg.extend(vec![0xAA; 120]); // dummy jpeg body > 100 bytes
-    fake_jpeg.extend_from_slice(&[0xFF, 0xD9]);
-    pdf_with_jpeg.extend_from_slice(&fake_jpeg);
-    pdf_with_jpeg.extend_from_slice(b"\nendstream\nendobj\n%%EOF");
-
-    let extracted = pdf_extractor.extract_cover(&pdf_with_jpeg).unwrap();
-    assert_eq!(extracted.mime_type, "image/jpeg");
-    assert_eq!(extracted.extension, "jpg");
-    assert_eq!(extracted.data, fake_jpeg);
-
-    // 4. Factory creation
+    // 2. Factory creation
     let from_factory_epub = BookCoverExtractorFactory::create(BookFormat::Epub);
     assert!(from_factory_epub.extract_cover(b"").is_none());
 
@@ -226,4 +208,22 @@ fn test_cover_extractor_adapter_resolve_and_persist() {
     let resolved_epub =
         CoverExtractorAdapter::resolve_cover_data_url(&mut storage, "hash_epub", None).unwrap();
     assert!(resolved_epub.starts_with("data:image/jpeg;base64,"));
+
+    // 6. Persist cover data url directly (e.g. from frontend off-screen canvas page 1)
+    let webp_data_url = "data:image/webp;base64,UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==";
+    let saved_entry =
+        CoverExtractorAdapter::persist_cover_data_url(&mut storage, "hash_pdf", webp_data_url);
+    assert_eq!(saved_entry, Some("covers/hash_pdf.webp".to_string()));
+
+    let resolved_pdf =
+        CoverExtractorAdapter::resolve_cover_data_url(&mut storage, "hash_pdf", None).unwrap();
+    assert!(resolved_pdf.starts_with("data:image/webp;base64,"));
+
+    // Invalid data url returns None
+    assert!(CoverExtractorAdapter::persist_cover_data_url(
+        &mut storage,
+        "hash_pdf",
+        "not-a-data-url"
+    )
+    .is_none());
 }

@@ -2,17 +2,51 @@ use crate::state::BackendState;
 use crate::utils::current_epoch_ms;
 use ipdf_core::adapters::extractor::CoverExtractorAdapter;
 use ipdf_core::core::domain::{BookMetadata, BookPagePayload};
-use ipdf_core::core::ports::ReadingActivity;
+use ipdf_core::core::ports::{BookRepository, ReadingActivity};
 use std::sync::Mutex;
 use tauri::State;
+
+#[tauri::command]
+pub fn get_book_file_path(
+    book_hash: String,
+    app: tauri::AppHandle,
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<String, String> {
+    use tauri::Manager;
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    if let Ok(locations) = guard.library.book_repo_mut().get_storage_locations(&book_hash) {
+        for loc in locations {
+            let path = std::path::Path::new(&loc.storage_path);
+            if path.exists() {
+                let _ = app.asset_protocol_scope().allow_file(path);
+                return Ok(loc.storage_path);
+            }
+        }
+    }
+
+    let root = guard.library.storage().root_dir();
+    let pdf_path = root.join(format!("{book_hash}.pdf"));
+    if pdf_path.exists() {
+        let _ = app.asset_protocol_scope().allow_file(&pdf_path);
+        return Ok(pdf_path.to_string_lossy().to_string());
+    }
+    let epub_path = root.join(format!("{book_hash}.epub"));
+    if epub_path.exists() {
+        let _ = app.asset_protocol_scope().allow_file(&epub_path);
+        return Ok(epub_path.to_string_lossy().to_string());
+    }
+
+    Err(format!("File path not found for hash: {book_hash}"))
+}
 
 #[tauri::command]
 pub fn read_book_binary(
     book_hash: String,
     state: State<'_, Mutex<BackendState>>,
-) -> Result<Vec<u8>, String> {
+) -> Result<tauri::ipc::Response, String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
-    guard.library.open_book_binary(&book_hash)
+    let bytes = guard.library.open_book_binary(&book_hash)?;
+    Ok(tauri::ipc::Response::new(bytes))
 }
 
 #[tauri::command]

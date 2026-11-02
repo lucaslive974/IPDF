@@ -37,7 +37,7 @@ impl CoverExtractorAdapter {
             }
         }
 
-        for ext in &["jpg", "jpeg", "png", "webp"] {
+        for ext in &["webp", "png", "jpg", "jpeg"] {
             let candidate = format!("covers/{}.{}", book_hash, ext);
             if let Ok(Some(bytes)) = storage.read_entry(&candidate) {
                 let mime = match *ext {
@@ -67,6 +67,35 @@ impl CoverExtractorAdapter {
                 .is_ok()
             {
                 return Some(entry_name);
+            }
+        }
+        None
+    }
+
+    pub fn persist_cover_data_url<S: StorageProvider + ?Sized>(
+        storage: &mut S,
+        book_hash: &str,
+        data_url: &str,
+    ) -> Option<String> {
+        if let Some(rest) = data_url.strip_prefix("data:") {
+            if let Some(semi_idx) = rest.find(';') {
+                let mime = &rest[..semi_idx];
+                let remainder = &rest[semi_idx..];
+                if let Some(base64_payload) = remainder.strip_prefix(";base64,") {
+                    if let Ok(bytes) =
+                        base64::engine::general_purpose::STANDARD.decode(base64_payload)
+                    {
+                        let ext = match mime {
+                            "image/png" => "png",
+                            "image/webp" => "webp",
+                            _ => "jpg",
+                        };
+                        let entry_name = format!("covers/{}.{}", book_hash, ext);
+                        if storage.write_entry(&entry_name, &bytes, mime).is_ok() {
+                            return Some(entry_name);
+                        }
+                    }
+                }
             }
         }
         None

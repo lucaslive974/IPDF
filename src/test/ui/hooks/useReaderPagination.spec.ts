@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EpubViewerAdapter } from '../../../adapters/viewers/EpubViewerAdapter';
 import type { BookMetadata } from '../../../core/domain/BookMetadata';
+import { BookFormat } from '../../../core/domain/types';
+import type { IDocumentViewer } from '../../../core/ports/IDocumentViewer';
 import { createReaderPaginationController } from '../../../ui/hooks/useReaderPagination';
 import { DEFAULT_BOOK_HASH, useReaderStore } from '../../../ui/stores/useReaderStore';
 import { MockBackend } from '../../mocks/MockBackend';
@@ -37,7 +39,7 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       bookHash: 'hash-socrates',
       title: 'Republic',
       author: 'Plato',
-      format: 'epub',
+      format: BookFormat.EPUB,
       totalPages: 300,
       currentPage: 10,
       percentage: 3,
@@ -71,6 +73,7 @@ describe('useReaderPagination / createReaderPaginationController', () => {
     expect(state.loadedPages).toHaveLength(1);
     expect(state.chapterTitle).toBe('Book VII - Cave Allegory');
     expect(updateProgressSpy).toHaveBeenCalledWith('hash-socrates', 10, 300);
+    expect(state.isLoadingPages).toBe(false);
   });
 
   it('loads more pages forward and backward', async () => {
@@ -152,5 +155,39 @@ describe('useReaderPagination / createReaderPaginationController', () => {
 
     await controller.goToPage(-5);
     expect(useReaderStore.getState().currentPage).toBe(1);
+  });
+
+  it('bootstraps PDF book and attempts page 1 cover extraction when missing', async () => {
+    const pdfBook: BookMetadata = {
+      bookHash: 'hash-pdf-book',
+      title: 'PDF Document',
+      author: 'Author',
+      format: BookFormat.PDF,
+      totalPages: 50,
+      currentPage: 1,
+      percentage: 2,
+      tags: [],
+      lastReadAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const mockPdfViewer = {
+      render: vi.fn().mockResolvedValue(undefined),
+      setPages: vi.fn(),
+      getPagesChunk: vi.fn().mockReturnValue([]),
+      getCurrentPage: vi.fn().mockReturnValue({ pageNumber: 1, totalPages: 50 }),
+      getPageProxy: vi.fn().mockResolvedValue(null),
+    };
+
+    const controller = createReaderPaginationController({
+      readerService: backend,
+      libraryService: backend,
+      getViewer: () => mockPdfViewer as unknown as IDocumentViewer,
+    });
+
+    const doc = await controller.bootstrapBook(pdfBook);
+    expect(doc.bookHash).toBe('hash-pdf-book');
+    expect(mockPdfViewer.render).toHaveBeenCalled();
+    expect(mockPdfViewer.getPageProxy).toHaveBeenCalledWith(1);
   });
 });
