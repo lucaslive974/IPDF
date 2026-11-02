@@ -65,6 +65,7 @@ export function useReaderView(): UseReaderViewReturn {
 
   const isProgrammaticScrollRef = useRef(false);
   const programmaticScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialScrollAlignedRef = useRef<string | null>(null);
 
   // Prevent initial mount reflow from overriding restored page number
   useEffect(() => {
@@ -74,6 +75,33 @@ export function useReaderView(): UseReaderViewReturn {
     }, 500);
     return () => clearTimeout(timer);
   }, []);
+
+  // Restore initial scroll position to the target page when opening a book beyond page 1
+  useEffect(() => {
+    const bookHash = reader.document.bookHash;
+    const targetPage = reader.currentPage;
+    if (!bookHash || targetPage <= 1 || initialScrollAlignedRef.current === bookHash) {
+      return;
+    }
+
+    const hasTargetPage = reader.loadedPages.some((p) => p.pageNumber === targetPage);
+    if (!hasTargetPage) {
+      return;
+    }
+
+    if (typeof document !== 'undefined') {
+      const el = document.querySelector(`article[data-page-number="${targetPage}"]`);
+      if (el) {
+        initialScrollAlignedRef.current = bookHash;
+        isProgrammaticScrollRef.current = true;
+        el.scrollIntoView({ behavior: 'instant', block: 'start' });
+        const timer = setTimeout(() => {
+          isProgrammaticScrollRef.current = false;
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [reader.document.bookHash, reader.currentPage, reader.loadedPages]);
 
   // Sync reading progress to library and backend on departure
   const lastSavedStateRef = useRef<ReadingProgressState | null>(null);

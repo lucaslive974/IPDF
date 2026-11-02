@@ -112,13 +112,21 @@ export function createReaderPaginationController(
       const format = book?.format ?? BookFormat.EPUB;
       const viewer = resolveViewer(format);
 
+      const backwardMargin = initialPage > 1 ? Math.min(2, initialPage - 1) : 0;
+      const startPage = Math.max(1, initialPage - backwardMargin);
+      const initialChunkSize = 5 + backwardMargin;
+      const count = Math.min(
+        initialChunkSize,
+        book?.totalPages ? book.totalPages - startPage + 1 : initialChunkSize
+      );
+
       try {
-        const pages = await deps.readerService.getBookPages(doc.bookHash, initialPage, 5);
+        const pages = await deps.readerService.getBookPages(doc.bookHash, startPage, count);
         if (pages.length > 0) {
           store.getState().setLoadedPages(pages);
-          const first = pages[0];
-          if (first?.chapterTitle) {
-            store.getState().setChapterTitle(first.chapterTitle);
+          const active = pages.find((p) => p.pageNumber === initialPage) ?? pages[0];
+          if (active?.chapterTitle) {
+            store.getState().setChapterTitle(active.chapterTitle);
           }
           viewer.setPages(pages);
           if (book?.totalPages) {
@@ -165,11 +173,15 @@ export function createReaderPaginationController(
               viewer as {
                 ensurePagesExtracted(start: number, count: number): Promise<DocumentPage[]>;
               }
-            ).ensurePagesExtracted(initialPage, 5);
+            ).ensurePagesExtracted(startPage, count);
           }
-          const chunk = viewer.getPagesChunk(initialPage, 5);
+          const chunk = viewer.getPagesChunk(startPage, count);
           if (chunk.length > 0) {
             store.getState().setLoadedPages(chunk);
+            const active = chunk.find((p) => p.pageNumber === initialPage) ?? chunk[0];
+            if (active?.chapterTitle) {
+              store.getState().setChapterTitle(active.chapterTitle);
+            }
           }
           const info = viewer.getCurrentPage();
           if (info.totalPages > 0) {

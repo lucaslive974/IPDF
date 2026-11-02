@@ -48,12 +48,30 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       updatedAt: new Date(),
     };
 
-    vi.spyOn(backend, 'getBookPages').mockResolvedValueOnce([
+    const getBookPagesSpy = vi.spyOn(backend, 'getBookPages').mockResolvedValueOnce([
+      {
+        pageNumber: 8,
+        chapterTitle: 'Book VI - Philosophers',
+        paragraphs: ['Paragraph from page 8.'],
+        cfiBase: '/6/8!',
+      },
+      {
+        pageNumber: 9,
+        chapterTitle: 'Book VI - Sun and Line',
+        paragraphs: ['Paragraph from page 9.'],
+        cfiBase: '/6/9!',
+      },
       {
         pageNumber: 10,
         chapterTitle: 'Book VII - Cave Allegory',
         paragraphs: ['Behold! Human beings living in an underground den.'],
         cfiBase: '/6/10!',
+      },
+      {
+        pageNumber: 11,
+        chapterTitle: 'Book VII - The Ascent',
+        paragraphs: ['Paragraph from page 11.'],
+        cfiBase: '/6/11!',
       },
     ]);
 
@@ -66,11 +84,15 @@ describe('useReaderPagination / createReaderPaginationController', () => {
 
     await controller.bootstrapBook(customBook);
 
+    // Initial load should fetch backward margin (pages 8..14)
+    expect(getBookPagesSpy).toHaveBeenCalledWith('hash-socrates', 8, 7);
+
     const state = useReaderStore.getState();
     expect(state.document.bookTitle).toBe('Republic');
     expect(state.currentPage).toBe(10);
     expect(state.totalPages).toBe(300);
-    expect(state.loadedPages).toHaveLength(1);
+    expect(state.loadedPages).toHaveLength(4);
+    expect(state.loadedPages.map((p) => p.pageNumber)).toEqual([8, 9, 10, 11]);
     expect(state.chapterTitle).toBe('Book VII - Cave Allegory');
     expect(updateProgressSpy).toHaveBeenCalledWith('hash-socrates', 10, 300);
     expect(state.isLoadingPages).toBe(false);
