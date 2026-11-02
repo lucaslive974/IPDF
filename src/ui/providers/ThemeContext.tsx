@@ -37,7 +37,7 @@ function resolveInitialTheme(): ThemeMode {
 }
 
 export interface ThemeProviderProps {
-  readonly children: ReactNode;
+  readonly children?: ReactNode;
   readonly initialTheme?: ThemeMode;
 }
 
@@ -79,10 +79,10 @@ export function ThemeProvider({ children, initialTheme }: ThemeProviderProps) {
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
-export function useThemeContext(): ThemeContextValue {
+export function useTheme(): ThemeContextValue {
   const context = useContext(ThemeContext);
   if (!context) {
-    throw new Error('useThemeContext must be used within a ThemeProvider');
+    throw new Error('useTheme must be used within a ThemeProvider');
   }
   return context;
 }

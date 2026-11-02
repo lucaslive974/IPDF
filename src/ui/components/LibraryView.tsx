@@ -1,8 +1,8 @@
 import type { BookMetadata } from '@domain/BookMetadata';
 import { useLibrary } from '@hooks/useLibrary';
 import { useNavigation } from '@hooks/useNavigation';
-import { useTheme } from '@hooks/useTheme';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
+import { useTheme } from '@providers/ThemeContext';
 import { type ChangeEvent, useEffect, useRef, useState } from 'react';
 import { BooksGrid } from './library/BooksGrid';
 import { DeleteBookDialog } from './library/DeleteBookDialog';

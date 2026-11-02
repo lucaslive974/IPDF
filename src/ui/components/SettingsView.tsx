@@ -1,6 +1,6 @@
 import { useNavigation } from '@hooks/useNavigation';
 import { useSettings } from '@hooks/useSettings';
-import { useTheme } from '@hooks/useTheme';
+import { useTheme } from '@providers/ThemeContext';
 import { SettingsAppearanceSection } from './settings/SettingsAppearanceSection';
 import { SettingsDangerSection } from './settings/SettingsDangerSection';
 import { SettingsFoldersSection } from './settings/SettingsFoldersSection';
