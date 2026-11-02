@@ -13,4 +13,6 @@ export * from './PassageQuote';
 export * from './Popover';
 export * from './ProgressBar';
 export * from './SegmentedControl';
+export * from './TagInput';
+export * from './Textarea';
 export * from './icons';

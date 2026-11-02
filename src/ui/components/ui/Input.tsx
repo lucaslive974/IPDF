@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactNode } from 'react';
+import type { InputHTMLAttributes, ReactNode, Ref } from 'react';
 import { CloseIcon } from './icons';
 
 export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> {
@@ -6,6 +6,7 @@ export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
   readonly onClear?: () => void;
   readonly error?: string;
   readonly containerClassName?: string;
+  readonly ref?: Ref<HTMLInputElement>;
 }
 
 export function Input({
@@ -15,6 +16,7 @@ export function Input({
   value,
   containerClassName = '',
   className = '',
+  ref,
   ...rest
 }: InputProps) {
   const hasValue = Boolean(value && String(value).length > 0);
@@ -30,6 +32,7 @@ export function Input({
       >
         {iconLeft && <span className="mr-2 text-tx-muted shrink-0">{iconLeft}</span>}
         <input
+          ref={ref}
           value={value}
           className={`w-full bg-transparent text-xs text-tx-main placeholder:text-tx-faint focus:outline-none ${className}`.trim()}
           {...rest}
