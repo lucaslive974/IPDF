@@ -20,6 +20,8 @@
       "@domain": ["src/core/domain/index.ts"],
       "@ports/*": ["src/core/ports/*"],
       "@ports": ["src/core/ports/index.ts"],
+      "@core/utils/*": ["src/core/utils/*"],
+      "@core/utils": ["src/core/utils/index.ts"],
       "@core/*": ["src/core/*"],
       "@adapters/*": ["src/adapters/*"],
       "@adapters": ["src/adapters/index.ts"],
