@@ -40,9 +40,7 @@ export function SettingsView() {
           <SettingsIntegrationsSection
             isDiscordEnabled={settings.isDiscordEnabled}
             discordHealth={settings.discordHealth}
-            isCheckingDiscordHealth={settings.isCheckingDiscordHealth}
             onToggleDiscord={() => void settings.toggleDiscordPresence()}
-            onCheckDiscordHealth={() => void settings.checkDiscordHealth()}
           />
         )}
 

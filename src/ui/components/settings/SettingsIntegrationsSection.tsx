@@ -5,17 +5,13 @@ import { memo } from 'react';
 export interface SettingsIntegrationsSectionProps {
   readonly isDiscordEnabled: boolean;
   readonly discordHealth?: PresenceHealthStatus | null;
-  readonly isCheckingDiscordHealth?: boolean;
   readonly onToggleDiscord: () => void;
-  readonly onCheckDiscordHealth?: () => void;
 }
 
 export const SettingsIntegrationsSection = memo(function SettingsIntegrationsSection({
   isDiscordEnabled,
   discordHealth,
-  isCheckingDiscordHealth = false,
   onToggleDiscord,
-  onCheckDiscordHealth,
 }: SettingsIntegrationsSectionProps) {
   let badgeVariant: BadgeVariant = 'faint';
   let badgeLabel = 'Discord Disabled';
@@ -73,25 +69,13 @@ export const SettingsIntegrationsSection = memo(function SettingsIntegrationsSec
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          {isDiscordEnabled && onCheckDiscordHealth && (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={isCheckingDiscordHealth}
-              onClick={onCheckDiscordHealth}
-            >
-              {isCheckingDiscordHealth ? 'Checking...' : 'Check Status'}
-            </Button>
-          )}
-          <Button
-            variant={isDiscordEnabled ? 'outline' : 'primary'}
-            size="sm"
-            onClick={onToggleDiscord}
-          >
-            {isDiscordEnabled ? 'Disable' : 'Enable'}
-          </Button>
-        </div>
+        <Button
+          variant={isDiscordEnabled ? 'outline' : 'primary'}
+          size="sm"
+          onClick={onToggleDiscord}
+        >
+          {isDiscordEnabled ? 'Disable' : 'Enable'}
+        </Button>
       </Card>
     </Card>
   );
