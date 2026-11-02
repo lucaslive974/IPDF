@@ -20,7 +20,7 @@ export const ReaderLoadingView = memo(function ReaderLoadingView({
     >
       <div className="w-36 sm:w-44 shadow-lg rounded-md overflow-hidden transition-transform duration-300">
         <BookCover
-          title={document.bookTitle}
+          title={document.bookTitle || 'Loading Document'}
           author={document.bookAuthor}
           coverImageUrl={document.coverImageUrl}
           className="w-full"
@@ -29,7 +29,7 @@ export const ReaderLoadingView = memo(function ReaderLoadingView({
 
       <div className="mt-8 flex flex-col items-center text-center max-w-md">
         <h2 className="text-xl sm:text-2xl font-serif font-medium text-tx-main line-clamp-2">
-          {document.bookTitle}
+          {document.bookTitle || 'Loading Document'}
         </h2>
         {hasAuthor && <p className="mt-1 text-sm font-sans text-tx-muted">{document.bookAuthor}</p>}
       </div>

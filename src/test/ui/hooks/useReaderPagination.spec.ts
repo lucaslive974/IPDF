@@ -4,7 +4,7 @@ import type { BookMetadata } from '../../../core/domain/BookMetadata';
 import { BookFormat } from '../../../core/domain/types';
 import type { IDocumentViewer } from '../../../core/ports/IDocumentViewer';
 import { createReaderPaginationController } from '../../../ui/hooks/useReaderPagination';
-import { DEFAULT_BOOK_HASH, useReaderStore } from '../../../ui/stores/useReaderStore';
+import { EMPTY_DOCUMENT, useReaderStore } from '../../../ui/stores/useReaderStore';
 import { MockBackend } from '../../mocks/MockBackend';
 
 describe('useReaderPagination / createReaderPaginationController', () => {
@@ -17,19 +17,19 @@ describe('useReaderPagination / createReaderPaginationController', () => {
     useReaderStore.getState().reset();
   });
 
-  it('bootstraps default book when book is null', async () => {
+  it('bootstraps empty document when book is null', async () => {
     const controller = createReaderPaginationController({
       readerService: backend,
       epubViewer: viewer,
     });
 
-    let loadedHash = '';
+    let loadedHash = 'initial';
     const doc = await controller.bootstrapBook(null, (hash) => {
       loadedHash = hash;
     });
 
-    expect(doc.bookHash).toBe(DEFAULT_BOOK_HASH);
-    expect(loadedHash).toBe(DEFAULT_BOOK_HASH);
+    expect(doc.bookHash).toBe('');
+    expect(loadedHash).toBe('initial');
     expect(useReaderStore.getState().currentPage).toBe(1);
     expect(useReaderStore.getState().totalPages).toBe(1);
   });

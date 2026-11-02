@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { BookFormat } from '../../core/domain/types';
+import type { BookFormat } from '../../core/domain/types';
 import type { DocumentPage } from '../../core/ports/IReaderService';
 
 export interface StudyDocumentDescriptor {
@@ -12,19 +12,12 @@ export interface StudyDocumentDescriptor {
   readonly format?: BookFormat;
 }
 
-export const DEFAULT_BOOK_HASH = '8c8bf2ed9bff65aaf226bf5db3879eb378a26e72489bd28666abc01c02f2a0c2';
-
-export const DEFAULT_DOCUMENT: StudyDocumentDescriptor = {
-  bookHash: DEFAULT_BOOK_HASH,
-  bookTitle: 'The Republic',
-  bookAuthor: 'Plato',
-  chapterTitle: 'Book VII — Allegory of the Cave',
-  format: BookFormat.EPUB,
-  sampleParagraph:
-    'Behold! human beings living in an underground den, which has a mouth open towards the light ' +
-    'and reaching all along the den; here they have been from their childhood, and have their legs ' +
-    'and necks chained so that they cannot move, and can only see before them, being prevented by ' +
-    'the chains from turning round their heads (noesis vs. doxa).',
+export const EMPTY_DOCUMENT: StudyDocumentDescriptor = {
+  bookHash: '',
+  bookTitle: '',
+  bookAuthor: '',
+  chapterTitle: '',
+  sampleParagraph: '',
 };
 
 export interface ReaderState {
@@ -46,18 +39,21 @@ export interface ReaderState {
 }
 
 export const useReaderStore = create<ReaderState>((set) => ({
-  document: DEFAULT_DOCUMENT,
+  document: EMPTY_DOCUMENT,
   currentPage: 1,
   totalPages: 1,
-  chapterTitle: DEFAULT_DOCUMENT.chapterTitle,
+  chapterTitle: '',
   loadedPages: [],
   isLoadingPages: false,
 
   setDocument: (document) =>
     set((state) => ({
       document,
-      chapterTitle: document.chapterTitle,
-      loadedPages: state.document.bookHash === document.bookHash ? state.loadedPages : [],
+      chapterTitle: document.chapterTitle || state.chapterTitle,
+      loadedPages:
+        state.document.bookHash === document.bookHash && document.bookHash !== ''
+          ? state.loadedPages
+          : [],
     })),
 
   setCurrentPage: (currentPage) => set({ currentPage }),
@@ -85,10 +81,10 @@ export const useReaderStore = create<ReaderState>((set) => ({
 
   reset: () =>
     set({
-      document: DEFAULT_DOCUMENT,
+      document: EMPTY_DOCUMENT,
       currentPage: 1,
       totalPages: 1,
-      chapterTitle: DEFAULT_DOCUMENT.chapterTitle,
+      chapterTitle: '',
       loadedPages: [],
       isLoadingPages: false,
     }),

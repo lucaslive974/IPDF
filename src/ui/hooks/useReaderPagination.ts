@@ -9,8 +9,7 @@ import { isValidAuthor } from '../components/library/BookCover';
 import { useNavigation } from '../hooks/useNavigation';
 import { useServiceContainer } from '../providers/ServiceContainerContext';
 import {
-  DEFAULT_BOOK_HASH,
-  DEFAULT_DOCUMENT,
+  EMPTY_DOCUMENT,
   type StudyDocumentDescriptor,
   useReaderStore,
 } from '../stores/useReaderStore';
@@ -88,18 +87,19 @@ export function createReaderPaginationController(
             bookTitle: book.title,
             bookAuthor: book.author,
             chapterTitle: `Chapter ${book.currentPage} &mdash; Reading Session`,
-            sampleParagraph:
-              book.bookHash === DEFAULT_BOOK_HASH
-                ? DEFAULT_DOCUMENT.sampleParagraph
-                : isValidAuthor(book.author)
-                  ? `Reading "${book.title}" by ${book.author}. Select any passage in the text to create persistent highlights, add margin notes, or consult AI explanations.`
-                  : `Reading "${book.title}". Select any passage in the text to create persistent highlights, add margin notes, or consult AI explanations.`,
+            sampleParagraph: isValidAuthor(book.author)
+              ? `Reading "${book.title}" by ${book.author}. Select any passage in the text to create persistent highlights, add margin notes, or consult AI explanations.`
+              : `Reading "${book.title}". Select any passage in the text to create persistent highlights, add margin notes, or consult AI explanations.`,
             coverImageUrl: book.coverImageUrl,
             format: book.format,
           }
-        : DEFAULT_DOCUMENT;
+        : EMPTY_DOCUMENT;
 
       store.getState().setDocument(doc);
+      if (!doc.bookHash) {
+        store.getState().setLoadingPages(false);
+        return doc;
+      }
       const initialPage = book?.currentPage || 1;
       store.getState().setCurrentPage(initialPage);
       if (book?.totalPages) {

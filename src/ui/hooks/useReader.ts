@@ -5,11 +5,7 @@ import type { TextFormatStyle } from '../../core/domain/types';
 import type { DocumentPage } from '../../core/ports/IReaderService';
 import { useServiceContainer } from '../providers/ServiceContainerContext';
 import { useHighlightStore } from '../stores/useHighlightStore';
-import {
-  DEFAULT_BOOK_HASH,
-  DEFAULT_DOCUMENT,
-  type StudyDocumentDescriptor,
-} from '../stores/useReaderStore';
+import { EMPTY_DOCUMENT, type StudyDocumentDescriptor } from '../stores/useReaderStore';
 import {
   type ActiveHighlightPopoverState,
   type SelectionPopoverState,
@@ -20,7 +16,7 @@ import { useReaderNotesEditor } from './useReaderNotesEditor';
 import { useReaderPagination } from './useReaderPagination';
 import { createEmptyRect, useReaderTextSelection } from './useReaderTextSelection';
 
-export { DEFAULT_BOOK_HASH, DEFAULT_DOCUMENT, createEmptyRect };
+export { EMPTY_DOCUMENT, createEmptyRect };
 export type { StudyDocumentDescriptor, SelectionPopoverState, ActiveHighlightPopoverState };
 
 export interface ReaderViewModel {

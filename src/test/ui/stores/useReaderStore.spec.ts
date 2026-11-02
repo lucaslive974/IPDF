@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { DocumentPage } from '../../../core/ports/IReaderService';
-import { DEFAULT_DOCUMENT, useReaderStore } from '../../../ui/stores/useReaderStore';
+import { EMPTY_DOCUMENT, useReaderStore } from '../../../ui/stores/useReaderStore';
 
 describe('useReaderStore', () => {
   beforeEach(() => {
     useReaderStore.getState().reset();
   });
 
-  it('initializes with default document and page 1', () => {
+  it('initializes with empty document and page 1', () => {
     const state = useReaderStore.getState();
-    expect(state.document).toEqual(DEFAULT_DOCUMENT);
+    expect(state.document).toEqual(EMPTY_DOCUMENT);
     expect(state.currentPage).toBe(1);
     expect(state.totalPages).toBe(1);
     expect(state.loadedPages).toEqual([]);

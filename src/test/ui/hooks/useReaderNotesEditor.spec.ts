@@ -1,11 +1,18 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { LLMRequest } from '../../../core/ports/IReaderService';
 import { createReaderNotesEditorController } from '../../../ui/hooks/useReaderNotesEditor';
-import { DEFAULT_DOCUMENT } from '../../../ui/stores/useReaderStore';
+import type { StudyDocumentDescriptor } from '../../../ui/stores/useReaderStore';
 import { MockBackend } from '../../mocks/MockBackend';
 
 describe('useReaderNotesEditor / createReaderNotesEditorController', () => {
   let backend: MockBackend;
+  const mockDocument: StudyDocumentDescriptor = {
+    bookHash: 'test-hash',
+    bookTitle: 'Critique of Pure Reason',
+    bookAuthor: 'Immanuel Kant',
+    chapterTitle: 'Transcendental Analytic',
+    sampleParagraph: 'Thoughts without content are empty, intuitions without concepts are blind.',
+  };
 
   beforeEach(() => {
     backend = new MockBackend();
@@ -37,7 +44,7 @@ describe('useReaderNotesEditor / createReaderNotesEditorController', () => {
     const controller = createReaderNotesEditorController({ readerService: backend });
 
     const prompt1 = (await controller.buildPrompt(
-      DEFAULT_DOCUMENT,
+      mockDocument,
       'categorical imperative'
     )) as LLMRequest;
 
@@ -45,7 +52,7 @@ describe('useReaderNotesEditor / createReaderNotesEditorController', () => {
     expect(prompt1.systemPrompt).toContain('Lang: en');
 
     const prompt2 = (await controller.buildPrompt(
-      DEFAULT_DOCUMENT,
+      mockDocument,
       null,
       'custom question'
     )) as LLMRequest;
