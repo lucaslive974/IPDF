@@ -1,8 +1,7 @@
-import { memo, useEffect, useMemo } from 'react';
+import { memo } from 'react';
 import { useLibraryAnnotations } from '../../hooks/useLibraryAnnotations';
-import { useServiceContainer } from '../../providers/ServiceContainerContext';
-import { useLibraryStore } from '../../stores/useLibraryStore';
-import { BookIcon, Button, EmptyState, FilterButton } from '../ui';
+import { BookIcon, Button, EmptyState } from '../ui';
+import { AnnotationsToolbar } from './AnnotationsToolbar';
 import { BookAnnotationGroupCard } from './BookAnnotationGroupCard';
 
 export interface LibraryAnnotationsTabProps {
@@ -12,47 +11,23 @@ export interface LibraryAnnotationsTabProps {
 export const LibraryAnnotationsTab = memo(function LibraryAnnotationsTab({
   searchQuery = '',
 }: LibraryAnnotationsTabProps) {
-  const { books } = useLibraryStore();
-  const { presenceService } = useServiceContainer();
   const {
     groupedByBook,
     isLoading,
+    isEmptyLibrary,
+    isFilterEmpty,
     selectedBookHash,
     onlyWithNotes,
-    copiedHighlightId,
+    bookFilterOptions,
     totalAnnotationsCount,
-    setSearchQuery,
+    copiedHighlightId,
     setSelectedBookHash,
     setOnlyWithNotes,
+    resetFilters,
     deleteHighlight,
     jumpToReader,
     copyQuote,
-  } = useLibraryAnnotations();
-
-  // Sync presence when reviewing annotations
-  useEffect(() => {
-    void presenceService.updateAnnotationsPresence(totalAnnotationsCount);
-  }, [totalAnnotationsCount, presenceService]);
-
-  // Sync external search query from LibraryView header
-  useEffect(() => {
-    setSearchQuery(searchQuery);
-  }, [searchQuery, setSearchQuery]);
-
-  const bookFilterOptions = useMemo(
-    () => [
-      { value: 'all', label: 'All Books' },
-      ...books.map((b) => ({ value: b.bookHash, label: b.title })),
-    ],
-    [books]
-  );
-
-  const hasAnyAnnotationsInLibrary =
-    books.length > 0 &&
-    (totalAnnotationsCount > 0 ||
-      Boolean(searchQuery) ||
-      selectedBookHash !== 'all' ||
-      onlyWithNotes);
+  } = useLibraryAnnotations({ searchQuery });
 
   if (isLoading && groupedByBook.length === 0) {
     return (
@@ -64,7 +39,7 @@ export const LibraryAnnotationsTab = memo(function LibraryAnnotationsTab({
     );
   }
 
-  if (!hasAnyAnnotationsInLibrary && groupedByBook.length === 0) {
+  if (isEmptyLibrary) {
     return (
       <EmptyState
         icon={<BookIcon className="h-8 w-8" />}
@@ -76,38 +51,17 @@ export const LibraryAnnotationsTab = memo(function LibraryAnnotationsTab({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Minimalist Controls Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-subtle pb-2">
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Reusable Minimalist Filter Button */}
-          <FilterButton
-            icon={<BookIcon className="h-3.5 w-3.5" />}
-            value={selectedBookHash}
-            options={bookFilterOptions}
-            onChange={setSelectedBookHash}
-            ariaLabel="Filter annotations by book"
-          />
+      <AnnotationsToolbar
+        selectedBookHash={selectedBookHash}
+        bookFilterOptions={bookFilterOptions}
+        onlyWithNotes={onlyWithNotes}
+        totalCount={totalAnnotationsCount}
+        booksCount={groupedByBook.length}
+        onSelectBook={setSelectedBookHash}
+        onToggleNotesOnly={() => setOnlyWithNotes(!onlyWithNotes)}
+      />
 
-          {/* Notes only toggle */}
-          <Button
-            variant={onlyWithNotes ? 'secondary' : 'minimal'}
-            size="xs"
-            onClick={() => setOnlyWithNotes(!onlyWithNotes)}
-            className="text-[0.72rem]"
-          >
-            {onlyWithNotes ? '✓ Notes only' : 'Notes only'}
-          </Button>
-        </div>
-
-        {/* Metrics */}
-        <span className="text-[0.7rem] font-mono text-tx-muted">
-          {totalAnnotationsCount} {totalAnnotationsCount === 1 ? 'annotation' : 'annotations'} in{' '}
-          {groupedByBook.length} {groupedByBook.length === 1 ? 'book' : 'books'}
-        </span>
-      </div>
-
-      {/* Empty State when filters yield 0 results */}
-      {groupedByBook.length === 0 && (
+      {isFilterEmpty ? (
         <EmptyState
           title="No annotations match your filter"
           description={
@@ -116,33 +70,25 @@ export const LibraryAnnotationsTab = memo(function LibraryAnnotationsTab({
               : 'Try selecting "All Books" or disabling "Notes only".'
           }
           action={
-            <Button
-              variant="outline"
-              size="xs"
-              onClick={() => {
-                setSelectedBookHash('all');
-                setOnlyWithNotes(false);
-              }}
-            >
+            <Button variant="outline" size="xs" onClick={resetFilters}>
               Reset filters
             </Button>
           }
         />
+      ) : (
+        <div className="flex flex-col gap-4">
+          {groupedByBook.map((group) => (
+            <BookAnnotationGroupCard
+              key={group.bookHash}
+              group={group}
+              copiedHighlightId={copiedHighlightId}
+              onCopyHighlight={copyQuote}
+              onDeleteHighlight={deleteHighlight}
+              onJumpToReader={jumpToReader}
+            />
+          ))}
+        </div>
       )}
-
-      {/* Book Groups */}
-      <div className="flex flex-col gap-4">
-        {groupedByBook.map((group) => (
-          <BookAnnotationGroupCard
-            key={group.bookHash}
-            group={group}
-            copiedHighlightId={copiedHighlightId}
-            onCopyHighlight={copyQuote}
-            onDeleteHighlight={deleteHighlight}
-            onJumpToReader={jumpToReader}
-          />
-        ))}
-      </div>
     </div>
   );
 });

@@ -219,4 +219,17 @@ describe('useLibraryAnnotations Controller', () => {
     expect(text).toContain('p. 7');
     expect(text).toContain('Key epistemological principle');
   });
+
+  it('formats quotes for clipboard when book is unknown and has no note', () => {
+    const hlWithoutNote = new Highlight(
+      'hl-nonote',
+      'unknown-hash',
+      'Plain quote text',
+      '#FFEB3B',
+      { format: 'epub', pageNumber: 1, epubCfi: 'cfi' },
+      ''
+    );
+    const text = formatQuoteForClipboard(hlWithoutNote, undefined);
+    expect(text).toBe('"Plain quote text"\n— Unknown Book (p. 1)');
+  });
 });

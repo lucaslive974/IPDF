@@ -16,6 +16,15 @@ export interface BookAnnotationGroup {
   readonly highlights: readonly Highlight[];
 }
 
+export interface BookFilterOption {
+  readonly value: string;
+  readonly label: string;
+}
+
+export interface UseLibraryAnnotationsOptions {
+  readonly searchQuery?: string;
+}
+
 export interface LibraryAnnotationsControllerDeps {
   readonly highlightService: IHighlightService;
   readonly books: readonly BookMetadata[];
@@ -170,17 +179,24 @@ export function createLibraryAnnotationsController(
   };
 }
 
-export function useLibraryAnnotations() {
-  const { highlightService } = useServiceContainer();
+export function useLibraryAnnotations({
+  searchQuery: propSearchQuery = '',
+}: UseLibraryAnnotationsOptions = {}) {
+  const { highlightService, presenceService } = useServiceContainer();
   const { books } = useLibraryStore();
   const { openReader } = useNavigation();
 
   const [highlights, setHighlights] = useState<readonly Highlight[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(propSearchQuery);
   const [selectedBookHash, setSelectedBookHash] = useState<string | 'all'>('all');
   const [onlyWithNotes, setOnlyWithNotes] = useState(false);
   const [copiedHighlightId, setCopiedHighlightId] = useState<string | null>(null);
+
+  // Sync external search query
+  useEffect(() => {
+    setSearchQuery(propSearchQuery);
+  }, [propSearchQuery]);
 
   const loadAll = useCallback(async () => {
     setIsLoading(true);
@@ -312,18 +328,44 @@ export function useLibraryAnnotations() {
     [groupedByBook]
   );
 
+  // Sync Discord presence
+  useEffect(() => {
+    void presenceService.updateAnnotationsPresence(totalAnnotationsCount);
+  }, [totalAnnotationsCount, presenceService]);
+
+  const bookFilterOptions = useMemo<readonly BookFilterOption[]>(
+    () => [
+      { value: 'all', label: 'All Books' },
+      ...books.map((b) => ({ value: b.bookHash, label: b.title })),
+    ],
+    [books]
+  );
+
+  const isEmptyLibrary = !isLoading && highlights.length === 0;
+  const isFilterEmpty = !isEmptyLibrary && groupedByBook.length === 0;
+
+  const resetFilters = useCallback(() => {
+    setSelectedBookHash('all');
+    setOnlyWithNotes(false);
+    setSearchQuery('');
+  }, []);
+
   return {
     highlights,
     groupedByBook,
     isLoading,
+    isEmptyLibrary,
+    isFilterEmpty,
     searchQuery,
     selectedBookHash,
     onlyWithNotes,
+    bookFilterOptions,
     copiedHighlightId,
     totalAnnotationsCount,
     setSearchQuery,
     setSelectedBookHash,
     setOnlyWithNotes,
+    resetFilters,
     deleteHighlight,
     jumpToReader,
     copyQuote,
