@@ -25,41 +25,52 @@ export const ReaderPagePdf = memo(function ReaderPagePdf({
   onHighlightClick,
   onHighlightContextMenu,
 }: ReaderPagePdfProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const textLayerRef = useRef<HTMLDivElement>(null);
   const { pdfViewer } = useServiceContainer();
 
   useEffect(() => {
-    let isCancelled = false;
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+    const container = containerRef.current;
 
     const render = async () => {
-      try {
-        if (canvasRef.current && !isCancelled) {
-          await pdfViewer.renderPageCanvas(pageNumber, canvasRef.current);
-        }
-        if (textLayerRef.current && !isCancelled) {
-          await pdfViewer.renderPageTextLayer(pageNumber, textLayerRef.current);
-        }
-      } catch (err: unknown) {
-        if (
-          err &&
-          typeof err === 'object' &&
-          'name' in err &&
-          (err.name === 'RenderingCancelledException' || err.name === 'AbortException')
-        ) {
-          return;
-        }
-        console.warn(`Failed to render PDF page ${pageNumber}:`, err);
+      const pageProxy = await pdfViewer.getPageProxy(pageNumber);
+      if (!pageProxy || !containerRef.current) return;
+
+      // Compute exact responsive scale matching container pixel width
+      const containerWidth = containerRef.current.clientWidth || 768;
+      const unscaledViewport = pageProxy.getViewport({ scale: 1.0 });
+      const scale = unscaledViewport.width > 0 ? containerWidth / unscaledViewport.width : 1.5;
+
+      if (canvasRef.current) {
+        await pdfViewer.renderPageCanvas(pageNumber, canvasRef.current, scale);
+      }
+      if (textLayerRef.current) {
+        await pdfViewer.renderPageTextLayer(pageNumber, textLayerRef.current, scale);
       }
     };
 
     void render();
 
+    // Re-align on container resize or zoom level changes
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined' && container) {
+      resizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.contentRect && entry.contentRect.width > 0) {
+            if (resizeTimer) clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => void render(), 100);
+          }
+        }
+      });
+      resizeObserver.observe(container);
+    }
+
     return () => {
-      isCancelled = true;
-      if (pdfViewer.cancelPageRender) {
-        pdfViewer.cancelPageRender(canvasRef.current, textLayerRef.current);
-      }
+      if (resizeTimer) clearTimeout(resizeTimer);
+      if (resizeObserver) resizeObserver.disconnect();
+      pdfViewer.cancelPageRender?.(canvasRef.current, textLayerRef.current);
     };
   }, [pdfViewer, pageNumber]);
 
@@ -73,6 +84,7 @@ export const ReaderPagePdf = memo(function ReaderPagePdf({
 
   return (
     <div
+      ref={containerRef}
       data-testid={`reader-page-pdf-${pageNumber}`}
       className="relative w-full overflow-hidden bg-surface select-text min-h-75"
     >

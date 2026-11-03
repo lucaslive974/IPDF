@@ -170,6 +170,33 @@ export class PdfViewerAdapter implements IPdfViewer {
     return this.documentProxy.getPage(pageNumber);
   }
 
+  private async abortCanvasTask(canvas: HTMLCanvasElement): Promise<void> {
+    const inFlight = this.inFlightCanvasTasks.get(canvas);
+    if (!inFlight) return;
+    try {
+      inFlight.cancel?.();
+    } catch {
+      // Ignore cancellation errors
+    }
+    try {
+      await inFlight.promise;
+    } catch {
+      // Previous task was cancelled, ignore
+    }
+  }
+
+  private abortTextTask(container: HTMLElement): void {
+    const inFlight = this.inFlightTextTasks.get(container);
+    if (!inFlight) return;
+    try {
+      inFlight.cancel();
+    } catch {
+      // TextLayer abort is expected
+    } finally {
+      this.inFlightTextTasks.delete(container);
+    }
+  }
+
   public async renderPageCanvas(
     pageNumber: number,
     canvas: HTMLCanvasElement,
@@ -180,19 +207,8 @@ export class PdfViewerAdapter implements IPdfViewer {
       return { width: 0, height: 0 };
     }
 
-    // Cancel and await any previous in-flight render task on this specific canvas
-    const inFlight = this.inFlightCanvasTasks.get(canvas);
-    if (inFlight) {
-      try {
-        inFlight.cancel?.();
-      } catch {
-        // Ignore cancellation errors
-      }
-      try {
-        await inFlight.promise;
-      } catch {
-        // Previous task was cancelled, ignore
-      }
+    if (this.inFlightCanvasTasks.has(canvas)) {
+      await this.abortCanvasTask(canvas);
     }
 
     const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
@@ -201,6 +217,12 @@ export class PdfViewerAdapter implements IPdfViewer {
 
     canvas.width = viewport.width;
     canvas.height = viewport.height;
+
+    const cssViewport = pageProxy.getViewport({ scale: targetScale });
+    if (canvas.style) {
+      canvas.style.width = '100%';
+      canvas.style.height = `${cssViewport.height}px`;
+    }
 
     const context = canvas.getContext('2d');
     if (context && pageProxy.render) {
@@ -243,15 +265,9 @@ export class PdfViewerAdapter implements IPdfViewer {
     }
 
     // Cancel any previous in-flight text layer task on this container
-    const inFlight = this.inFlightTextTasks.get(container);
-    if (inFlight) {
-      try {
-        inFlight.cancel();
-      } catch {
-        // Ignore cancellation errors
-      }
-      this.inFlightTextTasks.delete(container);
-    }
+    this.abortTextTask(container);
+
+    const viewport = pageProxy.getViewport({ scale: targetScale });
 
     if (container) {
       container.innerHTML = '';
@@ -261,10 +277,11 @@ export class PdfViewerAdapter implements IPdfViewer {
         container.style.setProperty('--user-unit', '1');
         container.style.setProperty('--scale-round-x', '1px');
         container.style.setProperty('--scale-round-y', '1px');
+        container.style.width = '100%';
+        container.style.height = `${viewport.height}px`;
       }
     }
 
-    const viewport = pageProxy.getViewport({ scale: targetScale });
     const textContent = await pageProxy.getTextContent();
 
     try {
@@ -279,6 +296,8 @@ export class PdfViewerAdapter implements IPdfViewer {
         this.inFlightTextTasks.set(container, textLayer);
         try {
           await textLayer.render();
+          container.style.width = '100%';
+          container.style.height = `${viewport.height}px`;
         } catch (err: unknown) {
           if (
             err &&
@@ -327,15 +346,7 @@ export class PdfViewerAdapter implements IPdfViewer {
       }
     }
     if (container) {
-      const textTask = this.inFlightTextTasks.get(container);
-      if (textTask) {
-        try {
-          textTask.cancel();
-        } catch {
-          // ignore
-        }
-        this.inFlightTextTasks.delete(container);
-      }
+      this.abortTextTask(container);
     }
   }
 

@@ -80,6 +80,8 @@
   position: absolute;
   text-align: initial;
   inset: 0;
+  width: 100% !important;
+  height: 100% !important;
   overflow: clip;
   opacity: 1;
   line-height: 1;
