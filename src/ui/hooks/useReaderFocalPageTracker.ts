@@ -1,9 +1,30 @@
+import { useReaderStore } from '@stores/useReaderStore';
 import { type RefObject, useEffect, useRef } from 'react';
 
 export interface ArticleRect {
   readonly pageNumber: number;
   readonly top: number;
   readonly bottom: number;
+  readonly height?: number;
+}
+
+/**
+ * Calculates the relative scroll ratio inside the focal page [-1.0..1.0].
+ * - When allowNegative is false (e.g. for page 1 / start of book): clamped to [0.0..1.0].
+ * - When allowNegative is true (e.g. for intermediate pages / page > 1): allows negative ratio
+ *   down to -1.0 when the page top is below the viewport top.
+ */
+export function calculatePageOffsetRatio(
+  top: number,
+  height: number,
+  viewportTop = 0,
+  allowNegative = false
+): number {
+  if (height <= 0) return 0.0;
+  const scrolledPx = viewportTop - top;
+  if (!allowNegative && scrolledPx <= 0) return 0.0;
+  const ratio = scrolledPx / height;
+  return Math.max(allowNegative ? -1.0 : 0.0, Math.min(1.0, ratio));
 }
 
 /**
@@ -79,6 +100,7 @@ export function useReaderFocalPageTracker({
                 pageNumber: pageNum,
                 top: rect.top,
                 bottom: rect.bottom,
+                height: rect.height,
               });
             }
           }
@@ -86,6 +108,17 @@ export function useReaderFocalPageTracker({
           const activePage = findFocalPageNumber(articleRects, focalY);
           if (activePage && activePage > 0) {
             onPageVisibleRef.current(activePage);
+
+            const activeArticle = articleRects.find((a) => a.pageNumber === activePage);
+            if (activeArticle) {
+              const height = activeArticle.height ?? activeArticle.bottom - activeArticle.top;
+              const allowNegative = activePage > 1;
+              const ratio = calculatePageOffsetRatio(activeArticle.top, height, 0, allowNegative);
+              const currentRatio = useReaderStore.getState().pageOffsetRatio;
+              if (Math.abs(currentRatio - ratio) >= 0.001) {
+                useReaderStore.getState().setPageOffsetRatio(ratio);
+              }
+            }
           }
           ticking = false;
         });

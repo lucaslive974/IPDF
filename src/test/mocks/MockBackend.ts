@@ -128,7 +128,8 @@ export class MockBackend
   public async updateBookProgress(
     bookHash: string,
     currentPage: number,
-    totalPages: number
+    totalPages: number,
+    pageOffsetRatio = 0.0
   ): Promise<BookMetadata> {
     const existing = this.books.get(bookHash);
     const now = new Date();
@@ -140,6 +141,7 @@ export class MockBackend
       currentPage,
       totalPages,
       percentage: Math.round((currentPage / totalPages) * 100),
+      pageOffsetRatio,
       coverImageUrl: existing?.coverImageUrl,
       description: existing?.description,
       tags: existing?.tags ?? [],

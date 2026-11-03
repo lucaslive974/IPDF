@@ -37,12 +37,16 @@ export class TauriReaderService implements IReaderService {
   public async updateBookProgress(
     bookHash: string,
     currentPage: number,
-    totalPages: number
+    totalPages: number,
+    pageOffsetRatio = 0.0
   ): Promise<BookMetadata> {
     const dto = await invoke<SerializedBookMetadata>('update_book_progress', {
-      bookHash,
-      currentPage,
-      totalPages,
+      payload: {
+        bookHash,
+        currentPage,
+        totalPages,
+        pageOffsetRatio,
+      },
     });
     return deserializeBookMetadata(dto);
   }

@@ -26,6 +26,7 @@ export interface ReaderPaginationState {
   readonly document: StudyDocumentDescriptor;
   readonly currentPage: number;
   readonly totalPages: number;
+  readonly pageOffsetRatio: number;
   readonly chapterTitle: string;
   readonly paragraphs: readonly string[];
   readonly loadedPages: readonly DocumentPage[];
@@ -35,6 +36,7 @@ export interface ReaderPaginationState {
   goToPage(targetPage: number): Promise<void>;
   loadMorePages(direction: 'next' | 'prev'): Promise<void>;
   onPageVisible(pageNumber: number): void;
+  setPageOffsetRatio(ratio: number): void;
 }
 
 export interface ReaderPaginationDependencies {
@@ -183,6 +185,7 @@ export function createReaderPaginationController(
       }
       const initialPage = book?.currentPage || 1;
       store.getState().setCurrentPage(initialPage);
+      store.getState().setPageOffsetRatio(book?.pageOffsetRatio ?? 0.0);
       if (book?.totalPages) {
         store.getState().setTotalPages(book.totalPages);
       }
@@ -295,7 +298,12 @@ export function createReaderPaginationController(
       }
 
       const currentTotal = store.getState().totalPages;
-      void deps.readerService.updateBookProgress(doc.bookHash, initialPage, currentTotal);
+      void deps.readerService.updateBookProgress(
+        doc.bookHash,
+        initialPage,
+        currentTotal,
+        book?.pageOffsetRatio ?? 0.0
+      );
 
       return doc;
     },
@@ -398,6 +406,8 @@ export function useReaderPagination(
   const chapterTitle = useReaderStore((s) => s.chapterTitle);
   const loadedPages = useReaderStore((s) => s.loadedPages);
   const isLoadingPages = useReaderStore((s) => s.isLoadingPages);
+  const pageOffsetRatio = useReaderStore((s) => s.pageOffsetRatio);
+  const setPageOffsetRatio = useReaderStore((s) => s.setPageOffsetRatio);
 
   const controller = useMemo(
     () =>
@@ -469,6 +479,7 @@ export function useReaderPagination(
     document,
     currentPage,
     totalPages,
+    pageOffsetRatio,
     chapterTitle,
     paragraphs,
     loadedPages,
@@ -477,5 +488,6 @@ export function useReaderPagination(
     goToPage,
     loadMorePages,
     onPageVisible,
+    setPageOffsetRatio,
   };
 }

@@ -24,6 +24,7 @@ export interface ReaderState {
   readonly document: StudyDocumentDescriptor;
   readonly currentPage: number;
   readonly totalPages: number;
+  readonly pageOffsetRatio: number;
   readonly chapterTitle: string;
   readonly loadedPages: readonly DocumentPage[];
   readonly isLoadingPages: boolean;
@@ -31,6 +32,7 @@ export interface ReaderState {
   setDocument(doc: StudyDocumentDescriptor): void;
   setCurrentPage(page: number): void;
   setTotalPages(totalPages: number): void;
+  setPageOffsetRatio(ratio: number): void;
   setChapterTitle(chapterTitle: string): void;
   setLoadedPages(pages: readonly DocumentPage[]): void;
   upsertPages(pages: readonly DocumentPage[]): void;
@@ -42,6 +44,7 @@ export const useReaderStore = create<ReaderState>((set) => ({
   document: EMPTY_DOCUMENT,
   currentPage: 1,
   totalPages: 1,
+  pageOffsetRatio: 0.0,
   chapterTitle: '',
   loadedPages: [],
   isLoadingPages: false,
@@ -59,6 +62,8 @@ export const useReaderStore = create<ReaderState>((set) => ({
   setCurrentPage: (currentPage) => set({ currentPage }),
 
   setTotalPages: (totalPages) => set({ totalPages: Math.max(1, totalPages) }),
+
+  setPageOffsetRatio: (pageOffsetRatio) => set({ pageOffsetRatio }),
 
   setChapterTitle: (chapterTitle) => set({ chapterTitle }),
 
@@ -84,6 +89,7 @@ export const useReaderStore = create<ReaderState>((set) => ({
       document: EMPTY_DOCUMENT,
       currentPage: 1,
       totalPages: 1,
+      pageOffsetRatio: 0.0,
       chapterTitle: '',
       loadedPages: [],
       isLoadingPages: false,

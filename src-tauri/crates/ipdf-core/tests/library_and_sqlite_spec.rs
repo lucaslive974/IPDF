@@ -45,10 +45,11 @@ fn test_library_manager_import_progress_and_sorting() {
     assert!(library.storage().has_book_binary(&expected_hash).unwrap());
 
     let updated = library
-        .update_reading_progress(&expected_hash, 80, 320, 2500)
+        .update_reading_progress(&expected_hash, 80, 320, 0.45, 2500)
         .unwrap();
     assert_eq!(updated.current_page, 80);
     assert!((updated.percentage - 25.0).abs() < f64::EPSILON);
+    assert_eq!(updated.page_offset_ratio, 0.45);
     assert_eq!(updated.last_read_at_ms, 2500);
 
     // Re-importing the same binary preserves reading progress
@@ -524,16 +525,34 @@ fn test_library_manager_with_sqlite_book_repo_integration() {
 
     // 4. Update progress
     let updated = library
-        .update_reading_progress(&hash, 90, 180, 8000)
+        .update_reading_progress(&hash, 90, 180, 0.75, 8000)
         .unwrap();
     assert_eq!(updated.current_page, 90);
     assert_eq!(updated.percentage, 50.0);
+    assert_eq!(updated.page_offset_ratio, 0.75);
     let repo_prog = library
         .book_repo()
         .find_book_by_hash(&hash)
         .unwrap()
         .unwrap();
     assert_eq!(repo_prog.current_page, 90);
+    assert_eq!(repo_prog.page_offset_ratio, 0.75);
+
+    // 4.1 Clamping extremes and negative support for page_offset_ratio
+    let valid_neg = library
+        .update_reading_progress(&hash, 90, 180, -0.35, 8200)
+        .unwrap();
+    assert_eq!(valid_neg.page_offset_ratio, -0.35);
+
+    let clamped_neg = library
+        .update_reading_progress(&hash, 90, 180, -10.0, 8500)
+        .unwrap();
+    assert_eq!(clamped_neg.page_offset_ratio, -1.0);
+
+    let clamped_over = library
+        .update_reading_progress(&hash, 90, 180, 150.0, 9000)
+        .unwrap();
+    assert_eq!(clamped_over.page_offset_ratio, 1.0);
 
     // 5. Delete book
     let deleted = library.delete_book(&hash).unwrap();
@@ -620,6 +639,7 @@ fn test_library_manager_zip_epub_and_open_binary_fallbacks() {
             cover_image_url: None,
             description: None,
             tags: Vec::new(),
+            page_offset_ratio: 0.0,
             last_read_at_ms: 1000,
             updated_at_ms: 1000,
         })

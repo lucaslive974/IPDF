@@ -16,6 +16,8 @@ pub struct BookMetadata {
     pub description: Option<String>,
     #[serde(default)]
     pub tags: Vec<String>,
+    #[serde(default)]
+    pub page_offset_ratio: f64,
     pub last_read_at_ms: i64,
     pub updated_at_ms: i64,
 }

@@ -18,6 +18,7 @@ const CREATE_BOOKS_TABLE_SQL: &str = "
         percentage REAL NOT NULL DEFAULT 0.0,
         cover_image_url TEXT,
         description TEXT,
+        page_offset_ratio REAL NOT NULL DEFAULT 0.0,
         last_read_at_ms INTEGER NOT NULL,
         updated_at_ms INTEGER NOT NULL
     );
@@ -67,19 +68,22 @@ const CREATE_AUTHORS_TAGS_TABLES_SQL: &str = "
 const UPSERT_BOOK_SQL: &str = "
     INSERT OR REPLACE INTO books (
         hash, title, author, format, current_page, total_pages,
-        percentage, cover_image_url, description, last_read_at_ms, updated_at_ms
-    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+        percentage, cover_image_url, description, page_offset_ratio,
+        last_read_at_ms, updated_at_ms
+    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
 ";
 
 const FIND_BOOK_BY_HASH_SQL: &str = "
     SELECT hash, title, author, format, current_page, total_pages,
-           percentage, cover_image_url, description, last_read_at_ms, updated_at_ms
+           percentage, cover_image_url, description, page_offset_ratio,
+           last_read_at_ms, updated_at_ms
     FROM books WHERE hash = ?1
 ";
 
 const LIST_BOOKS_SQL: &str = "
     SELECT hash, title, author, format, current_page, total_pages,
-           percentage, cover_image_url, description, last_read_at_ms, updated_at_ms
+           percentage, cover_image_url, description, page_offset_ratio,
+           last_read_at_ms, updated_at_ms
     FROM books ORDER BY last_read_at_ms DESC
 ";
 
@@ -143,6 +147,14 @@ impl SqliteBookRepository {
         self.conn
             .execute_batch(CREATE_BOOKS_TABLE_SQL)
             .map_err(to_err)?;
+        let _ = self.conn.execute(
+            "ALTER TABLE books ADD COLUMN page_offset_ratio REAL NOT NULL DEFAULT 0.0;",
+            [],
+        );
+        let _ = self.conn.execute(
+            "UPDATE books SET page_offset_ratio = 0.0 WHERE page_offset_ratio IS NULL;",
+            [],
+        );
         self.conn
             .execute_batch(CREATE_LOCATIONS_TABLE_SQL)
             .map_err(to_err)?;
@@ -256,9 +268,10 @@ impl SqliteBookRepository {
             percentage: row.get(6)?,
             cover_image_url: row.get(7)?,
             description: row.get(8)?,
+            page_offset_ratio: row.get::<_, Option<f64>>(9)?.unwrap_or(0.0),
             tags: Vec::new(),
-            last_read_at_ms: row.get(9)?,
-            updated_at_ms: row.get(10)?,
+            last_read_at_ms: row.get(10)?,
+            updated_at_ms: row.get(11)?,
         })
     }
 
@@ -300,6 +313,7 @@ impl BookRepository for SqliteBookRepository {
                     book.percentage,
                     book.cover_image_url,
                     book.description,
+                    book.page_offset_ratio,
                     book.last_read_at_ms,
                     book.updated_at_ms,
                 ],

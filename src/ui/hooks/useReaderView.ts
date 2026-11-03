@@ -1,4 +1,5 @@
 import { useNavigation } from '@providers/NavigationContext';
+import { useReaderStore } from '@stores/useReaderStore';
 import { type RefObject, useCallback, useEffect, useRef } from 'react';
 import { useLibrary } from './useLibrary';
 import { useReader } from './useReader';
@@ -8,6 +9,7 @@ export interface ReadingProgressState {
   readonly bookHash: string;
   readonly currentPage: number;
   readonly totalPages: number;
+  readonly pageOffsetRatio?: number;
 }
 
 /**
@@ -22,7 +24,8 @@ export function shouldSaveProgress(
   return (
     lastSaved.bookHash !== current.bookHash ||
     lastSaved.currentPage !== current.currentPage ||
-    lastSaved.totalPages !== current.totalPages
+    lastSaved.totalPages !== current.totalPages ||
+    Math.abs((lastSaved.pageOffsetRatio ?? 0) - (current.pageOffsetRatio ?? 0)) > 0.005
   );
 }
 
@@ -76,11 +79,16 @@ export function useReaderView(): UseReaderViewReturn {
     return () => clearTimeout(timer);
   }, []);
 
-  // Restore initial scroll position to the target page when opening a book beyond page 1
+  // Restore initial scroll position to the target page when opening a book
   useEffect(() => {
     const bookHash = reader.document.bookHash;
     const targetPage = reader.currentPage;
-    if (!bookHash || targetPage <= 1 || initialScrollAlignedRef.current === bookHash) {
+    const offsetRatio = reader.pageOffsetRatio || 0.0;
+    if (
+      !bookHash ||
+      (targetPage <= 1 && offsetRatio <= 0.0) ||
+      initialScrollAlignedRef.current === bookHash
+    ) {
       return;
     }
 
@@ -90,31 +98,38 @@ export function useReaderView(): UseReaderViewReturn {
     }
 
     if (typeof document !== 'undefined') {
-      const el = document.querySelector(`article[data-page-number="${targetPage}"]`);
+      const el = document.querySelector<HTMLElement>(`article[data-page-number="${targetPage}"]`);
       if (el) {
         initialScrollAlignedRef.current = bookHash;
         isProgrammaticScrollRef.current = true;
-        el.scrollIntoView({ behavior: 'instant', block: 'start' });
+        if (Math.abs(offsetRatio) > 0.0001) {
+          const rect = el.getBoundingClientRect();
+          const targetTop = Math.max(0, window.scrollY + rect.top + rect.height * offsetRatio);
+          window.scrollTo({ top: targetTop, behavior: 'instant' });
+        } else {
+          el.scrollIntoView({ behavior: 'instant', block: 'start' });
+        }
         const timer = setTimeout(() => {
           isProgrammaticScrollRef.current = false;
         }, 500);
         return () => clearTimeout(timer);
       }
     }
-  }, [reader.document.bookHash, reader.currentPage, reader.loadedPages]);
+  }, [reader.document.bookHash, reader.currentPage, reader.pageOffsetRatio, reader.loadedPages]);
 
   // Sync reading progress to library and backend on departure
   const lastSavedStateRef = useRef<ReadingProgressState | null>(null);
 
   const saveProgress = useCallback(
-    async (bookHash: string, currentPage: number, totalPages: number) => {
-      const current = { bookHash, currentPage, totalPages };
+    async (bookHash: string, currentPage: number, totalPages: number, pageOffsetRatio?: number) => {
+      const ratio = pageOffsetRatio ?? useReaderStore.getState().pageOffsetRatio ?? 0.0;
+      const current = { bookHash, currentPage, totalPages, pageOffsetRatio: ratio };
       if (!shouldSaveProgress(lastSavedStateRef.current, current)) {
         return;
       }
       lastSavedStateRef.current = current;
       try {
-        await library.updateBookProgress(bookHash, currentPage, totalPages);
+        await library.updateBookProgress(bookHash, currentPage, totalPages, ratio);
       } catch (err) {
         console.warn('Failed to notify library of book progress:', err);
       }
@@ -126,6 +141,7 @@ export function useReaderView(): UseReaderViewReturn {
     bookHash: reader.document.bookHash,
     currentPage: reader.currentPage,
     totalPages: reader.totalPages,
+    pageOffsetRatio: reader.pageOffsetRatio,
   });
 
   useEffect(() => {
@@ -133,14 +149,15 @@ export function useReaderView(): UseReaderViewReturn {
       bookHash: reader.document.bookHash,
       currentPage: reader.currentPage,
       totalPages: reader.totalPages,
+      pageOffsetRatio: reader.pageOffsetRatio,
     };
-  }, [reader.document.bookHash, reader.currentPage, reader.totalPages]);
+  }, [reader.document.bookHash, reader.currentPage, reader.totalPages, reader.pageOffsetRatio]);
 
   useEffect(() => {
     return () => {
-      const { bookHash, currentPage, totalPages } = lastStateRef.current;
+      const { bookHash, currentPage, totalPages, pageOffsetRatio } = lastStateRef.current;
       if (bookHash) {
-        void saveProgress(bookHash, currentPage, totalPages);
+        void saveProgress(bookHash, currentPage, totalPages, pageOffsetRatio);
       }
     };
   }, [saveProgress]);
@@ -148,7 +165,12 @@ export function useReaderView(): UseReaderViewReturn {
   const handleCloseReader = useCallback(async () => {
     try {
       if (reader.document.bookHash) {
-        await saveProgress(reader.document.bookHash, reader.currentPage, reader.totalPages);
+        await saveProgress(
+          reader.document.bookHash,
+          reader.currentPage,
+          reader.totalPages,
+          reader.pageOffsetRatio
+        );
       }
     } finally {
       closeAllOverlays();
@@ -159,6 +181,7 @@ export function useReaderView(): UseReaderViewReturn {
     navigation,
     reader.currentPage,
     reader.document.bookHash,
+    reader.pageOffsetRatio,
     reader.totalPages,
     saveProgress,
   ]);

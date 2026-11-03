@@ -19,6 +19,7 @@ fn test_sqlite_book_repository_lifecycle() {
         cover_image_url: Some("cover://republic.png".to_string()),
         description: Some("Foundational philosophical work on justice and state.".to_string()),
         tags: vec!["Philosophy".to_string(), "Politics".to_string()],
+        page_offset_ratio: 0.425,
         last_read_at_ms: 1_700_000_100,
         updated_at_ms: 1_700_000_100,
     };
@@ -34,6 +35,7 @@ fn test_sqlite_book_repository_lifecycle() {
         cover_image_url: None,
         description: None,
         tags: vec!["Philosophy".to_string(), "Stoicism".to_string()],
+        page_offset_ratio: 0.0,
         last_read_at_ms: 1_700_000_200, // Read more recently
         updated_at_ms: 1_700_000_200,
     };
@@ -54,6 +56,13 @@ fn test_sqlite_book_repository_lifecycle() {
         Some("Foundational philosophical work on justice and state.")
     );
     assert_eq!(found.format, BookFormat::Epub);
+    assert_eq!(found.page_offset_ratio, 0.425);
+
+    let found2 = repo
+        .find_book_by_hash("hash-meditations")
+        .unwrap()
+        .expect("book2 should exist");
+    assert_eq!(found2.page_offset_ratio, 0.0);
 
     let not_found = repo.find_book_by_hash("hash-nonexistent").unwrap();
     assert!(not_found.is_none());
@@ -69,11 +78,13 @@ fn test_sqlite_book_repository_lifecycle() {
     updated_book1.title = "The Republic (Revised Edition)".to_string();
     updated_book1.current_page = 20;
     updated_book1.percentage = 5.71;
+    updated_book1.page_offset_ratio = 0.85;
     repo.save_book(updated_book1).unwrap();
 
     let re_read = repo.find_book_by_hash("hash-republic").unwrap().unwrap();
     assert_eq!(re_read.title, "The Republic (Revised Edition)");
     assert_eq!(re_read.current_page, 20);
+    assert_eq!(re_read.page_offset_ratio, 0.85);
 
     // 5. Delete book
     let deleted = repo.delete_book("hash-meditations").unwrap();
@@ -99,6 +110,7 @@ fn test_sqlite_book_storage_locations() {
         cover_image_url: None,
         description: None,
         tags: Vec::new(),
+        page_offset_ratio: 0.0,
         last_read_at_ms: 1_700_000_000,
         updated_at_ms: 1_700_000_000,
     };
@@ -177,6 +189,7 @@ fn test_sqlite_book_metadata_editing_and_orphan_cleanup() {
         cover_image_url: None,
         description: Some("Epistemology magnum opus.".to_string()),
         tags: vec!["Philosophy".to_string(), "German Idealism".to_string()],
+        page_offset_ratio: 0.0,
         last_read_at_ms: 1000,
         updated_at_ms: 1000,
     };
@@ -192,6 +205,7 @@ fn test_sqlite_book_metadata_editing_and_orphan_cleanup() {
         cover_image_url: None,
         description: None,
         tags: vec!["Philosophy".to_string(), "Existentialism".to_string()],
+        page_offset_ratio: 0.0,
         last_read_at_ms: 2000,
         updated_at_ms: 2000,
     };
@@ -255,6 +269,7 @@ fn test_sqlite_book_metadata_editing_and_orphan_cleanup() {
         cover_image_url: None,
         description: None,
         tags: vec![],
+        page_offset_ratio: 0.0,
         last_read_at_ms: 3000,
         updated_at_ms: 3000,
     };
@@ -271,6 +286,7 @@ fn test_sqlite_book_metadata_editing_and_orphan_cleanup() {
         cover_image_url: None,
         description: None,
         tags: vec![],
+        page_offset_ratio: 0.0,
         last_read_at_ms: 4000,
         updated_at_ms: 4000,
     };

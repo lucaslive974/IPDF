@@ -95,7 +95,7 @@ describe('useReaderPagination / createReaderPaginationController', () => {
     expect(state.loadedPages).toHaveLength(4);
     expect(state.loadedPages.map((p) => p.pageNumber)).toEqual([8, 9, 10, 11]);
     expect(state.chapterTitle).toBe('Book VII - Cave Allegory');
-    expect(updateProgressSpy).toHaveBeenCalledWith('hash-socrates', 10, 300);
+    expect(updateProgressSpy).toHaveBeenCalledWith('hash-socrates', 10, 300, 0);
     expect(state.isLoadingPages).toBe(false);
   });
 

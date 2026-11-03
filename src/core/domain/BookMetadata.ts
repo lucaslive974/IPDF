@@ -8,6 +8,7 @@ export interface BookMetadata {
   currentPage: number;
   totalPages: number;
   percentage: number;
+  pageOffsetRatio?: number;
   coverImageBuffer?: Uint8Array;
   coverMimeType?: 'image/webp' | 'image/png' | 'image/jpeg';
   coverImageUrl?: string;

@@ -62,6 +62,61 @@ describe('useReaderView pure logic', () => {
         })
       ).toBe(true);
     });
+
+    it('returns true when pageOffsetRatio changes meaningfully', () => {
+      const lastSaved = {
+        bookHash: 'book-hash-1',
+        currentPage: 5,
+        totalPages: 20,
+        pageOffsetRatio: 0.1,
+      };
+
+      // Negligible change (< 0.005)
+      expect(
+        shouldSaveProgress(lastSaved, {
+          bookHash: 'book-hash-1',
+          currentPage: 5,
+          totalPages: 20,
+          pageOffsetRatio: 0.102,
+        })
+      ).toBe(false);
+
+      // Meaningful change (>= 0.005)
+      expect(
+        shouldSaveProgress(lastSaved, {
+          bookHash: 'book-hash-1',
+          currentPage: 5,
+          totalPages: 20,
+          pageOffsetRatio: 0.25,
+        })
+      ).toBe(true);
+
+      // Negative offset ratio support
+      const negativeSaved = {
+        bookHash: 'book-hash-1',
+        currentPage: 5,
+        totalPages: 20,
+        pageOffsetRatio: -0.25,
+      };
+
+      expect(
+        shouldSaveProgress(negativeSaved, {
+          bookHash: 'book-hash-1',
+          currentPage: 5,
+          totalPages: 20,
+          pageOffsetRatio: -0.252,
+        })
+      ).toBe(false);
+
+      expect(
+        shouldSaveProgress(negativeSaved, {
+          bookHash: 'book-hash-1',
+          currentPage: 5,
+          totalPages: 20,
+          pageOffsetRatio: -0.1,
+        })
+      ).toBe(true);
+    });
   });
 
   describe('isImmersiveBackgroundClick', () => {

@@ -23,6 +23,7 @@ export interface ReaderViewModel {
   readonly document: StudyDocumentDescriptor;
   readonly currentPage: number;
   readonly totalPages: number;
+  readonly pageOffsetRatio: number;
   readonly chapterTitle: string;
   readonly paragraphs: readonly string[];
   readonly loadedPages: readonly DocumentPage[];
@@ -39,6 +40,7 @@ export interface ReaderViewModel {
   goToPage(targetPage: number): Promise<void>;
   loadMorePages(direction: 'next' | 'prev'): Promise<void>;
   onPageVisible(pageNumber: number): void;
+  setPageOffsetRatio(ratio: number): void;
   getHighlightsForPage(pageNumber: number): Highlight[];
   selectHighlight(id: string): Promise<void>;
   setSelectionPopover(state: SelectionPopoverState | null): void;

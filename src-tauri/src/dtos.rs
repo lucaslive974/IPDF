@@ -35,6 +35,16 @@ pub struct IpcLlmRequestDto {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct UpdateBookProgressDto {
+    pub book_hash: String,
+    pub current_page: u32,
+    pub total_pages: u32,
+    #[serde(default)]
+    pub page_offset_ratio: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct IpcPlatformInfoDto {
     pub platform: String,
     pub config_dir: String,

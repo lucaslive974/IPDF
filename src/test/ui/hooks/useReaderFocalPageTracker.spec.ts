@@ -1,7 +1,41 @@
-import { type ArticleRect, findFocalPageNumber } from '@hooks/useReaderFocalPageTracker';
+import {
+  type ArticleRect,
+  calculatePageOffsetRatio,
+  findFocalPageNumber,
+} from '@hooks/useReaderFocalPageTracker';
 import { describe, expect, it } from 'vitest';
 
 describe('useReaderFocalPageTracker logic', () => {
+  it('calculates page offset ratio correctly with clamping', () => {
+    // When page is at or below the viewport top
+    expect(calculatePageOffsetRatio(0, 1000)).toBe(0.0);
+    expect(calculatePageOffsetRatio(50, 1000)).toBe(0.0);
+
+    // Invalid height
+    expect(calculatePageOffsetRatio(-100, 0)).toBe(0.0);
+    expect(calculatePageOffsetRatio(-100, -500)).toBe(0.0);
+
+    // Partially scrolled inside page
+    expect(calculatePageOffsetRatio(-250, 1000)).toBe(0.25);
+    expect(calculatePageOffsetRatio(-500, 1000)).toBe(0.5);
+    expect(calculatePageOffsetRatio(-750, 1000)).toBe(0.75);
+
+    // Completely scrolled past page
+    expect(calculatePageOffsetRatio(-1500, 1000)).toBe(1.0);
+  });
+
+  it('calculates negative page offset ratio when allowNegative is enabled', () => {
+    // When page top is below the viewport top (e.g. intermediate pages)
+    expect(calculatePageOffsetRatio(200, 1000, 0, true)).toBe(-0.2);
+    expect(calculatePageOffsetRatio(350, 1000, 0, true)).toBe(-0.35);
+
+    // Extreme negative offset clamped to -1.0
+    expect(calculatePageOffsetRatio(2000, 1000, 0, true)).toBe(-1.0);
+
+    // When allowNegative is false (e.g. page 1), remains clamped to 0.0
+    expect(calculatePageOffsetRatio(200, 1000, 0, false)).toBe(0.0);
+  });
+
   it('returns null when articles list is empty', () => {
     expect(findFocalPageNumber([], 350)).toBeNull();
   });

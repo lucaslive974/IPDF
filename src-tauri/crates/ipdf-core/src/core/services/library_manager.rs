@@ -82,9 +82,17 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
         .max(1);
 
         let existing = self.book_repo.find_book_by_hash(&book_hash)?;
-        let (current_page, percentage) = match existing {
-            Some(ref b) => (b.current_page.clamp(1, total_pages), b.percentage),
-            None => (1, ((1.0 / total_pages as f64) * 100.0).clamp(0.0, 100.0)),
+        let (current_page, percentage, page_offset_ratio) = match existing {
+            Some(ref b) => (
+                b.current_page.clamp(1, total_pages),
+                b.percentage,
+                b.page_offset_ratio,
+            ),
+            None => (
+                1,
+                ((1.0 / total_pages as f64) * 100.0).clamp(0.0, 100.0),
+                0.0,
+            ),
         };
 
         let metadata = BookMetadata {
@@ -98,6 +106,7 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
             cover_image_url: input.cover_image_url,
             description: None,
             tags: Vec::new(),
+            page_offset_ratio,
             last_read_at_ms: input.now_ms,
             updated_at_ms: input.now_ms,
         };
@@ -190,9 +199,17 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
             .max(1);
 
         let existing = self.book_repo.find_book_by_hash(&book_hash)?;
-        let (current_page, percentage) = match existing {
-            Some(ref b) => (b.current_page.clamp(1, total_pages), b.percentage),
-            None => (1, ((1.0 / total_pages as f64) * 100.0).clamp(0.0, 100.0)),
+        let (current_page, percentage, page_offset_ratio) = match existing {
+            Some(ref b) => (
+                b.current_page.clamp(1, total_pages),
+                b.percentage,
+                b.page_offset_ratio,
+            ),
+            None => (
+                1,
+                ((1.0 / total_pages as f64) * 100.0).clamp(0.0, 100.0),
+                0.0,
+            ),
         };
 
         let now_ms = 0;
@@ -207,6 +224,7 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
             cover_image_url: None,
             description: None,
             tags: Vec::new(),
+            page_offset_ratio,
             last_read_at_ms: now_ms,
             updated_at_ms: now_ms,
         };
@@ -235,6 +253,7 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
         book_hash: &str,
         current_page: u32,
         total_pages: u32,
+        page_offset_ratio: f64,
         now_ms: i64,
     ) -> Result<BookMetadata, String> {
         let mut book = self
@@ -249,6 +268,7 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
         book.current_page = clamped_page;
         book.total_pages = safe_total;
         book.percentage = percentage;
+        book.page_offset_ratio = page_offset_ratio.clamp(-1.0, 1.0);
         book.last_read_at_ms = now_ms;
         book.updated_at_ms = now_ms;
 

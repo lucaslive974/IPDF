@@ -69,6 +69,7 @@ fn test_highlight_manager_and_cloudless_sync_lww() {
             cover_image_url: None,
             description: None,
             tags: Vec::new(),
+            page_offset_ratio: 0.0,
             last_read_at_ms: 3000,
             updated_at_ms: 3000,
         }],

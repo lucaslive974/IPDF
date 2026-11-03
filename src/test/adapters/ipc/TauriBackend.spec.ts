@@ -41,9 +41,14 @@ vi.mock('@tauri-apps/api/core', () => ({
       return dto as unknown as T;
     }
     if (cmd === 'update_book_progress') {
-      const bookHash = String(args.bookHash);
-      const currentPage = Number(args.currentPage);
-      const totalPages = Number(args.totalPages);
+      const payload = ((args as Record<string, unknown>).payload ?? args) as Record<
+        string,
+        unknown
+      >;
+      const bookHash = String(payload.bookHash);
+      const currentPage = Number(payload.currentPage);
+      const totalPages = Number(payload.totalPages);
+      const pageOffsetRatio = Number(payload.pageOffsetRatio ?? 0.0);
       const existing = storedBooks.get(bookHash);
       const updated: SerializedBookMetadata = {
         bookHash,
@@ -53,6 +58,7 @@ vi.mock('@tauri-apps/api/core', () => ({
         currentPage,
         totalPages,
         percentage: (currentPage / totalPages) * 100,
+        pageOffsetRatio,
         coverImageUrl: existing?.coverImageUrl,
         lastReadAtMs: 1_700_000_100_000,
         updatedAtMs: 1_700_000_100_000,
@@ -313,6 +319,15 @@ describe('Modular Tauri IPC Adapters', () => {
 
     const updated = await readerService.updateBookProgress('sha256-imported-book', 10, 100);
     expect(updated.percentage).toBe(10);
+    expect(updated.pageOffsetRatio).toBe(0);
+
+    const updatedWithOffset = await readerService.updateBookProgress(
+      'sha256-imported-book',
+      10,
+      100,
+      0.42
+    );
+    expect(updatedWithOffset.pageOffsetRatio).toBe(0.42);
 
     const bytes = await readerService.readBookBinary('sha256-imported-book');
     expect(bytes).toEqual(new Uint8Array([1, 2, 3, 4]));

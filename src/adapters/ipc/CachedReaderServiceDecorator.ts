@@ -273,9 +273,10 @@ export class CachedReaderServiceDecorator implements IReaderService {
   public updateBookProgress(
     bookHash: string,
     currentPage: number,
-    totalPages: number
+    totalPages: number,
+    pageOffsetRatio = 0.0
   ): Promise<BookMetadata> {
-    return this.inner.updateBookProgress(bookHash, currentPage, totalPages);
+    return this.inner.updateBookProgress(bookHash, currentPage, totalPages, pageOffsetRatio);
   }
 
   public async getBookFilePath(bookHash: string): Promise<string | null> {

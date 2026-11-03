@@ -17,7 +17,8 @@ export interface LibraryViewModel {
   updateBookProgress(
     bookHash: string,
     currentPage: number,
-    totalPages: number
+    totalPages: number,
+    pageOffsetRatio?: number
   ): Promise<BookMetadata>;
   renameBook(bookHash: string, newTitle: string): Promise<BookMetadata>;
   updateBookMetadata(bookHash: string, input: UpdateBookMetadataInput): Promise<BookMetadata>;
@@ -159,8 +160,18 @@ export function useLibrary(): LibraryViewModel {
   }, [loadBooks]);
 
   const updateBookProgress = useCallback(
-    async (bookHash: string, currentPage: number, totalPages: number): Promise<BookMetadata> => {
-      const updated = await readerService.updateBookProgress(bookHash, currentPage, totalPages);
+    async (
+      bookHash: string,
+      currentPage: number,
+      totalPages: number,
+      pageOffsetRatio = 0.0
+    ): Promise<BookMetadata> => {
+      const updated = await readerService.updateBookProgress(
+        bookHash,
+        currentPage,
+        totalPages,
+        pageOffsetRatio
+      );
       upsertBook(updated);
       return updated;
     },

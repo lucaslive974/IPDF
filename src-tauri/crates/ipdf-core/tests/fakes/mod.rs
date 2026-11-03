@@ -26,7 +26,7 @@ impl BookRepository for InMemoryBookRepo {
 
     fn list_books(&self) -> Result<Vec<BookMetadata>, String> {
         let mut list: Vec<BookMetadata> = self.books.values().cloned().collect();
-        list.sort_by(|a, b| b.last_read_at_ms.cmp(&a.last_read_at_ms));
+        list.sort_by_key(|a| std::cmp::Reverse(a.last_read_at_ms));
         Ok(list)
     }
 
@@ -162,7 +162,7 @@ impl HighlightRepository for InMemoryHighlightRepo {
     }
     fn find_all(&self) -> Result<Vec<Highlight>, String> {
         let mut list: Vec<Highlight> = self.store.values().cloned().collect();
-        list.sort_by(|a, b| b.updated_at_ms.cmp(&a.updated_at_ms));
+        list.sort_by_key(|a| std::cmp::Reverse(a.updated_at_ms));
         Ok(list)
     }
 }

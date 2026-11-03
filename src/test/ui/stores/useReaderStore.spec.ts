@@ -12,6 +12,7 @@ describe('useReaderStore', () => {
     expect(state.document).toEqual(EMPTY_DOCUMENT);
     expect(state.currentPage).toBe(1);
     expect(state.totalPages).toBe(1);
+    expect(state.pageOffsetRatio).toBe(0.0);
     expect(state.loadedPages).toEqual([]);
   });
 
@@ -65,5 +66,13 @@ describe('useReaderStore', () => {
 
     useReaderStore.getState().upsertPages([page2]);
     expect(useReaderStore.getState().loadedPages.map((p) => p.pageNumber)).toEqual([1, 2, 3]);
+  });
+
+  it('updates and resets pageOffsetRatio', () => {
+    useReaderStore.getState().setPageOffsetRatio(0.42);
+    expect(useReaderStore.getState().pageOffsetRatio).toBe(0.42);
+
+    useReaderStore.getState().reset();
+    expect(useReaderStore.getState().pageOffsetRatio).toBe(0.0);
   });
 });

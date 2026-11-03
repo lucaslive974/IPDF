@@ -15,6 +15,7 @@ export interface SerializedBookMetadata {
   readonly currentPage: number;
   readonly totalPages: number;
   readonly percentage: number;
+  readonly pageOffsetRatio?: number;
   readonly coverImageUrl?: string;
   readonly description?: string;
   readonly tags?: string[];
@@ -52,6 +53,7 @@ export function deserializeBookMetadata(dto: SerializedBookMetadata): BookMetada
     currentPage: dto.currentPage,
     totalPages: dto.totalPages,
     percentage: dto.percentage,
+    pageOffsetRatio: dto.pageOffsetRatio ?? 0.0,
     coverImageUrl: resolveCoverUrl(dto.coverImageUrl),
     description: dto.description ?? undefined,
     tags: dto.tags ?? [],
