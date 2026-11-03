@@ -1,6 +1,6 @@
 import type { Highlight } from '@domain/Highlight';
-import { useServiceContainer } from '@providers/ServiceContainerContext';
-import { memo, useEffect, useMemo, useRef } from 'react';
+import { usePdfPageRenderer } from '@hooks/usePdfPageRenderer';
+import { memo } from 'react';
 import { ParagraphMarginNotes } from './ParagraphMarginNotes';
 import { PdfHighlightLayer } from './PdfHighlightLayer';
 
@@ -25,62 +25,10 @@ export const ReaderPagePdf = memo(function ReaderPagePdf({
   onHighlightClick,
   onHighlightContextMenu,
 }: ReaderPagePdfProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const textLayerRef = useRef<HTMLDivElement>(null);
-  const { pdfViewer } = useServiceContainer();
-
-  useEffect(() => {
-    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
-    const container = containerRef.current;
-
-    const render = async () => {
-      const pageProxy = await pdfViewer.getPageProxy(pageNumber);
-      if (!pageProxy || !containerRef.current) return;
-
-      // Compute exact responsive scale matching container pixel width
-      const containerWidth = containerRef.current.clientWidth || 768;
-      const unscaledViewport = pageProxy.getViewport({ scale: 1.0 });
-      const scale = unscaledViewport.width > 0 ? containerWidth / unscaledViewport.width : 1.5;
-
-      if (canvasRef.current) {
-        await pdfViewer.renderPageCanvas(pageNumber, canvasRef.current, scale);
-      }
-      if (textLayerRef.current) {
-        await pdfViewer.renderPageTextLayer(pageNumber, textLayerRef.current, scale);
-      }
-    };
-
-    void render();
-
-    // Re-align on container resize or zoom level changes
-    let resizeObserver: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== 'undefined' && container) {
-      resizeObserver = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          if (entry.contentRect && entry.contentRect.width > 0) {
-            if (resizeTimer) clearTimeout(resizeTimer);
-            resizeTimer = setTimeout(() => void render(), 100);
-          }
-        }
-      });
-      resizeObserver.observe(container);
-    }
-
-    return () => {
-      if (resizeTimer) clearTimeout(resizeTimer);
-      if (resizeObserver) resizeObserver.disconnect();
-      pdfViewer.cancelPageRender?.(canvasRef.current, textLayerRef.current);
-    };
-  }, [pdfViewer, pageNumber]);
-
-  const pageNotes = useMemo(
-    () =>
-      highlights.filter(
-        (hl) => hl.anchor.pageNumber === pageNumber && Boolean(hl.note && hl.note.trim().length > 0)
-      ),
-    [highlights, pageNumber]
-  );
+  const { containerRef, canvasRef, textLayerRef, pageNotes } = usePdfPageRenderer({
+    pageNumber,
+    highlights,
+  });
 
   return (
     <div
