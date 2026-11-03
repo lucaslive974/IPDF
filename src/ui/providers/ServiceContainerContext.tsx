@@ -1,4 +1,5 @@
 import {
+  CachedReaderServiceDecorator,
   TauriHighlightService,
   TauriLibraryService,
   TauriPresenceService,
@@ -39,6 +40,8 @@ export interface ServiceContainerOverrides {
   readonly viewer?: IDocumentViewer;
   readonly pdfViewer?: IPdfViewer;
   readonly getViewer?: (format: BookFormat) => IDocumentViewer;
+  readonly enablePageCache?: boolean;
+  readonly pageCacheCapacity?: number;
 }
 
 /**
@@ -50,9 +53,20 @@ export function createServiceContainer(
 ): ServiceContainer {
   const libraryService = overrides.libraryService ?? new TauriLibraryService();
   const highlightService = overrides.highlightService ?? new TauriHighlightService();
-  const readerService = overrides.readerService ?? new TauriReaderService();
   const presenceService = overrides.presenceService ?? new TauriPresenceService();
   const settingsService = overrides.settingsService ?? new TauriSettingsService();
+
+  const readerService = overrides.readerService
+    ? overrides.enablePageCache === true &&
+      !(overrides.readerService instanceof CachedReaderServiceDecorator)
+      ? new CachedReaderServiceDecorator(overrides.readerService, overrides.pageCacheCapacity ?? 50)
+      : overrides.readerService
+    : overrides.enablePageCache !== false
+      ? new CachedReaderServiceDecorator(
+          new TauriReaderService(),
+          overrides.pageCacheCapacity ?? 50
+        )
+      : new TauriReaderService();
 
   const epubViewer = overrides.epubViewer ?? overrides.viewer ?? new EpubViewerAdapter();
   const pdfViewer = overrides.pdfViewer ?? new PdfViewerAdapter();
@@ -97,6 +111,8 @@ export function ServiceContainerProvider({
   viewer,
   pdfViewer,
   getViewer,
+  enablePageCache,
+  pageCacheCapacity,
 }: ServiceContainerProviderProps) {
   const container = useMemo<ServiceContainer>(() => {
     if (injectedContainer) {
@@ -112,6 +128,8 @@ export function ServiceContainerProvider({
       viewer,
       pdfViewer,
       getViewer,
+      enablePageCache,
+      pageCacheCapacity,
     });
   }, [
     injectedContainer,
@@ -124,6 +142,8 @@ export function ServiceContainerProvider({
     viewer,
     pdfViewer,
     getViewer,
+    enablePageCache,
+    pageCacheCapacity,
   ]);
 
   return (

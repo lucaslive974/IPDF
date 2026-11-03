@@ -1,3 +1,4 @@
+import { CachedReaderServiceDecorator, TauriReaderService } from '@adapters/ipc';
 import { EpubViewerAdapter } from '@adapters/viewers/EpubViewerAdapter';
 import { PdfViewerAdapter } from '@adapters/viewers/PdfViewerAdapter';
 import { BookFormat } from '@domain/types';
@@ -14,12 +15,12 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 describe('ServiceContainer Factory & Context (Static Composition)', () => {
-  it('creates default service container with all services and viewers wired', () => {
+  it('creates default service container with all services, cached reader, and viewers wired', () => {
     const container = createServiceContainer();
 
     expect(container.libraryService).toBeDefined();
     expect(container.highlightService).toBeDefined();
-    expect(container.readerService).toBeDefined();
+    expect(container.readerService).toBeInstanceOf(CachedReaderServiceDecorator);
     expect(container.presenceService).toBeDefined();
     expect(container.settingsService).toBeDefined();
 
@@ -28,6 +29,12 @@ describe('ServiceContainer Factory & Context (Static Composition)', () => {
 
     expect(container.getViewer(BookFormat.PDF)).toBe(container.pdfViewer);
     expect(container.getViewer(BookFormat.EPUB)).toBe(container.epubViewer);
+  });
+
+  it('supports disabling page cache when enablePageCache is false', () => {
+    const container = createServiceContainer({ enablePageCache: false });
+    expect(container.readerService).toBeInstanceOf(TauriReaderService);
+    expect(container.readerService).not.toBeInstanceOf(CachedReaderServiceDecorator);
   });
 
   it('respects injected service overrides', () => {
