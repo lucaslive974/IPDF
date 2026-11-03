@@ -91,17 +91,19 @@ describe('usePdfPageRenderer helper functions', () => {
     );
 
     function TestComponent() {
-      const { containerRef, canvasRef, textLayerRef, pageNotes } = usePdfPageRenderer({
-        pageNumber: 1,
-        highlights: [hl],
-      });
+      const { containerRef, canvasRef, textLayerRef, pageNotes, isNearViewport } =
+        usePdfPageRenderer({
+          pageNumber: 1,
+          highlights: [hl],
+        });
 
       return React.createElement(
         'div',
         { ref: containerRef, 'data-testid': 'test-container' },
         React.createElement('canvas', { ref: canvasRef, 'data-testid': 'test-canvas' }),
         React.createElement('div', { ref: textLayerRef, 'data-testid': 'test-text-layer' }),
-        React.createElement('span', { 'data-testid': 'notes-count' }, pageNotes.length)
+        React.createElement('span', { 'data-testid': 'notes-count' }, pageNotes.length),
+        React.createElement('span', { 'data-testid': 'is-near' }, String(isNearViewport))
       );
     }
 
@@ -113,5 +115,6 @@ describe('usePdfPageRenderer helper functions', () => {
     expect(html).toContain('data-testid="test-canvas"');
     expect(html).toContain('data-testid="test-text-layer"');
     expect(html).toContain('data-testid="notes-count">1<');
+    expect(html).toContain('data-testid="is-near">true<');
   });
 });

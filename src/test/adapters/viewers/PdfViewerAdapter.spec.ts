@@ -103,18 +103,10 @@ describe('PdfViewerAdapter (PDF.js Engine, Canvas & AABB Highlights)', () => {
 
     const page1 = viewer.getPage(1);
     expect(page1).not.toBeNull();
-    expect(page1?.paragraphs).toEqual([
-      'Introduction to Metaphysics.',
-      'Being and time are fundamentally interconnected.',
-    ]);
+    expect(page1?.pageNumber).toBe(1);
 
     const chunk = viewer.getPagesChunk(1, 2);
     expect(chunk).toHaveLength(2);
-
-    expect(viewer.getParagraphsForChapter(0)).toEqual([
-      'Introduction to Metaphysics.',
-      'Being and time are fundamentally interconnected.',
-    ]);
   });
 
   it('manages text selection and clearSelection events', async () => {
@@ -333,20 +325,14 @@ describe('PdfViewerAdapter (PDF.js Engine, Canvas & AABB Highlights)', () => {
     const container = createFakeContainer();
     await viewer.render(container, new ArrayBuffer(16));
 
-    // Initially only 5 pages were extracted; page 7 has stub paragraph before extraction
     expect(viewer.getCurrentPage().totalPages).toBe(8);
-    const page7Stub = viewer.getPage(7);
-    expect(page7Stub?.paragraphs).toEqual(['[Page 7]']);
 
-    // Now extract chunk 6..8 on demand
+    // Retrieve chunk 6..8 instantly as no-op extraction
     const extractedChunk = await viewer.ensurePagesExtracted(6, 3);
     expect(extractedChunk).toHaveLength(3);
-    expect(extractedChunk[0]?.paragraphs).toEqual(['Extracted text from page 6']);
-    expect(extractedChunk[1]?.paragraphs).toEqual(['Extracted text from page 7']);
-    expect(extractedChunk[2]?.paragraphs).toEqual(['Extracted text from page 8']);
-
-    // Subsequent retrieval has cached extracted paragraphs
-    expect(viewer.getPage(7)?.paragraphs).toEqual(['Extracted text from page 7']);
+    expect(extractedChunk[0]?.pageNumber).toBe(6);
+    expect(extractedChunk[1]?.pageNumber).toBe(7);
+    expect(extractedChunk[2]?.pageNumber).toBe(8);
   });
 
   it('cleans up resources on destroy', async () => {

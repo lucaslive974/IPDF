@@ -25,7 +25,7 @@ export const ReaderPagePdf = memo(function ReaderPagePdf({
   onHighlightClick,
   onHighlightContextMenu,
 }: ReaderPagePdfProps) {
-  const { containerRef, canvasRef, textLayerRef, pageNotes } = usePdfPageRenderer({
+  const { containerRef, canvasRef, textLayerRef, pageNotes, isNearViewport } = usePdfPageRenderer({
     pageNumber,
     highlights,
   });
@@ -51,12 +51,14 @@ export const ReaderPagePdf = memo(function ReaderPagePdf({
       />
 
       {/* 3. Top AABB Highlight Layer */}
-      <PdfHighlightLayer
-        pageNumber={pageNumber}
-        highlights={highlights}
-        onHighlightClick={onHighlightClick}
-        onHighlightContextMenu={onHighlightContextMenu}
-      />
+      {isNearViewport && (
+        <PdfHighlightLayer
+          pageNumber={pageNumber}
+          highlights={highlights}
+          onHighlightClick={onHighlightClick}
+          onHighlightContextMenu={onHighlightContextMenu}
+        />
+      )}
 
       {/* 4. Margin Notes if present on this page */}
       <ParagraphMarginNotes notes={pageNotes} onNoteClick={onHighlightClick} />

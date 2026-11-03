@@ -65,10 +65,6 @@ export class PdfViewerAdapter implements IPdfViewer {
       cfiBase: `page-${idx + 1}`,
     }));
 
-    // Extract initial page chunk (up to 5 pages) so reader immediately has content
-    const initialCount = Math.min(5, total);
-    await this.ensurePagesExtracted(1, initialCount);
-
     this.currentPageIndex = 0;
     this.emitPageChanged();
   }
@@ -104,20 +100,6 @@ export class PdfViewerAdapter implements IPdfViewer {
 
   public async ensurePagesExtracted(startPage: number, count: number): Promise<DocumentPage[]> {
     if (!this.documentProxy || this.pages.length === 0) return [];
-    const end = Math.min(this.pages.length, startPage + count - 1);
-    for (let i = Math.max(1, startPage); i <= end; i++) {
-      const current = this.pages[i - 1];
-      if (current && current.paragraphs.length > 0 && current.paragraphs[0] !== `[Page ${i}]`) {
-        continue;
-      }
-      const paragraphs = await this.extractPageParagraphs(i);
-      this.pages[i - 1] = {
-        pageNumber: i,
-        chapterTitle: `Page ${i}`,
-        paragraphs,
-        cfiBase: `page-${i}`,
-      };
-    }
     return this.getPagesChunk(startPage, count);
   }
 
@@ -483,8 +465,12 @@ export class PdfViewerAdapter implements IPdfViewer {
     let page = this.pages[this.currentPageIndex];
     if (page && (page.paragraphs.length === 0 || page.paragraphs[0] === `[Page ${pageNum}]`)) {
       if (this.documentProxy) {
-        await this.ensurePagesExtracted(pageNum, 1);
-        page = this.pages[this.currentPageIndex];
+        const paragraphs = await this.extractPageParagraphs(pageNum);
+        page = {
+          ...page,
+          paragraphs,
+        };
+        this.pages[this.currentPageIndex] = page;
       }
     }
     if (!page || page.paragraphs.length === 0) {

@@ -1,6 +1,6 @@
 import type { Highlight } from '@domain/Highlight';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
-import { type RefObject, useEffect, useMemo, useRef } from 'react';
+import { type RefObject, useEffect, useMemo, useRef, useState } from 'react';
 
 export function calculatePdfResponsiveScale(
   containerWidth: number,
@@ -30,6 +30,7 @@ export interface UsePdfPageRendererReturn {
   readonly canvasRef: RefObject<HTMLCanvasElement | null>;
   readonly textLayerRef: RefObject<HTMLDivElement | null>;
   readonly pageNotes: readonly Highlight[];
+  readonly isNearViewport: boolean;
 }
 
 export function usePdfPageRenderer({
@@ -41,7 +42,47 @@ export function usePdfPageRenderer({
   const textLayerRef = useRef<HTMLDivElement | null>(null);
   const { pdfViewer } = useServiceContainer();
 
+  // Pages 1 and 2 start near viewport to avoid any blank frame on initial book load
+  const [isNearViewport, setIsNearViewport] = useState<boolean>(() => {
+    return typeof IntersectionObserver === 'undefined' || pageNumber <= 2;
+  });
+
+  // Track viewport proximity with an 800px buffer (~1 page ahead/behind)
   useEffect(() => {
+    const container = containerRef.current;
+    if (!container || typeof IntersectionObserver === 'undefined') {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          setIsNearViewport(entry.isIntersecting);
+        }
+      },
+      { rootMargin: '800px 0px' }
+    );
+
+    observer.observe(container);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  // Only render canvas and text layer when near viewport
+  useEffect(() => {
+    if (!isNearViewport) {
+      pdfViewer.cancelPageRender?.(canvasRef.current, textLayerRef.current);
+      if (canvasRef.current) {
+        canvasRef.current.width = 0;
+        canvasRef.current.height = 0;
+      }
+      if (textLayerRef.current) {
+        textLayerRef.current.innerHTML = '';
+      }
+      return;
+    }
+
     let resizeTimer: ReturnType<typeof setTimeout> | null = null;
     const container = containerRef.current;
 
@@ -50,6 +91,12 @@ export function usePdfPageRenderer({
       if (!pageProxy || !containerRef.current) return;
 
       const unscaledViewport = pageProxy.getViewport({ scale: 1.0 });
+
+      // Lock container aspect ratio so layout never shifts when unrendered
+      if (unscaledViewport.width > 0 && unscaledViewport.height > 0) {
+        containerRef.current.style.aspectRatio = `${unscaledViewport.width} / ${unscaledViewport.height}`;
+      }
+
       const scale = calculatePdfResponsiveScale(
         containerRef.current.clientWidth,
         unscaledViewport.width
@@ -84,7 +131,7 @@ export function usePdfPageRenderer({
       if (resizeObserver) resizeObserver.disconnect();
       pdfViewer.cancelPageRender?.(canvasRef.current, textLayerRef.current);
     };
-  }, [pdfViewer, pageNumber]);
+  }, [pdfViewer, pageNumber, isNearViewport]);
 
   const pageNotes = useMemo(
     () => filterPageNotes(highlights, pageNumber),
@@ -96,5 +143,6 @@ export function usePdfPageRenderer({
     canvasRef,
     textLayerRef,
     pageNotes,
+    isNearViewport,
   };
 }
