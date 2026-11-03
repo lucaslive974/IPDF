@@ -50,6 +50,7 @@ export function ThemeProvider({ children, initialTheme }: ThemeProviderProps) {
     }
     const root = document.documentElement;
     root.setAttribute('data-theme', theme);
+    root.style.colorScheme = theme;
     if (theme === 'dark') {
       root.classList.add('dark');
     } else {

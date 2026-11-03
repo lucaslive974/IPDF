@@ -4,6 +4,7 @@
 
 :root,
 [data-theme="light"] {
+  color-scheme: light;
   /* Apple Warm Paper aesthetic: soft, relaxing off-white for zero eye fatigue */
   --color-canvas: #faf8f5;
   --color-surface: #ffffff;
@@ -17,10 +18,15 @@
   --color-tx-faint: #b4afa6;
   --color-brand: #1c1b1a;
   --color-brand-hover: #383532;
+  --color-scrollbar-thumb: rgba(0, 0, 0, 0.2);
+  --color-scrollbar-thumb-hover: rgba(0, 0, 0, 0.35);
+  scrollbar-color: var(--color-scrollbar-thumb) transparent;
 }
 
+:root.dark,
 .dark,
 [data-theme="dark"] {
+  color-scheme: dark;
   /* Apple Warm Graphite aesthetic: deep warm charcoal, not harsh cold blue */
   --color-canvas: #151413;
   --color-surface: #1e1d1c;
@@ -34,6 +40,39 @@
   --color-tx-faint: #5a5650;
   --color-brand: #f5f2eb;
   --color-brand-hover: #dcd8cf;
+  --color-scrollbar-thumb: rgba(255, 255, 255, 0.2);
+  --color-scrollbar-thumb-hover: rgba(255, 255, 255, 0.35);
+  scrollbar-color: var(--color-scrollbar-thumb) transparent;
+}
+
+/* Custom subtle scrollbar eliminating harsh/white borders in dark mode */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scrollbar-thumb) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-scrollbar-thumb);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-scrollbar-thumb-hover);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 @theme {
