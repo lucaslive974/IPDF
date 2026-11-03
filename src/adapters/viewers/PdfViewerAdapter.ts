@@ -8,7 +8,7 @@ import {
   type TextSelection,
 } from '@domain/types';
 import type { DocumentPage } from '@ports/IDocumentViewer';
-import type { IPdfEngine, PdfDocumentProxy, PdfPageProxy } from '@ports/IPdfEngine';
+import type { IPdfEngine, PdfDocumentProxy, PdfPageProxy, PdfRenderTask } from '@ports/IPdfEngine';
 import type { IPdfViewer } from '@ports/IPdfViewer';
 import { DefaultPdfEngine } from './DefaultPdfEngine';
 
@@ -46,6 +46,8 @@ export class PdfViewerAdapter implements IPdfViewer {
   private readonly textSelectedListeners: Array<(selection: TextSelection | null) => void> = [];
   private readonly highlightClickedListeners: Array<(highlight: Highlight, rect: DOMRect) => void> =
     [];
+  private readonly inFlightCanvasTasks = new WeakMap<HTMLCanvasElement, PdfRenderTask>();
+  private readonly inFlightTextTasks = new WeakMap<HTMLElement, { cancel(): void }>();
 
   public constructor(engine?: IPdfEngine) {
     this.engine = engine ?? new DefaultPdfEngine();
@@ -178,6 +180,21 @@ export class PdfViewerAdapter implements IPdfViewer {
       return { width: 0, height: 0 };
     }
 
+    // Cancel and await any previous in-flight render task on this specific canvas
+    const inFlight = this.inFlightCanvasTasks.get(canvas);
+    if (inFlight) {
+      try {
+        inFlight.cancel?.();
+      } catch {
+        // Ignore cancellation errors
+      }
+      try {
+        await inFlight.promise;
+      } catch {
+        // Previous task was cancelled, ignore
+      }
+    }
+
     const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
     const scale = targetScale * dpr;
     const viewport = pageProxy.getViewport({ scale });
@@ -191,7 +208,25 @@ export class PdfViewerAdapter implements IPdfViewer {
         canvasContext: context,
         viewport,
       });
-      await task.promise;
+      this.inFlightCanvasTasks.set(canvas, task);
+
+      try {
+        await task.promise;
+      } catch (err: unknown) {
+        if (
+          err &&
+          typeof err === 'object' &&
+          'name' in err &&
+          err.name === 'RenderingCancelledException'
+        ) {
+          return { width: 0, height: 0 };
+        }
+        throw err;
+      } finally {
+        if (this.inFlightCanvasTasks.get(canvas) === task) {
+          this.inFlightCanvasTasks.delete(canvas);
+        }
+      }
     }
 
     return { width: viewport.width, height: viewport.height };
@@ -205,6 +240,17 @@ export class PdfViewerAdapter implements IPdfViewer {
     const pageProxy = await this.getPageProxy(pageNumber);
     if (!pageProxy) {
       return;
+    }
+
+    // Cancel any previous in-flight text layer task on this container
+    const inFlight = this.inFlightTextTasks.get(container);
+    if (inFlight) {
+      try {
+        inFlight.cancel();
+      } catch {
+        // Ignore cancellation errors
+      }
+      this.inFlightTextTasks.delete(container);
     }
 
     if (container) {
@@ -230,7 +276,24 @@ export class PdfViewerAdapter implements IPdfViewer {
           container,
           viewport: viewport as unknown as TextLayerParams['viewport'],
         });
-        await textLayer.render();
+        this.inFlightTextTasks.set(container, textLayer);
+        try {
+          await textLayer.render();
+        } catch (err: unknown) {
+          if (
+            err &&
+            typeof err === 'object' &&
+            'name' in err &&
+            (err.name === 'AbortException' || err.name === 'RenderingCancelledException')
+          ) {
+            return;
+          }
+          throw err;
+        } finally {
+          if (this.inFlightTextTasks.get(container) === textLayer) {
+            this.inFlightTextTasks.delete(container);
+          }
+        }
         return;
       }
     } catch {
@@ -247,6 +310,31 @@ export class PdfViewerAdapter implements IPdfViewer {
           span.style.color = 'transparent';
           container.appendChild(span);
         }
+      }
+    }
+  }
+
+  public cancelPageRender(canvas?: HTMLCanvasElement | null, container?: HTMLElement | null): void {
+    if (canvas) {
+      const task = this.inFlightCanvasTasks.get(canvas);
+      if (task) {
+        try {
+          task.cancel?.();
+        } catch {
+          // ignore
+        }
+        this.inFlightCanvasTasks.delete(canvas);
+      }
+    }
+    if (container) {
+      const textTask = this.inFlightTextTasks.get(container);
+      if (textTask) {
+        try {
+          textTask.cancel();
+        } catch {
+          // ignore
+        }
+        this.inFlightTextTasks.delete(container);
       }
     }
   }

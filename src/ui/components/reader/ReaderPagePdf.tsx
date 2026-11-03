@@ -33,11 +33,23 @@ export const ReaderPagePdf = memo(function ReaderPagePdf({
     let isCancelled = false;
 
     const render = async () => {
-      if (canvasRef.current) {
-        await pdfViewer.renderPageCanvas(pageNumber, canvasRef.current);
-      }
-      if (textLayerRef.current && !isCancelled) {
-        await pdfViewer.renderPageTextLayer(pageNumber, textLayerRef.current);
+      try {
+        if (canvasRef.current && !isCancelled) {
+          await pdfViewer.renderPageCanvas(pageNumber, canvasRef.current);
+        }
+        if (textLayerRef.current && !isCancelled) {
+          await pdfViewer.renderPageTextLayer(pageNumber, textLayerRef.current);
+        }
+      } catch (err: unknown) {
+        if (
+          err &&
+          typeof err === 'object' &&
+          'name' in err &&
+          (err.name === 'RenderingCancelledException' || err.name === 'AbortException')
+        ) {
+          return;
+        }
+        console.warn(`Failed to render PDF page ${pageNumber}:`, err);
       }
     };
 
@@ -45,6 +57,9 @@ export const ReaderPagePdf = memo(function ReaderPagePdf({
 
     return () => {
       isCancelled = true;
+      if (pdfViewer.cancelPageRender) {
+        pdfViewer.cancelPageRender(canvasRef.current, textLayerRef.current);
+      }
     };
   }, [pdfViewer, pageNumber]);
 

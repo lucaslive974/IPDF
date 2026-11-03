@@ -248,6 +248,65 @@ describe('PdfViewerAdapter (PDF.js Engine, Canvas & AABB Highlights)', () => {
     await viewer.renderPageTextLayer(999, fakeTextContainer, 1.25);
   });
 
+  it('safely cancels previous in-flight render task when same canvas is rendered concurrently', async () => {
+    let cancelCalled = false;
+    let resolveFirstTask: (() => void) | undefined;
+    const firstPromise = new Promise<void>((resolve) => {
+      resolveFirstTask = resolve;
+    });
+
+    const mockPageProxy: PdfPageProxy = {
+      pageNumber: 1,
+      getViewport: ({ scale }) => ({ width: 600 * scale, height: 800 * scale, scale }),
+      getTextContent: async () => ({ items: [{ str: 'Text' }] }),
+      render: vi
+        .fn()
+        .mockImplementationOnce(() => ({
+          promise: firstPromise,
+          cancel: () => {
+            cancelCalled = true;
+            const err = new Error('Rendering cancelled');
+            err.name = 'RenderingCancelledException';
+            resolveFirstTask?.();
+          },
+        }))
+        .mockImplementationOnce(() => ({
+          promise: Promise.resolve(),
+          cancel: vi.fn(),
+        })),
+    };
+
+    const mockEngine: IPdfEngine = {
+      loadDocument: async () => ({
+        numPages: 1,
+        getPage: async () => mockPageProxy,
+      }),
+    };
+
+    const viewer = new PdfViewerAdapter(mockEngine);
+    const container = createFakeContainer();
+    await viewer.render(container, new ArrayBuffer(16));
+
+    const fakeCanvas = {
+      width: 0,
+      height: 0,
+      getContext: vi.fn().mockReturnValue({}),
+    } as unknown as HTMLCanvasElement;
+
+    // Start first render (leaves it in-flight)
+    const firstRenderPromise = viewer.renderPageCanvas(1, fakeCanvas, 1.0);
+
+    // Concurrently trigger second render on the same canvas
+    const secondRenderPromise = viewer.renderPageCanvas(1, fakeCanvas, 1.0);
+
+    await Promise.all([firstRenderPromise, secondRenderPromise]);
+
+    expect(cancelCalled).toBe(true);
+
+    // Cancel helper
+    viewer.cancelPageRender(fakeCanvas);
+  });
+
   it('lazily extracts pages on demand for documents larger than 5 pages', async () => {
     const pageProxies: PdfPageProxy[] = Array.from({ length: 8 }, (_, idx) => ({
       pageNumber: idx + 1,

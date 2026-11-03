@@ -15,6 +15,8 @@ export interface IPdfViewer extends IDocumentViewer {
 
   renderPageTextLayer(pageNumber: number, container: HTMLElement, scale?: number): Promise<void>;
 
+  cancelPageRender?(canvas?: HTMLCanvasElement | null, container?: HTMLElement | null): void;
+
   ensurePagesExtracted(startPage: number, count: number): Promise<DocumentPage[]>;
 
   getPageProxy(pageNumber: number): Promise<PdfPageProxy | null>;
