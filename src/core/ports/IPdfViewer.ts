@@ -1,10 +1,10 @@
-import type { DocumentPage, IDocumentViewer } from '@ports/IDocumentViewer';
+import type { IDocumentViewer } from '@ports/IDocumentViewer';
 import type { PdfPageProxy } from '@ports/IPdfEngine';
 
 /**
  * Canonical PDF document viewer port.
  * Extends IDocumentViewer with fixed-layout, canvas-based rasterization
- * and structural page extraction capabilities without duck typing.
+ * and cooperative cancellation capabilities.
  */
 export interface IPdfViewer extends IDocumentViewer {
   renderPageCanvas(
@@ -16,8 +16,6 @@ export interface IPdfViewer extends IDocumentViewer {
   renderPageTextLayer(pageNumber: number, container: HTMLElement, scale?: number): Promise<void>;
 
   cancelPageRender?(canvas?: HTMLCanvasElement | null, container?: HTMLElement | null): void;
-
-  ensurePagesExtracted(startPage: number, count: number): Promise<DocumentPage[]>;
 
   getPageProxy(pageNumber: number): Promise<PdfPageProxy | null>;
 }

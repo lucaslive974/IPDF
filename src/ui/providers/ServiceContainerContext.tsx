@@ -10,6 +10,7 @@ import { EpubViewerAdapter, PdfViewerAdapter } from '@adapters/viewers';
 import { BookFormat } from '@domain/types';
 import type {
   IDocumentViewer,
+  IEpubViewer,
   IHighlightService,
   ILibraryService,
   IPdfViewer,
@@ -26,7 +27,7 @@ export interface ServiceContainer {
   readonly presenceService: IPresenceService;
   readonly settingsService: ISettingsService;
   readonly getViewer: (format: BookFormat) => IDocumentViewer;
-  readonly epubViewer: IDocumentViewer;
+  readonly epubViewer: IEpubViewer;
   readonly pdfViewer: IPdfViewer;
 }
 
@@ -36,7 +37,7 @@ export interface ServiceContainerOverrides {
   readonly readerService?: IReaderService;
   readonly presenceService?: IPresenceService;
   readonly settingsService?: ISettingsService;
-  readonly epubViewer?: IDocumentViewer;
+  readonly epubViewer?: IEpubViewer;
   readonly viewer?: IDocumentViewer;
   readonly pdfViewer?: IPdfViewer;
   readonly getViewer?: (format: BookFormat) => IDocumentViewer;
@@ -68,7 +69,10 @@ export function createServiceContainer(
         )
       : new TauriReaderService();
 
-  const epubViewer = overrides.epubViewer ?? overrides.viewer ?? new EpubViewerAdapter();
+  const epubViewer =
+    overrides.epubViewer ??
+    (overrides.viewer as IEpubViewer | undefined) ??
+    new EpubViewerAdapter();
   const pdfViewer = overrides.pdfViewer ?? new PdfViewerAdapter();
 
   const getViewer =

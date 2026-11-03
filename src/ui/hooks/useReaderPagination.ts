@@ -2,6 +2,7 @@ import { isValidAuthor } from '@components/library/BookCover';
 import type { BookMetadata } from '@domain/BookMetadata';
 import { BookFormat } from '@domain/types';
 import type { IDocumentViewer } from '@ports/IDocumentViewer';
+import type { IEpubViewer } from '@ports/IEpubViewer';
 import type { ILibraryService } from '@ports/ILibraryService';
 import type { IPdfViewer } from '@ports/IPdfViewer';
 import type { DocumentPage, IReaderService } from '@ports/IReaderService';
@@ -40,7 +41,7 @@ export interface ReaderPaginationDependencies {
   readonly readerService: IReaderService;
   readonly libraryService?: ILibraryService;
   readonly getViewer?: (format: BookFormat) => IDocumentViewer;
-  readonly epubViewer?: IDocumentViewer;
+  readonly epubViewer?: IEpubViewer;
   readonly pdfViewer?: IPdfViewer;
   readonly store?: typeof useReaderStore;
 }
@@ -110,9 +111,9 @@ export function createReaderPaginationController(
 
         if (format === BookFormat.PDF) {
           const pdfViewer = resolvePdfViewer();
-          const extracted = await pdfViewer.ensurePagesExtracted(lastPageNum + 1, nextCount);
-          if (extracted.length > 0) {
-            store.getState().upsertPages(extracted);
+          const chunk = pdfViewer.getPagesChunk(lastPageNum + 1, nextCount);
+          if (chunk.length > 0) {
+            store.getState().upsertPages(chunk);
             return;
           }
         }
@@ -135,9 +136,9 @@ export function createReaderPaginationController(
 
         if (format === BookFormat.PDF) {
           const pdfViewer = resolvePdfViewer();
-          const extracted = await pdfViewer.ensurePagesExtracted(prevStart, prevCount);
-          if (extracted.length > 0) {
-            store.getState().upsertPages(extracted);
+          const chunk = pdfViewer.getPagesChunk(prevStart, prevCount);
+          if (chunk.length > 0) {
+            store.getState().upsertPages(chunk);
             return;
           }
         }
@@ -251,7 +252,6 @@ export function createReaderPaginationController(
 
           if (format === BookFormat.PDF) {
             const pdfViewer = resolvePdfViewer();
-            await pdfViewer.ensurePagesExtracted(startPage, count);
             const chunk = pdfViewer.getPagesChunk(startPage, count);
             if (chunk.length > 0) {
               store.getState().setLoadedPages(chunk);

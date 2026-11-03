@@ -5,5 +5,6 @@ export * from './IPresenceService';
 export * from './ISettingsService';
 export * from './IDocumentViewer';
 export * from './IDocumentViewerFactory';
+export * from './IEpubViewer';
 export * from './IPdfEngine';
 export * from './IPdfViewer';

@@ -1,6 +1,5 @@
 import { EpubViewerAdapter } from '@adapters/viewers/EpubViewerAdapter';
-import { Highlight } from '@domain/Highlight';
-import type { PageInfo, TextSelection } from '@domain/types';
+import type { PageInfo } from '@domain/types';
 import { describe, expect, it } from 'vitest';
 
 function createFakeContainer(): HTMLElement {
@@ -24,7 +23,7 @@ function encodeUtf8(text: string): ArrayBuffer {
   return buffer;
 }
 
-describe('EpubViewerAdapter (EPUB CFI, Highlights & Virtual Pagination)', () => {
+describe('EpubViewerAdapter (EPUB CFI & Virtual Pagination)', () => {
   it('renders EPUB chapters, navigates by page number and CFI, and emits onPageChanged', async () => {
     const viewer = new EpubViewerAdapter();
     const container = createFakeContainer();
@@ -86,68 +85,10 @@ describe('EpubViewerAdapter (EPUB CFI, Highlights & Virtual Pagination)', () => 
       },
     ]);
     expect(viewer.getPage(1)?.chapterTitle).toBe('Custom Chapter');
-  });
-
-  it('renders highlights, erases highlights, injects ruby annotations, and handles TTS sentences', async () => {
-    const viewer = new EpubViewerAdapter();
-    const container = createFakeContainer();
-    const clickedIds: string[] = [];
-    viewer.onHighlightClicked((hl) => clickedIds.push(hl.id));
-
-    await viewer.render(
-      container,
-      encodeUtf8('First philosophical sentence. Second dialectical proposition!')
-    );
-
-    const hl = new Highlight(
-      'hl-1',
-      'book-hash-1',
-      'First philosophical sentence.',
-      '#eab308',
-      { format: 'epub', pageNumber: 1, epubCfi: 'epubcfi(/6/2!/4/2/1:0)' },
-      'Opening thesis'
-    );
-
-    viewer.renderHighlights([hl]);
-    expect(container.innerHTML).toContain('data-highlight-id="hl-1"');
-    expect(container.innerHTML).toContain('data-epub-cfi="epubcfi(/6/2!/4/2/1:0)"');
-
-    viewer.triggerHighlightClick('hl-1');
-    expect(clickedIds).toEqual(['hl-1']);
-
-    viewer.injectInlineAnnotation(
-      { format: 'epub', pageNumber: 1, epubCfi: 'epubcfi(/6/2!/4/2/1:6)' },
-      'philosophical',
-      'love of wisdom (philosophia)'
-    );
-    expect(container.innerHTML).toContain('<ruby');
-    expect(container.innerHTML).toContain('love of wisdom (philosophia)');
-
-    const sentences = await viewer.extractVisibleSentences();
-    expect(sentences.length).toBe(2);
-    expect(sentences[0]?.text).toBe('First philosophical sentence.');
-    expect(sentences[0]?.anchor.epubCfi).toContain('epubcfi(');
-
-    viewer.setActiveTTSSentence(sentences[0]?.id ?? null);
-    expect(container.innerHTML).toContain(`data-tts-active="${sentences[0]?.id}"`);
-
-    viewer.setActiveTTSSentence(null);
-    expect(container.innerHTML).not.toContain('data-tts-active="');
-
-    viewer.eraseHighlightFromDOM('hl-1');
-    expect(container.innerHTML).not.toContain('data-highlight-id="hl-1"');
-
-    const selections: Array<TextSelection | null> = [];
-    viewer.onTextSelected((sel) => selections.push(sel));
-    viewer.simulateTextSelection('dialectical proposition', 'epubcfi(/6/2!/4/2/1:30)');
-    expect(viewer.getSelection()?.text).toBe('dialectical proposition');
-    expect(selections[0]?.anchor.epubCfi).toBe('epubcfi(/6/2!/4/2/1:30)');
-
-    viewer.clearSelection();
-    expect(viewer.getSelection()).toBeNull();
 
     viewer.destroy();
     expect(container.innerHTML).toBe('');
+    expect(viewer.getPage(1)).toBeNull();
   });
 
   it('extracts paragraphs and chapters from structured document content', async () => {

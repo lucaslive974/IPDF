@@ -280,7 +280,6 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       getPagesChunk: vi.fn().mockReturnValue([]),
       getCurrentPage: vi.fn().mockReturnValue({ pageNumber: 1, totalPages: 50 }),
       getPageProxy: vi.fn().mockResolvedValue(null),
-      ensurePagesExtracted: vi.fn().mockResolvedValue([]),
       renderPageCanvas: vi.fn().mockResolvedValue({ width: 100, height: 100 }),
       renderPageTextLayer: vi.fn().mockResolvedValue(undefined),
     };
