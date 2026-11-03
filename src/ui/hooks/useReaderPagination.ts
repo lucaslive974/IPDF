@@ -62,6 +62,12 @@ export interface ReaderPaginationController {
   ): Promise<void>;
 }
 
+const INITIAL_BACKWARD_PAGES = 10;
+const INITIAL_ACTIVE_PAGES = 10;
+const INITIAL_FORWARD_PAGES = 10;
+const PAGINATION_CHUNK_SIZE = 10;
+const PREFETCH_PAGES_TRIGGER_DISTANCE = 7;
+
 export function createReaderPaginationController(
   deps: ReaderPaginationDependencies
 ): ReaderPaginationController {
@@ -83,6 +89,72 @@ export function createReaderPaginationController(
       return deps.pdfViewer;
     }
     return resolveViewer(BookFormat.PDF) as IPdfViewer;
+  };
+
+  const loadMorePagesInternal = async (direction: 'next' | 'prev'): Promise<void> => {
+    if (isLoadingMore) return;
+    isLoadingMore = true;
+
+    const state = store.getState();
+    const format = state.document.format ?? BookFormat.EPUB;
+    const viewer = resolveViewer(format);
+
+    try {
+      if (direction === 'next') {
+        const lastPageNum =
+          state.loadedPages.length > 0
+            ? Math.max(...state.loadedPages.map((p) => p.pageNumber))
+            : 0;
+        if (lastPageNum >= state.totalPages) return;
+        const nextCount = Math.min(PAGINATION_CHUNK_SIZE, state.totalPages - lastPageNum);
+
+        if (format === BookFormat.PDF) {
+          const pdfViewer = resolvePdfViewer();
+          const extracted = await pdfViewer.ensurePagesExtracted(lastPageNum + 1, nextCount);
+          if (extracted.length > 0) {
+            store.getState().upsertPages(extracted);
+            return;
+          }
+        }
+
+        const nextPages = await deps.readerService.getBookPages(
+          state.document.bookHash,
+          lastPageNum + 1,
+          nextCount
+        );
+        if (nextPages.length === 0) return;
+        store.getState().upsertPages(nextPages);
+      } else {
+        const firstPageNum =
+          state.loadedPages.length > 0
+            ? Math.min(...state.loadedPages.map((p) => p.pageNumber))
+            : 1;
+        if (firstPageNum <= 1) return;
+        const prevStart = Math.max(1, firstPageNum - PAGINATION_CHUNK_SIZE);
+        const prevCount = firstPageNum - prevStart;
+
+        if (format === BookFormat.PDF) {
+          const pdfViewer = resolvePdfViewer();
+          const extracted = await pdfViewer.ensurePagesExtracted(prevStart, prevCount);
+          if (extracted.length > 0) {
+            store.getState().upsertPages(extracted);
+            return;
+          }
+        }
+
+        const prevPages = await deps.readerService.getBookPages(
+          state.document.bookHash,
+          prevStart,
+          prevCount
+        );
+        if (prevPages.length === 0) return;
+        store.getState().upsertPages(prevPages);
+      }
+    } catch (err) {
+      console.warn('Failed to load more pages:', err);
+    } finally {
+      isLoadingMore = false;
+    }
   };
 
   return {
@@ -120,9 +192,10 @@ export function createReaderPaginationController(
       const format = book?.format ?? BookFormat.EPUB;
       const viewer = resolveViewer(format);
 
-      const backwardMargin = initialPage > 1 ? Math.min(2, initialPage - 1) : 0;
+      const backwardMargin =
+        initialPage > 1 ? Math.min(INITIAL_BACKWARD_PAGES, initialPage - 1) : 0;
       const startPage = Math.max(1, initialPage - backwardMargin);
-      const initialChunkSize = 5 + backwardMargin;
+      const initialChunkSize = backwardMargin + INITIAL_ACTIVE_PAGES + INITIAL_FORWARD_PAGES;
       const count = Math.min(
         initialChunkSize,
         book?.totalPages ? book.totalPages - startPage + 1 : initialChunkSize
@@ -227,84 +300,48 @@ export function createReaderPaginationController(
       return doc;
     },
 
-    async loadMorePages(direction: 'next' | 'prev') {
-      if (isLoadingMore) return;
-      isLoadingMore = true;
-
-      const state = store.getState();
-      const format = state.document.format ?? BookFormat.EPUB;
-      const viewer = resolveViewer(format);
-
-      try {
-        if (direction === 'next') {
-          const lastPageNum =
-            state.loadedPages.length > 0
-              ? Math.max(...state.loadedPages.map((p) => p.pageNumber))
-              : 0;
-          if (lastPageNum >= state.totalPages) return;
-
-          if (format === BookFormat.PDF) {
-            const pdfViewer = resolvePdfViewer();
-            const extracted = await pdfViewer.ensurePagesExtracted(lastPageNum + 1, 5);
-            if (extracted.length > 0) {
-              store.getState().upsertPages(extracted);
-              return;
-            }
-          }
-
-          const nextPages = await deps.readerService.getBookPages(
-            state.document.bookHash,
-            lastPageNum + 1,
-            5
-          );
-          if (nextPages.length === 0) return;
-          store.getState().upsertPages(nextPages);
-        } else {
-          const firstPageNum =
-            state.loadedPages.length > 0
-              ? Math.min(...state.loadedPages.map((p) => p.pageNumber))
-              : 1;
-          if (firstPageNum <= 1) return;
-          const prevStart = Math.max(1, firstPageNum - 5);
-          const prevCount = firstPageNum - prevStart;
-
-          if (format === BookFormat.PDF) {
-            const pdfViewer = resolvePdfViewer();
-            const extracted = await pdfViewer.ensurePagesExtracted(prevStart, prevCount);
-            if (extracted.length > 0) {
-              store.getState().upsertPages(extracted);
-              return;
-            }
-          }
-
-          const prevPages = await deps.readerService.getBookPages(
-            state.document.bookHash,
-            prevStart,
-            prevCount
-          );
-          if (prevPages.length === 0) return;
-          store.getState().upsertPages(prevPages);
-        }
-      } catch (err) {
-        console.warn('Failed to load more pages:', err);
-      } finally {
-        isLoadingMore = false;
-      }
-    },
+    loadMorePages: loadMorePagesInternal,
 
     onPageVisible(pageNumber: number) {
       const state = store.getState();
-      if (pageNumber === state.currentPage) return;
-      store.getState().setCurrentPage(pageNumber);
-      const visible = state.loadedPages.find((p) => p.pageNumber === pageNumber);
-      if (visible?.chapterTitle) {
-        store.getState().setChapterTitle(visible.chapterTitle);
+      const previousPage = state.currentPage;
+      if (pageNumber !== previousPage) {
+        store.getState().setCurrentPage(pageNumber);
+        const visible = state.loadedPages.find((p) => p.pageNumber === pageNumber);
+        if (visible?.chapterTitle) {
+          store.getState().setChapterTitle(visible.chapterTitle);
+        }
+        void deps.readerService.updateBookProgress(
+          state.document.bookHash,
+          pageNumber,
+          state.totalPages
+        );
       }
-      void deps.readerService.updateBookProgress(
-        state.document.bookHash,
-        pageNumber,
-        state.totalPages
-      );
+
+      // Proactively load more pages when within 7 pages of loaded boundaries
+      if (state.loadedPages.length > 0) {
+        const lastLoaded = Math.max(...state.loadedPages.map((p) => p.pageNumber));
+        const firstLoaded = Math.min(...state.loadedPages.map((p) => p.pageNumber));
+
+        const nearEnd =
+          lastLoaded < state.totalPages &&
+          lastLoaded - pageNumber <= PREFETCH_PAGES_TRIGGER_DISTANCE;
+        const nearStart =
+          firstLoaded > 1 && pageNumber - firstLoaded <= PREFETCH_PAGES_TRIGGER_DISTANCE;
+
+        if (nearStart && nearEnd) {
+          // If close to both ends, prioritize the direction the user is moving
+          if (pageNumber < previousPage) {
+            void loadMorePagesInternal('prev');
+          } else {
+            void loadMorePagesInternal('next');
+          }
+        } else if (nearEnd) {
+          void loadMorePagesInternal('next');
+        } else if (nearStart) {
+          void loadMorePagesInternal('prev');
+        }
+      }
     },
 
     async goToPage(targetPage: number, onPageChanged) {
@@ -313,8 +350,12 @@ export function createReaderPaginationController(
       store.getState().setCurrentPage(next);
       const exists = state.loadedPages.some((p) => p.pageNumber === next);
       if (!exists) {
-        const start = Math.max(1, next - 2);
-        const count = Math.min(5, state.totalPages - start + 1);
+        const backwardMargin = next > 1 ? Math.min(INITIAL_BACKWARD_PAGES, next - 1) : 0;
+        const start = Math.max(1, next - backwardMargin);
+        const count = Math.min(
+          backwardMargin + INITIAL_ACTIVE_PAGES + INITIAL_FORWARD_PAGES,
+          state.totalPages - start + 1
+        );
         const pages = await deps.readerService.getBookPages(state.document.bookHash, start, count);
         if (pages.length > 0) {
           store.getState().upsertPages(pages);

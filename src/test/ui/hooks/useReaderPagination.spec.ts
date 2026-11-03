@@ -85,8 +85,8 @@ describe('useReaderPagination / createReaderPaginationController', () => {
 
     await controller.bootstrapBook(customBook);
 
-    // Initial load should fetch backward margin (pages 8..14)
-    expect(getBookPagesSpy).toHaveBeenCalledWith('hash-socrates', 8, 7);
+    // Initial load should fetch backward margin (pages 1..29) with 10, 10, 10 layout
+    expect(getBookPagesSpy).toHaveBeenCalledWith('hash-socrates', 1, 29);
 
     const state = useReaderStore.getState();
     expect(state.document.bookTitle).toBe('Republic');
@@ -154,6 +154,86 @@ describe('useReaderPagination / createReaderPaginationController', () => {
 
     expect(useReaderStore.getState().currentPage).toBe(5);
     expect(useReaderStore.getState().chapterTitle).toBe('Chapter 5');
+  });
+
+  it('proactively triggers prefetch for next pages when within 7 pages of loaded upper boundary', async () => {
+    const getBookPagesSpy = vi
+      .spyOn(backend, 'getBookPages')
+      .mockResolvedValue([
+        { pageNumber: 31, chapterTitle: 'Ch 31', paragraphs: ['P31'], cfiBase: '/6/31!' },
+      ]);
+
+    const controller = createReaderPaginationController({
+      readerService: backend,
+      epubViewer: viewer,
+    });
+
+    useReaderStore.getState().setDocument({
+      bookHash: 'book-hash-1',
+      bookTitle: 'Test Book',
+      bookAuthor: 'Author',
+      chapterTitle: 'Initial',
+      sampleParagraph: 'Sample',
+    });
+    useReaderStore.getState().setTotalPages(50);
+    // Loaded pages: 10 to 30 (upper boundary = 30)
+    useReaderStore.getState().setLoadedPages(
+      Array.from({ length: 21 }, (_, i) => ({
+        pageNumber: 10 + i,
+        chapterTitle: `Ch ${10 + i}`,
+        paragraphs: [`P${10 + i}`],
+        cfiBase: `/6/${10 + i}!`,
+      }))
+    );
+    useReaderStore.getState().setCurrentPage(15);
+
+    // Page 20 is distance 10 from boundary 30 (> 7) -> should NOT trigger next prefetch
+    controller.onPageVisible(20);
+    expect(getBookPagesSpy).not.toHaveBeenCalled();
+
+    // Page 23 is distance 7 from boundary 30 (30 - 23 = 7 <= 7) -> triggers next prefetch in 10-page chunk
+    controller.onPageVisible(23);
+    expect(getBookPagesSpy).toHaveBeenCalledWith('book-hash-1', 31, 10);
+  });
+
+  it('proactively triggers prefetch for prev pages when within 7 pages of loaded lower boundary', async () => {
+    const getBookPagesSpy = vi
+      .spyOn(backend, 'getBookPages')
+      .mockResolvedValue([
+        { pageNumber: 10, chapterTitle: 'Ch 10', paragraphs: ['P10'], cfiBase: '/6/10!' },
+      ]);
+
+    const controller = createReaderPaginationController({
+      readerService: backend,
+      epubViewer: viewer,
+    });
+
+    useReaderStore.getState().setDocument({
+      bookHash: 'book-hash-1',
+      bookTitle: 'Test Book',
+      bookAuthor: 'Author',
+      chapterTitle: 'Initial',
+      sampleParagraph: 'Sample',
+    });
+    useReaderStore.getState().setTotalPages(50);
+    // Loaded pages: 20 to 40 (lower boundary = 20)
+    useReaderStore.getState().setLoadedPages(
+      Array.from({ length: 21 }, (_, i) => ({
+        pageNumber: 20 + i,
+        chapterTitle: `Ch ${20 + i}`,
+        paragraphs: [`P${20 + i}`],
+        cfiBase: `/6/${20 + i}!`,
+      }))
+    );
+    useReaderStore.getState().setCurrentPage(35);
+
+    // Page 30 is distance 10 from lower boundary 20 (30 - 20 = 10 > 7) -> should NOT trigger prev prefetch
+    controller.onPageVisible(30);
+    expect(getBookPagesSpy).not.toHaveBeenCalled();
+
+    // Page 27 is distance 7 from lower boundary 20 (27 - 20 = 7 <= 7) -> triggers prev prefetch
+    controller.onPageVisible(27);
+    expect(getBookPagesSpy).toHaveBeenCalledWith('book-hash-1', 10, 10);
   });
 
   it('navigates and goes to page clamping boundaries and notifying listener', async () => {
