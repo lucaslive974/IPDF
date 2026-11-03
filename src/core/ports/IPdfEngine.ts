@@ -8,6 +8,8 @@ export interface PdfTextItem {
 
 export interface PdfTextContent {
   readonly items: Array<{ readonly str: string } | PdfTextItem>;
+  readonly styles?: Record<string, unknown>;
+  readonly lang?: string;
 }
 
 export interface PdfViewport {

@@ -282,6 +282,7 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       getPageProxy: vi.fn().mockResolvedValue(null),
       ensurePagesExtracted: vi.fn().mockResolvedValue([]),
       renderPageCanvas: vi.fn().mockResolvedValue({ width: 100, height: 100 }),
+      renderPageTextLayer: vi.fn().mockResolvedValue(undefined),
     };
 
     const controller = createReaderPaginationController({

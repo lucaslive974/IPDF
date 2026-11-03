@@ -13,6 +13,8 @@ export interface IPdfViewer extends IDocumentViewer {
     scale?: number
   ): Promise<{ width: number; height: number }>;
 
+  renderPageTextLayer(pageNumber: number, container: HTMLElement, scale?: number): Promise<void>;
+
   ensurePagesExtracted(startPage: number, count: number): Promise<DocumentPage[]>;
 
   getPageProxy(pageNumber: number): Promise<PdfPageProxy | null>;

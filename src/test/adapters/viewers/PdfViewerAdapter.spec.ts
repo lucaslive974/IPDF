@@ -223,6 +223,31 @@ describe('PdfViewerAdapter (PDF.js Engine, Canvas & AABB Highlights)', () => {
     expect(invalidProxy).toBeNull();
   });
 
+  it('renders text layer via renderPageTextLayer setting scale variables and spans', async () => {
+    const engine = createMockPdfEngine();
+    const viewer = new PdfViewerAdapter(engine);
+    const container = createFakeContainer();
+    await viewer.render(container, new ArrayBuffer(16));
+
+    const styleProperties = new Map<string, string>();
+    const fakeTextContainer = {
+      innerHTML: 'previous',
+      style: {
+        setProperty: (key: string, val: string) => styleProperties.set(key, val),
+      },
+    } as unknown as HTMLElement;
+
+    await viewer.renderPageTextLayer(1, fakeTextContainer, 1.25);
+
+    expect(fakeTextContainer.innerHTML).toBe('');
+    expect(styleProperties.get('--scale-factor')).toBe('1.25');
+    expect(styleProperties.get('--total-scale-factor')).toBe('1.25');
+    expect(styleProperties.get('--user-unit')).toBe('1');
+
+    // Safe handling when proxy does not exist
+    await viewer.renderPageTextLayer(999, fakeTextContainer, 1.25);
+  });
+
   it('lazily extracts pages on demand for documents larger than 5 pages', async () => {
     const pageProxies: PdfPageProxy[] = Array.from({ length: 8 }, (_, idx) => ({
       pageNumber: idx + 1,

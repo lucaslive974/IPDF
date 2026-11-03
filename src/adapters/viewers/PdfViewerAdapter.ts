@@ -197,6 +197,60 @@ export class PdfViewerAdapter implements IPdfViewer {
     return { width: viewport.width, height: viewport.height };
   }
 
+  public async renderPageTextLayer(
+    pageNumber: number,
+    container: HTMLElement,
+    targetScale = 1.5
+  ): Promise<void> {
+    const pageProxy = await this.getPageProxy(pageNumber);
+    if (!pageProxy) {
+      return;
+    }
+
+    if (container) {
+      container.innerHTML = '';
+      if (container.style) {
+        container.style.setProperty('--scale-factor', `${targetScale}`);
+        container.style.setProperty('--total-scale-factor', `${targetScale}`);
+        container.style.setProperty('--user-unit', '1');
+        container.style.setProperty('--scale-round-x', '1px');
+        container.style.setProperty('--scale-round-y', '1px');
+      }
+    }
+
+    const viewport = pageProxy.getViewport({ scale: targetScale });
+    const textContent = await pageProxy.getTextContent();
+
+    try {
+      const pdfjsLib = await import('pdfjs-dist');
+      if (pdfjsLib.TextLayer && typeof window !== 'undefined' && typeof document !== 'undefined') {
+        type TextLayerParams = ConstructorParameters<typeof pdfjsLib.TextLayer>[0];
+        const textLayer = new pdfjsLib.TextLayer({
+          textContentSource: textContent as unknown as TextLayerParams['textContentSource'],
+          container,
+          viewport: viewport as unknown as TextLayerParams['viewport'],
+        });
+        await textLayer.render();
+        return;
+      }
+    } catch {
+      // In non-browser environments or when native TextLayer fails, gracefully fallback
+    }
+
+    if (container && typeof document !== 'undefined') {
+      for (const item of textContent.items) {
+        const text = 'str' in item ? item.str : '';
+        if (text) {
+          const span = document.createElement('span');
+          span.textContent = text;
+          span.style.position = 'absolute';
+          span.style.color = 'transparent';
+          container.appendChild(span);
+        }
+      }
+    }
+  }
+
   public destroy(): void {
     if (this.container) {
       this.container.innerHTML = '';

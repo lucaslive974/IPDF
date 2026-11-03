@@ -87,6 +87,6 @@ describe('PdfHighlightLayer and PAGE_RENDERERS', () => {
     expect(markup).toContain('data-page-number="2"');
     expect(markup).toContain('data-testid="reader-page-pdf-2"');
     expect(markup).toContain('data-testid="pdf-canvas-2"');
-    expect(markup).toContain('Sample text paragraph from PDF.');
+    expect(markup).toContain('data-testid="pdf-text-layer-2"');
   });
 });
