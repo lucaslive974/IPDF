@@ -1,5 +1,7 @@
 import { DefaultPdfEngine } from '@adapters/viewers/DefaultPdfEngine';
+import type { ILibraryService } from '@ports/ILibraryService';
 import type { IPdfEngine, PdfPageProxy } from '@ports/IPdfEngine';
+import type { IPdfViewer } from '@ports/IPdfViewer';
 
 export interface RenderCoverOptions {
   readonly maxWidth?: number;
@@ -74,5 +76,39 @@ export async function generatePdfPageCoverDataUrl(
     if (doc.destroy) {
       await doc.destroy();
     }
+  }
+}
+
+export interface PdfCoverSyncTarget {
+  readonly bookHash: string;
+  readonly coverImageUrl?: string;
+}
+
+/**
+ * Extracts page 1 cover for a PDF document if missing, and syncs it to the library service.
+ */
+export async function extractAndSyncPdfCover(
+  pdfViewer: Pick<IPdfViewer, 'getPageProxy'>,
+  target: PdfCoverSyncTarget,
+  libraryService?: Pick<ILibraryService, 'updateBookCover'>
+): Promise<string | null> {
+  const hasCover = target.coverImageUrl?.startsWith('data:image/webp');
+  if (hasCover) {
+    return target.coverImageUrl ?? null;
+  }
+
+  try {
+    const pageProxy = await pdfViewer.getPageProxy(1);
+    if (!pageProxy) {
+      return null;
+    }
+    const coverUrl = await renderPdfPageToDataUrl(pageProxy);
+    if (coverUrl && libraryService?.updateBookCover) {
+      void libraryService.updateBookCover(target.bookHash, coverUrl);
+    }
+    return coverUrl;
+  } catch (coverErr) {
+    console.warn('Failed to extract PDF cover from page 1:', coverErr);
+    return null;
   }
 }

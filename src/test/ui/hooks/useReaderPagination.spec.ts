@@ -1,9 +1,22 @@
 import { EpubViewerAdapter } from '@adapters/viewers/EpubViewerAdapter';
 import type { BookMetadata } from '@domain/BookMetadata';
 import { BookFormat } from '@domain/types';
-import { createReaderPaginationController } from '@hooks/useReaderPagination';
+import {
+  calculateInitialPageWindow,
+  createStudyDocumentDescriptor,
+  resolveDocumentViewer,
+} from '@hooks/readerBootstrapper';
+import {
+  calculateNextPageWindow,
+  calculatePrevPageWindow,
+  calculateTargetPageWindow,
+  clampPageNumber,
+  createReaderPaginationController,
+  determinePrefetchDirection,
+} from '@hooks/useReaderPagination';
 import type { IDocumentViewer } from '@ports/IDocumentViewer';
 import type { IPdfViewer } from '@ports/IPdfViewer';
+import type { DocumentPage } from '@ports/IReaderService';
 import { EMPTY_DOCUMENT, useReaderStore } from '@stores/useReaderStore';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MockBackend } from '../../mocks/MockBackend';
@@ -295,5 +308,144 @@ describe('useReaderPagination / createReaderPaginationController', () => {
     expect(doc.bookHash).toBe('hash-pdf-book');
     expect(mockPdfViewer.render).toHaveBeenCalled();
     expect(mockPdfViewer.getPageProxy).toHaveBeenCalledWith(1);
+  });
+
+  describe('pure pagination math functions', () => {
+    it('clamps page number within totalPages bounds', () => {
+      expect(clampPageNumber(0, 100)).toBe(1);
+      expect(clampPageNumber(-5, 100)).toBe(1);
+      expect(clampPageNumber(50, 100)).toBe(50);
+      expect(clampPageNumber(105, 100)).toBe(100);
+    });
+
+    it('calculates next page window accurately', () => {
+      const pages = [{ pageNumber: 10 }, { pageNumber: 11 }];
+
+      // Regular next window
+      expect(calculateNextPageWindow(pages, 50, 10)).toEqual({
+        startPage: 12,
+        count: 10,
+      });
+
+      // Window bounded by totalPages
+      expect(calculateNextPageWindow(pages, 15, 10)).toEqual({
+        startPage: 12,
+        count: 4, // 12, 13, 14, 15
+      });
+
+      // Already at or past totalPages
+      expect(calculateNextPageWindow(pages, 11, 10)).toBeNull();
+      expect(calculateNextPageWindow(pages, 10, 10)).toBeNull();
+    });
+
+    it('calculates prev page window accurately', () => {
+      const pages = [{ pageNumber: 15 }, { pageNumber: 16 }];
+
+      // Regular prev window
+      expect(calculatePrevPageWindow(pages, 10)).toEqual({
+        startPage: 5,
+        count: 10,
+      });
+
+      // Close to page 1
+      const earlyPages = [{ pageNumber: 4 }];
+      expect(calculatePrevPageWindow(earlyPages, 10)).toEqual({
+        startPage: 1,
+        count: 3,
+      });
+
+      // Already at page 1
+      const firstPage = [{ pageNumber: 1 }];
+      expect(calculatePrevPageWindow(firstPage, 10)).toBeNull();
+    });
+
+    it('calculates target page window with backward margin', () => {
+      // Middle of book
+      expect(calculateTargetPageWindow(25, 100)).toEqual({
+        startPage: 15,
+        count: 30,
+      });
+
+      // Near start
+      expect(calculateTargetPageWindow(5, 100)).toEqual({
+        startPage: 1,
+        count: 24,
+      });
+
+      // Near end
+      expect(calculateTargetPageWindow(95, 100)).toEqual({
+        startPage: 85,
+        count: 16,
+      });
+    });
+
+    it('determines prefetch direction based on reading boundaries', () => {
+      const loaded = [{ pageNumber: 10 }, { pageNumber: 30 }];
+
+      // Not near boundaries (within 7): 20 - 10 = 10 > 7, 30 - 20 = 10 > 7
+      expect(determinePrefetchDirection(20, 19, loaded, 50)).toBeNull();
+
+      // Near end (30 - 25 <= 7) -> 'next'
+      expect(determinePrefetchDirection(25, 24, loaded, 50)).toBe('next');
+
+      // Near start (15 - 10 <= 7) -> 'prev'
+      expect(determinePrefetchDirection(15, 16, loaded, 50)).toBe('prev');
+
+      // Near both ends: prioritize scroll direction
+      const shortRange = [{ pageNumber: 10 }, { pageNumber: 14 }];
+      // Moving down (page 12 > previous 11) -> 'next'
+      expect(determinePrefetchDirection(12, 11, shortRange, 50)).toBe('next');
+      // Moving up (page 11 < previous 12) -> 'prev'
+      expect(determinePrefetchDirection(11, 12, shortRange, 50)).toBe('prev');
+
+      // Empty loaded pages
+      expect(determinePrefetchDirection(1, 1, [], 50)).toBeNull();
+    });
+  });
+
+  describe('pure readerBootstrapper helpers', () => {
+    it('creates descriptor from book metadata or falls back to empty', () => {
+      expect(createStudyDocumentDescriptor(null)).toEqual(EMPTY_DOCUMENT);
+
+      const book: BookMetadata = {
+        bookHash: 'book-1',
+        title: 'Title',
+        author: 'Author',
+        currentPage: 5,
+        totalPages: 20,
+        percentage: 25,
+        format: BookFormat.EPUB,
+        tags: [],
+        lastReadAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const desc = createStudyDocumentDescriptor(book);
+      expect(desc.bookHash).toBe('book-1');
+      expect(desc.bookTitle).toBe('Title');
+      expect(desc.chapterTitle).toBe('Chapter 5 &mdash; Reading Session');
+    });
+
+    it('calculates initial page window', () => {
+      expect(calculateInitialPageWindow(1, 100)).toEqual({
+        startPage: 1,
+        count: 20,
+      });
+
+      expect(calculateInitialPageWindow(15, 100)).toEqual({
+        startPage: 5,
+        count: 30,
+      });
+    });
+
+    it('resolves viewer or throws when missing', () => {
+      const viewer = new EpubViewerAdapter();
+      expect(
+        resolveDocumentViewer({ readerService: backend, epubViewer: viewer }, BookFormat.EPUB)
+      ).toBe(viewer);
+
+      expect(() => resolveDocumentViewer({ readerService: backend }, BookFormat.EPUB)).toThrow(
+        'No document viewer available in dependencies'
+      );
+    });
   });
 });

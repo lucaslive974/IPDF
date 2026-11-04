@@ -1,5 +1,9 @@
 import type { IPdfEngine, PdfDocumentProxy, PdfPageProxy } from '@ports/IPdfEngine';
-import { generatePdfPageCoverDataUrl, renderPdfPageToDataUrl } from '@utils/pdfCoverGenerator';
+import {
+  extractAndSyncPdfCover,
+  generatePdfPageCoverDataUrl,
+  renderPdfPageToDataUrl,
+} from '@utils/pdfCoverGenerator';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('pdfCoverGenerator', () => {
@@ -113,5 +117,56 @@ describe('pdfCoverGenerator', () => {
     expect(mockEngine.loadDocument).toHaveBeenCalledWith('test.pdf');
     expect(mockDoc.getPage).toHaveBeenCalledWith(1);
     expect(mockDoc.destroy).toHaveBeenCalled();
+  });
+
+  describe('extractAndSyncPdfCover', () => {
+    it('returns existing cover without extracting when already webp data url', async () => {
+      const mockViewer = { getPageProxy: vi.fn() };
+      const cover = await extractAndSyncPdfCover(mockViewer, {
+        bookHash: 'pdf-hash-1',
+        coverImageUrl: 'data:image/webp;base64,alreadyExtracted',
+      });
+
+      expect(cover).toBe('data:image/webp;base64,alreadyExtracted');
+      expect(mockViewer.getPageProxy).not.toHaveBeenCalled();
+    });
+
+    it('extracts page 1 and syncs with libraryService when cover is missing', async () => {
+      // Mock global document for renderPdfPageToDataUrl canvas creation
+      const originalDoc = globalThis.document;
+      // @ts-expect-error Mock document
+      globalThis.document = {
+        createElement: vi.fn().mockReturnValue(fakeCanvas),
+      };
+
+      const mockViewer = { getPageProxy: vi.fn().mockResolvedValue(mockPage) };
+      const mockLibraryService = { updateBookCover: vi.fn().mockResolvedValue({}) };
+
+      try {
+        const cover = await extractAndSyncPdfCover(
+          mockViewer,
+          { bookHash: 'pdf-hash-2' },
+          mockLibraryService
+        );
+
+        expect(cover).toBe('data:image/webp;base64,mockWebpData');
+        expect(mockViewer.getPageProxy).toHaveBeenCalledWith(1);
+        expect(mockLibraryService.updateBookCover).toHaveBeenCalledWith(
+          'pdf-hash-2',
+          'data:image/webp;base64,mockWebpData'
+        );
+      } finally {
+        globalThis.document = originalDoc;
+      }
+    });
+
+    it('handles viewer error gracefully and returns null', async () => {
+      const mockViewer = {
+        getPageProxy: vi.fn().mockRejectedValue(new Error('Corrupt page')),
+      };
+
+      const cover = await extractAndSyncPdfCover(mockViewer, { bookHash: 'pdf-corrupt' });
+      expect(cover).toBeNull();
+    });
   });
 });
