@@ -2,6 +2,7 @@ import { isValidAuthor } from '@components/library/BookCover';
 import type { BookMetadata } from '@domain/BookMetadata';
 import type { UpdateBookMetadataInput } from '@ports/ILibraryService';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
+import { readFileAsDataUrl } from '@utils/fileReader';
 import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 
@@ -25,33 +26,6 @@ export function addTagDeduplicated(existingTags: readonly string[], newTag: stri
   if (!candidate) return [...existingTags];
   const exists = existingTags.some((t) => t.toLowerCase() === candidate.toLowerCase());
   return exists ? [...existingTags] : [...existingTags, candidate];
-}
-
-export async function readFileAsDataUrl(file: File): Promise<string> {
-  if (typeof FileReader !== 'undefined') {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          resolve(reader.result);
-        } else {
-          reject(new Error('Failed to read file as data URL'));
-        }
-      };
-      reader.onerror = () => reject(reader.error ?? new Error('Failed to read file'));
-      reader.readAsDataURL(file);
-    });
-  }
-
-  const arrayBuffer = await file.arrayBuffer();
-  const bytes = new Uint8Array(arrayBuffer);
-  let binary = '';
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  const base64 = btoa(binary);
-  const mime = file.type || 'image/png';
-  return `data:${mime};base64,${base64}`;
 }
 
 export function buildUpdateBookMetadataPayload(
