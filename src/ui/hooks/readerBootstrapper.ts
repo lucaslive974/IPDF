@@ -184,29 +184,30 @@ export async function bootstrapReaderBook(
       }
     }
 
-    if (format === BookFormat.PDF || pages.length === 0) {
+    if (format === BookFormat.PDF) {
       await renderDocumentInViewer(viewer, deps.readerService, doc.bookHash, format);
 
-      if (format === BookFormat.PDF) {
-        const pdfViewer = resolvePdfViewer(deps);
-        const chunk = pdfViewer.getPagesChunk(window.startPage, window.count);
-        if (chunk.length > 0) {
-          store.getState().setLoadedPages(chunk);
-          const active = chunk.find((p) => p.pageNumber === initialPage) ?? chunk[0];
-          if (active?.chapterTitle) {
-            store.getState().setChapterTitle(active.chapterTitle);
-          }
-        }
-        const info = pdfViewer.getCurrentPage();
-        if (info.totalPages > 0) {
-          store.getState().setTotalPages(info.totalPages);
-        }
-
-        const coverUrl = await extractAndSyncPdfCover(pdfViewer, doc, deps.libraryService);
-        if (coverUrl && coverUrl !== doc.coverImageUrl) {
-          store.getState().setDocument({ ...doc, coverImageUrl: coverUrl });
+      const pdfViewer = resolvePdfViewer(deps);
+      const chunk = pdfViewer.getPagesChunk(window.startPage, window.count);
+      if (chunk.length > 0) {
+        store.getState().setLoadedPages(chunk);
+        const active = chunk.find((p) => p.pageNumber === initialPage) ?? chunk[0];
+        if (active?.chapterTitle) {
+          store.getState().setChapterTitle(active.chapterTitle);
         }
       }
+      const info = pdfViewer.getCurrentPage();
+      if (info.totalPages > 0) {
+        store.getState().setTotalPages(info.totalPages);
+      }
+
+      const coverUrl = await extractAndSyncPdfCover(pdfViewer, doc, deps.libraryService);
+      if (coverUrl && coverUrl !== doc.coverImageUrl) {
+        store.getState().setDocument({ ...doc, coverImageUrl: coverUrl });
+      }
+    } else if (pages.length === 0) {
+      // Fallback for EPUB if the backend did not return any pre-paginated pages
+      await renderDocumentInViewer(viewer, deps.readerService, doc.bookHash, format);
     }
   } catch (err) {
     console.warn('Failed to load book pages in reader:', err);
