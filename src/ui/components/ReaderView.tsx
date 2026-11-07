@@ -1,14 +1,57 @@
+import type { BookMetadata } from '@domain/BookMetadata';
+import { bootstrapReaderBook } from '@hooks/readerBootstrapper';
 import { useReaderView } from '@hooks/useReaderView';
-import { ReaderProvider } from '@providers/ReaderContext';
+import { useNavigation } from '@providers/NavigationContext';
+import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useReaderStore } from '@stores/useReaderStore';
-import { memo } from 'react';
+import { memo, useEffect } from 'react';
 import { ReaderBottomBar } from './reader/ReaderBottomBar';
 import { ReaderHeader } from './reader/ReaderHeader';
 import { ReaderLoadingView } from './reader/ReaderLoadingView';
 import { ReaderOverlays } from './reader/ReaderOverlays';
 import { ReaderStream } from './reader/ReaderStream';
 
-function ReaderViewLayout() {
+export interface ReaderViewProps {
+  readonly bookOverride?: BookMetadata | null;
+}
+
+export const ReaderView = memo(function ReaderView({ bookOverride }: ReaderViewProps) {
+  const {
+    readerService,
+    libraryService,
+    highlightService,
+    presenceService,
+    getViewer,
+    epubViewer,
+    pdfViewer,
+  } = useServiceContainer();
+  const navigation = useNavigation();
+  const book = bookOverride ?? navigation.selectedBook;
+
+  useEffect(() => {
+    void bootstrapReaderBook(
+      {
+        readerService,
+        libraryService,
+        highlightService,
+        presenceService,
+        getViewer,
+        epubViewer,
+        pdfViewer,
+      },
+      book
+    );
+  }, [
+    book,
+    readerService,
+    libraryService,
+    highlightService,
+    presenceService,
+    getViewer,
+    epubViewer,
+    pdfViewer,
+  ]);
+
   const {
     isProgrammaticScrollRef,
     scrollToPage,
@@ -46,13 +89,5 @@ function ReaderViewLayout() {
       <ReaderBottomBar onScrollToPage={scrollToPage} />
       <ReaderOverlays />
     </section>
-  );
-}
-
-export const ReaderView = memo(function ReaderView() {
-  return (
-    <ReaderProvider>
-      <ReaderViewLayout />
-    </ReaderProvider>
   );
 });

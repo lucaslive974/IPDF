@@ -1,6 +1,13 @@
 import { Highlight } from '@domain/Highlight';
-import { createReaderHighlightsController } from '@hooks/useReaderHighlights';
+import {
+  createReaderHighlightsController,
+  loadAndSyncBookHighlights,
+  useReaderHighlights,
+} from '@hooks/useReaderHighlights';
+import { ServiceContainerProvider } from '@providers/ServiceContainerContext';
 import { useHighlightStore } from '@stores/useHighlightStore';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { MockBackend } from '../../mocks/MockBackend';
 
@@ -121,5 +128,49 @@ describe('useReaderHighlights controller', () => {
 
     await controller.deleteHighlight(hl.id);
     expect(useHighlightStore.getState().highlights).toHaveLength(0);
+  });
+
+  describe('useReaderHighlights hook', () => {
+    it('loads and syncs book highlights directly to store via loadAndSyncBookHighlights', async () => {
+      const hl = new Highlight('hl-direct', 'book-direct', 'Nietzsche', '#4CAF50', {
+        format: 'epub',
+        pageNumber: 3,
+        epubCfi: 'epubcfi(/6/4!/4/2)',
+      });
+      await backend.saveHighlight(hl);
+
+      const loaded = await loadAndSyncBookHighlights(backend, 'book-direct');
+      expect(loaded).toHaveLength(1);
+      expect(useHighlightStore.getState().highlights).toHaveLength(1);
+      expect(useHighlightStore.getState().highlights[0]?.id).toBe('hl-direct');
+    });
+
+    it('instantiates highlights controller via ServiceContainerContext', () => {
+      let captured: ReturnType<typeof useReaderHighlights> | null = null;
+
+      function Consumer() {
+        captured = useReaderHighlights();
+        return null;
+      }
+
+      renderToStaticMarkup(
+        React.createElement(
+          ServiceContainerProvider,
+          {
+            readerService: backend,
+            libraryService: backend,
+            highlightService: backend,
+            presenceService: backend,
+          },
+          React.createElement(Consumer)
+        )
+      );
+
+      expect(captured).not.toBeNull();
+      const controller = captured as unknown as ReturnType<typeof useReaderHighlights>;
+      expect(typeof controller.loadBookHighlights).toBe('function');
+      expect(typeof controller.createFromSelection).toBe('function');
+      expect(typeof controller.deleteHighlight).toBe('function');
+    });
   });
 });

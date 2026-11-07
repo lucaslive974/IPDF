@@ -1,5 +1,5 @@
 import type { Highlight } from '@domain/Highlight';
-import { useReader } from '@providers/ReaderContext';
+import { useReaderHighlights } from '@hooks/useReaderHighlights';
 import { useHighlightStore } from '@stores/useHighlightStore';
 import {
   type ActiveHighlightPopoverState,
@@ -18,7 +18,7 @@ export type {
 };
 
 export function useReaderUI() {
-  const { highlights } = useReader();
+  const highlights = useReaderHighlights();
   const setSelectedHighlightId = useHighlightStore((s) => s.setSelectedHighlightId);
 
   const isChromeVisible = useReaderUIStore((s) => s.isChromeVisible);

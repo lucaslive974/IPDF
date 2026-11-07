@@ -8,7 +8,9 @@ import {
   resolvePdfViewer,
 } from '@hooks/readerBootstrapper';
 import type { DocumentPage } from '@ports/IReaderService';
+import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useReaderStore } from '@stores/useReaderStore';
+import { useMemo } from 'react';
 
 export type ReaderPaginationDependencies = Omit<ReaderBootstrapDependencies, 'libraryService'>;
 
@@ -250,4 +252,21 @@ export function createReaderPaginationController(
     goToPage,
     navigatePage,
   };
+}
+
+export function useReaderPagination(): ReaderPaginationController {
+  const { readerService, presenceService, getViewer, epubViewer, pdfViewer } =
+    useServiceContainer();
+
+  return useMemo(
+    () =>
+      createReaderPaginationController({
+        readerService,
+        presenceService,
+        getViewer,
+        epubViewer,
+        pdfViewer,
+      }),
+    [readerService, presenceService, getViewer, epubViewer, pdfViewer]
+  );
 }

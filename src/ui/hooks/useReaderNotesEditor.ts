@@ -1,6 +1,6 @@
 import type { TextFormatStyle } from '@domain/types';
+import { useReaderHighlights } from '@hooks/useReaderHighlights';
 import type { IReaderService } from '@ports/IReaderService';
-import { useReader } from '@providers/ReaderContext';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useHighlightStore } from '@stores/useHighlightStore';
 import { type StudyDocumentDescriptor, useReaderStore } from '@stores/useReaderStore';
@@ -59,7 +59,7 @@ export function createReaderNotesEditorController(
 }
 
 export function useReaderNotesEditor(): ReaderNotesEditorState {
-  const { highlights: readerHighlights } = useReader();
+  const readerHighlights = useReaderHighlights();
   const { readerService } = useServiceContainer();
   const document = useReaderStore((s) => s.document);
   const highlights = useHighlightStore((s) => s.highlights);

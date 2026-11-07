@@ -26,12 +26,12 @@ describe('readerBootstrapper', () => {
   });
 
   it('bootstraps empty document when book is null', async () => {
-    const loadHighlightsSpy = vi.fn();
+    const loadHighlightsSpy = vi.spyOn(backend, 'loadBookHighlights');
     const doc = await bootstrapReaderBook(
       {
         readerService: backend,
         epubViewer: viewer,
-        highlights: { loadBookHighlights: loadHighlightsSpy },
+        highlightService: backend,
       },
       null
     );
@@ -85,14 +85,14 @@ describe('readerBootstrapper', () => {
 
     const updatePresenceSpy = vi.spyOn(backend, 'updateReadingPresence');
     const updateProgressSpy = vi.spyOn(backend, 'updateBookProgress');
-    const loadHighlightsSpy = vi.fn();
+    const loadHighlightsSpy = vi.spyOn(backend, 'loadBookHighlights');
 
     await bootstrapReaderBook(
       {
         readerService: backend,
         presenceService: backend,
         epubViewer: viewer,
-        highlights: { loadBookHighlights: loadHighlightsSpy },
+        highlightService: backend,
       },
       customBook
     );

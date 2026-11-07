@@ -3,11 +3,11 @@ import { BookFormat } from '@domain/types';
 import { useReaderFocalPageTracker } from '@hooks/useReaderFocalPageTracker';
 import { useHighlightsByPage } from '@hooks/useReaderHighlights';
 import { useReaderInfiniteScroll } from '@hooks/useReaderInfiniteScroll';
+import { useReaderPagination } from '@hooks/useReaderPagination';
 import { useReaderStreamContextMenu } from '@hooks/useReaderStreamContextMenu';
 import { useReaderUI } from '@hooks/useReaderUI';
 import { useReaderZoomGestures } from '@hooks/useReaderZoomGestures';
 import type { DocumentPage } from '@ports/IReaderService';
-import { useReader } from '@providers/ReaderContext';
 import { useReaderStore } from '@stores/useReaderStore';
 import { useTypographyStore } from '@stores/useTypographyStore';
 import { type RefObject, memo, useCallback, useMemo, useRef } from 'react';
@@ -20,7 +20,7 @@ export interface ReaderStreamProps {
 export const ReaderStream = memo(function ReaderStream({
   isProgrammaticScrollRef,
 }: ReaderStreamProps) {
-  const { pagination } = useReader();
+  const pagination = useReaderPagination();
   const document = useReaderStore((s) => s.document);
   const currentPage = useReaderStore((s) => s.currentPage);
   const totalPages = useReaderStore((s) => s.totalPages);

@@ -6,8 +6,12 @@ import {
   clampPageNumber,
   createReaderPaginationController,
   determinePrefetchDirection,
+  useReaderPagination,
 } from '@hooks/useReaderPagination';
+import { ServiceContainerProvider } from '@providers/ServiceContainerContext';
 import { useReaderStore } from '@stores/useReaderStore';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MockBackend } from '../../mocks/MockBackend';
 
@@ -282,6 +286,36 @@ describe('useReaderPagination / createReaderPaginationController', () => {
 
       // Empty loaded pages
       expect(determinePrefetchDirection(1, 1, [], 50)).toBeNull();
+    });
+  });
+
+  describe('useReaderPagination hook', () => {
+    it('instantiates pagination controller via ServiceContainerContext', () => {
+      let captured: ReturnType<typeof useReaderPagination> | null = null;
+
+      function Consumer() {
+        captured = useReaderPagination();
+        return null;
+      }
+
+      renderToStaticMarkup(
+        React.createElement(
+          ServiceContainerProvider,
+          {
+            readerService: backend,
+            libraryService: backend,
+            highlightService: backend,
+            presenceService: backend,
+          },
+          React.createElement(Consumer)
+        )
+      );
+
+      expect(captured).not.toBeNull();
+      const controller = captured as unknown as ReturnType<typeof useReaderPagination>;
+      expect(typeof controller.goToPage).toBe('function');
+      expect(typeof controller.onPageVisible).toBe('function');
+      expect(typeof controller.loadMorePages).toBe('function');
     });
   });
 });

@@ -3,6 +3,7 @@ import type { BookMetadata } from '@domain/BookMetadata';
 import { BookFormat } from '@domain/types';
 import type { IDocumentViewer } from '@ports/IDocumentViewer';
 import type { IEpubViewer } from '@ports/IEpubViewer';
+import type { IHighlightService } from '@ports/IHighlightService';
 import type { ILibraryService } from '@ports/ILibraryService';
 import type { IPdfViewer } from '@ports/IPdfViewer';
 import type { IPresenceService } from '@ports/IPresenceService';
@@ -13,7 +14,7 @@ import {
   useReaderStore,
 } from '@stores/useReaderStore';
 import { extractAndSyncPdfCover } from '@utils/pdfCoverGenerator';
-import type { ReaderHighlightsController } from './useReaderHighlights';
+import { loadAndSyncBookHighlights } from './useReaderHighlights';
 
 export interface PageWindow {
   readonly startPage: number;
@@ -28,7 +29,7 @@ export interface ReaderBootstrapDependencies {
   readonly readerService: IReaderService;
   readonly libraryService?: ILibraryService;
   readonly presenceService?: IPresenceService;
-  readonly highlights?: Pick<ReaderHighlightsController, 'loadBookHighlights'>;
+  readonly highlightService?: IHighlightService;
   readonly getViewer?: (format: BookFormat) => IDocumentViewer;
   readonly epubViewer?: IEpubViewer;
   readonly pdfViewer?: IPdfViewer;
@@ -258,8 +259,8 @@ export async function bootstrapReaderBook(
     store.getState().setLoadingPages(false);
   }
 
-  if (deps.highlights && doc.bookHash) {
-    await deps.highlights.loadBookHighlights(doc.bookHash);
+  if (deps.highlightService && doc.bookHash) {
+    await loadAndSyncBookHighlights(deps.highlightService, doc.bookHash);
   }
 
   const finalState = store.getState();

@@ -1,11 +1,10 @@
 import type { Highlight } from '@domain/Highlight';
-import { useReader } from '@providers/ReaderContext';
 import { useHighlightStore } from '@stores/useHighlightStore';
 import { useReaderStore } from '@stores/useReaderStore';
 import { useReaderUIStore } from '@stores/useReaderUIStore';
 import { getExpandedWordSelection } from '@utils/domSelection';
 import { useCallback, useMemo } from 'react';
-import type { ReaderHighlightsController } from './useReaderHighlights';
+import { type ReaderHighlightsController, useReaderHighlights } from './useReaderHighlights';
 
 export const createEmptyRect = (): DOMRect =>
   ({
@@ -80,7 +79,7 @@ export function createReaderTextSelectionController(
 }
 
 export function useReaderTextSelection(): ReaderTextSelectionState {
-  const { highlights: readerHighlights } = useReader();
+  const readerHighlights = useReaderHighlights();
   const bookHash = useReaderStore((s) => s.document.bookHash);
   const sampleParagraph = useReaderStore((s) => s.document.sampleParagraph);
   const selectionPopover = useReaderUIStore((s) => s.selectionPopover);

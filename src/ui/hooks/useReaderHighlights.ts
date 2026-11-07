@@ -1,6 +1,7 @@
 import { Highlight } from '@domain/Highlight';
 import type { TextSelection } from '@domain/types';
 import type { IHighlightService } from '@ports/IHighlightService';
+import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useHighlightStore } from '@stores/useHighlightStore';
 import { useCallback, useMemo } from 'react';
 
@@ -19,6 +20,24 @@ export interface ReaderHighlightsController {
   getHighlightsForPage(pageNumber: number): Highlight[];
 }
 
+/**
+ * Loads book highlights from the service and syncs them to the highlight store.
+ */
+export async function loadAndSyncBookHighlights(
+  highlightService: IHighlightService,
+  bookHash: string,
+  store = useHighlightStore
+): Promise<Highlight[]> {
+  const list = await highlightService.loadBookHighlights(bookHash);
+  store.getState().setHighlights(list);
+  return list;
+}
+
+export function useReaderHighlights(): ReaderHighlightsController {
+  const { highlightService } = useServiceContainer();
+  return useMemo(() => createReaderHighlightsController(highlightService), [highlightService]);
+}
+
 export function createReaderHighlightsController(
   highlightService: IHighlightService,
   store = useHighlightStore
@@ -28,10 +47,8 @@ export function createReaderHighlightsController(
       return store.getState().highlights;
     },
 
-    async loadBookHighlights(bookHash: string): Promise<Highlight[]> {
-      const list = await highlightService.loadBookHighlights(bookHash);
-      store.getState().setHighlights(list);
-      return list;
+    loadBookHighlights(bookHash: string): Promise<Highlight[]> {
+      return loadAndSyncBookHighlights(highlightService, bookHash, store);
     },
 
     async createFromSelection(
