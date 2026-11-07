@@ -1,3 +1,4 @@
+use super::sqlite_configuration_queries as queries;
 use crate::core::ports::{ConfigurationStore, PlatformEnvironment};
 use rusqlite::{params, Connection, OptionalExtension};
 use std::fmt::Display;
@@ -41,22 +42,14 @@ impl SqliteConfigurationStore {
 
     fn initialize_schema(&self) -> Result<(), String> {
         self.conn
-            .execute_batch(
-                "CREATE TABLE IF NOT EXISTS app_settings (
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL
-                );",
-            )
+            .execute_batch(queries::INIT_SCHEMA)
             .map_err(to_err)
     }
 }
 
 impl ConfigurationStore for SqliteConfigurationStore {
     fn get(&self, key: &str) -> Result<Option<String>, String> {
-        let mut stmt = self
-            .conn
-            .prepare("SELECT value FROM app_settings WHERE key = ?1")
-            .map_err(to_err)?;
+        let mut stmt = self.conn.prepare(queries::GET_VALUE).map_err(to_err)?;
 
         stmt.query_row(params![key], |row| row.get(0))
             .optional()
@@ -65,26 +58,20 @@ impl ConfigurationStore for SqliteConfigurationStore {
 
     fn set(&mut self, key: &str, value: &str) -> Result<(), String> {
         self.conn
-            .execute(
-                "INSERT OR REPLACE INTO app_settings (key, value) VALUES (?1, ?2)",
-                params![key, value],
-            )
+            .execute(queries::UPSERT_VALUE, params![key, value])
             .map_err(to_err)?;
         Ok(())
     }
 
     fn remove(&mut self, key: &str) -> Result<(), String> {
         self.conn
-            .execute("DELETE FROM app_settings WHERE key = ?1", params![key])
+            .execute(queries::DELETE_KEY, params![key])
             .map_err(to_err)?;
         Ok(())
     }
 
     fn keys(&self) -> Result<Vec<String>, String> {
-        let mut stmt = self
-            .conn
-            .prepare("SELECT key FROM app_settings ORDER BY key ASC")
-            .map_err(to_err)?;
+        let mut stmt = self.conn.prepare(queries::LIST_KEYS).map_err(to_err)?;
 
         let rows = stmt.query_map([], |row| row.get(0)).map_err(to_err)?;
 
@@ -96,9 +83,7 @@ impl ConfigurationStore for SqliteConfigurationStore {
     }
 
     fn clear(&mut self) -> Result<(), String> {
-        self.conn
-            .execute("DELETE FROM app_settings", [])
-            .map_err(to_err)?;
+        self.conn.execute(queries::CLEAR_ALL, []).map_err(to_err)?;
         Ok(())
     }
 }

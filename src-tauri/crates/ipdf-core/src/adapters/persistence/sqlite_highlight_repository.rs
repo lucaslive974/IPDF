@@ -1,3 +1,4 @@
+use super::sqlite_highlight_queries as queries;
 use crate::core::domain::{Highlight, HighlightAnchor, RichAnnotation};
 use crate::core::ports::{HighlightRepository, PlatformEnvironment};
 use rusqlite::{params, Connection, OptionalExtension, Row};
@@ -8,38 +9,6 @@ use std::path::Path;
 fn to_err<E: Display>(err: E) -> String {
     err.to_string()
 }
-
-// Centralized SQL queries
-const INIT_SCHEMA_SQL: &str = "
-    CREATE TABLE IF NOT EXISTS highlights (
-        id TEXT PRIMARY KEY,
-        book_hash TEXT NOT NULL,
-        page_number INTEGER NOT NULL,
-        text TEXT NOT NULL,
-        color TEXT NOT NULL,
-        anchor_json TEXT NOT NULL,
-        note TEXT NOT NULL,
-        created_at_ms INTEGER NOT NULL,
-        updated_at_ms INTEGER NOT NULL,
-        annotations_json TEXT NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS idx_highlights_book_page
-        ON highlights (book_hash, page_number);
-";
-
-const UPSERT_SQL: &str = "
-    INSERT OR REPLACE INTO highlights (
-        id, book_hash, page_number, text, color, anchor_json,
-        note, created_at_ms, updated_at_ms, annotations_json
-    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
-";
-
-const FIND_BY_ID_SQL: &str = "SELECT id, book_hash, text, color, anchor_json, note, created_at_ms, updated_at_ms, annotations_json FROM highlights WHERE id = ?1";
-const DELETE_BY_ID_SQL: &str = "DELETE FROM highlights WHERE id = ?1";
-const DELETE_BY_BOOK_SQL: &str = "DELETE FROM highlights WHERE book_hash = ?1";
-const FIND_BY_BOOK_SQL: &str = "SELECT id, book_hash, text, color, anchor_json, note, created_at_ms, updated_at_ms, annotations_json FROM highlights WHERE book_hash = ?1 ORDER BY created_at_ms ASC";
-const FIND_BY_BOOK_AND_PAGE_SQL: &str = "SELECT id, book_hash, text, color, anchor_json, note, created_at_ms, updated_at_ms, annotations_json FROM highlights WHERE book_hash = ?1 AND page_number = ?2 ORDER BY created_at_ms ASC";
-const FIND_ALL_SQL: &str = "SELECT id, book_hash, text, color, anchor_json, note, created_at_ms, updated_at_ms, annotations_json FROM highlights ORDER BY updated_at_ms DESC";
 
 pub struct SqliteHighlightRepository {
     conn: Connection,
@@ -73,7 +42,9 @@ impl SqliteHighlightRepository {
     }
 
     fn initialize_schema(&self) -> Result<(), String> {
-        self.conn.execute_batch(INIT_SCHEMA_SQL).map_err(to_err)
+        self.conn
+            .execute_batch(queries::INIT_SCHEMA)
+            .map_err(to_err)
     }
 
     fn row_to_highlight(row: &Row<'_>) -> rusqlite::Result<Result<Highlight, String>> {
@@ -114,7 +85,7 @@ impl HighlightRepository for SqliteHighlightRepository {
 
         self.conn
             .execute(
-                UPSERT_SQL,
+                queries::UPSERT,
                 params![
                     highlight.id,
                     highlight.book_hash,
@@ -133,7 +104,7 @@ impl HighlightRepository for SqliteHighlightRepository {
     }
 
     fn find_by_id(&self, id: &str) -> Result<Option<Highlight>, String> {
-        let mut stmt = self.conn.prepare(FIND_BY_ID_SQL).map_err(to_err)?;
+        let mut stmt = self.conn.prepare(queries::FIND_BY_ID).map_err(to_err)?;
 
         let raw = stmt
             .query_row(params![id], Self::row_to_highlight)
@@ -152,7 +123,7 @@ impl HighlightRepository for SqliteHighlightRepository {
 
     fn delete(&mut self, id: &str) -> Result<(), String> {
         self.conn
-            .execute(DELETE_BY_ID_SQL, params![id])
+            .execute(queries::DELETE_BY_ID, params![id])
             .map_err(to_err)?;
         Ok(())
     }
@@ -160,13 +131,13 @@ impl HighlightRepository for SqliteHighlightRepository {
     fn delete_by_book(&mut self, book_hash: &str) -> Result<usize, String> {
         let count = self
             .conn
-            .execute(DELETE_BY_BOOK_SQL, params![book_hash])
+            .execute(queries::DELETE_BY_BOOK, params![book_hash])
             .map_err(to_err)?;
         Ok(count)
     }
 
     fn find_by_book(&self, book_hash: &str) -> Result<Vec<Highlight>, String> {
-        let mut stmt = self.conn.prepare(FIND_BY_BOOK_SQL).map_err(to_err)?;
+        let mut stmt = self.conn.prepare(queries::FIND_BY_BOOK).map_err(to_err)?;
 
         let rows = stmt
             .query_map(params![book_hash], Self::row_to_highlight)
@@ -186,7 +157,7 @@ impl HighlightRepository for SqliteHighlightRepository {
     ) -> Result<Vec<Highlight>, String> {
         let mut stmt = self
             .conn
-            .prepare(FIND_BY_BOOK_AND_PAGE_SQL)
+            .prepare(queries::FIND_BY_BOOK_AND_PAGE)
             .map_err(to_err)?;
 
         let rows = stmt
@@ -201,7 +172,7 @@ impl HighlightRepository for SqliteHighlightRepository {
     }
 
     fn find_all(&self) -> Result<Vec<Highlight>, String> {
-        let mut stmt = self.conn.prepare(FIND_ALL_SQL).map_err(to_err)?;
+        let mut stmt = self.conn.prepare(queries::FIND_ALL).map_err(to_err)?;
         let rows = stmt.query_map([], Self::row_to_highlight).map_err(to_err)?;
 
         let mut list = Vec::new();
