@@ -178,7 +178,7 @@ describe('readerBootstrapper', () => {
       const desc = createStudyDocumentDescriptor(book);
       expect(desc.bookHash).toBe('book-1');
       expect(desc.bookTitle).toBe('Title');
-      expect(desc.chapterTitle).toBe('Chapter 5 &mdash; Reading Session');
+      expect(desc.chapterTitle).toBe('Chapter 5 Reading Session');
     });
 
     it('calculates initial page window', () => {

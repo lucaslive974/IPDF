@@ -71,6 +71,10 @@ export class MockBackend
     return metadata;
   }
 
+  public async getBookFilePath(bookHash: string): Promise<string | null> {
+    return '';
+  }
+
   public async readBookBinary(_bookHash: string): Promise<Uint8Array> {
     return new TextEncoder().encode(
       JSON.stringify({

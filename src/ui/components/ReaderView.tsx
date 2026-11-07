@@ -52,19 +52,21 @@ export const ReaderView = memo(function ReaderView({ bookOverride }: ReaderViewP
     pdfViewer,
   ]);
 
+  const isLoadingPages = useReaderStore((s) => s.isLoadingPages);
+  const isStreamReady = useReaderStore((s) => s.isStreamReady);
+  const loadedPages = useReaderStore((s) => s.loadedPages);
+  const document = useReaderStore((s) => s.document);
+
+  const isReady = !isLoadingPages && loadedPages.length > 0;
+  const showLoadingOverlay = !isReady || !isStreamReady;
+
   const {
     isProgrammaticScrollRef,
     scrollToPage,
     handleCloseReader,
     handleViewportClick,
     toggleChrome,
-  } = useReaderView();
-  const isLoadingPages = useReaderStore((s) => s.isLoadingPages);
-  const isStreamReady = useReaderStore((s) => s.isStreamReady);
-  const loadedPages = useReaderStore((s) => s.loadedPages);
-  const document = useReaderStore((s) => s.document);
-
-  const showLoadingOverlay = isLoadingPages || loadedPages.length === 0 || !isStreamReady;
+  } = useReaderView(isReady);
 
   return (
     <section
@@ -83,9 +85,7 @@ export const ReaderView = memo(function ReaderView({ bookOverride }: ReaderViewP
           <ReaderLoadingView document={document} />
         </div>
       )}
-      {!isLoadingPages && loadedPages.length > 0 && (
-        <ReaderStream isProgrammaticScrollRef={isProgrammaticScrollRef} />
-      )}
+      {isReady && <ReaderStream isProgrammaticScrollRef={isProgrammaticScrollRef} />}
       <ReaderBottomBar onScrollToPage={scrollToPage} />
       <ReaderOverlays />
     </section>

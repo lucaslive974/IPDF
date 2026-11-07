@@ -61,7 +61,7 @@ export function createStudyDocumentDescriptor(book?: BookMetadata | null): Study
     bookHash: book.bookHash,
     bookTitle: book.title,
     bookAuthor: book.author,
-    chapterTitle: `Chapter ${book.currentPage} &mdash; Reading Session`,
+    chapterTitle: `Chapter ${book.currentPage} Reading Session`,
     sampleParagraph: isValidAuthor(book.author)
       ? `Reading "${book.title}" by ${book.author}. Select any passage in the text to create persistent highlights, add margin notes, or consult AI explanations.`
       : `Reading "${book.title}". Select any passage in the text to create persistent highlights, add margin notes, or consult AI explanations.`,
@@ -103,38 +103,17 @@ export async function renderDocumentInViewer(
   viewer: IDocumentViewer,
   readerService: IReaderService,
   bookHash: string,
-  format: BookFormat
-): Promise<boolean> {
-  const container =
-    typeof globalThis !== 'undefined' && globalThis.document?.createElement
-      ? globalThis.document.createElement('div')
-      : ({ innerHTML: '' } as unknown as HTMLElement);
+): Promise<void> {
+  if (!globalThis.document) return;
+  const container = globalThis.document.createElement('div');
 
-  if (format === BookFormat.PDF && readerService.getBookFilePath) {
-    const filePath = await readerService.getBookFilePath(bookHash);
-    if (filePath) {
-      let assetUrl = filePath;
-      try {
-        const { convertFileSrc } = await import('@tauri-apps/api/core');
-        assetUrl = convertFileSrc(filePath);
-      } catch {
-        assetUrl = filePath;
-      }
-      try {
-        await viewer.render(container, assetUrl);
-        return true;
-      } catch (err) {
-        console.warn('Asset URL loading failed, falling back to binary:', err);
-      }
-    }
-  }
+  const filePath = await readerService.getBookFilePath(bookHash);
+  if (!filePath) return;
 
-  const rawBytes = await readerService.readBookBinary(bookHash);
-  if (rawBytes.length > 0) {
-    await viewer.render(container, rawBytes.buffer as ArrayBuffer);
-    return true;
-  }
-  return false;
+  const { convertFileSrc } = await import('@tauri-apps/api/core');
+  const assetUrl = convertFileSrc(filePath);
+
+  await viewer.render(container, assetUrl);
 }
 
 /**
@@ -148,26 +127,18 @@ export async function bootstrapPdfReaderSession(
   initialPage: number,
   store: typeof useReaderStore = deps.store ?? useReaderStore
 ): Promise<void> {
-  await renderDocumentInViewer(viewer, deps.readerService, doc.bookHash, BookFormat.PDF);
+  await renderDocumentInViewer(viewer, deps.readerService, doc.bookHash);
 
   const pdfViewer = resolvePdfViewer(deps);
   const info = pdfViewer.getCurrentPage();
-  if (info.totalPages > 0) {
-    store.getState().setTotalPages(info.totalPages);
-  }
+  store.getState().setTotalPages(info.totalPages);
 
   let chunk = pdfViewer.getPagesChunk(window.startPage, window.count);
-  if (chunk.length === 0) {
-    chunk = await deps.readerService.getBookPages(doc.bookHash, window.startPage, window.count);
-  }
+  chunk = await deps.readerService.getBookPages(doc.bookHash, window.startPage, window.count);
 
-  if (chunk.length > 0) {
-    store.getState().setLoadedPages(chunk);
-    const active = chunk.find((p) => p.pageNumber === initialPage) ?? chunk[0];
-    if (active?.chapterTitle) {
-      store.getState().setChapterTitle(active.chapterTitle);
-    }
-  }
+  store.getState().setLoadedPages(chunk);
+  const active = chunk.find((p) => p.pageNumber === initialPage) ?? chunk[0];
+  store.getState().setChapterTitle(active.chapterTitle);
 
   void extractAndSyncPdfCover(pdfViewer, doc, deps.libraryService).then((coverUrl) => {
     if (coverUrl && coverUrl !== doc.coverImageUrl) {
@@ -193,20 +164,12 @@ export async function bootstrapEpubReaderSession(
 ): Promise<void> {
   const pages = await deps.readerService.getBookPages(doc.bookHash, window.startPage, window.count);
 
-  if (pages.length > 0) {
-    store.getState().setLoadedPages(pages);
-    const active = pages.find((p) => p.pageNumber === initialPage) ?? pages[0];
-    if (active?.chapterTitle) {
-      store.getState().setChapterTitle(active.chapterTitle);
-    }
-    viewer.setPages(pages);
-    if (book?.totalPages) {
-      store.getState().setTotalPages(book.totalPages);
-    }
-  } else {
-    // Fallback for EPUB if the backend did not return any pre-paginated pages
-    await renderDocumentInViewer(viewer, deps.readerService, doc.bookHash, BookFormat.EPUB);
-  }
+  store.getState().setLoadedPages(pages);
+  const active = pages.find((p) => p.pageNumber === initialPage) ?? pages[0];
+  store.getState().setChapterTitle(active.chapterTitle);
+
+  viewer.setPages(pages);
+  store.getState().setTotalPages(book?.totalPages ?? 0);
 
   store.getState().setStreamReady(true);
 }
@@ -235,12 +198,7 @@ export async function bootstrapReaderBook(
   const initialPage = book?.currentPage || 1;
   store.getState().setCurrentPage(initialPage);
   store.getState().setPageOffsetRatio(book?.pageOffsetRatio ?? 0.0);
-  if (book?.totalPages) {
-    store.getState().setTotalPages(book.totalPages);
-  }
-
-  // Yield briefly to event loop so React can render the loading view
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  store.getState().setTotalPages(book?.totalPages ?? 0);
 
   const format = book?.format ?? BookFormat.EPUB;
   const viewer = resolveDocumentViewer(deps, format);

@@ -1,34 +1,11 @@
 import { useReaderPagination } from '@hooks/useReaderPagination';
 import { useNavigation } from '@providers/NavigationContext';
 import { useReaderStore } from '@stores/useReaderStore';
+import { clamp } from '@utils/math';
 import { type RefObject, useCallback, useEffect, useRef } from 'react';
 import { useLibrary } from './useLibrary';
 import { measureCurrentPageOffsetRatio } from './useReaderFocalPageTracker';
 import { useReaderUI } from './useReaderUI';
-
-export interface ReadingProgressState {
-  readonly bookHash: string;
-  readonly currentPage: number;
-  readonly totalPages: number;
-  readonly pageOffsetRatio?: number;
-}
-
-/**
- * Pure check to verify if reading progress has genuinely changed before saving.
- */
-export function shouldSaveProgress(
-  lastSaved: ReadingProgressState | null,
-  current: ReadingProgressState
-): boolean {
-  if (!current.bookHash) return false;
-  if (!lastSaved) return true;
-  return (
-    lastSaved.bookHash !== current.bookHash ||
-    lastSaved.currentPage !== current.currentPage ||
-    lastSaved.totalPages !== current.totalPages ||
-    Math.abs((lastSaved.pageOffsetRatio ?? 0) - (current.pageOffsetRatio ?? 0)) > 0.005
-  );
-}
 
 /**
  * Calculates the absolute window vertical scroll position to align an element with an offset ratio.
@@ -40,8 +17,7 @@ export function calculateScrollTargetTop(
   currentScrollY: number,
   offsetRatio = 0.0
 ): number {
-  const safeRatio = Math.max(0.0, offsetRatio);
-  return Math.max(0, currentScrollY + elementRectTop + elementRectHeight * safeRatio);
+  return Math.max(0, currentScrollY + elementRectTop + elementRectHeight * offsetRatio);
 }
 
 /**
@@ -68,11 +44,8 @@ export interface UseReaderViewReturn {
   readonly toggleChrome: () => void;
 }
 
-export function useReaderView(): UseReaderViewReturn {
+export function useReaderView(isStreamReady: boolean): UseReaderViewReturn {
   const pagination = useReaderPagination();
-  const bookHash = useReaderStore((s) => s.document.bookHash);
-  const loadedPages = useReaderStore((s) => s.loadedPages);
-  const isLoadingPages = useReaderStore((s) => s.isLoadingPages);
   const navigation = useNavigation();
   const library = useLibrary();
   const {
@@ -87,144 +60,46 @@ export function useReaderView(): UseReaderViewReturn {
   } = useReaderUI();
 
   const isProgrammaticScrollRef = useRef(true);
-  const programmaticScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const initialScrollAlignedRef = useRef<string | null>(null);
-  const initialTargetRef = useRef<{ page: number; ratio: number } | null>(null);
-  const lastBookHashRef = useRef<string | null>(null);
-
-  // Reset alignment tracking when opening a different book
-  if (lastBookHashRef.current !== bookHash) {
-    lastBookHashRef.current = bookHash;
-    initialScrollAlignedRef.current = null;
-    isProgrammaticScrollRef.current = true;
-    initialTargetRef.current = null;
-  }
-
-  // Freeze target reading page & ratio upon opening before any scroll events can mutate it
-  if (!initialTargetRef.current && bookHash) {
-    const selectedBook = navigation.selectedBook;
-    const isMatchingBook = selectedBook && selectedBook.bookHash === bookHash;
-    const storeState = useReaderStore.getState();
-    const targetPage = isMatchingBook ? selectedBook.currentPage : storeState.currentPage;
-    const targetRatio = isMatchingBook
-      ? (selectedBook.pageOffsetRatio ?? 0.0)
-      : storeState.pageOffsetRatio || 0.0;
-
-    initialTargetRef.current = {
-      page: Math.max(1, targetPage),
-      ratio: Math.max(0.0, targetRatio),
-    };
-  }
-
-  // Clean up timers on unmount
-  useEffect(() => {
-    return () => {
-      if (programmaticScrollTimeoutRef.current) {
-        clearTimeout(programmaticScrollTimeoutRef.current);
-      }
-    };
-  }, []);
+  const hasAlignedScrollRef = useRef(false);
 
   // Restore initial scroll position once ReaderStream is mounted and pages are loaded
   useEffect(() => {
-    if (!bookHash || initialScrollAlignedRef.current === bookHash) {
-      return;
-    }
-
     // Must wait until loading completes and pages are in store/DOM
-    if (isLoadingPages || loadedPages.length === 0) {
+    if (!isStreamReady) {
       return;
     }
 
-    const selectedBook = navigation.selectedBook;
-    const target = initialTargetRef.current ?? {
-      page: Math.max(
-        1,
-        selectedBook?.bookHash === bookHash
-          ? selectedBook.currentPage
-          : useReaderStore.getState().currentPage
-      ),
-      ratio: Math.max(
-        0.0,
-        selectedBook?.bookHash === bookHash
-          ? (selectedBook.pageOffsetRatio ?? 0.0)
-          : useReaderStore.getState().pageOffsetRatio || 0.0
-      ),
-    };
-    const targetPage = target.page;
-    const offsetRatio = target.ratio;
+    const { currentPage, pageOffsetRatio } = useReaderStore.getState();
+    const targetPage = Math.max(1, currentPage);
+    const offsetRatio = clamp(pageOffsetRatio, -1.0, 1.0);
 
     // First page with no offset is naturally aligned at top
     if (targetPage <= 1 && offsetRatio <= 0.0) {
-      initialScrollAlignedRef.current = bookHash;
+      hasAlignedScrollRef.current = true;
       isProgrammaticScrollRef.current = false;
       return;
     }
 
-    const hasTargetPage = loadedPages.some((p) => p.pageNumber === targetPage);
-    if (!hasTargetPage) {
-      return;
-    }
-
-    if (typeof document === 'undefined') {
-      return;
-    }
-
     const el = document.querySelector<HTMLElement>(`article[data-page-number="${targetPage}"]`);
+    // Empty book or page not yet in DOM
     if (!el) {
       return;
     }
 
-    initialScrollAlignedRef.current = bookHash;
+    hasAlignedScrollRef.current = true;
     isProgrammaticScrollRef.current = true;
+    setTimeout(() => {
+      isProgrammaticScrollRef.current = false;
+    }, 600);
 
-    const performScroll = () => {
-      const rect = el.getBoundingClientRect();
-      const targetTop = calculateScrollTargetTop(
-        rect.top,
-        rect.height,
-        window.scrollY,
-        offsetRatio
-      );
+    const rect = el.getBoundingClientRect();
+    const targetTop = calculateScrollTargetTop(rect.top, rect.height, window.scrollY, offsetRatio);
 
-      window.scrollTo({ top: targetTop, behavior: 'instant' });
-
-      // Fallback scrollIntoView if window.scrollTo didn't move (e.g. nested layout constraints)
-      if (targetTop > 0 && Math.abs(window.scrollY) < 5) {
-        el.scrollIntoView({ behavior: 'instant', block: 'start' });
-        if (offsetRatio > 0.001) {
-          const newRect = el.getBoundingClientRect();
-          if (newRect.height > 0) {
-            window.scrollBy({ top: newRect.height * offsetRatio, behavior: 'instant' });
-          }
-        }
-      }
-
-      if (programmaticScrollTimeoutRef.current) {
-        clearTimeout(programmaticScrollTimeoutRef.current);
-      }
-      programmaticScrollTimeoutRef.current = setTimeout(() => {
-        isProgrammaticScrollRef.current = false;
-      }, 600);
-    };
-
-    if (typeof window.requestAnimationFrame === 'function') {
-      window.requestAnimationFrame(performScroll);
-    } else {
-      performScroll();
-    }
-  }, [bookHash, loadedPages, isLoadingPages, navigation.selectedBook]);
-
-  // Sync reading progress to library and backend on departure
-  const lastSavedStateRef = useRef<ReadingProgressState | null>(null);
+    window.scrollTo({ top: targetTop, behavior: 'instant' });
+  }, [isStreamReady]);
 
   const saveProgress = useCallback(
     async (bookHash: string, currentPage: number, totalPages: number, pageOffsetRatio: number) => {
-      const current = { bookHash, currentPage, totalPages, pageOffsetRatio };
-      if (!shouldSaveProgress(lastSavedStateRef.current, current)) {
-        return;
-      }
-      lastSavedStateRef.current = current;
       try {
         await library.updateBookProgress(bookHash, currentPage, totalPages, pageOffsetRatio);
       } catch (err) {
@@ -263,12 +138,10 @@ export function useReaderView(): UseReaderViewReturn {
   const scrollToPage = useCallback(
     (pageNum: number) => {
       const { totalPages } = useReaderStore.getState();
-      const target = Math.max(1, Math.min(totalPages, pageNum));
+      const target = clamp(pageNum, 1, totalPages);
+
       isProgrammaticScrollRef.current = true;
-      if (programmaticScrollTimeoutRef.current) {
-        clearTimeout(programmaticScrollTimeoutRef.current);
-      }
-      programmaticScrollTimeoutRef.current = setTimeout(() => {
+      setTimeout(() => {
         isProgrammaticScrollRef.current = false;
       }, 900);
 
