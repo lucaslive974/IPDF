@@ -31,8 +31,8 @@
       "@providers": ["src/ui/providers/index.ts"],
       "@stores/*": ["src/ui/stores/*"],
       "@stores": ["src/ui/stores/index.ts"],
-      "@utils/*": ["src/ui/utils/*"],
-      "@utils": ["src/ui/utils/index.ts"],
+      "@utils/*": ["src/utils/*"],
+      "@utils": ["src/utils/index.ts"],
       "@components/*": ["src/ui/components/*"],
       "@ui/*": ["src/ui/*"],
       "@ui": ["src/ui/components/ui/index.ts"]

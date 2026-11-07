@@ -68,11 +68,9 @@ const objectArgs = executables.flatMap((exe, index) => (index === 0 ? [exe] : ['
 const srcDir = join(crateDir, 'src');
 
 console.log('\n % Rust Coverage report from llvm-cov (ipdf-core)');
-execFileSync(
-  llvmCov,
-  ['report', ...objectArgs, `--instr-profile=${profdataPath}`, srcDir],
-  { stdio: 'inherit' }
-);
+execFileSync(llvmCov, ['report', ...objectArgs, `--instr-profile=${profdataPath}`, srcDir], {
+  stdio: 'inherit',
+});
 
 const lcovOutput = execFileSync(
   llvmCov,
@@ -112,8 +110,6 @@ if (
   functionsPct < MIN_COVERAGE_THRESHOLD ||
   regionsPct < MIN_COVERAGE_THRESHOLD
 ) {
-  console.error(
-    `ERROR: Rust coverage is below the required ${MIN_COVERAGE_THRESHOLD}% threshold.`
-  );
+  console.error(`ERROR: Rust coverage is below the required ${MIN_COVERAGE_THRESHOLD}% threshold.`);
   process.exit(1);
 }

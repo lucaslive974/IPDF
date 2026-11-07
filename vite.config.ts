@@ -16,7 +16,7 @@ export default defineConfig({
       '@hooks': path.resolve(__dirname, 'src/ui/hooks'),
       '@providers': path.resolve(__dirname, 'src/ui/providers'),
       '@stores': path.resolve(__dirname, 'src/ui/stores'),
-      '@utils': path.resolve(__dirname, 'src/ui/utils'),
+      '@utils': path.resolve(__dirname, 'src/utils'),
       '@components': path.resolve(__dirname, 'src/ui/components'),
       '@ui': path.resolve(__dirname, 'src/ui/components/ui'),
     },
