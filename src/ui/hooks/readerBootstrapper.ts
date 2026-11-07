@@ -13,6 +13,7 @@ import {
   useReaderStore,
 } from '@stores/useReaderStore';
 import { extractAndSyncPdfCover } from '@utils/pdfCoverGenerator';
+import type { ReaderHighlightsController } from './useReaderHighlights';
 
 export interface PageWindow {
   readonly startPage: number;
@@ -27,6 +28,7 @@ export interface ReaderBootstrapDependencies {
   readonly readerService: IReaderService;
   readonly libraryService?: ILibraryService;
   readonly presenceService?: IPresenceService;
+  readonly highlights?: Pick<ReaderHighlightsController, 'loadBookHighlights'>;
   readonly getViewer?: (format: BookFormat) => IDocumentViewer;
   readonly epubViewer?: IEpubViewer;
   readonly pdfViewer?: IPdfViewer;
@@ -135,12 +137,85 @@ export async function renderDocumentInViewer(
 }
 
 /**
+ * Bootstraps the PDF reader session: renders document in viewer, extracts page chunk and syncs cover.
+ */
+export async function bootstrapPdfReaderSession(
+  deps: ReaderBootstrapDependencies,
+  viewer: IDocumentViewer,
+  doc: StudyDocumentDescriptor,
+  window: PageWindow,
+  initialPage: number,
+  store: typeof useReaderStore = deps.store ?? useReaderStore
+): Promise<void> {
+  await renderDocumentInViewer(viewer, deps.readerService, doc.bookHash, BookFormat.PDF);
+
+  const pdfViewer = resolvePdfViewer(deps);
+  const info = pdfViewer.getCurrentPage();
+  if (info.totalPages > 0) {
+    store.getState().setTotalPages(info.totalPages);
+  }
+
+  let chunk = pdfViewer.getPagesChunk(window.startPage, window.count);
+  if (chunk.length === 0) {
+    chunk = await deps.readerService.getBookPages(doc.bookHash, window.startPage, window.count);
+  }
+
+  if (chunk.length > 0) {
+    store.getState().setLoadedPages(chunk);
+    const active = chunk.find((p) => p.pageNumber === initialPage) ?? chunk[0];
+    if (active?.chapterTitle) {
+      store.getState().setChapterTitle(active.chapterTitle);
+    }
+  }
+
+  void extractAndSyncPdfCover(pdfViewer, doc, deps.libraryService).then((coverUrl) => {
+    if (coverUrl && coverUrl !== doc.coverImageUrl) {
+      const currentDoc = store.getState().document;
+      if (currentDoc.bookHash === doc.bookHash) {
+        store.getState().setDocument({ ...currentDoc, coverImageUrl: coverUrl });
+      }
+    }
+  });
+}
+
+/**
+ * Bootstraps the EPUB reader session: fetches pre-paginated chunks or falls back to binary viewer rendering.
+ */
+export async function bootstrapEpubReaderSession(
+  deps: ReaderBootstrapDependencies,
+  viewer: IDocumentViewer,
+  doc: StudyDocumentDescriptor,
+  window: PageWindow,
+  initialPage: number,
+  book?: BookMetadata | null,
+  store: typeof useReaderStore = deps.store ?? useReaderStore
+): Promise<void> {
+  const pages = await deps.readerService.getBookPages(doc.bookHash, window.startPage, window.count);
+
+  if (pages.length > 0) {
+    store.getState().setLoadedPages(pages);
+    const active = pages.find((p) => p.pageNumber === initialPage) ?? pages[0];
+    if (active?.chapterTitle) {
+      store.getState().setChapterTitle(active.chapterTitle);
+    }
+    viewer.setPages(pages);
+    if (book?.totalPages) {
+      store.getState().setTotalPages(book.totalPages);
+    }
+  } else {
+    // Fallback for EPUB if the backend did not return any pre-paginated pages
+    await renderDocumentInViewer(viewer, deps.readerService, doc.bookHash, BookFormat.EPUB);
+  }
+
+  store.getState().setStreamReady(true);
+}
+
+/**
  * Orchestrates the full bootstrap sequence when opening a book in the reader.
  */
 export async function bootstrapReaderBook(
   deps: ReaderBootstrapDependencies,
-  book?: BookMetadata | null,
-  onBookLoaded?: (hash: string) => Promise<void> | void
+  book?: BookMetadata | null
 ): Promise<StudyDocumentDescriptor> {
   const store = deps.store ?? useReaderStore;
   store.getState().setLoadedPages([]);
@@ -172,58 +247,9 @@ export async function bootstrapReaderBook(
 
   try {
     if (format === BookFormat.PDF) {
-      await renderDocumentInViewer(viewer, deps.readerService, doc.bookHash, format);
-
-      const pdfViewer = resolvePdfViewer(deps);
-      const info = pdfViewer.getCurrentPage();
-      if (info.totalPages > 0) {
-        store.getState().setTotalPages(info.totalPages);
-      }
-
-      let chunk = pdfViewer.getPagesChunk(window.startPage, window.count);
-      if (chunk.length === 0) {
-        chunk = await deps.readerService.getBookPages(doc.bookHash, window.startPage, window.count);
-      }
-
-      if (chunk.length > 0) {
-        store.getState().setLoadedPages(chunk);
-        const active = chunk.find((p) => p.pageNumber === initialPage) ?? chunk[0];
-        if (active?.chapterTitle) {
-          store.getState().setChapterTitle(active.chapterTitle);
-        }
-      }
-
-      void extractAndSyncPdfCover(pdfViewer, doc, deps.libraryService).then((coverUrl) => {
-        if (coverUrl && coverUrl !== doc.coverImageUrl) {
-          const currentDoc = store.getState().document;
-          if (currentDoc.bookHash === doc.bookHash) {
-            store.getState().setDocument({ ...currentDoc, coverImageUrl: coverUrl });
-          }
-        }
-      });
+      await bootstrapPdfReaderSession(deps, viewer, doc, window, initialPage, store);
     } else {
-      const pages = await deps.readerService.getBookPages(
-        doc.bookHash,
-        window.startPage,
-        window.count
-      );
-
-      if (pages.length > 0) {
-        store.getState().setLoadedPages(pages);
-        const active = pages.find((p) => p.pageNumber === initialPage) ?? pages[0];
-        if (active?.chapterTitle) {
-          store.getState().setChapterTitle(active.chapterTitle);
-        }
-        viewer.setPages(pages);
-        if (book?.totalPages) {
-          store.getState().setTotalPages(book.totalPages);
-        }
-      } else {
-        // Fallback for EPUB if the backend did not return any pre-paginated pages
-        await renderDocumentInViewer(viewer, deps.readerService, doc.bookHash, format);
-      }
-
-      store.getState().setStreamReady(true);
+      await bootstrapEpubReaderSession(deps, viewer, doc, window, initialPage, book, store);
     }
   } catch (err) {
     console.warn('Failed to load book pages in reader:', err);
@@ -232,8 +258,8 @@ export async function bootstrapReaderBook(
     store.getState().setLoadingPages(false);
   }
 
-  if (onBookLoaded) {
-    await onBookLoaded(doc.bookHash);
+  if (deps.highlights && doc.bookHash) {
+    await deps.highlights.loadBookHighlights(doc.bookHash);
   }
 
   const finalState = store.getState();

@@ -56,28 +56,27 @@ function ReaderSessionProvider({ children, bookOverride }: Omit<ReaderProviderPr
   );
 
   useEffect(() => {
-    let cancelled = false;
     void bootstrapReaderBook(
-      { readerService, libraryService, presenceService, getViewer, epubViewer, pdfViewer },
-      book,
-      async (hash) => {
-        if (!cancelled) {
-          await highlights.loadBookHighlights(hash);
-        }
-      }
+      {
+        readerService,
+        libraryService,
+        presenceService,
+        highlights,
+        getViewer,
+        epubViewer,
+        pdfViewer,
+      },
+      book
     );
-    return () => {
-      cancelled = true;
-    };
   }, [
     book,
     readerService,
     libraryService,
     presenceService,
+    highlights,
     getViewer,
     epubViewer,
     pdfViewer,
-    highlights,
   ]);
 
   const value = useMemo<ReaderContextValue>(

@@ -2,6 +2,8 @@ import { EpubViewerAdapter } from '@adapters/viewers/EpubViewerAdapter';
 import type { BookMetadata } from '@domain/BookMetadata';
 import { BookFormat } from '@domain/types';
 import {
+  bootstrapEpubReaderSession,
+  bootstrapPdfReaderSession,
   bootstrapReaderBook,
   calculateInitialPageWindow,
   createStudyDocumentDescriptor,
@@ -24,20 +26,18 @@ describe('readerBootstrapper', () => {
   });
 
   it('bootstraps empty document when book is null', async () => {
-    let loadedHash = 'initial';
+    const loadHighlightsSpy = vi.fn();
     const doc = await bootstrapReaderBook(
       {
         readerService: backend,
         epubViewer: viewer,
+        highlights: { loadBookHighlights: loadHighlightsSpy },
       },
-      null,
-      (hash) => {
-        loadedHash = hash;
-      }
+      null
     );
 
     expect(doc.bookHash).toBe('');
-    expect(loadedHash).toBe('initial');
+    expect(loadHighlightsSpy).not.toHaveBeenCalled();
     expect(useReaderStore.getState().currentPage).toBe(1);
     expect(useReaderStore.getState().totalPages).toBe(1);
   });
@@ -85,15 +85,19 @@ describe('readerBootstrapper', () => {
 
     const updatePresenceSpy = vi.spyOn(backend, 'updateReadingPresence');
     const updateProgressSpy = vi.spyOn(backend, 'updateBookProgress');
+    const loadHighlightsSpy = vi.fn();
 
     await bootstrapReaderBook(
       {
         readerService: backend,
         presenceService: backend,
         epubViewer: viewer,
+        highlights: { loadBookHighlights: loadHighlightsSpy },
       },
       customBook
     );
+
+    expect(loadHighlightsSpy).toHaveBeenCalledWith('hash-socrates');
 
     // Initial load should fetch backward margin (pages 5..19) with 5, 5, 5 layout
     expect(getBookPagesSpy).toHaveBeenCalledWith('hash-socrates', 5, 15);
@@ -198,6 +202,85 @@ describe('readerBootstrapper', () => {
       expect(() => resolveDocumentViewer({ readerService: backend }, BookFormat.EPUB)).toThrow(
         'No document viewer available in dependencies'
       );
+    });
+  });
+
+  describe('extracted format session bootstrappers', () => {
+    it('bootstrapEpubReaderSession populates pages and stream readiness', async () => {
+      vi.spyOn(backend, 'getBookPages').mockResolvedValueOnce([
+        { pageNumber: 1, chapterTitle: 'Intro', paragraphs: ['P1'], cfiBase: '/6/2!' },
+      ]);
+
+      const doc = {
+        bookHash: 'epub-hash',
+        bookTitle: 'Epub Book',
+        bookAuthor: 'Author',
+        chapterTitle: 'Ch 1',
+        sampleParagraph: 'Sample',
+      };
+
+      await bootstrapEpubReaderSession(
+        { readerService: backend },
+        viewer,
+        doc,
+        { startPage: 1, count: 5 },
+        1,
+        {
+          bookHash: 'epub-hash',
+          title: 'Epub Book',
+          author: 'Author',
+          format: BookFormat.EPUB,
+          totalPages: 10,
+          currentPage: 1,
+          percentage: 10,
+          tags: [],
+          lastReadAt: new Date(),
+          updatedAt: new Date(),
+        }
+      );
+
+      expect(useReaderStore.getState().loadedPages).toHaveLength(1);
+      expect(useReaderStore.getState().isStreamReady).toBe(true);
+      expect(useReaderStore.getState().chapterTitle).toBe('Intro');
+    });
+
+    it('bootstrapPdfReaderSession loads chunk from pdfViewer and sets totalPages', async () => {
+      const mockPdfViewer = {
+        render: vi.fn().mockResolvedValue(undefined),
+        setPages: vi.fn(),
+        getPagesChunk: vi
+          .fn()
+          .mockReturnValue([
+            { pageNumber: 1, chapterTitle: 'PDF Page 1', paragraphs: ['Text'], cfiBase: '' },
+          ]),
+        getCurrentPage: vi.fn().mockReturnValue({ pageNumber: 1, totalPages: 40 }),
+        getPageProxy: vi.fn().mockResolvedValue(null),
+        renderPageCanvas: vi.fn().mockResolvedValue({ width: 100, height: 100 }),
+        renderPageTextLayer: vi.fn().mockResolvedValue(undefined),
+      };
+
+      const doc = {
+        bookHash: 'pdf-hash',
+        bookTitle: 'PDF Book',
+        bookAuthor: 'Author',
+        chapterTitle: 'PDF Page 1',
+        sampleParagraph: 'Sample',
+      };
+
+      await bootstrapPdfReaderSession(
+        {
+          readerService: backend,
+          pdfViewer: mockPdfViewer as unknown as IPdfViewer,
+        },
+        mockPdfViewer as unknown as IDocumentViewer,
+        doc,
+        { startPage: 1, count: 5 },
+        1
+      );
+
+      expect(useReaderStore.getState().totalPages).toBe(40);
+      expect(useReaderStore.getState().loadedPages).toHaveLength(1);
+      expect(useReaderStore.getState().chapterTitle).toBe('PDF Page 1');
     });
   });
 });
