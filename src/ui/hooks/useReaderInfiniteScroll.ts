@@ -1,3 +1,4 @@
+import { useReaderStore } from '@stores/useReaderStore';
 import { type RefObject, useEffect } from 'react';
 
 export function calculateScrollOffsetCompensation(
@@ -11,7 +12,6 @@ export interface UseReaderInfiniteScrollOptions {
   readonly contentAreaRef: RefObject<HTMLElement | null>;
   readonly bottomSentinelRef: RefObject<HTMLElement | null>;
   readonly topSentinelRef: RefObject<HTMLElement | null>;
-  readonly isProgrammaticScrollRef: RefObject<boolean>;
   readonly currentPage: number;
   readonly loadMorePages: (direction: 'next' | 'prev') => Promise<void>;
 }
@@ -26,7 +26,6 @@ export function useReaderInfiniteScroll({
   contentAreaRef,
   bottomSentinelRef,
   topSentinelRef,
-  isProgrammaticScrollRef,
   currentPage,
   loadMorePages,
 }: UseReaderInfiniteScrollOptions): void {
@@ -69,7 +68,7 @@ export function useReaderInfiniteScroll({
           const prevScrollHeight = container
             ? container.scrollHeight
             : document.documentElement.scrollHeight;
-          isProgrammaticScrollRef.current = true;
+          useReaderStore.getState().setIsProgrammaticScroll(true);
 
           void loadMorePages('prev').then(() => {
             window.requestAnimationFrame(() => {
@@ -81,7 +80,7 @@ export function useReaderInfiniteScroll({
                 window.scrollBy({ top: diff, behavior: 'instant' });
               }
               setTimeout(() => {
-                isProgrammaticScrollRef.current = false;
+                useReaderStore.getState().setIsProgrammaticScroll(false);
               }, 150);
             });
           });
@@ -95,5 +94,5 @@ export function useReaderInfiniteScroll({
       clearTimeout(settleTimer);
       observer.disconnect();
     };
-  }, [topSentinelRef, contentAreaRef, currentPage, isProgrammaticScrollRef, loadMorePages]);
+  }, [topSentinelRef, contentAreaRef, currentPage, loadMorePages]);
 }

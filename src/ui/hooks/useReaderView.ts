@@ -37,7 +37,6 @@ export function isImmersiveBackgroundClick(
 }
 
 export interface UseReaderViewReturn {
-  readonly isProgrammaticScrollRef: RefObject<boolean>;
   readonly scrollToPage: (pageNum: number) => void;
   readonly handleCloseReader: () => Promise<void>;
   readonly handleViewportClick: (e: React.MouseEvent<HTMLElement>) => void;
@@ -59,7 +58,6 @@ export function useReaderView(isStreamReady: boolean): UseReaderViewReturn {
     closeAllOverlays,
   } = useReaderUI();
 
-  const isProgrammaticScrollRef = useRef(true);
   const hasAlignedScrollRef = useRef(false);
 
   // Restore initial scroll position once ReaderStream is mounted and pages are loaded
@@ -76,7 +74,7 @@ export function useReaderView(isStreamReady: boolean): UseReaderViewReturn {
     // First page with no offset is naturally aligned at top
     if (targetPage <= 1 && Math.abs(offsetRatio) <= 0.0001) {
       hasAlignedScrollRef.current = true;
-      isProgrammaticScrollRef.current = false;
+      useReaderStore.getState().setIsProgrammaticScroll(false);
       return;
     }
 
@@ -87,15 +85,16 @@ export function useReaderView(isStreamReady: boolean): UseReaderViewReturn {
     }
 
     hasAlignedScrollRef.current = true;
-    isProgrammaticScrollRef.current = true;
-    setTimeout(() => {
-      isProgrammaticScrollRef.current = false;
-    }, 600);
+    useReaderStore.getState().setIsProgrammaticScroll(true);
 
     const rect = el.getBoundingClientRect();
     const targetTop = calculateScrollTargetTop(rect.top, rect.height, window.scrollY, offsetRatio);
 
     window.scrollTo({ top: targetTop, behavior: 'instant' });
+
+    setTimeout(() => {
+      useReaderStore.getState().setIsProgrammaticScroll(false);
+    }, 600);
   }, [isStreamReady]);
 
   const saveProgress = useCallback(
@@ -140,9 +139,9 @@ export function useReaderView(isStreamReady: boolean): UseReaderViewReturn {
       const { totalPages } = useReaderStore.getState();
       const target = clamp(pageNum, 1, totalPages);
 
-      isProgrammaticScrollRef.current = true;
+      useReaderStore.getState().setIsProgrammaticScroll(true);
       setTimeout(() => {
-        isProgrammaticScrollRef.current = false;
+        useReaderStore.getState().setIsProgrammaticScroll(false);
       }, 900);
 
       pagination.onPageVisible(target);
@@ -204,7 +203,6 @@ export function useReaderView(isStreamReady: boolean): UseReaderViewReturn {
   );
 
   return {
-    isProgrammaticScrollRef,
     scrollToPage,
     handleCloseReader,
     handleViewportClick,

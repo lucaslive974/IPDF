@@ -60,13 +60,8 @@ export const ReaderView = memo(function ReaderView({ bookOverride }: ReaderViewP
   const isReady = !isLoadingPages && loadedPages.length > 0;
   const showLoadingOverlay = !isReady || !isStreamReady;
 
-  const {
-    isProgrammaticScrollRef,
-    scrollToPage,
-    handleCloseReader,
-    handleViewportClick,
-    toggleChrome,
-  } = useReaderView(isReady);
+  const { scrollToPage, handleCloseReader, handleViewportClick, toggleChrome } =
+    useReaderView(isReady);
 
   return (
     <section
@@ -85,7 +80,7 @@ export const ReaderView = memo(function ReaderView({ bookOverride }: ReaderViewP
           <ReaderLoadingView document={document} />
         </div>
       )}
-      {isReady && <ReaderStream isProgrammaticScrollRef={isProgrammaticScrollRef} />}
+      {isReady && <ReaderStream />}
       <ReaderBottomBar onScrollToPage={scrollToPage} />
       <ReaderOverlays />
     </section>

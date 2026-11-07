@@ -1,4 +1,5 @@
-import { type RefObject, useEffect, useRef } from 'react';
+import { useReaderStore } from '@stores/useReaderStore';
+import { useEffect, useRef } from 'react';
 
 export interface ArticleRect {
   readonly pageNumber: number;
@@ -68,7 +69,6 @@ export function findFocalPageNumber(
 }
 
 export interface UseReaderFocalPageTrackerOptions {
-  readonly isProgrammaticScrollRef: RefObject<boolean>;
   readonly onPageVisible: (pageNumber: number) => void;
 }
 
@@ -77,7 +77,6 @@ export interface UseReaderFocalPageTrackerOptions {
  * Ignores scroll events during programmatic scrolling.
  */
 export function useReaderFocalPageTracker({
-  isProgrammaticScrollRef,
   onPageVisible,
 }: UseReaderFocalPageTrackerOptions): void {
   const onPageVisibleRef = useRef(onPageVisible);
@@ -87,13 +86,13 @@ export function useReaderFocalPageTracker({
     let ticking = false;
 
     const handleScroll = () => {
-      if (isProgrammaticScrollRef.current) {
+      if (useReaderStore.getState().isProgrammaticScroll) {
         return;
       }
 
       if (!ticking) {
         window.requestAnimationFrame(() => {
-          if (isProgrammaticScrollRef.current) {
+          if (useReaderStore.getState().isProgrammaticScroll) {
             ticking = false;
             return;
           }
@@ -135,5 +134,5 @@ export function useReaderFocalPageTracker({
     return () => {
       window.removeEventListener('scroll', handleScroll);
     };
-  }, [isProgrammaticScrollRef]);
+  }, []);
 }

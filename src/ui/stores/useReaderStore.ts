@@ -29,6 +29,7 @@ export interface ReaderState {
   readonly loadedPages: readonly DocumentPage[];
   readonly isLoadingPages: boolean;
   readonly isStreamReady: boolean;
+  readonly isProgrammaticScroll: boolean;
 
   setDocument(doc: StudyDocumentDescriptor): void;
   setCurrentPage(page: number): void;
@@ -39,6 +40,7 @@ export interface ReaderState {
   upsertPages(pages: readonly DocumentPage[]): void;
   setLoadingPages(loading: boolean): void;
   setStreamReady(ready: boolean): void;
+  setIsProgrammaticScroll(isProgrammaticScroll: boolean): void;
   reset(): void;
 }
 
@@ -51,6 +53,7 @@ export const useReaderStore = create<ReaderState>((set) => ({
   loadedPages: [],
   isLoadingPages: false,
   isStreamReady: false,
+  isProgrammaticScroll: false,
 
   setDocument: (document) =>
     set((state) => ({
@@ -89,6 +92,8 @@ export const useReaderStore = create<ReaderState>((set) => ({
 
   setStreamReady: (isStreamReady) => set({ isStreamReady }),
 
+  setIsProgrammaticScroll: (isProgrammaticScroll) => set({ isProgrammaticScroll }),
+
   reset: () =>
     set({
       document: EMPTY_DOCUMENT,
@@ -99,5 +104,6 @@ export const useReaderStore = create<ReaderState>((set) => ({
       loadedPages: [],
       isLoadingPages: false,
       isStreamReady: false,
+      isProgrammaticScroll: false,
     }),
 }));

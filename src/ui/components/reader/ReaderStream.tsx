@@ -10,16 +10,10 @@ import { useReaderZoomGestures } from '@hooks/useReaderZoomGestures';
 import type { DocumentPage } from '@ports/IReaderService';
 import { useReaderStore } from '@stores/useReaderStore';
 import { useTypographyStore } from '@stores/useTypographyStore';
-import { type RefObject, memo, useCallback, useMemo, useRef } from 'react';
+import { memo, useCallback, useMemo, useRef } from 'react';
 import { ReaderPageItem } from './ReaderPageItem';
 
-export interface ReaderStreamProps {
-  readonly isProgrammaticScrollRef: RefObject<boolean>;
-}
-
-export const ReaderStream = memo(function ReaderStream({
-  isProgrammaticScrollRef,
-}: ReaderStreamProps) {
+export const ReaderStream = memo(function ReaderStream() {
   const pagination = useReaderPagination();
   const document = useReaderStore((s) => s.document);
   const currentPage = useReaderStore((s) => s.currentPage);
@@ -38,7 +32,6 @@ export const ReaderStream = memo(function ReaderStream({
 
   // 2. Continuous Focal Page Tracking (at 35% viewport reading line)
   useReaderFocalPageTracker({
-    isProgrammaticScrollRef,
     onPageVisible: pagination.onPageVisible,
   });
 
@@ -47,7 +40,6 @@ export const ReaderStream = memo(function ReaderStream({
     contentAreaRef,
     bottomSentinelRef,
     topSentinelRef,
-    isProgrammaticScrollRef,
     currentPage,
     loadMorePages: pagination.loadMorePages,
   });
