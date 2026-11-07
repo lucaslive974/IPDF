@@ -35,6 +35,7 @@ export const ReaderPagePdf = memo(function ReaderPagePdf({
       ref={containerRef}
       data-testid={`reader-page-pdf-${pageNumber}`}
       className="relative w-full overflow-hidden bg-surface select-text min-h-75"
+      style={{ aspectRatio: '1 / 1.414' }}
     >
       {/* 1. Underlying rendered PDF Canvas */}
       <canvas

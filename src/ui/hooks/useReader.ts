@@ -10,7 +10,7 @@ import {
   type SelectionPopoverState,
   useReaderUIStore,
 } from '@stores/useReaderUIStore';
-import { useCallback, useMemo, useRef } from 'react';
+import { createContext, useCallback, useContext, useMemo, useRef } from 'react';
 import { useReaderHighlights } from './useReaderHighlights';
 import { useReaderNotesEditor } from './useReaderNotesEditor';
 import { useReaderPagination } from './useReaderPagination';
@@ -63,7 +63,17 @@ export interface ReaderViewModel {
 
 export type ReaderContextValue = ReaderViewModel;
 
-export function useReader(bookOverride?: BookMetadata | null): ReaderViewModel {
+export const ReaderContext = createContext<ReaderViewModel | null>(null);
+
+export function useReader(): ReaderViewModel {
+  const context = useContext(ReaderContext);
+  if (!context) {
+    throw new Error('useReader must be used within a ReaderContext.Provider');
+  }
+  return context;
+}
+
+export function useReaderState(bookOverride?: BookMetadata | null): ReaderViewModel {
   const { highlightService } = useServiceContainer();
   const readerHighlights = useReaderHighlights(highlightService);
 

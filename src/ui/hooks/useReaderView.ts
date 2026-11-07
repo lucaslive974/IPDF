@@ -2,7 +2,7 @@ import { useNavigation } from '@providers/NavigationContext';
 import { useReaderStore } from '@stores/useReaderStore';
 import { type RefObject, useCallback, useEffect, useRef } from 'react';
 import { useLibrary } from './useLibrary';
-import { useReader } from './useReader';
+import { type ReaderViewModel, useReaderState } from './useReader';
 import { measureCurrentPageOffsetRatio } from './useReaderFocalPageTracker';
 import { useReaderUI } from './useReaderUI';
 
@@ -47,6 +47,7 @@ export function isImmersiveBackgroundClick(
 }
 
 export interface UseReaderViewReturn {
+  readonly reader: ReaderViewModel;
   readonly isProgrammaticScrollRef: RefObject<boolean>;
   readonly scrollToPage: (pageNum: number) => void;
   readonly handleCloseReader: () => Promise<void>;
@@ -55,7 +56,7 @@ export interface UseReaderViewReturn {
 }
 
 export function useReaderView(): UseReaderViewReturn {
-  const reader = useReader();
+  const reader = useReaderState();
   const navigation = useNavigation();
   const library = useLibrary();
   const {
@@ -233,6 +234,7 @@ export function useReaderView(): UseReaderViewReturn {
   );
 
   return {
+    reader,
     isProgrammaticScrollRef,
     scrollToPage,
     handleCloseReader,

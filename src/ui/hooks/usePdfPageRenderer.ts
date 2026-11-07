@@ -1,5 +1,6 @@
 import type { Highlight } from '@domain/Highlight';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
+import { useReaderStore } from '@stores/useReaderStore';
 import { type RefObject, useEffect, useMemo, useRef, useState } from 'react';
 
 export function calculatePdfResponsiveScale(
@@ -42,9 +43,10 @@ export function usePdfPageRenderer({
   const textLayerRef = useRef<HTMLDivElement | null>(null);
   const { pdfViewer } = useServiceContainer();
 
-  // Pages 1 and 2 start near viewport to avoid any blank frame on initial book load
+  // Only the target page and immediate neighbor start near viewport to avoid rendering avalanche
   const [isNearViewport, setIsNearViewport] = useState<boolean>(() => {
-    return typeof IntersectionObserver === 'undefined' || pageNumber <= 2;
+    const targetPage = useReaderStore.getState().currentPage;
+    return typeof IntersectionObserver === 'undefined' || Math.abs(pageNumber - targetPage) <= 1;
   });
 
   // Track viewport proximity with an 800px buffer (~1 page ahead/behind)
@@ -84,11 +86,23 @@ export function usePdfPageRenderer({
     }
 
     let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+    let textLayerTimer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
     const container = containerRef.current;
+
+    const markStreamReadyIfNeeded = () => {
+      if (!useReaderStore.getState().isStreamReady) {
+        useReaderStore.getState().setStreamReady(true);
+      }
+    };
 
     const render = async () => {
       const pageProxy = await pdfViewer.getPageProxy(pageNumber);
-      if (!pageProxy || !containerRef.current) return;
+      if (cancelled) return;
+      if (!pageProxy || !containerRef.current) {
+        markStreamReadyIfNeeded();
+        return;
+      }
 
       const unscaledViewport = pageProxy.getViewport({ scale: 1.0 });
 
@@ -105,9 +119,16 @@ export function usePdfPageRenderer({
       if (canvasRef.current) {
         await pdfViewer.renderPageCanvas(pageNumber, canvasRef.current, scale);
       }
-      if (textLayerRef.current) {
-        await pdfViewer.renderPageTextLayer(pageNumber, textLayerRef.current, scale);
-      }
+      if (cancelled) return;
+
+      markStreamReadyIfNeeded();
+
+      if (textLayerTimer) clearTimeout(textLayerTimer);
+      textLayerTimer = setTimeout(() => {
+        if (!cancelled && textLayerRef.current) {
+          void pdfViewer.renderPageTextLayer(pageNumber, textLayerRef.current, scale);
+        }
+      }, 0);
     };
 
     void render();
@@ -127,7 +148,9 @@ export function usePdfPageRenderer({
     }
 
     return () => {
+      cancelled = true;
       if (resizeTimer) clearTimeout(resizeTimer);
+      if (textLayerTimer) clearTimeout(textLayerTimer);
       if (resizeObserver) resizeObserver.disconnect();
       pdfViewer.cancelPageRender?.(canvasRef.current, textLayerRef.current);
     };

@@ -1,5 +1,5 @@
-import { useReader } from '@hooks/useReader';
 import { useReaderUI } from '@hooks/useReaderUI';
+import { useReaderStore } from '@stores/useReaderStore';
 import { memo, useEffect, useRef, useState } from 'react';
 
 export interface ReaderBottomBarProps {
@@ -9,17 +9,18 @@ export interface ReaderBottomBarProps {
 export const ReaderBottomBar = memo(function ReaderBottomBar({
   onScrollToPage,
 }: ReaderBottomBarProps) {
-  const reader = useReader();
+  const currentPage = useReaderStore((s) => s.currentPage);
+  const totalPages = useReaderStore((s) => s.totalPages);
   const { isChromeVisible } = useReaderUI();
 
-  const [pageInputValue, setPageInputValue] = useState<string>(String(reader.currentPage));
+  const [pageInputValue, setPageInputValue] = useState<string>(String(currentPage));
   const isPageInputFocusedRef = useRef(false);
 
   useEffect(() => {
     if (!isPageInputFocusedRef.current) {
-      setPageInputValue(String(reader.currentPage));
+      setPageInputValue(String(currentPage));
     }
-  }, [reader.currentPage]);
+  }, [currentPage]);
 
   return (
     <>
@@ -47,7 +48,7 @@ export const ReaderBottomBar = memo(function ReaderBottomBar({
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 const target = Number.parseInt(pageInputValue, 10);
-                if (!Number.isNaN(target) && target >= 1 && target <= reader.totalPages) {
+                if (!Number.isNaN(target) && target >= 1 && target <= totalPages) {
                   onScrollToPage(target);
                   (e.target as HTMLInputElement).blur();
                 }
@@ -56,24 +57,24 @@ export const ReaderBottomBar = memo(function ReaderBottomBar({
             onBlur={() => {
               isPageInputFocusedRef.current = false;
               const target = Number.parseInt(pageInputValue, 10);
-              if (!Number.isNaN(target) && target >= 1 && target <= reader.totalPages) {
-                if (target !== reader.currentPage) {
+              if (!Number.isNaN(target) && target >= 1 && target <= totalPages) {
+                if (target !== currentPage) {
                   onScrollToPage(target);
                 }
               } else {
-                setPageInputValue(String(reader.currentPage));
+                setPageInputValue(String(currentPage));
               }
             }}
             className="w-14 rounded-md border border-line-subtle/80 bg-surface-subtle/80 px-2 py-0.5 text-center font-mono text-xs font-medium text-tx-main focus:border-line-strong outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             aria-label="Direct page number jump"
           />
-          <span className="text-tx-muted font-mono text-[0.7rem]">of {reader.totalPages}</span>
+          <span className="text-tx-muted font-mono text-[0.7rem]">of {totalPages}</span>
         </div>
       </footer>
 
       {!isChromeVisible && (
         <div className="fixed bottom-3 right-4 z-20 text-[0.65rem] font-mono text-tx-faint/60 select-none pointer-events-none transition-opacity duration-300">
-          {reader.currentPage} / {reader.totalPages}
+          {currentPage} / {totalPages}
         </div>
       )}
     </>

@@ -1,6 +1,6 @@
-import { useReader } from '@hooks/useReader';
 import { useReaderUI } from '@hooks/useReaderUI';
 import { useNavigation } from '@providers/NavigationContext';
+import { useReaderStore } from '@stores/useReaderStore';
 import { useTypographyStore } from '@stores/useTypographyStore';
 import { ArrowLeftIcon, Button, IconButton, SettingsIcon } from '@ui';
 import { memo } from 'react';
@@ -11,7 +11,10 @@ export interface ReaderHeaderProps {
 }
 
 export const ReaderHeader = memo(function ReaderHeader({ onClose }: ReaderHeaderProps) {
-  const reader = useReader();
+  const document = useReaderStore((s) => s.document);
+  const chapterTitle = useReaderStore((s) => s.chapterTitle);
+  const currentPage = useReaderStore((s) => s.currentPage);
+  const totalPages = useReaderStore((s) => s.totalPages);
   const navigation = useNavigation();
   const { isChromeVisible } = useReaderUI();
   const toggleAppearancePopover = useTypographyStore((s) => s.toggleAppearancePopover);
@@ -35,12 +38,12 @@ export const ReaderHeader = memo(function ReaderHeader({ onClose }: ReaderHeader
         </Button>
         <div className="hidden sm:flex flex-col">
           <span className="text-xs font-medium text-tx-main">
-            {isValidAuthor(reader.document.bookAuthor)
-              ? `${reader.document.bookAuthor} \u2014 ${reader.document.bookTitle}`
-              : reader.document.bookTitle}
+            {isValidAuthor(document.bookAuthor)
+              ? `${document.bookAuthor} \u2014 ${document.bookTitle}`
+              : document.bookTitle}
           </span>
           <span className="text-[0.68rem] text-tx-muted">
-            {reader.chapterTitle || reader.document.chapterTitle}
+            {chapterTitle || document.chapterTitle}
           </span>
         </div>
       </div>
@@ -48,7 +51,7 @@ export const ReaderHeader = memo(function ReaderHeader({ onClose }: ReaderHeader
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-2 rounded-full border border-line-subtle/70 bg-surface/60 px-3 py-0.5 text-xs text-tx-secondary">
           <span className="font-mono text-[0.68rem] text-tx-muted">
-            Page {reader.currentPage} of {reader.totalPages}
+            Page {currentPage} of {totalPages}
           </span>
         </div>
         <IconButton

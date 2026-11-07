@@ -143,13 +143,16 @@ export async function bootstrapReaderBook(
   onBookLoaded?: (hash: string) => Promise<void> | void
 ): Promise<StudyDocumentDescriptor> {
   const store = deps.store ?? useReaderStore;
+  store.getState().setLoadedPages([]);
   store.getState().setLoadingPages(true);
+  store.getState().setStreamReady(false);
 
   const doc = createStudyDocumentDescriptor(book);
   store.getState().setDocument(doc);
 
   if (!doc.bookHash) {
     store.getState().setLoadingPages(false);
+    store.getState().setStreamReady(true);
     return doc;
   }
 
@@ -168,29 +171,20 @@ export async function bootstrapReaderBook(
   const window = calculateInitialPageWindow(initialPage, book?.totalPages);
 
   try {
-    const pages = await deps.readerService.getBookPages(
-      doc.bookHash,
-      window.startPage,
-      window.count
-    );
-
-    if (pages.length > 0) {
-      store.getState().setLoadedPages(pages);
-      const active = pages.find((p) => p.pageNumber === initialPage) ?? pages[0];
-      if (active?.chapterTitle) {
-        store.getState().setChapterTitle(active.chapterTitle);
-      }
-      viewer.setPages(pages);
-      if (book?.totalPages) {
-        store.getState().setTotalPages(book.totalPages);
-      }
-    }
-
     if (format === BookFormat.PDF) {
       await renderDocumentInViewer(viewer, deps.readerService, doc.bookHash, format);
 
       const pdfViewer = resolvePdfViewer(deps);
-      const chunk = pdfViewer.getPagesChunk(window.startPage, window.count);
+      const info = pdfViewer.getCurrentPage();
+      if (info.totalPages > 0) {
+        store.getState().setTotalPages(info.totalPages);
+      }
+
+      let chunk = pdfViewer.getPagesChunk(window.startPage, window.count);
+      if (chunk.length === 0) {
+        chunk = await deps.readerService.getBookPages(doc.bookHash, window.startPage, window.count);
+      }
+
       if (chunk.length > 0) {
         store.getState().setLoadedPages(chunk);
         const active = chunk.find((p) => p.pageNumber === initialPage) ?? chunk[0];
@@ -198,21 +192,42 @@ export async function bootstrapReaderBook(
           store.getState().setChapterTitle(active.chapterTitle);
         }
       }
-      const info = pdfViewer.getCurrentPage();
-      if (info.totalPages > 0) {
-        store.getState().setTotalPages(info.totalPages);
+
+      void extractAndSyncPdfCover(pdfViewer, doc, deps.libraryService).then((coverUrl) => {
+        if (coverUrl && coverUrl !== doc.coverImageUrl) {
+          const currentDoc = store.getState().document;
+          if (currentDoc.bookHash === doc.bookHash) {
+            store.getState().setDocument({ ...currentDoc, coverImageUrl: coverUrl });
+          }
+        }
+      });
+    } else {
+      const pages = await deps.readerService.getBookPages(
+        doc.bookHash,
+        window.startPage,
+        window.count
+      );
+
+      if (pages.length > 0) {
+        store.getState().setLoadedPages(pages);
+        const active = pages.find((p) => p.pageNumber === initialPage) ?? pages[0];
+        if (active?.chapterTitle) {
+          store.getState().setChapterTitle(active.chapterTitle);
+        }
+        viewer.setPages(pages);
+        if (book?.totalPages) {
+          store.getState().setTotalPages(book.totalPages);
+        }
+      } else {
+        // Fallback for EPUB if the backend did not return any pre-paginated pages
+        await renderDocumentInViewer(viewer, deps.readerService, doc.bookHash, format);
       }
 
-      const coverUrl = await extractAndSyncPdfCover(pdfViewer, doc, deps.libraryService);
-      if (coverUrl && coverUrl !== doc.coverImageUrl) {
-        store.getState().setDocument({ ...doc, coverImageUrl: coverUrl });
-      }
-    } else if (pages.length === 0) {
-      // Fallback for EPUB if the backend did not return any pre-paginated pages
-      await renderDocumentInViewer(viewer, deps.readerService, doc.bookHash, format);
+      store.getState().setStreamReady(true);
     }
   } catch (err) {
     console.warn('Failed to load book pages in reader:', err);
+    store.getState().setStreamReady(true);
   } finally {
     store.getState().setLoadingPages(false);
   }
