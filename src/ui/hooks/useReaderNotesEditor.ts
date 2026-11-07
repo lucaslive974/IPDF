@@ -1,20 +1,11 @@
-import type { Highlight } from '@domain/Highlight';
 import type { TextFormatStyle } from '@domain/types';
 import type { IReaderService } from '@ports/IReaderService';
+import { useReader } from '@providers/ReaderContext';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
-import type { StudyDocumentDescriptor } from '@stores/useReaderStore';
+import { useHighlightStore } from '@stores/useHighlightStore';
+import { type StudyDocumentDescriptor, useReaderStore } from '@stores/useReaderStore';
 import { formatMarkdownSelection } from '@utils/markdownFormatting';
 import { useCallback, useMemo, useState } from 'react';
-
-export interface UseReaderNotesEditorOptions {
-  readonly document: StudyDocumentDescriptor;
-  readonly highlights: readonly Highlight[];
-  readonly selectedId: string | null;
-  readonly noteInput: string;
-  readonly setNoteInput: (value: string) => void;
-  readonly updateHighlightNote: (id: string, note: string) => Promise<void>;
-  readonly onFormatApplied?: (id: string) => Promise<void> | void;
-}
 
 export interface ReaderNotesEditorState {
   readonly noteInput: string;
@@ -67,18 +58,15 @@ export function createReaderNotesEditorController(
   };
 }
 
-export function useReaderNotesEditor(options: UseReaderNotesEditorOptions): ReaderNotesEditorState {
-  const {
-    document,
-    highlights,
-    selectedId,
-    noteInput,
-    setNoteInput,
-    updateHighlightNote,
-    onFormatApplied,
-  } = options;
-
+export function useReaderNotesEditor(): ReaderNotesEditorState {
+  const { highlights: readerHighlights } = useReader();
   const { readerService } = useServiceContainer();
+  const document = useReaderStore((s) => s.document);
+  const highlights = useHighlightStore((s) => s.highlights);
+  const selectedId = useHighlightStore((s) => s.selectedHighlightId);
+  const noteInput = useHighlightStore((s) => s.noteInput);
+  const setNoteInput = useHighlightStore((s) => s.setNoteInput);
+
   const controller = useMemo(
     () => createReaderNotesEditorController({ readerService }),
     [readerService]
@@ -94,10 +82,10 @@ export function useReaderNotesEditor(options: UseReaderNotesEditorOptions): Read
     (value: string) => {
       setNoteInput(value);
       if (selectedId) {
-        void updateHighlightNote(selectedId, value);
+        void readerHighlights.updateHighlightNote(selectedId, value);
       }
     },
-    [selectedId, setNoteInput, updateHighlightNote]
+    [readerHighlights, selectedId, setNoteInput]
   );
 
   const updateSelectionRange = useCallback((start: number, end: number) => {
@@ -111,20 +99,9 @@ export function useReaderNotesEditor(options: UseReaderNotesEditorOptions): Read
       const formatted = controller.formatDraft(noteInput, selectionRange, style);
       setNoteInput(formatted);
       setSelectionRange({ start: 0, end: 0 });
-      await updateHighlightNote(selectedId, formatted);
-      if (onFormatApplied) {
-        await onFormatApplied(selectedId);
-      }
+      await readerHighlights.updateHighlightNote(selectedId, formatted);
     },
-    [
-      controller,
-      noteInput,
-      onFormatApplied,
-      selectedId,
-      selectionRange,
-      setNoteInput,
-      updateHighlightNote,
-    ]
+    [controller, noteInput, readerHighlights, selectedId, selectionRange, setNoteInput]
   );
 
   const generateContextualPrompt = useCallback(

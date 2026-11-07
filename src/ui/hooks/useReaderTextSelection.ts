@@ -1,7 +1,10 @@
 import type { Highlight } from '@domain/Highlight';
+import { useReader } from '@providers/ReaderContext';
+import { useHighlightStore } from '@stores/useHighlightStore';
+import { useReaderStore } from '@stores/useReaderStore';
 import { useReaderUIStore } from '@stores/useReaderUIStore';
 import { getExpandedWordSelection } from '@utils/domSelection';
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { ReaderHighlightsController } from './useReaderHighlights';
 
 export const createEmptyRect = (): DOMRect =>
@@ -16,14 +19,6 @@ export const createEmptyRect = (): DOMRect =>
     left: 0,
     toJSON: () => ({}),
   }) as DOMRect;
-
-export interface UseReaderTextSelectionOptions {
-  readonly bookHash: string;
-  readonly sampleParagraph: string;
-  readonly currentPage: number;
-  readonly readerHighlights: ReaderHighlightsController;
-  readonly onHighlightCreated?: (highlight: Highlight, pageNumber: number) => Promise<void> | void;
-}
 
 export interface ReaderTextSelectionState {
   createHighlightWithColor(
@@ -84,44 +79,37 @@ export function createReaderTextSelectionController(
   };
 }
 
-export function useReaderTextSelection(
-  options: UseReaderTextSelectionOptions
-): ReaderTextSelectionState {
-  const { bookHash, sampleParagraph, currentPage, readerHighlights, onHighlightCreated } = options;
-
-  const controller = useMemo(
-    () =>
-      createReaderTextSelectionController({
-        bookHash,
-        sampleParagraph,
-        readerHighlights,
-      }),
-    [bookHash, sampleParagraph, readerHighlights]
-  );
-
+export function useReaderTextSelection(): ReaderTextSelectionState {
+  const { highlights: readerHighlights } = useReader();
+  const bookHash = useReaderStore((s) => s.document.bookHash);
+  const sampleParagraph = useReaderStore((s) => s.document.sampleParagraph);
   const selectionPopover = useReaderUIStore((s) => s.selectionPopover);
   const setSelectionPopover = useReaderUIStore((s) => s.setSelectionPopover);
-  const onHighlightCreatedRef = useRef(onHighlightCreated);
-  onHighlightCreatedRef.current = onHighlightCreated;
+  const setSelectedHighlightId = useHighlightStore((s) => s.setSelectedHighlightId);
+
+  const controller = useMemo(
+    () => createReaderTextSelectionController({ bookHash, sampleParagraph, readerHighlights }),
+    [bookHash, sampleParagraph, readerHighlights]
+  );
 
   const createHighlightWithColor = useCallback(
     async (
       colorHex: string,
       overrideText?: string,
       initialNote?: string,
-      pageNumber = currentPage
+      pageNumber?: number
     ): Promise<Highlight | null> => {
       const browserSel =
         typeof window !== 'undefined' ? getExpandedWordSelection(window.getSelection()) : '';
       const selected = overrideText?.trim() || selectionPopover?.text?.trim() || browserSel || '';
+      const targetPage = pageNumber ?? useReaderStore.getState().currentPage;
 
       const created = await controller.createHighlight(
         colorHex,
         selected,
-        pageNumber,
+        targetPage,
         initialNote ?? ''
       );
-
       if (!created) {
         return null;
       }
@@ -130,14 +118,10 @@ export function useReaderTextSelection(
         window.getSelection()?.removeAllRanges();
       }
       setSelectionPopover(null);
-
-      if (onHighlightCreatedRef.current) {
-        await onHighlightCreatedRef.current(created, pageNumber);
-      }
-
+      setSelectedHighlightId(created.id);
       return created;
     },
-    [controller, currentPage, selectionPopover, setSelectionPopover]
+    [controller, selectionPopover, setSelectionPopover, setSelectedHighlightId]
   );
 
   const createHighlightFromCurrentSelection = useCallback(

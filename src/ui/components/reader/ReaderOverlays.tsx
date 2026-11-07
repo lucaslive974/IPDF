@@ -1,5 +1,7 @@
-import { useReader } from '@hooks/useReader';
+import { useReaderNotesEditor } from '@hooks/useReaderNotesEditor';
+import { useReaderTextSelection } from '@hooks/useReaderTextSelection';
 import { useReaderUI } from '@hooks/useReaderUI';
+import { useReaderStore } from '@stores/useReaderStore';
 import { useTypographyStore } from '@stores/useTypographyStore';
 import { memo } from 'react';
 import { ExplainDialog } from '../ExplainDialog';
@@ -11,8 +13,17 @@ import { TranslateDialog } from '../TranslateDialog';
 import { ReaderAppearancePopover } from './ReaderAppearancePopover';
 
 export const ReaderOverlays = memo(function ReaderOverlays() {
-  const reader = useReader();
+  const document = useReaderStore((s) => s.document);
+  const { createHighlightWithColor } = useReaderTextSelection();
+  const notes = useReaderNotesEditor();
   const {
+    activeHighlightPopover,
+    expandedHighlight,
+    openExpandedStudio,
+    closeHighlightPopover,
+    closeExpandedStudio,
+    changeHighlightColor,
+    deleteHighlight,
     contextMenu,
     activeNoteDialog,
     activeExplainDialog,
@@ -47,7 +58,7 @@ export const ReaderOverlays = memo(function ReaderOverlays() {
           y={contextMenu.y}
           isOpen={true}
           onHighlightColor={(color) => {
-            void reader.createHighlightWithColor(
+            void createHighlightWithColor(
               color,
               contextMenu.text,
               undefined,
@@ -87,7 +98,7 @@ export const ReaderOverlays = memo(function ReaderOverlays() {
           isOpen={true}
           text={activeNoteDialog.text}
           onSave={(color, note) => {
-            void reader.createHighlightWithColor(
+            void createHighlightWithColor(
               color,
               activeNoteDialog.text,
               note,
@@ -96,16 +107,14 @@ export const ReaderOverlays = memo(function ReaderOverlays() {
             setActiveNoteDialog(null);
           }}
           onOpenStudio={() => {
-            void reader
-              .createHighlightWithColor(
-                '#d97706',
-                activeNoteDialog.text,
-                '',
-                activeNoteDialog.pageNumber
-              )
-              .then((hl) => {
-                if (hl) reader.openExpandedStudio(hl);
-              });
+            void createHighlightWithColor(
+              '#d97706',
+              activeNoteDialog.text,
+              '',
+              activeNoteDialog.pageNumber
+            ).then((hl) => {
+              if (hl) openExpandedStudio(hl);
+            });
             setActiveNoteDialog(null);
           }}
           onClose={() => setActiveNoteDialog(null)}
@@ -117,9 +126,9 @@ export const ReaderOverlays = memo(function ReaderOverlays() {
         <ExplainDialog
           isOpen={true}
           text={activeExplainDialog.text}
-          bookTitle={`${reader.document.bookTitle} (${reader.document.chapterTitle})`}
+          bookTitle={`${document.bookTitle} (${document.chapterTitle})`}
           onSaveAsAnnotation={(explanation) => {
-            void reader.createHighlightWithColor(
+            void createHighlightWithColor(
               '#7c3aed',
               activeExplainDialog.text,
               `[IA Explanation]: ${explanation}`,
@@ -137,7 +146,7 @@ export const ReaderOverlays = memo(function ReaderOverlays() {
           isOpen={true}
           text={activeTranslateDialog.text}
           onSaveAsNote={(translation) => {
-            void reader.createHighlightWithColor(
+            void createHighlightWithColor(
               '#0284c7',
               activeTranslateDialog.text,
               `[Tradução]: ${translation}`,
@@ -150,42 +159,37 @@ export const ReaderOverlays = memo(function ReaderOverlays() {
       )}
 
       {/* 5. Floating Highlight Quick Popover */}
-      {reader.activeHighlightPopover && (
+      {activeHighlightPopover && (
         <HighlightPopover
-          highlight={reader.activeHighlightPopover.highlight}
-          x={reader.activeHighlightPopover.x}
-          y={reader.activeHighlightPopover.y}
-          noteDraft={reader.noteInput}
-          onNoteChange={reader.updateNoteDraft}
+          highlight={activeHighlightPopover.highlight}
+          x={activeHighlightPopover.x}
+          y={activeHighlightPopover.y}
+          noteDraft={notes.noteInput}
+          onNoteChange={notes.updateNoteDraft}
           onChangeColor={(color) =>
-            void reader.changeHighlightColor(
-              reader.activeHighlightPopover?.highlight.id ?? '',
-              color
-            )
+            void changeHighlightColor(activeHighlightPopover?.highlight.id ?? '', color)
           }
-          onDelete={() =>
-            void reader.deleteHighlight(reader.activeHighlightPopover?.highlight.id ?? '')
-          }
+          onDelete={() => void deleteHighlight(activeHighlightPopover?.highlight.id ?? '')}
           onExpand={() => {
-            if (reader.activeHighlightPopover) {
-              reader.openExpandedStudio(reader.activeHighlightPopover.highlight);
+            if (activeHighlightPopover) {
+              openExpandedStudio(activeHighlightPopover.highlight);
             }
           }}
-          onClose={reader.closeHighlightPopover}
+          onClose={closeHighlightPopover}
         />
       )}
 
       {/* 6. Dedicated Expanded Studio Modal */}
-      {reader.expandedHighlight && (
+      {expandedHighlight && (
         <HighlightDetailModal
-          highlight={reader.expandedHighlight}
-          noteInput={reader.noteInput}
-          llmPromptPreview={reader.llmPromptPreview}
-          onNoteChange={reader.updateNoteDraft}
-          onSelectionChange={reader.updateSelectionRange}
-          onApplyFormat={(style) => void reader.applyAssistedFormat(style)}
-          onGeneratePrompt={() => void reader.generateContextualPrompt()}
-          onClose={reader.closeExpandedStudio}
+          highlight={expandedHighlight}
+          noteInput={notes.noteInput}
+          llmPromptPreview={notes.llmPromptPreview}
+          onNoteChange={notes.updateNoteDraft}
+          onSelectionChange={notes.updateSelectionRange}
+          onApplyFormat={(style) => void notes.applyAssistedFormat(style)}
+          onGeneratePrompt={() => void notes.generateContextualPrompt()}
+          onClose={closeExpandedStudio}
         />
       )}
     </>

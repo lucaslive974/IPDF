@@ -1,8 +1,8 @@
 import { useNavigation } from '@providers/NavigationContext';
+import { useReader } from '@providers/ReaderContext';
 import { useReaderStore } from '@stores/useReaderStore';
 import { type RefObject, useCallback, useEffect, useRef } from 'react';
 import { useLibrary } from './useLibrary';
-import { type ReaderViewModel, useReaderState } from './useReader';
 import { measureCurrentPageOffsetRatio } from './useReaderFocalPageTracker';
 import { useReaderUI } from './useReaderUI';
 
@@ -47,7 +47,6 @@ export function isImmersiveBackgroundClick(
 }
 
 export interface UseReaderViewReturn {
-  readonly reader: ReaderViewModel;
   readonly isProgrammaticScrollRef: RefObject<boolean>;
   readonly scrollToPage: (pageNum: number) => void;
   readonly handleCloseReader: () => Promise<void>;
@@ -56,7 +55,9 @@ export interface UseReaderViewReturn {
 }
 
 export function useReaderView(): UseReaderViewReturn {
-  const reader = useReaderState();
+  const { pagination } = useReader();
+  const bookHash = useReaderStore((s) => s.document.bookHash);
+  const loadedPages = useReaderStore((s) => s.loadedPages);
   const navigation = useNavigation();
   const library = useLibrary();
   const {
@@ -65,6 +66,8 @@ export function useReaderView(): UseReaderViewReturn {
     activeNoteDialog,
     activeExplainDialog,
     activeTranslateDialog,
+    activeHighlightPopover,
+    expandedHighlight,
     closeAllOverlays,
   } = useReaderUI();
 
@@ -83,7 +86,6 @@ export function useReaderView(): UseReaderViewReturn {
 
   // Restore initial scroll position to the target page when opening a book
   useEffect(() => {
-    const bookHash = reader.document.bookHash;
     const { currentPage: targetPage, pageOffsetRatio } = useReaderStore.getState();
     const offsetRatio = pageOffsetRatio || 0.0;
     if (
@@ -94,7 +96,7 @@ export function useReaderView(): UseReaderViewReturn {
       return;
     }
 
-    const hasTargetPage = reader.loadedPages.some((p) => p.pageNumber === targetPage);
+    const hasTargetPage = loadedPages.some((p) => p.pageNumber === targetPage);
     if (!hasTargetPage) {
       return;
     }
@@ -117,7 +119,7 @@ export function useReaderView(): UseReaderViewReturn {
         return () => clearTimeout(timer);
       }
     }
-  }, [reader.document.bookHash, reader.loadedPages]);
+  }, [bookHash, loadedPages]);
 
   // Sync reading progress to library and backend on departure
   const lastSavedStateRef = useRef<ReadingProgressState | null>(null);
@@ -166,7 +168,8 @@ export function useReaderView(): UseReaderViewReturn {
   // Smooth Page Scrolling Navigation
   const scrollToPage = useCallback(
     (pageNum: number) => {
-      const target = Math.max(1, Math.min(reader.totalPages, pageNum));
+      const { totalPages } = useReaderStore.getState();
+      const target = Math.max(1, Math.min(totalPages, pageNum));
       isProgrammaticScrollRef.current = true;
       if (programmaticScrollTimeoutRef.current) {
         clearTimeout(programmaticScrollTimeoutRef.current);
@@ -175,7 +178,7 @@ export function useReaderView(): UseReaderViewReturn {
         isProgrammaticScrollRef.current = false;
       }, 900);
 
-      reader.onPageVisible(target);
+      pagination.onPageVisible(target);
 
       if (target === 1) {
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -186,7 +189,7 @@ export function useReaderView(): UseReaderViewReturn {
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } else {
-        void reader.goToPage(target).then(() => {
+        void pagination.goToPage(target).then(() => {
           window.requestAnimationFrame(() => {
             if (target === 1) {
               window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -198,7 +201,7 @@ export function useReaderView(): UseReaderViewReturn {
         });
       }
     },
-    [reader]
+    [pagination]
   );
 
   // Immersive Click / Tap Toggle for Chrome
@@ -209,8 +212,8 @@ export function useReaderView(): UseReaderViewReturn {
           activeNoteDialog ||
           activeExplainDialog ||
           activeTranslateDialog ||
-          reader.activeHighlightPopover ||
-          reader.expandedHighlight
+          activeHighlightPopover ||
+          expandedHighlight
       );
 
       const selection = window.getSelection();
@@ -227,14 +230,13 @@ export function useReaderView(): UseReaderViewReturn {
       activeNoteDialog,
       activeTranslateDialog,
       contextMenu,
-      reader.activeHighlightPopover,
-      reader.expandedHighlight,
+      activeHighlightPopover,
+      expandedHighlight,
       toggleChrome,
     ]
   );
 
   return {
-    reader,
     isProgrammaticScrollRef,
     scrollToPage,
     handleCloseReader,

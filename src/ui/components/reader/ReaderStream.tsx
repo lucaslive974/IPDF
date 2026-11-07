@@ -1,12 +1,14 @@
 import type { Highlight } from '@domain/Highlight';
 import { BookFormat } from '@domain/types';
-import { useReader } from '@hooks/useReader';
 import { useReaderFocalPageTracker } from '@hooks/useReaderFocalPageTracker';
+import { useHighlightsByPage } from '@hooks/useReaderHighlights';
 import { useReaderInfiniteScroll } from '@hooks/useReaderInfiniteScroll';
 import { useReaderStreamContextMenu } from '@hooks/useReaderStreamContextMenu';
 import { useReaderUI } from '@hooks/useReaderUI';
 import { useReaderZoomGestures } from '@hooks/useReaderZoomGestures';
 import type { DocumentPage } from '@ports/IReaderService';
+import { useReader } from '@providers/ReaderContext';
+import { useReaderStore } from '@stores/useReaderStore';
 import { useTypographyStore } from '@stores/useTypographyStore';
 import { type RefObject, memo, useCallback, useMemo, useRef } from 'react';
 import { ReaderPageItem } from './ReaderPageItem';
@@ -18,7 +20,12 @@ export interface ReaderStreamProps {
 export const ReaderStream = memo(function ReaderStream({
   isProgrammaticScrollRef,
 }: ReaderStreamProps) {
-  const reader = useReader();
+  const { pagination } = useReader();
+  const document = useReaderStore((s) => s.document);
+  const currentPage = useReaderStore((s) => s.currentPage);
+  const totalPages = useReaderStore((s) => s.totalPages);
+  const loadedPages = useReaderStore((s) => s.loadedPages);
+  const getHighlightsForPage = useHighlightsByPage();
   const { openHighlightPopover } = useReaderUI();
   const zoomLevel = useTypographyStore((s) => s.zoomLevel);
 
@@ -32,7 +39,7 @@ export const ReaderStream = memo(function ReaderStream({
   // 2. Continuous Focal Page Tracking (at 35% viewport reading line)
   useReaderFocalPageTracker({
     isProgrammaticScrollRef,
-    onPageVisible: reader.onPageVisible,
+    onPageVisible: pagination.onPageVisible,
   });
 
   // 3. Bidirectional Infinite Scroll with Scroll Anchoring
@@ -41,24 +48,24 @@ export const ReaderStream = memo(function ReaderStream({
     bottomSentinelRef,
     topSentinelRef,
     isProgrammaticScrollRef,
-    currentPage: reader.currentPage,
-    loadMorePages: reader.loadMorePages,
+    currentPage,
+    loadMorePages: pagination.loadMorePages,
   });
 
   // 4. Right-Click Context Menu for Selection and Highlights
   const { handleHighlightContextMenu } = useReaderStreamContextMenu({
     contentAreaRef,
-    currentPage: reader.currentPage,
+    currentPage,
   });
 
   // Strict ascending order and deduplication of pages
   const sortedPages = useMemo(() => {
     const pageMap = new Map<number, DocumentPage>();
-    for (const p of reader.loadedPages) {
+    for (const p of loadedPages) {
       pageMap.set(p.pageNumber, p);
     }
     return Array.from(pageMap.values()).sort((a, b) => a.pageNumber - b.pageNumber);
-  }, [reader.loadedPages]);
+  }, [loadedPages]);
 
   const handleHighlightClick = useCallback(
     (highlight: Highlight, coords: { x: number; y: number }) => {
@@ -67,7 +74,7 @@ export const ReaderStream = memo(function ReaderStream({
     [openHighlightPopover]
   );
 
-  const isPdf = reader.document.format === BookFormat.PDF;
+  const isPdf = document.format === BookFormat.PDF;
 
   return (
     <main
@@ -97,12 +104,12 @@ export const ReaderStream = memo(function ReaderStream({
           <ReaderPageItem
             key={`page-${page.pageNumber}`}
             page={page}
-            totalPages={reader.totalPages}
-            bookTitle={reader.document.bookTitle}
-            bookAuthor={reader.document.bookAuthor}
-            coverImageUrl={reader.document.coverImageUrl}
-            bookFormat={reader.document.format ?? BookFormat.EPUB}
-            highlights={reader.getHighlightsForPage(page.pageNumber)}
+            totalPages={totalPages}
+            bookTitle={document.bookTitle}
+            bookAuthor={document.bookAuthor}
+            coverImageUrl={document.coverImageUrl}
+            bookFormat={document.format ?? BookFormat.EPUB}
+            highlights={getHighlightsForPage(page.pageNumber)}
             onHighlightClick={handleHighlightClick}
             onHighlightContextMenu={handleHighlightContextMenu}
           />
@@ -110,7 +117,7 @@ export const ReaderStream = memo(function ReaderStream({
 
         {/* Bottom sentinel: triggers next 5 pages on demand before reaching bottom */}
         <div ref={bottomSentinelRef} className="h-16 w-full flex items-center justify-center">
-          {reader.currentPage < reader.totalPages && (
+          {currentPage < totalPages && (
             <span className="text-xs text-tx-faint animate-pulse">Loading next pages...</span>
           )}
         </div>

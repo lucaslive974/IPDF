@@ -8,28 +8,7 @@ import {
   resolvePdfViewer,
 } from '@hooks/readerBootstrapper';
 import type { DocumentPage } from '@ports/IReaderService';
-import { useServiceContainer } from '@providers/ServiceContainerContext';
-import { type StudyDocumentDescriptor, useReaderStore } from '@stores/useReaderStore';
-import { useCallback, useMemo, useRef } from 'react';
-
-export interface UseReaderPaginationOptions {
-  readonly onPageChanged?: (pageNumber: number) => Promise<void> | void;
-}
-
-export interface ReaderPaginationState {
-  readonly document: StudyDocumentDescriptor;
-  readonly currentPage: number;
-  readonly totalPages: number;
-  readonly chapterTitle: string;
-  readonly paragraphs: readonly string[];
-  readonly loadedPages: readonly DocumentPage[];
-  readonly isLoadingPages: boolean;
-
-  navigatePage(delta: number): Promise<void>;
-  goToPage(targetPage: number): Promise<void>;
-  loadMorePages(direction: 'next' | 'prev'): Promise<void>;
-  onPageVisible(pageNumber: number): void;
-}
+import { useReaderStore } from '@stores/useReaderStore';
 
 export type ReaderPaginationDependencies = Omit<ReaderBootstrapDependencies, 'libraryService'>;
 
@@ -183,163 +162,92 @@ export function createReaderPaginationController(
     }
   };
 
-  return {
-    loadMorePages: loadMorePagesInternal,
-
-    onPageVisible(pageNumber: number) {
-      const state = store.getState();
-      const previousPage = state.currentPage;
-      if (pageNumber !== previousPage) {
-        store.getState().setCurrentPage(pageNumber);
-        const visible = state.loadedPages.find((p) => p.pageNumber === pageNumber);
-        if (visible?.chapterTitle) {
-          store.getState().setChapterTitle(visible.chapterTitle);
-        }
-        void deps.presenceService?.updateReadingPresence({
-          bookHash: state.document.bookHash,
-          bookTitle: state.document.bookTitle,
-          bookAuthor: state.document.bookAuthor,
-          chapterTitle: visible?.chapterTitle ?? state.chapterTitle,
-          currentPage: pageNumber,
-          totalPages: state.totalPages,
-        });
+  const onPageVisible = (pageNumber: number): void => {
+    const state = store.getState();
+    const previousPage = state.currentPage;
+    if (pageNumber !== previousPage) {
+      store.getState().setCurrentPage(pageNumber);
+      const visible = state.loadedPages.find((p) => p.pageNumber === pageNumber);
+      if (visible?.chapterTitle) {
+        store.getState().setChapterTitle(visible.chapterTitle);
       }
-
-      const prefetchDirection = determinePrefetchDirection(
-        pageNumber,
-        previousPage,
-        state.loadedPages,
-        state.totalPages
-      );
-      if (prefetchDirection) {
-        void loadMorePagesInternal(prefetchDirection);
-      }
-    },
-
-    async goToPage(targetPage: number, onPageChanged) {
-      const state = store.getState();
-      const next = clampPageNumber(targetPage, state.totalPages);
-      store.getState().setCurrentPage(next);
-
-      const exists = state.loadedPages.some((p) => p.pageNumber === next);
-      if (!exists) {
-        const window = calculateTargetPageWindow(next, state.totalPages);
-        const pages = await deps.readerService.getBookPages(
-          state.document.bookHash,
-          window.startPage,
-          window.count
-        );
-        if (pages.length > 0) {
-          store.getState().upsertPages(pages);
-          const active = pages.find((p) => p.pageNumber === next) ?? pages[0];
-          if (active?.chapterTitle) {
-            store.getState().setChapterTitle(active.chapterTitle);
-          }
-        }
-      } else {
-        const active = state.loadedPages.find((p) => p.pageNumber === next);
-        if (active?.chapterTitle) {
-          store.getState().setChapterTitle(active.chapterTitle);
-        }
-      }
-
       void deps.presenceService?.updateReadingPresence({
         bookHash: state.document.bookHash,
         bookTitle: state.document.bookTitle,
         bookAuthor: state.document.bookAuthor,
-        chapterTitle: store.getState().chapterTitle,
-        currentPage: next,
+        chapterTitle: visible?.chapterTitle ?? state.chapterTitle,
+        currentPage: pageNumber,
         totalPages: state.totalPages,
       });
-      if (onPageChanged) {
-        await onPageChanged(next);
-      }
-    },
-
-    async navigatePage(delta: number, onPageChanged) {
-      const state = store.getState();
-      const next = clampPageNumber(state.currentPage + delta, state.totalPages);
-      await this.goToPage(next, onPageChanged);
-    },
-  };
-}
-
-export function useReaderPagination(
-  options: UseReaderPaginationOptions = {}
-): ReaderPaginationState {
-  const { onPageChanged } = options;
-  const { readerService, presenceService, getViewer, epubViewer, pdfViewer } =
-    useServiceContainer();
-
-  const document = useReaderStore((s) => s.document);
-  const currentPage = useReaderStore((s) => s.currentPage);
-  const totalPages = useReaderStore((s) => s.totalPages);
-  const chapterTitle = useReaderStore((s) => s.chapterTitle);
-  const loadedPages = useReaderStore((s) => s.loadedPages);
-  const isLoadingPages = useReaderStore((s) => s.isLoadingPages);
-
-  const controller = useMemo(
-    () =>
-      createReaderPaginationController({
-        readerService,
-        presenceService,
-        getViewer,
-        epubViewer,
-        pdfViewer,
-      }),
-    [readerService, presenceService, getViewer, epubViewer, pdfViewer]
-  );
-
-  const paragraphs = useMemo(() => {
-    const active = loadedPages.find((p) => p.pageNumber === currentPage);
-    if (active && active.paragraphs.length > 0) {
-      return [...active.paragraphs];
     }
-    return [document.sampleParagraph];
-  }, [loadedPages, currentPage, document.sampleParagraph]);
 
-  const onPageChangedRef = useRef(onPageChanged);
-  onPageChangedRef.current = onPageChanged;
+    const prefetchDirection = determinePrefetchDirection(
+      pageNumber,
+      previousPage,
+      state.loadedPages,
+      state.totalPages
+    );
+    if (prefetchDirection) {
+      void loadMorePagesInternal(prefetchDirection);
+    }
+  };
 
-  const loadMorePages = useCallback(
-    async (direction: 'next' | 'prev') => {
-      await controller.loadMorePages(direction);
-    },
-    [controller]
-  );
+  const goToPage = async (
+    targetPage: number,
+    onPageChanged?: (pageNumber: number) => Promise<void> | void
+  ): Promise<void> => {
+    const state = store.getState();
+    const next = clampPageNumber(targetPage, state.totalPages);
+    store.getState().setCurrentPage(next);
 
-  const onPageVisible = useCallback(
-    (pageNumber: number) => {
-      controller.onPageVisible(pageNumber);
-    },
-    [controller]
-  );
+    const exists = state.loadedPages.some((p) => p.pageNumber === next);
+    if (!exists) {
+      const window = calculateTargetPageWindow(next, state.totalPages);
+      const pages = await deps.readerService.getBookPages(
+        state.document.bookHash,
+        window.startPage,
+        window.count
+      );
+      if (pages.length > 0) {
+        store.getState().upsertPages(pages);
+        const active = pages.find((p) => p.pageNumber === next) ?? pages[0];
+        if (active?.chapterTitle) {
+          store.getState().setChapterTitle(active.chapterTitle);
+        }
+      }
+    } else {
+      const active = state.loadedPages.find((p) => p.pageNumber === next);
+      if (active?.chapterTitle) {
+        store.getState().setChapterTitle(active.chapterTitle);
+      }
+    }
 
-  const goToPage = useCallback(
-    async (targetPage: number) => {
-      await controller.goToPage(targetPage, onPageChangedRef.current);
-    },
-    [controller]
-  );
+    void deps.presenceService?.updateReadingPresence({
+      bookHash: state.document.bookHash,
+      bookTitle: state.document.bookTitle,
+      bookAuthor: state.document.bookAuthor,
+      chapterTitle: store.getState().chapterTitle,
+      currentPage: next,
+      totalPages: state.totalPages,
+    });
+    if (onPageChanged) {
+      await onPageChanged(next);
+    }
+  };
 
-  const navigatePage = useCallback(
-    async (delta: number) => {
-      await controller.navigatePage(delta, onPageChangedRef.current);
-    },
-    [controller]
-  );
+  const navigatePage = async (
+    delta: number,
+    onPageChanged?: (pageNumber: number) => Promise<void> | void
+  ): Promise<void> => {
+    const state = store.getState();
+    const next = clampPageNumber(state.currentPage + delta, state.totalPages);
+    await goToPage(next, onPageChanged);
+  };
 
   return {
-    document,
-    currentPage,
-    totalPages,
-    chapterTitle,
-    paragraphs,
-    loadedPages,
-    isLoadingPages,
-    navigatePage,
-    goToPage,
-    loadMorePages,
+    loadMorePages: loadMorePagesInternal,
     onPageVisible,
+    goToPage,
+    navigatePage,
   };
 }

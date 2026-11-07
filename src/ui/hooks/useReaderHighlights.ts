@@ -1,9 +1,8 @@
 import { Highlight } from '@domain/Highlight';
 import type { TextSelection } from '@domain/types';
 import type { IHighlightService } from '@ports/IHighlightService';
-import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useHighlightStore } from '@stores/useHighlightStore';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 
 export interface ReaderHighlightsController {
   readonly highlights: readonly Highlight[];
@@ -107,11 +106,29 @@ export function createReaderHighlightsController(
   };
 }
 
-export function useReaderHighlights(
-  injectedHighlightService?: IHighlightService
-): ReaderHighlightsController {
-  const container = useServiceContainer();
-  const highlightService = injectedHighlightService ?? container.highlightService;
+const EMPTY_PAGE_HIGHLIGHTS: Highlight[] = [];
 
-  return useMemo(() => createReaderHighlightsController(highlightService), [highlightService]);
+/**
+ * Subscribes to the highlight store and returns a stable lookup of highlights per page.
+ */
+export function useHighlightsByPage(): (pageNumber: number) => Highlight[] {
+  const highlights = useHighlightStore((s) => s.highlights);
+
+  const pageHighlightsMap = useMemo(() => {
+    const map = new Map<number, Highlight[]>();
+    for (const h of highlights) {
+      const list = map.get(h.anchor.pageNumber);
+      if (list) {
+        list.push(h);
+      } else {
+        map.set(h.anchor.pageNumber, [h]);
+      }
+    }
+    return map;
+  }, [highlights]);
+
+  return useCallback(
+    (pageNumber: number) => pageHighlightsMap.get(pageNumber) ?? EMPTY_PAGE_HIGHLIGHTS,
+    [pageHighlightsMap]
+  );
 }
