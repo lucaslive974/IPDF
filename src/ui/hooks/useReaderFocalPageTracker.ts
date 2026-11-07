@@ -1,4 +1,3 @@
-import { useReaderStore } from '@stores/useReaderStore';
 import { type RefObject, useEffect, useRef } from 'react';
 
 export interface ArticleRect {
@@ -25,6 +24,21 @@ export function calculatePageOffsetRatio(
   if (!allowNegative && scrolledPx <= 0) return 0.0;
   const ratio = scrolledPx / height;
   return Math.max(allowNegative ? -1.0 : 0.0, Math.min(1.0, ratio));
+}
+
+/**
+ * Measures the relative scroll offset ratio for the given page element in the DOM on demand.
+ */
+export function measureCurrentPageOffsetRatio(currentPage: number): number {
+  if (typeof document === 'undefined' || currentPage < 1) {
+    return 0.0;
+  }
+  const el = document.querySelector<HTMLElement>(`article[data-page-number="${currentPage}"]`);
+  if (!el) {
+    return 0.0;
+  }
+  const rect = el.getBoundingClientRect();
+  return calculatePageOffsetRatio(rect.top, rect.height, 0, currentPage > 1);
 }
 
 /**
@@ -108,17 +122,6 @@ export function useReaderFocalPageTracker({
           const activePage = findFocalPageNumber(articleRects, focalY);
           if (activePage && activePage > 0) {
             onPageVisibleRef.current(activePage);
-
-            const activeArticle = articleRects.find((a) => a.pageNumber === activePage);
-            if (activeArticle) {
-              const height = activeArticle.height ?? activeArticle.bottom - activeArticle.top;
-              const allowNegative = activePage > 1;
-              const ratio = calculatePageOffsetRatio(activeArticle.top, height, 0, allowNegative);
-              const currentRatio = useReaderStore.getState().pageOffsetRatio;
-              if (Math.abs(currentRatio - ratio) >= 0.001) {
-                useReaderStore.getState().setPageOffsetRatio(ratio);
-              }
-            }
           }
           ticking = false;
         });

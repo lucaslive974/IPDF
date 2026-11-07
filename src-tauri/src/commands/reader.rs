@@ -3,7 +3,7 @@ use crate::state::BackendState;
 use crate::utils::current_epoch_ms;
 use ipdf_core::adapters::extractor::CoverExtractorAdapter;
 use ipdf_core::core::domain::{BookMetadata, BookPagePayload};
-use ipdf_core::core::ports::{BookRepository, ReadingActivity};
+use ipdf_core::core::ports::BookRepository;
 use std::sync::Mutex;
 use tauri::State;
 
@@ -80,19 +80,5 @@ pub fn update_book_progress(
         &meta.book_hash,
         meta.cover_image_url.as_deref(),
     );
-    let total = payload.total_pages.max(1);
-    let pct = (payload.current_page as f64 / total as f64) * 100.0;
-    let activity = ReadingActivity {
-        book_hash: meta.book_hash.clone(),
-        book_title: meta.title.clone(),
-        book_author: meta.author.clone(),
-        chapter_title: None,
-        current_page: payload.current_page,
-        total_pages: total,
-        percentage: pct,
-        state: "reading".to_string(),
-        session_started_at_ms: now,
-    };
-    guard.presence_manager.update_reading_activity(&activity, now, false);
     Ok(meta)
 }

@@ -89,17 +89,19 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       },
     ]);
 
+    const updatePresenceSpy = vi.spyOn(backend, 'updateReadingPresence');
     const updateProgressSpy = vi.spyOn(backend, 'updateBookProgress');
 
     const controller = createReaderPaginationController({
       readerService: backend,
+      presenceService: backend,
       epubViewer: viewer,
     });
 
     await controller.bootstrapBook(customBook);
 
-    // Initial load should fetch backward margin (pages 1..29) with 10, 10, 10 layout
-    expect(getBookPagesSpy).toHaveBeenCalledWith('hash-socrates', 1, 29);
+    // Initial load should fetch backward margin (pages 5..19) with 5, 5, 5 layout
+    expect(getBookPagesSpy).toHaveBeenCalledWith('hash-socrates', 5, 15);
 
     const state = useReaderStore.getState();
     expect(state.document.bookTitle).toBe('Republic');
@@ -108,7 +110,15 @@ describe('useReaderPagination / createReaderPaginationController', () => {
     expect(state.loadedPages).toHaveLength(4);
     expect(state.loadedPages.map((p) => p.pageNumber)).toEqual([8, 9, 10, 11]);
     expect(state.chapterTitle).toBe('Book VII - Cave Allegory');
-    expect(updateProgressSpy).toHaveBeenCalledWith('hash-socrates', 10, 300, 0);
+    expect(updatePresenceSpy).toHaveBeenCalledWith({
+      bookHash: 'hash-socrates',
+      bookTitle: 'Republic',
+      bookAuthor: 'Plato',
+      chapterTitle: 'Book VII - Cave Allegory',
+      currentPage: 10,
+      totalPages: 300,
+    });
+    expect(updateProgressSpy).not.toHaveBeenCalled();
     expect(state.isLoadingPages).toBe(false);
   });
 
@@ -152,9 +162,12 @@ describe('useReaderPagination / createReaderPaginationController', () => {
     expect(useReaderStore.getState().loadedPages.some((p) => p.pageNumber === 1)).toBe(true);
   });
 
-  it('updates page and chapter when onPageVisible is called', () => {
+  it('updates page, chapter, and reading presence without touching SQLite when onPageVisible is called', () => {
+    const updatePresenceSpy = vi.spyOn(backend, 'updateReadingPresence');
+    const updateProgressSpy = vi.spyOn(backend, 'updateBookProgress');
     const controller = createReaderPaginationController({
       readerService: backend,
+      presenceService: backend,
       epubViewer: viewer,
     });
 
@@ -167,6 +180,13 @@ describe('useReaderPagination / createReaderPaginationController', () => {
 
     expect(useReaderStore.getState().currentPage).toBe(5);
     expect(useReaderStore.getState().chapterTitle).toBe('Chapter 5');
+    expect(updatePresenceSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        currentPage: 5,
+        chapterTitle: 'Chapter 5',
+      })
+    );
+    expect(updateProgressSpy).not.toHaveBeenCalled();
   });
 
   it('proactively triggers prefetch for next pages when within 7 pages of loaded upper boundary', async () => {
@@ -362,20 +382,20 @@ describe('useReaderPagination / createReaderPaginationController', () => {
     it('calculates target page window with backward margin', () => {
       // Middle of book
       expect(calculateTargetPageWindow(25, 100)).toEqual({
-        startPage: 15,
-        count: 30,
+        startPage: 20,
+        count: 15,
       });
 
       // Near start
       expect(calculateTargetPageWindow(5, 100)).toEqual({
         startPage: 1,
-        count: 24,
+        count: 14,
       });
 
       // Near end
       expect(calculateTargetPageWindow(95, 100)).toEqual({
-        startPage: 85,
-        count: 16,
+        startPage: 90,
+        count: 11,
       });
     });
 
@@ -428,12 +448,12 @@ describe('useReaderPagination / createReaderPaginationController', () => {
     it('calculates initial page window', () => {
       expect(calculateInitialPageWindow(1, 100)).toEqual({
         startPage: 1,
-        count: 20,
+        count: 10,
       });
 
       expect(calculateInitialPageWindow(15, 100)).toEqual({
-        startPage: 5,
-        count: 30,
+        startPage: 10,
+        count: 15,
       });
     });
 

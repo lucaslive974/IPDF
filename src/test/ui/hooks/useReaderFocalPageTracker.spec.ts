@@ -2,8 +2,9 @@ import {
   type ArticleRect,
   calculatePageOffsetRatio,
   findFocalPageNumber,
+  measureCurrentPageOffsetRatio,
 } from '@hooks/useReaderFocalPageTracker';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 describe('useReaderFocalPageTracker logic', () => {
   it('calculates page offset ratio correctly with clamping', () => {
@@ -66,5 +67,30 @@ describe('useReaderFocalPageTracker logic', () => {
 
     // At 290px, page 2 top (300) is only 10px away vs page 1 top (0) 290px away
     expect(findFocalPageNumber(articles, 290)).toBe(2);
+  });
+
+  it('measures current page offset ratio on demand from DOM', () => {
+    expect(measureCurrentPageOffsetRatio(0)).toBe(0.0);
+
+    const mockElement = {
+      getBoundingClientRect: () => ({
+        top: -250,
+        height: 1000,
+      }),
+    } as unknown as HTMLElement;
+
+    const originalDocument = globalThis.document;
+    globalThis.document = {
+      querySelector: vi.fn((selector: string) =>
+        selector === 'article[data-page-number="3"]' ? mockElement : null
+      ),
+    } as unknown as Document;
+
+    try {
+      expect(measureCurrentPageOffsetRatio(3)).toBe(0.25);
+      expect(measureCurrentPageOffsetRatio(99)).toBe(0.0);
+    } finally {
+      globalThis.document = originalDocument;
+    }
   });
 });

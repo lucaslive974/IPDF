@@ -1,4 +1,8 @@
-import type { IPresenceService, PresenceHealthStatus } from '@ports/IPresenceService';
+import type {
+  IPresenceService,
+  PresenceHealthStatus,
+  ReadingPresenceInput,
+} from '@ports/IPresenceService';
 import { invoke } from '@tauri-apps/api/core';
 
 export class TauriPresenceService implements IPresenceService {
@@ -16,6 +20,10 @@ export class TauriPresenceService implements IPresenceService {
 
   public async updateAnnotationsPresence(totalAnnotations: number): Promise<void> {
     await invoke<void>('update_annotations_presence', { totalAnnotations });
+  }
+
+  public async updateReadingPresence(input: ReadingPresenceInput): Promise<void> {
+    await invoke<void>('update_reading_presence', { payload: input });
   }
 
   public async getDiscordPresenceHealth(): Promise<PresenceHealthStatus> {

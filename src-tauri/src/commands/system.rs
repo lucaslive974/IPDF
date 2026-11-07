@@ -1,8 +1,10 @@
-use crate::dtos::IpcPlatformInfoDto;
+use crate::dtos::{IpcPlatformInfoDto, UpdateReadingPresenceDto};
 use crate::state::BackendState;
 use crate::utils::current_epoch_ms;
 use ipdf_core::core::domain::BookMetadata;
-use ipdf_core::core::ports::{ConfigurationStore, PresenceActivity, PresenceHealth};
+use ipdf_core::core::ports::{
+    ConfigurationStore, PresenceActivity, PresenceHealth, ReadingActivity,
+};
 use std::sync::Mutex;
 use tauri::State;
 
@@ -87,6 +89,32 @@ pub fn update_annotations_presence(
         session_started_at_ms: now,
     };
     guard.presence_manager.update_activity(&activity, now, true);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn update_reading_presence(
+    payload: UpdateReadingPresenceDto,
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<(), String> {
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    let now = current_epoch_ms();
+    let total = payload.total_pages.max(1);
+    let pct = (payload.current_page as f64 / total as f64) * 100.0;
+    let activity = ReadingActivity {
+        book_hash: payload.book_hash,
+        book_title: payload.book_title,
+        book_author: payload.book_author,
+        chapter_title: payload.chapter_title,
+        current_page: payload.current_page,
+        total_pages: total,
+        percentage: pct,
+        state: "reading".to_string(),
+        session_started_at_ms: now,
+    };
+    guard
+        .presence_manager
+        .update_reading_activity(&activity, now, false);
     Ok(())
 }
 

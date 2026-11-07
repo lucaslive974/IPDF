@@ -33,6 +33,7 @@ pub fn run() {
             system::clear_rich_presence,
             system::update_library_presence,
             system::update_annotations_presence,
+            system::update_reading_presence,
             system::get_discord_presence_health,
             // Library & Book routes
             library::compute_book_sha256,

@@ -5,6 +5,7 @@ import type { IDocumentViewer } from '@ports/IDocumentViewer';
 import type { IEpubViewer } from '@ports/IEpubViewer';
 import type { ILibraryService } from '@ports/ILibraryService';
 import type { IPdfViewer } from '@ports/IPdfViewer';
+import type { IPresenceService } from '@ports/IPresenceService';
 import type { IReaderService } from '@ports/IReaderService';
 import {
   EMPTY_DOCUMENT,
@@ -25,6 +26,7 @@ export const INITIAL_FORWARD_PAGES = 5;
 export interface ReaderBootstrapDependencies {
   readonly readerService: IReaderService;
   readonly libraryService?: ILibraryService;
+  readonly presenceService?: IPresenceService;
   readonly getViewer?: (format: BookFormat) => IDocumentViewer;
   readonly epubViewer?: IEpubViewer;
   readonly pdfViewer?: IPdfViewer;
@@ -219,13 +221,15 @@ export async function bootstrapReaderBook(
     await onBookLoaded(doc.bookHash);
   }
 
-  const currentTotal = store.getState().totalPages;
-  void deps.readerService.updateBookProgress(
-    doc.bookHash,
-    initialPage,
-    currentTotal,
-    book?.pageOffsetRatio ?? 0.0
-  );
+  const finalState = store.getState();
+  void deps.presenceService?.updateReadingPresence({
+    bookHash: doc.bookHash,
+    bookTitle: doc.bookTitle,
+    bookAuthor: doc.bookAuthor,
+    chapterTitle: finalState.chapterTitle,
+    currentPage: initialPage,
+    totalPages: finalState.totalPages,
+  });
 
   return doc;
 }

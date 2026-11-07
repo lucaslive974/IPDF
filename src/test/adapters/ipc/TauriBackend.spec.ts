@@ -232,6 +232,14 @@ vi.mock('@tauri-apps/api/core', () => ({
       storedSettings.set('discord_presence_annotations', String(args.totalAnnotations));
       return undefined as unknown as T;
     }
+    if (cmd === 'update_reading_presence') {
+      const payload = args.payload as Record<string, unknown>;
+      storedSettings.set(
+        'discord_presence_reading',
+        `${String(payload.bookHash)}:${String(payload.currentPage)}/${String(payload.totalPages)}`
+      );
+      return undefined as unknown as T;
+    }
     if (cmd === 'get_discord_presence_health') {
       return {
         ok: true,
@@ -405,6 +413,18 @@ describe('Modular Tauri IPC Adapters', () => {
 
     await presenceService.updateAnnotationsPresence(42);
     expect(await settingsService.getAppSetting('discord_presence_annotations')).toBe('42');
+
+    await presenceService.updateReadingPresence({
+      bookHash: 'sha256-imported-book',
+      bookTitle: 'Direct Tauri Book',
+      bookAuthor: 'Tester',
+      chapterTitle: 'Chapter 1',
+      currentPage: 12,
+      totalPages: 100,
+    });
+    expect(await settingsService.getAppSetting('discord_presence_reading')).toBe(
+      'sha256-imported-book:12/100'
+    );
 
     const health = await presenceService.getDiscordPresenceHealth();
     expect(health.ok).toBe(true);

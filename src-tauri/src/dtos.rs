@@ -45,6 +45,18 @@ pub struct UpdateBookProgressDto {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct UpdateReadingPresenceDto {
+    pub book_hash: String,
+    pub book_title: String,
+    pub book_author: String,
+    #[serde(default)]
+    pub chapter_title: Option<String>,
+    pub current_page: u32,
+    pub total_pages: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct IpcPlatformInfoDto {
     pub platform: String,
     pub config_dir: String,

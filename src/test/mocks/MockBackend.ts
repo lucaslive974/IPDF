@@ -13,6 +13,7 @@ import type {
   PlatformInfo,
   PresenceHealthStatus,
   ReadingContext,
+  ReadingPresenceInput,
   UpdateBookMetadataInput,
 } from '@ports';
 
@@ -298,6 +299,13 @@ export class MockBackend
 
   public async updateAnnotationsPresence(totalAnnotations: number): Promise<void> {
     this.settings.set('discord_presence_annotations', String(totalAnnotations));
+  }
+
+  public async updateReadingPresence(input: ReadingPresenceInput): Promise<void> {
+    this.settings.set(
+      'discord_presence_reading',
+      `${input.bookHash}:${input.currentPage}/${input.totalPages}`
+    );
   }
 
   public async getDiscordPresenceHealth(): Promise<PresenceHealthStatus> {

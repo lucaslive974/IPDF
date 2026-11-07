@@ -3,6 +3,7 @@ import { useReaderStore } from '@stores/useReaderStore';
 import { type RefObject, useCallback, useEffect, useRef } from 'react';
 import { useLibrary } from './useLibrary';
 import { useReader } from './useReader';
+import { measureCurrentPageOffsetRatio } from './useReaderFocalPageTracker';
 import { useReaderUI } from './useReaderUI';
 
 export interface ReadingProgressState {
@@ -82,8 +83,8 @@ export function useReaderView(): UseReaderViewReturn {
   // Restore initial scroll position to the target page when opening a book
   useEffect(() => {
     const bookHash = reader.document.bookHash;
-    const targetPage = reader.currentPage;
-    const offsetRatio = reader.pageOffsetRatio || 0.0;
+    const { currentPage: targetPage, pageOffsetRatio } = useReaderStore.getState();
+    const offsetRatio = pageOffsetRatio || 0.0;
     if (
       !bookHash ||
       (targetPage <= 1 && offsetRatio <= 0.0) ||
@@ -115,21 +116,20 @@ export function useReaderView(): UseReaderViewReturn {
         return () => clearTimeout(timer);
       }
     }
-  }, [reader.document.bookHash, reader.currentPage, reader.pageOffsetRatio, reader.loadedPages]);
+  }, [reader.document.bookHash, reader.loadedPages]);
 
   // Sync reading progress to library and backend on departure
   const lastSavedStateRef = useRef<ReadingProgressState | null>(null);
 
   const saveProgress = useCallback(
-    async (bookHash: string, currentPage: number, totalPages: number, pageOffsetRatio?: number) => {
-      const ratio = pageOffsetRatio ?? useReaderStore.getState().pageOffsetRatio ?? 0.0;
-      const current = { bookHash, currentPage, totalPages, pageOffsetRatio: ratio };
+    async (bookHash: string, currentPage: number, totalPages: number, pageOffsetRatio: number) => {
+      const current = { bookHash, currentPage, totalPages, pageOffsetRatio };
       if (!shouldSaveProgress(lastSavedStateRef.current, current)) {
         return;
       }
       lastSavedStateRef.current = current;
       try {
-        await library.updateBookProgress(bookHash, currentPage, totalPages, ratio);
+        await library.updateBookProgress(bookHash, currentPage, totalPages, pageOffsetRatio);
       } catch (err) {
         console.warn('Failed to notify library of book progress:', err);
       }
@@ -137,54 +137,30 @@ export function useReaderView(): UseReaderViewReturn {
     [library]
   );
 
-  const lastStateRef = useRef<ReadingProgressState>({
-    bookHash: reader.document.bookHash,
-    currentPage: reader.currentPage,
-    totalPages: reader.totalPages,
-    pageOffsetRatio: reader.pageOffsetRatio,
-  });
-
-  useEffect(() => {
-    lastStateRef.current = {
-      bookHash: reader.document.bookHash,
-      currentPage: reader.currentPage,
-      totalPages: reader.totalPages,
-      pageOffsetRatio: reader.pageOffsetRatio,
-    };
-  }, [reader.document.bookHash, reader.currentPage, reader.totalPages, reader.pageOffsetRatio]);
+  const persistCurrentProgress = useCallback(async () => {
+    const { document: doc, currentPage, totalPages } = useReaderStore.getState();
+    if (!doc.bookHash) {
+      return;
+    }
+    const measuredRatio = measureCurrentPageOffsetRatio(currentPage);
+    useReaderStore.getState().setPageOffsetRatio(measuredRatio);
+    await saveProgress(doc.bookHash, currentPage, totalPages, measuredRatio);
+  }, [saveProgress]);
 
   useEffect(() => {
     return () => {
-      const { bookHash, currentPage, totalPages, pageOffsetRatio } = lastStateRef.current;
-      if (bookHash) {
-        void saveProgress(bookHash, currentPage, totalPages, pageOffsetRatio);
-      }
+      void persistCurrentProgress();
     };
-  }, [saveProgress]);
+  }, [persistCurrentProgress]);
 
   const handleCloseReader = useCallback(async () => {
     try {
-      if (reader.document.bookHash) {
-        await saveProgress(
-          reader.document.bookHash,
-          reader.currentPage,
-          reader.totalPages,
-          reader.pageOffsetRatio
-        );
-      }
+      await persistCurrentProgress();
     } finally {
       closeAllOverlays();
       navigation.closeReader();
     }
-  }, [
-    closeAllOverlays,
-    navigation,
-    reader.currentPage,
-    reader.document.bookHash,
-    reader.pageOffsetRatio,
-    reader.totalPages,
-    saveProgress,
-  ]);
+  }, [closeAllOverlays, navigation, persistCurrentProgress]);
 
   // Smooth Page Scrolling Navigation
   const scrollToPage = useCallback(

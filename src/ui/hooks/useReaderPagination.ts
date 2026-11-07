@@ -25,7 +25,6 @@ export interface ReaderPaginationState {
   readonly document: StudyDocumentDescriptor;
   readonly currentPage: number;
   readonly totalPages: number;
-  readonly pageOffsetRatio: number;
   readonly chapterTitle: string;
   readonly paragraphs: readonly string[];
   readonly loadedPages: readonly DocumentPage[];
@@ -35,7 +34,6 @@ export interface ReaderPaginationState {
   goToPage(targetPage: number): Promise<void>;
   loadMorePages(direction: 'next' | 'prev'): Promise<void>;
   onPageVisible(pageNumber: number): void;
-  setPageOffsetRatio(ratio: number): void;
 }
 
 export type ReaderPaginationDependencies = ReaderBootstrapDependencies;
@@ -210,11 +208,14 @@ export function createReaderPaginationController(
         if (visible?.chapterTitle) {
           store.getState().setChapterTitle(visible.chapterTitle);
         }
-        void deps.readerService.updateBookProgress(
-          state.document.bookHash,
-          pageNumber,
-          state.totalPages
-        );
+        void deps.presenceService?.updateReadingPresence({
+          bookHash: state.document.bookHash,
+          bookTitle: state.document.bookTitle,
+          bookAuthor: state.document.bookAuthor,
+          chapterTitle: visible?.chapterTitle ?? state.chapterTitle,
+          currentPage: pageNumber,
+          totalPages: state.totalPages,
+        });
       }
 
       const prefetchDirection = determinePrefetchDirection(
@@ -255,7 +256,14 @@ export function createReaderPaginationController(
         }
       }
 
-      await deps.readerService.updateBookProgress(state.document.bookHash, next, state.totalPages);
+      void deps.presenceService?.updateReadingPresence({
+        bookHash: state.document.bookHash,
+        bookTitle: state.document.bookTitle,
+        bookAuthor: state.document.bookAuthor,
+        chapterTitle: store.getState().chapterTitle,
+        currentPage: next,
+        totalPages: state.totalPages,
+      });
       if (onPageChanged) {
         await onPageChanged(next);
       }
@@ -273,7 +281,8 @@ export function useReaderPagination(
   options: UseReaderPaginationOptions = {}
 ): ReaderPaginationState {
   const { bookOverride, onBookLoaded, onPageChanged } = options;
-  const { readerService, libraryService, getViewer, epubViewer, pdfViewer } = useServiceContainer();
+  const { readerService, libraryService, presenceService, getViewer, epubViewer, pdfViewer } =
+    useServiceContainer();
   const navigation = useNavigation();
   const book = bookOverride ?? navigation.selectedBook;
 
@@ -283,19 +292,18 @@ export function useReaderPagination(
   const chapterTitle = useReaderStore((s) => s.chapterTitle);
   const loadedPages = useReaderStore((s) => s.loadedPages);
   const isLoadingPages = useReaderStore((s) => s.isLoadingPages);
-  const pageOffsetRatio = useReaderStore((s) => s.pageOffsetRatio);
-  const setPageOffsetRatio = useReaderStore((s) => s.setPageOffsetRatio);
 
   const controller = useMemo(
     () =>
       createReaderPaginationController({
         readerService,
         libraryService,
+        presenceService,
         getViewer,
         epubViewer,
         pdfViewer,
       }),
-    [readerService, libraryService, getViewer, epubViewer, pdfViewer]
+    [readerService, libraryService, presenceService, getViewer, epubViewer, pdfViewer]
   );
 
   const paragraphs = useMemo(() => {
@@ -356,7 +364,6 @@ export function useReaderPagination(
     document,
     currentPage,
     totalPages,
-    pageOffsetRatio,
     chapterTitle,
     paragraphs,
     loadedPages,
@@ -365,6 +372,5 @@ export function useReaderPagination(
     goToPage,
     loadMorePages,
     onPageVisible,
-    setPageOffsetRatio,
   };
 }
