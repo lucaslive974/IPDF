@@ -18,9 +18,9 @@ export interface PageWindow {
   readonly count: number;
 }
 
-export const INITIAL_BACKWARD_PAGES = 10;
-export const INITIAL_ACTIVE_PAGES = 10;
-export const INITIAL_FORWARD_PAGES = 10;
+export const INITIAL_BACKWARD_PAGES = 5;
+export const INITIAL_ACTIVE_PAGES = 5;
+export const INITIAL_FORWARD_PAGES = 5;
 
 export interface ReaderBootstrapDependencies {
   readonly readerService: IReaderService;

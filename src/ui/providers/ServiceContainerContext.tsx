@@ -65,7 +65,7 @@ export function createServiceContainer(
     : overrides.enablePageCache !== false
       ? new CachedReaderServiceDecorator(
           new TauriReaderService(),
-          overrides.pageCacheCapacity ?? 50
+          overrides.pageCacheCapacity ?? 30
         )
       : new TauriReaderService();
 
