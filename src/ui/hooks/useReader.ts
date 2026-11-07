@@ -1,7 +1,9 @@
 import type { BookMetadata } from '@domain/BookMetadata';
 import type { Highlight } from '@domain/Highlight';
 import type { TextFormatStyle } from '@domain/types';
+import { bootstrapReaderBook } from '@hooks/readerBootstrapper';
 import type { DocumentPage } from '@ports/IReaderService';
+import { useNavigation } from '@providers/NavigationContext';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useHighlightStore } from '@stores/useHighlightStore';
 import { EMPTY_DOCUMENT, type StudyDocumentDescriptor } from '@stores/useReaderStore';
@@ -10,7 +12,7 @@ import {
   type SelectionPopoverState,
   useReaderUIStore,
 } from '@stores/useReaderUIStore';
-import { createContext, useCallback, useContext, useMemo, useRef } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 import { useReaderHighlights } from './useReaderHighlights';
 import { useReaderNotesEditor } from './useReaderNotesEditor';
 import { useReaderPagination } from './useReaderPagination';
@@ -74,8 +76,50 @@ export function useReader(): ReaderViewModel {
 }
 
 export function useReaderState(bookOverride?: BookMetadata | null): ReaderViewModel {
-  const { highlightService } = useServiceContainer();
+  const {
+    highlightService,
+    readerService,
+    libraryService,
+    presenceService,
+    getViewer,
+    epubViewer,
+    pdfViewer,
+  } = useServiceContainer();
+  const navigation = useNavigation();
+  const book = bookOverride ?? navigation.selectedBook;
   const readerHighlights = useReaderHighlights(highlightService);
+
+  useEffect(() => {
+    let cancelled = false;
+    void bootstrapReaderBook(
+      {
+        readerService,
+        libraryService,
+        presenceService,
+        getViewer,
+        epubViewer,
+        pdfViewer,
+      },
+      book,
+      async (hash) => {
+        if (!cancelled) {
+          await readerHighlights.loadBookHighlights(hash);
+        }
+      }
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    book,
+    readerService,
+    libraryService,
+    presenceService,
+    getViewer,
+    epubViewer,
+    pdfViewer,
+    readerHighlights,
+  ]);
 
   // Highlight Store
   const highlights = useHighlightStore((s) => s.highlights);
@@ -141,10 +185,6 @@ export function useReaderState(bookOverride?: BookMetadata | null): ReaderViewMo
 
   // Sub-hook 1: Pagination
   const pagination = useReaderPagination({
-    bookOverride,
-    onBookLoaded: async (hash) => {
-      await readerHighlights.loadBookHighlights(hash);
-    },
     onPageChanged: async (pageNum) => {
       await refreshState(null, pageNum);
     },

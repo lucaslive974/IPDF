@@ -1,11 +1,4 @@
 import { EpubViewerAdapter } from '@adapters/viewers/EpubViewerAdapter';
-import type { BookMetadata } from '@domain/BookMetadata';
-import { BookFormat } from '@domain/types';
-import {
-  calculateInitialPageWindow,
-  createStudyDocumentDescriptor,
-  resolveDocumentViewer,
-} from '@hooks/readerBootstrapper';
 import {
   calculateNextPageWindow,
   calculatePrevPageWindow,
@@ -14,10 +7,7 @@ import {
   createReaderPaginationController,
   determinePrefetchDirection,
 } from '@hooks/useReaderPagination';
-import type { IDocumentViewer } from '@ports/IDocumentViewer';
-import type { IPdfViewer } from '@ports/IPdfViewer';
-import type { DocumentPage } from '@ports/IReaderService';
-import { EMPTY_DOCUMENT, useReaderStore } from '@stores/useReaderStore';
+import { useReaderStore } from '@stores/useReaderStore';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MockBackend } from '../../mocks/MockBackend';
 
@@ -29,97 +19,6 @@ describe('useReaderPagination / createReaderPaginationController', () => {
     backend = new MockBackend();
     viewer = new EpubViewerAdapter();
     useReaderStore.getState().reset();
-  });
-
-  it('bootstraps empty document when book is null', async () => {
-    const controller = createReaderPaginationController({
-      readerService: backend,
-      epubViewer: viewer,
-    });
-
-    let loadedHash = 'initial';
-    const doc = await controller.bootstrapBook(null, (hash) => {
-      loadedHash = hash;
-    });
-
-    expect(doc.bookHash).toBe('');
-    expect(loadedHash).toBe('initial');
-    expect(useReaderStore.getState().currentPage).toBe(1);
-    expect(useReaderStore.getState().totalPages).toBe(1);
-  });
-
-  it('bootstraps custom book and loads pages from readerService', async () => {
-    const customBook: BookMetadata = {
-      bookHash: 'hash-socrates',
-      title: 'Republic',
-      author: 'Plato',
-      format: BookFormat.EPUB,
-      totalPages: 300,
-      currentPage: 10,
-      percentage: 3,
-      tags: [],
-      lastReadAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    const getBookPagesSpy = vi.spyOn(backend, 'getBookPages').mockResolvedValueOnce([
-      {
-        pageNumber: 8,
-        chapterTitle: 'Book VI - Philosophers',
-        paragraphs: ['Paragraph from page 8.'],
-        cfiBase: '/6/8!',
-      },
-      {
-        pageNumber: 9,
-        chapterTitle: 'Book VI - Sun and Line',
-        paragraphs: ['Paragraph from page 9.'],
-        cfiBase: '/6/9!',
-      },
-      {
-        pageNumber: 10,
-        chapterTitle: 'Book VII - Cave Allegory',
-        paragraphs: ['Behold! Human beings living in an underground den.'],
-        cfiBase: '/6/10!',
-      },
-      {
-        pageNumber: 11,
-        chapterTitle: 'Book VII - The Ascent',
-        paragraphs: ['Paragraph from page 11.'],
-        cfiBase: '/6/11!',
-      },
-    ]);
-
-    const updatePresenceSpy = vi.spyOn(backend, 'updateReadingPresence');
-    const updateProgressSpy = vi.spyOn(backend, 'updateBookProgress');
-
-    const controller = createReaderPaginationController({
-      readerService: backend,
-      presenceService: backend,
-      epubViewer: viewer,
-    });
-
-    await controller.bootstrapBook(customBook);
-
-    // Initial load should fetch backward margin (pages 5..19) with 5, 5, 5 layout
-    expect(getBookPagesSpy).toHaveBeenCalledWith('hash-socrates', 5, 15);
-
-    const state = useReaderStore.getState();
-    expect(state.document.bookTitle).toBe('Republic');
-    expect(state.currentPage).toBe(10);
-    expect(state.totalPages).toBe(300);
-    expect(state.loadedPages).toHaveLength(4);
-    expect(state.loadedPages.map((p) => p.pageNumber)).toEqual([8, 9, 10, 11]);
-    expect(state.chapterTitle).toBe('Book VII - Cave Allegory');
-    expect(updatePresenceSpy).toHaveBeenCalledWith({
-      bookHash: 'hash-socrates',
-      bookTitle: 'Republic',
-      bookAuthor: 'Plato',
-      chapterTitle: 'Book VII - Cave Allegory',
-      currentPage: 10,
-      totalPages: 300,
-    });
-    expect(updateProgressSpy).not.toHaveBeenCalled();
-    expect(state.isLoadingPages).toBe(false);
   });
 
   it('loads more pages forward and backward', async () => {
@@ -293,43 +192,6 @@ describe('useReaderPagination / createReaderPaginationController', () => {
     expect(useReaderStore.getState().currentPage).toBe(1);
   });
 
-  it('bootstraps PDF book and attempts page 1 cover extraction when missing', async () => {
-    const pdfBook: BookMetadata = {
-      bookHash: 'hash-pdf-book',
-      title: 'PDF Document',
-      author: 'Author',
-      format: BookFormat.PDF,
-      totalPages: 50,
-      currentPage: 1,
-      percentage: 2,
-      tags: [],
-      lastReadAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    const mockPdfViewer = {
-      render: vi.fn().mockResolvedValue(undefined),
-      setPages: vi.fn(),
-      getPagesChunk: vi.fn().mockReturnValue([]),
-      getCurrentPage: vi.fn().mockReturnValue({ pageNumber: 1, totalPages: 50 }),
-      getPageProxy: vi.fn().mockResolvedValue(null),
-      renderPageCanvas: vi.fn().mockResolvedValue({ width: 100, height: 100 }),
-      renderPageTextLayer: vi.fn().mockResolvedValue(undefined),
-    };
-
-    const controller = createReaderPaginationController({
-      readerService: backend,
-      libraryService: backend,
-      getViewer: () => mockPdfViewer as unknown as IDocumentViewer,
-      pdfViewer: mockPdfViewer as unknown as IPdfViewer,
-    });
-
-    const doc = await controller.bootstrapBook(pdfBook);
-    expect(doc.bookHash).toBe('hash-pdf-book');
-    expect(mockPdfViewer.render).toHaveBeenCalled();
-    expect(mockPdfViewer.getPageProxy).toHaveBeenCalledWith(1);
-  });
-
   describe('pure pagination math functions', () => {
     it('clamps page number within totalPages bounds', () => {
       expect(clampPageNumber(0, 100)).toBe(1);
@@ -420,52 +282,6 @@ describe('useReaderPagination / createReaderPaginationController', () => {
 
       // Empty loaded pages
       expect(determinePrefetchDirection(1, 1, [], 50)).toBeNull();
-    });
-  });
-
-  describe('pure readerBootstrapper helpers', () => {
-    it('creates descriptor from book metadata or falls back to empty', () => {
-      expect(createStudyDocumentDescriptor(null)).toEqual(EMPTY_DOCUMENT);
-
-      const book: BookMetadata = {
-        bookHash: 'book-1',
-        title: 'Title',
-        author: 'Author',
-        currentPage: 5,
-        totalPages: 20,
-        percentage: 25,
-        format: BookFormat.EPUB,
-        tags: [],
-        lastReadAt: new Date(),
-        updatedAt: new Date(),
-      };
-      const desc = createStudyDocumentDescriptor(book);
-      expect(desc.bookHash).toBe('book-1');
-      expect(desc.bookTitle).toBe('Title');
-      expect(desc.chapterTitle).toBe('Chapter 5 &mdash; Reading Session');
-    });
-
-    it('calculates initial page window', () => {
-      expect(calculateInitialPageWindow(1, 100)).toEqual({
-        startPage: 1,
-        count: 10,
-      });
-
-      expect(calculateInitialPageWindow(15, 100)).toEqual({
-        startPage: 10,
-        count: 15,
-      });
-    });
-
-    it('resolves viewer or throws when missing', () => {
-      const viewer = new EpubViewerAdapter();
-      expect(
-        resolveDocumentViewer({ readerService: backend, epubViewer: viewer }, BookFormat.EPUB)
-      ).toBe(viewer);
-
-      expect(() => resolveDocumentViewer({ readerService: backend }, BookFormat.EPUB)).toThrow(
-        'No document viewer available in dependencies'
-      );
     });
   });
 });

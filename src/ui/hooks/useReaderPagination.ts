@@ -1,4 +1,3 @@
-import type { BookMetadata } from '@domain/BookMetadata';
 import { BookFormat } from '@domain/types';
 import {
   INITIAL_ACTIVE_PAGES,
@@ -6,18 +5,14 @@ import {
   INITIAL_FORWARD_PAGES,
   type PageWindow,
   type ReaderBootstrapDependencies,
-  bootstrapReaderBook,
   resolvePdfViewer,
 } from '@hooks/readerBootstrapper';
 import type { DocumentPage } from '@ports/IReaderService';
-import { useNavigation } from '@providers/NavigationContext';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { type StudyDocumentDescriptor, useReaderStore } from '@stores/useReaderStore';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 
 export interface UseReaderPaginationOptions {
-  readonly bookOverride?: BookMetadata | null;
-  readonly onBookLoaded?: (bookHash: string) => Promise<void> | void;
   readonly onPageChanged?: (pageNumber: number) => Promise<void> | void;
 }
 
@@ -36,13 +31,9 @@ export interface ReaderPaginationState {
   onPageVisible(pageNumber: number): void;
 }
 
-export type ReaderPaginationDependencies = ReaderBootstrapDependencies;
+export type ReaderPaginationDependencies = Omit<ReaderBootstrapDependencies, 'libraryService'>;
 
 export interface ReaderPaginationController {
-  bootstrapBook(
-    book?: BookMetadata | null,
-    onBookLoaded?: (hash: string) => Promise<void> | void
-  ): Promise<StudyDocumentDescriptor>;
   loadMorePages(direction: 'next' | 'prev'): Promise<void>;
   onPageVisible(pageNumber: number): void;
   goToPage(
@@ -193,10 +184,6 @@ export function createReaderPaginationController(
   };
 
   return {
-    bootstrapBook(book, onBookLoaded) {
-      return bootstrapReaderBook(deps, book, onBookLoaded);
-    },
-
     loadMorePages: loadMorePagesInternal,
 
     onPageVisible(pageNumber: number) {
@@ -280,11 +267,9 @@ export function createReaderPaginationController(
 export function useReaderPagination(
   options: UseReaderPaginationOptions = {}
 ): ReaderPaginationState {
-  const { bookOverride, onBookLoaded, onPageChanged } = options;
-  const { readerService, libraryService, presenceService, getViewer, epubViewer, pdfViewer } =
+  const { onPageChanged } = options;
+  const { readerService, presenceService, getViewer, epubViewer, pdfViewer } =
     useServiceContainer();
-  const navigation = useNavigation();
-  const book = bookOverride ?? navigation.selectedBook;
 
   const document = useReaderStore((s) => s.document);
   const currentPage = useReaderStore((s) => s.currentPage);
@@ -297,13 +282,12 @@ export function useReaderPagination(
     () =>
       createReaderPaginationController({
         readerService,
-        libraryService,
         presenceService,
         getViewer,
         epubViewer,
         pdfViewer,
       }),
-    [readerService, libraryService, presenceService, getViewer, epubViewer, pdfViewer]
+    [readerService, presenceService, getViewer, epubViewer, pdfViewer]
   );
 
   const paragraphs = useMemo(() => {
@@ -314,23 +298,8 @@ export function useReaderPagination(
     return [document.sampleParagraph];
   }, [loadedPages, currentPage, document.sampleParagraph]);
 
-  const onBookLoadedRef = useRef(onBookLoaded);
-  onBookLoadedRef.current = onBookLoaded;
-
   const onPageChangedRef = useRef(onPageChanged);
   onPageChangedRef.current = onPageChanged;
-
-  useEffect(() => {
-    let cancelled = false;
-    void controller.bootstrapBook(book, async (hash) => {
-      if (!cancelled && onBookLoadedRef.current) {
-        await onBookLoadedRef.current(hash);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [book, controller]);
 
   const loadMorePages = useCallback(
     async (direction: 'next' | 'prev') => {
