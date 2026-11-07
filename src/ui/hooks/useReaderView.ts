@@ -71,10 +71,10 @@ export function useReaderView(isStreamReady: boolean): UseReaderViewReturn {
 
     const { currentPage, pageOffsetRatio } = useReaderStore.getState();
     const targetPage = Math.max(1, currentPage);
-    const offsetRatio = clamp(pageOffsetRatio, -1.0, 1.0);
+    const offsetRatio = clamp(pageOffsetRatio || 0.0, -1.0, 1.0);
 
     // First page with no offset is naturally aligned at top
-    if (targetPage <= 1 && offsetRatio <= 0.0) {
+    if (targetPage <= 1 && Math.abs(offsetRatio) <= 0.0001) {
       hasAlignedScrollRef.current = true;
       isProgrammaticScrollRef.current = false;
       return;

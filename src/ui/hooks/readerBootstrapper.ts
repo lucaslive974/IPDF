@@ -102,18 +102,30 @@ export function resolvePdfViewer(deps: ReaderBootstrapDependencies): IPdfViewer 
 export async function renderDocumentInViewer(
   viewer: IDocumentViewer,
   readerService: IReaderService,
-  bookHash: string,
+  bookHash: string
 ): Promise<void> {
-  if (!globalThis.document) return;
-  const container = globalThis.document.createElement('div');
+  const container = globalThis.document?.createElement
+    ? globalThis.document.createElement('div')
+    : ({ innerHTML: '' } as unknown as HTMLElement);
 
   const filePath = await readerService.getBookFilePath(bookHash);
-  if (!filePath) return;
+  if (filePath) {
+    let assetUrl = filePath;
+    try {
+      const { convertFileSrc } = await import('@tauri-apps/api/core');
+      assetUrl = convertFileSrc(filePath);
+    } catch {
+      assetUrl = filePath;
+    }
+    await viewer.render(container, assetUrl);
+    return;
+  }
 
-  const { convertFileSrc } = await import('@tauri-apps/api/core');
-  const assetUrl = convertFileSrc(filePath);
-
-  await viewer.render(container, assetUrl);
+  const rawBytes = await readerService.readBookBinary(bookHash);
+  if (rawBytes.length > 0) {
+    await viewer.render(container, rawBytes.buffer as ArrayBuffer);
+    return;
+  }
 }
 
 /**
@@ -134,11 +146,15 @@ export async function bootstrapPdfReaderSession(
   store.getState().setTotalPages(info.totalPages);
 
   let chunk = pdfViewer.getPagesChunk(window.startPage, window.count);
-  chunk = await deps.readerService.getBookPages(doc.bookHash, window.startPage, window.count);
+  if (chunk.length === 0) {
+    chunk = await deps.readerService.getBookPages(doc.bookHash, window.startPage, window.count);
+  }
 
   store.getState().setLoadedPages(chunk);
   const active = chunk.find((p) => p.pageNumber === initialPage) ?? chunk[0];
-  store.getState().setChapterTitle(active.chapterTitle);
+  if (active?.chapterTitle) {
+    store.getState().setChapterTitle(active.chapterTitle);
+  }
 
   void extractAndSyncPdfCover(pdfViewer, doc, deps.libraryService).then((coverUrl) => {
     if (coverUrl && coverUrl !== doc.coverImageUrl) {
@@ -166,7 +182,9 @@ export async function bootstrapEpubReaderSession(
 
   store.getState().setLoadedPages(pages);
   const active = pages.find((p) => p.pageNumber === initialPage) ?? pages[0];
-  store.getState().setChapterTitle(active.chapterTitle);
+  if (active?.chapterTitle) {
+    store.getState().setChapterTitle(active.chapterTitle);
+  }
 
   viewer.setPages(pages);
   store.getState().setTotalPages(book?.totalPages ?? 0);
