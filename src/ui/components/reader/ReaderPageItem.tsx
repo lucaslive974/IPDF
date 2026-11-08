@@ -54,7 +54,7 @@ export const ReaderPageItem = memo(function ReaderPageItem({
       className={
         isPdf
           ? 'w-full flex flex-col'
-          : 'w-full flex flex-col gap-6 py-8 border-b border-line-subtle/30'
+          : 'w-full min-h-225 flex flex-col gap-6 py-8 border-b border-line-subtle/30'
       }
     >
       {!isPdf && page.pageNumber === 1 && (

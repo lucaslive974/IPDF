@@ -1,10 +1,10 @@
 import { EpubViewerAdapter } from '@adapters/viewers/EpubViewerAdapter';
+import { buildStreamPages } from '@components/reader/ReaderStream';
 import {
   type ArticleRect,
   calculateNextPageWindow,
   calculatePageOffsetRatio,
   calculatePrevPageWindow,
-  calculateScrollOffsetCompensation,
   calculateScrollTargetTop,
   calculateTargetPageWindow,
   collectVisibleArticleRects,
@@ -302,11 +302,49 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       expect(determinePrefetchDirection(1, 1, [], 50)).toBeNull();
     });
 
-    it('calculates scroll offset compensation for newly prepended pages', () => {
-      const diff = calculateScrollOffsetCompensation(1000, 1600);
-      expect(diff).toBe(600);
-      expect(calculateScrollOffsetCompensation(1000, 1000)).toBe(0);
-      expect(calculateScrollOffsetCompensation(1200, 1000)).toBe(0);
+    it('builds full stream pages list merging loaded content with empty placeholders', () => {
+      const loaded = [
+        { pageNumber: 2, chapterTitle: 'Ch 2', paragraphs: ['P2'], cfiBase: '/6/4!' },
+      ];
+      const stream = buildStreamPages(4, loaded);
+      expect(stream).toHaveLength(4);
+      expect(stream.map((p) => p.pageNumber)).toEqual([1, 2, 3, 4]);
+      expect(stream[0]?.paragraphs).toEqual([]);
+      expect(stream[1]?.paragraphs).toEqual(['P2']);
+      expect(stream[2]?.paragraphs).toEqual([]);
+    });
+
+    it('fetches target page window when onPageVisible lands on an unloaded page', async () => {
+      const getBookPagesSpy = vi
+        .spyOn(backend, 'getBookPages')
+        .mockResolvedValue([
+          { pageNumber: 40, chapterTitle: 'Ch 40', paragraphs: ['P40'], cfiBase: '/6/40!' },
+        ]);
+
+      const controller = createReaderPaginationController({
+        readerService: backend,
+        epubViewer: viewer,
+      });
+
+      useReaderStore.getState().setDocument({
+        bookHash: 'book-scrub',
+        bookTitle: 'Scrub Book',
+        bookAuthor: 'Author',
+        chapterTitle: 'Ch 1',
+        sampleParagraph: 'Sample',
+      });
+      useReaderStore.getState().setTotalPages(100);
+      useReaderStore
+        .getState()
+        .setLoadedPages([
+          { pageNumber: 1, chapterTitle: 'Ch 1', paragraphs: ['P1'], cfiBase: '/6/1!' },
+        ]);
+
+      controller.onPageVisible(40, 0.15);
+
+      expect(useReaderStore.getState().currentPage).toBe(40);
+      expect(useReaderStore.getState().pageOffsetRatio).toBe(0.15);
+      expect(getBookPagesSpy).toHaveBeenCalledWith('book-scrub', 35, 15);
     });
 
     it('calculates page offset ratio correctly with clamping', () => {

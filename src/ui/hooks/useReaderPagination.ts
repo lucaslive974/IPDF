@@ -122,16 +122,6 @@ export function determinePrefetchDirection(
 }
 
 /**
- * Calculates scroll compensation difference when prepending previous pages.
- */
-export function calculateScrollOffsetCompensation(
-  prevScrollHeight: number,
-  newScrollHeight: number
-): number {
-  return Math.max(0, newScrollHeight - prevScrollHeight);
-}
-
-/**
  * Calculates the relative scroll ratio inside the active page [-1.0..1.0].
  */
 export function calculatePageOffsetRatio(
@@ -341,6 +331,11 @@ export function createReaderPaginationController(
         currentPage: pageNumber,
         totalPages: state.totalPages,
       });
+    }
+
+    if (!state.loadedPages.some((p) => p.pageNumber === pageNumber)) {
+      void fetchTargetChunkIfNeeded(pageNumber);
+      return;
     }
 
     const prefetchDirection = determinePrefetchDirection(
