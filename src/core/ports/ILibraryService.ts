@@ -21,6 +21,7 @@ export interface ILibraryService {
   listLibraryBooks(): Promise<BookMetadata[]>;
   getStartupBook(): Promise<BookMetadata | null>;
   openBookFile(filePath: string): Promise<BookMetadata>;
+  openBookFiles?(filePaths: readonly string[]): Promise<BookMetadata[]>;
   importLibraryBook(input: ImportLibraryBookInput): Promise<BookMetadata>;
   renameBook(bookHash: string, newTitle: string): Promise<BookMetadata>;
   updateBookMetadata(bookHash: string, input: UpdateBookMetadataInput): Promise<BookMetadata>;

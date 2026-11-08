@@ -47,6 +47,14 @@ export class MockBackend
     return book;
   }
 
+  public async openBookFiles(filePaths: readonly string[]): Promise<BookMetadata[]> {
+    const results: BookMetadata[] = [];
+    for (const filePath of filePaths) {
+      results.push(await this.openBookFile(filePath));
+    }
+    return results;
+  }
+
   public async openBookFile(filePath: string): Promise<BookMetadata> {
     const cleanTitle =
       filePath

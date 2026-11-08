@@ -39,6 +39,7 @@ pub fn run() {
             library::compute_book_sha256,
             library::list_library_books,
             library::open_book_file,
+            library::open_book_files,
             library::pick_and_import_book,
             library::import_library_book,
             library::rename_book,

@@ -73,9 +73,19 @@ export class TauriLibraryService implements ILibraryService {
     return dto ? deserializeBookMetadata(dto) : null;
   }
 
+  public async openBookFiles(filePaths: readonly string[]): Promise<BookMetadata[]> {
+    const dtos = await invoke<SerializedBookMetadata[]>('open_book_files', {
+      filePaths: Array.from(filePaths),
+    });
+    return dtos.map(deserializeBookMetadata);
+  }
+
   public async openBookFile(filePath: string): Promise<BookMetadata> {
-    const dto = await invoke<SerializedBookMetadata>('open_book_file', { filePath });
-    return deserializeBookMetadata(dto);
+    const [book] = await this.openBookFiles([filePath]);
+    if (!book) {
+      throw new Error(`Failed to open book file: ${filePath}`);
+    }
+    return book;
   }
 
   public async pickAndImportBook(): Promise<BookMetadata | null> {

@@ -101,6 +101,25 @@ fn test_library_manager_import_progress_and_sorting() {
     assert!(library
         .open_book_from_path(&std::path::PathBuf::from("/nonexistent/file.epub"))
         .is_err());
+
+    // Batch filesystem opening (multiple files)
+    let temp_file_1 = env::temp_dir().join(format!("batch_book_1_{}.epub", std::process::id()));
+    let temp_file_2 = env::temp_dir().join(format!("batch_book_2_{}.pdf", std::process::id()));
+    fs::write(&temp_file_1, b"PK\x03\x04batch-epub").unwrap();
+    fs::write(&temp_file_2, b"%PDF-1.4 batch-pdf").unwrap();
+
+    let batch_results = library.open_books_from_paths(&[&temp_file_1, &temp_file_2]);
+    assert_eq!(batch_results.len(), 2);
+    assert!(batch_results[0].is_ok());
+    assert!(batch_results[1].is_ok());
+    assert_eq!(
+        batch_results[0].as_ref().unwrap().0.format,
+        BookFormat::Epub
+    );
+    assert_eq!(batch_results[1].as_ref().unwrap().0.format, BookFormat::Pdf);
+
+    let _ = fs::remove_file(&temp_file_1);
+    let _ = fs::remove_file(&temp_file_2);
 }
 
 #[test]

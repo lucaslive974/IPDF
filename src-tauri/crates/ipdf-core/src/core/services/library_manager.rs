@@ -248,6 +248,13 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
         Ok((metadata, bytes))
     }
 
+    pub fn open_books_from_paths(
+        &mut self,
+        paths: &[&Path],
+    ) -> Vec<Result<(BookMetadata, Vec<u8>), String>> {
+        paths.iter().map(|p| self.open_book_from_path(p)).collect()
+    }
+
     pub fn update_reading_progress(
         &mut self,
         book_hash: &str,

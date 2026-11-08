@@ -128,6 +128,31 @@ vi.mock('@tauri-apps/api/core', () => ({
     if (cmd === 'get_startup_book') {
       return null as unknown as T;
     }
+    if (cmd === 'open_book_files') {
+      const filePaths = (args.filePaths as string[]) ?? [];
+      const dtos: SerializedBookMetadata[] = filePaths.map((filePath, idx) => {
+        const cleanTitle =
+          filePath
+            .split('/')
+            .pop()
+            ?.replace(/\.[^/.]+$/, '') ?? `Opened File ${idx}`;
+        return {
+          bookHash: filePaths.length === 1 ? 'sha256-opened-file' : `sha256-batch-${cleanTitle}`,
+          title: cleanTitle,
+          author: 'Unknown',
+          format: filePath.endsWith('.pdf') ? 'pdf' : 'epub',
+          currentPage: 1,
+          totalPages: 120,
+          percentage: 1,
+          lastReadAtMs: 1_700_000_300_000,
+          updatedAtMs: 1_700_000_300_000,
+        };
+      });
+      for (const dto of dtos) {
+        storedBooks.set(dto.bookHash, dto);
+      }
+      return dtos as unknown as T;
+    }
     if (cmd === 'open_book_file') {
       const filePath = String(args.filePath);
       const cleanTitle =
@@ -320,6 +345,19 @@ describe('Modular Tauri IPC Adapters', () => {
     const booksAfterDelete = await libraryService.listLibraryBooks();
     expect(booksAfterDelete).toHaveLength(1);
     expect(booksAfterDelete[0]?.bookHash).toBe('sha256-opened-file');
+  });
+
+  it('should open multiple files in batch via openBookFiles', async () => {
+    const libraryService = new TauriLibraryService();
+    const batchOpened = await libraryService.openBookFiles([
+      '/path/to/book_a.epub',
+      '/path/to/book_b.pdf',
+    ]);
+    expect(batchOpened).toHaveLength(2);
+    expect(batchOpened[0]?.title).toBe('book_a');
+    expect(batchOpened[0]?.format).toBe('epub');
+    expect(batchOpened[1]?.title).toBe('book_b');
+    expect(batchOpened[1]?.format).toBe('pdf');
   });
 
   it('should manage reader operations via TauriReaderService', async () => {
