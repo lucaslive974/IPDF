@@ -10,6 +10,7 @@ import {
   safeScrollTo,
   selectElement,
   selectElements,
+  useIsomorphicLayoutEffect,
 } from '@utils/dom';
 import { clamp } from '@utils/math';
 import { useEffect, useMemo, useRef } from 'react';
@@ -447,7 +448,7 @@ export function useReaderPagination(
 
   const isStreamReady = options?.isStreamReady;
 
-  // 1. Initial Scroll Restoration
+  // 1. Initial Scroll Restoration (fires before browser repaint to eliminate scroll flickering)
   const hasRestoredRef = useRef(false);
   const currentBookHash = useReaderStore((s) => s.document.bookHash);
   const lastBookHashRef = useRef<string | null>(null);
@@ -457,7 +458,7 @@ export function useReaderPagination(
     hasRestoredRef.current = false;
   }
 
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!isStreamReady) {
       hasRestoredRef.current = false;
       return;

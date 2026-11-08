@@ -1,3 +1,5 @@
+import { useEffect, useLayoutEffect } from 'react';
+
 /**
  * Pure DOM and browser environment utility helpers for SSR/Node safety.
  */
@@ -16,6 +18,12 @@ export const hasDocument = (): boolean => typeof document !== 'undefined';
  * Returns true if executed in a standard browser runtime with window and document available.
  */
 export const isBrowser = (): boolean => hasWindow() && hasDocument();
+
+/**
+ * Isomorphic layout effect hook that safely resolves to useLayoutEffect in the browser
+ * and useEffect in server-side/Node environments.
+ */
+export const useIsomorphicLayoutEffect = hasWindow() ? useLayoutEffect : useEffect;
 
 /**
  * Returns true if the IntersectionObserver API is supported in the current environment.

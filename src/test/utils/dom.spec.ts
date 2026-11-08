@@ -11,6 +11,7 @@ import {
   safeScrollTo,
   selectElement,
   selectElements,
+  useIsomorphicLayoutEffect,
 } from '@utils/dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -229,6 +230,12 @@ describe('DOM utility helpers', () => {
       // @ts-expect-error simulating non-browser
       globalThis.window = undefined;
       expect(getWindowSelection()).toBeNull();
+    });
+  });
+
+  describe('useIsomorphicLayoutEffect', () => {
+    it('is defined as a hook function', () => {
+      expect(typeof useIsomorphicLayoutEffect).toBe('function');
     });
   });
 });
