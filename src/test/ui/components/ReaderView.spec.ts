@@ -30,7 +30,7 @@ describe('ReaderView component', () => {
           NavigationProvider,
           null,
           React.createElement(ReaderView, {
-            bookOverride: {
+            book: {
               bookHash: 'book-hash-1',
               title: 'Critique of Pure Reason',
               author: 'Immanuel Kant',
@@ -42,6 +42,7 @@ describe('ReaderView component', () => {
               lastReadAt: new Date(),
               updatedAt: new Date(),
             },
+            onClose: () => {},
           })
         )
       )

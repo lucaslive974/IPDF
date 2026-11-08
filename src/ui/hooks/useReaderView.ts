@@ -26,7 +26,11 @@ export interface UseReaderViewReturn {
   readonly toggleChrome: () => void;
 }
 
-export function useReaderView(): UseReaderViewReturn {
+export interface UseReaderViewOptions {
+  readonly onClose?: () => void;
+}
+
+export function useReaderView(options?: UseReaderViewOptions): UseReaderViewReturn {
   const navigation = useNavigation();
   const { updateBookProgress } = useLibrary();
   const {
@@ -75,9 +79,13 @@ export function useReaderView(): UseReaderViewReturn {
     } finally {
       closeAllOverlays();
       useReaderStore.getState().reset();
-      navigation.closeReader();
+      if (options?.onClose) {
+        options.onClose();
+      } else {
+        navigation.closeReader();
+      }
     }
-  }, [closeAllOverlays, navigation, persistCurrentProgress]);
+  }, [closeAllOverlays, navigation, persistCurrentProgress, options?.onClose]);
 
   const handleViewportClick = useCallback(
     (e: React.MouseEvent<HTMLElement>) => {

@@ -7,11 +7,11 @@ import { ServiceContainerProvider } from './providers/ServiceContainerContext';
 import { ThemeProvider } from './providers/ThemeContext';
 
 function AppRouter() {
-  useSystemHandler();
-  const { currentView } = useNavigation();
+  const { currentView, selectedBook, openReader, closeReader } = useNavigation();
+  useSystemHandler({ onOpenBook: openReader });
 
   if (currentView === 'reader') {
-    return <ReaderView />;
+    return <ReaderView book={selectedBook} onClose={closeReader} />;
   }
 
   if (currentView === 'settings') {

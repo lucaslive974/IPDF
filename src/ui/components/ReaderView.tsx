@@ -2,7 +2,6 @@ import type { BookMetadata } from '@domain/BookMetadata';
 import { useReaderBootstrapper } from '@hooks/useReaderBootstrapper';
 import { useReaderPagination } from '@hooks/useReaderPagination';
 import { useReaderView } from '@hooks/useReaderView';
-import { useNavigation } from '@providers/NavigationContext';
 import { useReaderStore } from '@stores/useReaderStore';
 import { memo } from 'react';
 import { ReaderBottomBar } from './reader/ReaderBottomBar';
@@ -12,13 +11,11 @@ import { ReaderOverlays } from './reader/ReaderOverlays';
 import { ReaderStream } from './reader/ReaderStream';
 
 export interface ReaderViewProps {
-  readonly bookOverride?: BookMetadata | null;
+  readonly book?: BookMetadata | null;
+  readonly onClose?: () => void;
 }
 
-export const ReaderView = memo(function ReaderView({ bookOverride }: ReaderViewProps) {
-  const navigation = useNavigation();
-  const book = bookOverride ?? navigation.selectedBook;
-
+export const ReaderView = memo(function ReaderView({ book, onClose }: ReaderViewProps) {
   useReaderBootstrapper(book);
 
   const isLoadingPages = useReaderStore((s) => s.isLoadingPages);
@@ -29,7 +26,7 @@ export const ReaderView = memo(function ReaderView({ bookOverride }: ReaderViewP
   const isReady = !isLoadingPages && loadedPages.length > 0;
   const showLoadingOverlay = !isReady || !isStreamReady;
 
-  const { handleCloseReader, handleViewportClick, toggleChrome } = useReaderView();
+  const { handleCloseReader, handleViewportClick, toggleChrome } = useReaderView({ onClose });
   const pagination = useReaderPagination({ isStreamReady });
 
   return (
