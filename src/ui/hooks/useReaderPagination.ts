@@ -1,12 +1,6 @@
+import { type PageWindow, calculatePageWindow } from '@domain/PageWindow';
 import { BookFormat } from '@domain/types';
-import {
-  INITIAL_ACTIVE_PAGES,
-  INITIAL_BACKWARD_PAGES,
-  INITIAL_FORWARD_PAGES,
-  type PageWindow,
-  type ReaderBootstrapDependencies,
-  resolvePdfViewer,
-} from '@hooks/readerBootstrapper';
+import { type ReaderBootstrapDependencies, resolvePdfViewer } from '@hooks/readerBootstrapper';
 import type { DocumentPage } from '@ports/IReaderService';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useReaderStore } from '@stores/useReaderStore';
@@ -73,20 +67,6 @@ export function calculatePrevPageWindow(
   }
   const startPage = Math.max(1, firstPageNum - chunkSize);
   const count = firstPageNum - startPage;
-  return { startPage, count };
-}
-
-/**
- * Calculates the page window centered around a target navigation page.
- */
-export function calculateTargetPageWindow(targetPage: number, totalPages: number): PageWindow {
-  const next = clamp(targetPage, 1, totalPages);
-  const backwardMargin = next > 1 ? Math.min(INITIAL_BACKWARD_PAGES, next - 1) : 0;
-  const startPage = Math.max(1, next - backwardMargin);
-  const count = Math.min(
-    backwardMargin + INITIAL_ACTIVE_PAGES + INITIAL_FORWARD_PAGES,
-    totalPages - startPage + 1
-  );
   return { startPage, count };
 }
 
@@ -339,7 +319,7 @@ export function createReaderPaginationController(
     const exists = state.loadedPages.some((p) => p.pageNumber === targetPage);
     if (exists) return;
 
-    const pageWindow = calculateTargetPageWindow(targetPage, state.totalPages);
+    const pageWindow = calculatePageWindow(targetPage, state.totalPages);
     const pages = await fetchPagesChunk(pageWindow);
     if (pages.length > 0) {
       store.getState().upsertPages(pages);
@@ -349,24 +329,39 @@ export function createReaderPaginationController(
   const scrollToTargetPage = (targetPage: number, offsetRatio: number, smooth: boolean): void => {
     if (typeof window === 'undefined') return;
 
-    window.requestAnimationFrame(() => {
+    const performScroll = (): boolean => {
       if (targetPage === 1 && Math.abs(offsetRatio) <= 0.0001) {
-        window.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'instant' });
-        return;
+        if (typeof window.scrollTo === 'function') {
+          window.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'instant' });
+        }
+        return true;
       }
 
-      const el = document.querySelector<HTMLElement>(`article[data-page-number="${targetPage}"]`);
-      if (!el) return;
+      const el =
+        typeof document !== 'undefined'
+          ? document.querySelector<HTMLElement>(`article[data-page-number="${targetPage}"]`)
+          : null;
+      if (!el) return false;
 
       const rect = el.getBoundingClientRect();
       const targetTop = calculateScrollTargetTop(
         rect.top,
         rect.height,
-        window.scrollY,
+        window.scrollY ?? 0,
         offsetRatio
       );
-      window.scrollTo({ top: targetTop, behavior: smooth ? 'smooth' : 'instant' });
-    });
+      if (typeof window.scrollTo === 'function') {
+        window.scrollTo({ top: targetTop, behavior: smooth ? 'smooth' : 'instant' });
+      }
+      return true;
+    };
+
+    const executed = performScroll();
+    if (!executed && typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(() => {
+        performScroll();
+      });
+    }
   };
 
   const goToPage = async (targetPage: number, options?: GoToPageOptions): Promise<void> => {
@@ -413,47 +408,12 @@ export function createReaderPaginationController(
     const offsetRatio = clamp(pageOffsetRatio || 0.0, -1.0, 1.0);
 
     if (targetPage <= 1 && Math.abs(offsetRatio) <= 0.0001) {
-      if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
-        window.scrollTo({ top: 0, behavior: 'instant' });
-      }
       unlockScroll();
-      return;
-    }
-
-    if (typeof document === 'undefined') {
-      return;
-    }
-
-    const scrollToPageElement = (el: HTMLElement) => {
+    } else {
       lockScroll(600);
-      const rect = el.getBoundingClientRect();
-      const targetTop = calculateScrollTargetTop(
-        rect.top,
-        rect.height,
-        window.scrollY,
-        offsetRatio
-      );
-      if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
-        window.scrollTo({ top: targetTop, behavior: 'instant' });
-      }
-    };
-
-    const el = document.querySelector<HTMLElement>(`article[data-page-number="${targetPage}"]`);
-    if (el) {
-      scrollToPageElement(el);
-    } else if (
-      typeof window !== 'undefined' &&
-      typeof window.requestAnimationFrame === 'function'
-    ) {
-      window.requestAnimationFrame(() => {
-        const retryEl = document.querySelector<HTMLElement>(
-          `article[data-page-number="${targetPage}"]`
-        );
-        if (retryEl) {
-          scrollToPageElement(retryEl);
-        }
-      });
     }
+
+    scrollToTargetPage(targetPage, offsetRatio, false);
   };
 
   return {

@@ -5,7 +5,6 @@ import {
   bootstrapEpubReaderSession,
   bootstrapPdfReaderSession,
   bootstrapReaderBook,
-  calculateInitialPageWindow,
   createStudyDocumentDescriptor,
   resolveDocumentViewer,
 } from '@hooks/readerBootstrapper';
@@ -179,18 +178,6 @@ describe('readerBootstrapper', () => {
       expect(desc.bookHash).toBe('book-1');
       expect(desc.bookTitle).toBe('Title');
       expect(desc.chapterTitle).toBe('Chapter 5 Reading Session');
-    });
-
-    it('calculates initial page window', () => {
-      expect(calculateInitialPageWindow(1, 100)).toEqual({
-        startPage: 1,
-        count: 10,
-      });
-
-      expect(calculateInitialPageWindow(15, 100)).toEqual({
-        startPage: 10,
-        count: 15,
-      });
     });
 
     it('resolves viewer or throws when missing', () => {

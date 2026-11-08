@@ -1,5 +1,6 @@
 import { isValidAuthor } from '@components/library/BookCover';
 import type { BookMetadata } from '@domain/BookMetadata';
+import { type PageWindow, calculatePageWindow } from '@domain/PageWindow';
 import { BookFormat } from '@domain/types';
 import type { IDocumentViewer } from '@ports/IDocumentViewer';
 import type { IEpubViewer } from '@ports/IEpubViewer';
@@ -16,15 +17,6 @@ import {
 import { extractAndSyncPdfCover } from '@utils/pdfCoverGenerator';
 import { loadAndSyncBookHighlights } from './useReaderHighlights';
 
-export interface PageWindow {
-  readonly startPage: number;
-  readonly count: number;
-}
-
-export const INITIAL_BACKWARD_PAGES = 5;
-export const INITIAL_ACTIVE_PAGES = 5;
-export const INITIAL_FORWARD_PAGES = 5;
-
 export interface ReaderBootstrapDependencies {
   readonly readerService: IReaderService;
   readonly libraryService?: ILibraryService;
@@ -34,20 +26,6 @@ export interface ReaderBootstrapDependencies {
   readonly epubViewer?: IEpubViewer;
   readonly pdfViewer?: IPdfViewer;
   readonly store?: typeof useReaderStore;
-}
-
-/**
- * Calculates the initial window of pages to fetch around the starting page.
- */
-export function calculateInitialPageWindow(initialPage: number, totalPages?: number): PageWindow {
-  const backwardMargin = initialPage > 1 ? Math.min(INITIAL_BACKWARD_PAGES, initialPage - 1) : 0;
-  const startPage = Math.max(1, initialPage - backwardMargin);
-  const initialChunkSize = backwardMargin + INITIAL_ACTIVE_PAGES + INITIAL_FORWARD_PAGES;
-  const count = Math.min(
-    initialChunkSize,
-    totalPages ? totalPages - startPage + 1 : initialChunkSize
-  );
-  return { startPage, count };
 }
 
 /**
@@ -221,7 +199,7 @@ export async function bootstrapReaderBook(
 
   const format = book?.format ?? BookFormat.EPUB;
   const viewer = resolveDocumentViewer(deps, format);
-  const window = calculateInitialPageWindow(initialPage, book?.totalPages);
+  const window = calculatePageWindow(initialPage, book?.totalPages);
 
   try {
     if (format === BookFormat.PDF) {

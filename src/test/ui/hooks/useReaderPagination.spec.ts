@@ -6,7 +6,6 @@ import {
   calculatePageOffsetRatio,
   calculatePrevPageWindow,
   calculateScrollTargetTop,
-  calculateTargetPageWindow,
   collectVisibleArticleRects,
   createReaderPaginationController,
   detectFocalPageAndOffset,
@@ -250,26 +249,6 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       // Already at page 1
       const firstPage = [{ pageNumber: 1 }];
       expect(calculatePrevPageWindow(firstPage, 10)).toBeNull();
-    });
-
-    it('calculates target page window with backward margin', () => {
-      // Middle of book
-      expect(calculateTargetPageWindow(25, 100)).toEqual({
-        startPage: 20,
-        count: 15,
-      });
-
-      // Near start
-      expect(calculateTargetPageWindow(5, 100)).toEqual({
-        startPage: 1,
-        count: 14,
-      });
-
-      // Near end
-      expect(calculateTargetPageWindow(95, 100)).toEqual({
-        startPage: 90,
-        count: 11,
-      });
     });
 
     it('determines prefetch direction based on reading boundaries', () => {
