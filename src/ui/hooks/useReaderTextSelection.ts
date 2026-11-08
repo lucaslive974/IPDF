@@ -2,6 +2,7 @@ import type { Highlight } from '@domain/Highlight';
 import { useHighlightStore } from '@stores/useHighlightStore';
 import { useReaderStore } from '@stores/useReaderStore';
 import { useReaderUIStore } from '@stores/useReaderUIStore';
+import { getWindowSelection } from '@utils/dom';
 import { getExpandedWordSelection } from '@utils/domSelection';
 import { useCallback, useMemo } from 'react';
 import { type ReaderHighlightsController, useReaderHighlights } from './useReaderHighlights';
@@ -98,8 +99,7 @@ export function useReaderTextSelection(): ReaderTextSelectionState {
       initialNote?: string,
       pageNumber?: number
     ): Promise<Highlight | null> => {
-      const browserSel =
-        typeof window !== 'undefined' ? getExpandedWordSelection(window.getSelection()) : '';
+      const browserSel = getExpandedWordSelection(getWindowSelection());
       const selected = overrideText?.trim() || selectionPopover?.text?.trim() || browserSel || '';
       const targetPage = pageNumber ?? useReaderStore.getState().currentPage;
 
@@ -113,9 +113,7 @@ export function useReaderTextSelection(): ReaderTextSelectionState {
         return null;
       }
 
-      if (typeof window !== 'undefined') {
-        window.getSelection()?.removeAllRanges();
-      }
+      getWindowSelection()?.removeAllRanges();
       setSelectionPopover(null);
       setSelectedHighlightId(created.id);
       return created;
@@ -125,8 +123,7 @@ export function useReaderTextSelection(): ReaderTextSelectionState {
 
   const createHighlightFromCurrentSelection = useCallback(
     async (colorHex: string) => {
-      const browserSel =
-        typeof window !== 'undefined' ? getExpandedWordSelection(window.getSelection()) : '';
+      const browserSel = getExpandedWordSelection(getWindowSelection());
       await createHighlightWithColor(colorHex, browserSel);
     },
     [createHighlightWithColor]

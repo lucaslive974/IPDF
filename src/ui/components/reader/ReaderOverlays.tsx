@@ -3,6 +3,7 @@ import { useReaderTextSelection } from '@hooks/useReaderTextSelection';
 import { useReaderUI } from '@hooks/useReaderUI';
 import { useReaderStore } from '@stores/useReaderStore';
 import { useTypographyStore } from '@stores/useTypographyStore';
+import { getViewportWidth } from '@utils/dom';
 import { memo } from 'react';
 import { ExplainDialog } from '../ExplainDialog';
 import { HighlightDetailModal } from '../HighlightDetailModal';
@@ -37,7 +38,7 @@ export const ReaderOverlays = memo(function ReaderOverlays() {
   const isAppearancePopoverOpen = useTypographyStore((s) => s.isAppearancePopoverOpen);
   const setAppearancePopoverOpen = useTypographyStore((s) => s.setAppearancePopoverOpen);
 
-  const popoverX = typeof window !== 'undefined' ? Math.max(160, window.innerWidth - 170) : 800;
+  const popoverX = Math.max(160, getViewportWidth(970) - 170);
 
   return (
     <>

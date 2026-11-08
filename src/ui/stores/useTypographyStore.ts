@@ -1,3 +1,4 @@
+import { getViewportWidth } from '@utils/dom';
 import { create } from 'zustand';
 
 export type FontFamilyChoice = 'serif' | 'sans' | 'editorial' | 'accessible' | 'mono';
@@ -48,7 +49,7 @@ export const MIN_ZOOM = 0.5;
 export const MAX_ZOOM = 5.0;
 
 function getDefaultFontSize(): number {
-  if (typeof window !== 'undefined' && window.innerWidth < 640) {
+  if (getViewportWidth() < 640) {
     return 16;
   }
   return 18;

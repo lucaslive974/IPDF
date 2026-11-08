@@ -6,6 +6,7 @@ import type { BookMetadata } from '@domain/BookMetadata';
 import type { ILibraryService } from '@ports/ILibraryService';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useLibraryStore } from '@stores/useLibraryStore';
+import { isBrowser } from '@utils/dom';
 import { useEffect } from 'react';
 
 export interface SystemHandlerDependencies {
@@ -83,14 +84,14 @@ export function setupSystemEventListeners(deps: SystemHandlerDependencies): () =
     }
   };
 
-  if (typeof window !== 'undefined') {
+  if (isBrowser()) {
     window.addEventListener('dragover', handleDragOver);
     window.addEventListener('drop', handleDrop);
   }
 
   return () => {
     isCancelled = true;
-    if (typeof window !== 'undefined') {
+    if (isBrowser()) {
       window.removeEventListener('dragover', handleDragOver);
       window.removeEventListener('drop', handleDrop);
     }

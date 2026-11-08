@@ -2,6 +2,7 @@ import { DefaultPdfEngine } from '@adapters/viewers/DefaultPdfEngine';
 import type { ILibraryService } from '@ports/ILibraryService';
 import type { IPdfEngine, PdfPageProxy } from '@ports/IPdfEngine';
 import type { IPdfViewer } from '@ports/IPdfViewer';
+import { hasDocument } from '@utils/dom';
 
 export interface RenderCoverOptions {
   readonly maxWidth?: number;
@@ -19,7 +20,7 @@ export async function renderPdfPageToDataUrl(
 ): Promise<string | null> {
   let canvas = options?.canvas;
   if (!canvas) {
-    if (typeof document === 'undefined') {
+    if (!hasDocument()) {
       return null;
     }
     canvas = document.createElement('canvas');

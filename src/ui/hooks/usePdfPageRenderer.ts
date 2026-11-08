@@ -1,6 +1,7 @@
 import type { Highlight } from '@domain/Highlight';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useReaderStore } from '@stores/useReaderStore';
+import { hasIntersectionObserver } from '@utils/dom';
 import { type RefObject, useEffect, useMemo, useRef, useState } from 'react';
 
 export function calculatePdfResponsiveScale(
@@ -46,13 +47,13 @@ export function usePdfPageRenderer({
   // Only the target page and immediate neighbor start near viewport to avoid rendering avalanche
   const [isNearViewport, setIsNearViewport] = useState<boolean>(() => {
     const targetPage = useReaderStore.getState().currentPage;
-    return typeof IntersectionObserver === 'undefined' || Math.abs(pageNumber - targetPage) <= 1;
+    return !hasIntersectionObserver() || Math.abs(pageNumber - targetPage) <= 1;
   });
 
   // Track viewport proximity with an 800px buffer (~1 page ahead/behind)
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || typeof IntersectionObserver === 'undefined') {
+    if (!container || !hasIntersectionObserver()) {
       return;
     }
 

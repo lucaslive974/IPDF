@@ -1,3 +1,4 @@
+import { getViewportHeight, getViewportWidth } from '@utils/dom';
 import { type HTMLAttributes, type ReactNode, useEffect, useRef, useState } from 'react';
 
 export interface DropdownMenuProps extends HTMLAttributes<HTMLDivElement> {
@@ -25,8 +26,8 @@ export function DropdownMenu({
   useEffect(() => {
     if (!isOpen) return;
 
-    const viewportW = typeof window !== 'undefined' ? window.innerWidth : 1024;
-    const viewportH = typeof window !== 'undefined' ? window.innerHeight : 768;
+    const viewportW = getViewportWidth(1024);
+    const viewportH = getViewportHeight(768);
 
     const estimatedW = 260;
     const estimatedH = 320;

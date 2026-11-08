@@ -1,3 +1,4 @@
+import { isBrowser } from '@utils/dom';
 import {
   type ReactNode,
   createContext,
@@ -30,7 +31,7 @@ export function resolveThemeMode(storedValue?: string | null): ThemeMode {
 }
 
 function resolveInitialTheme(): ThemeMode {
-  if (typeof window === 'undefined') {
+  if (!isBrowser()) {
     return DEFAULT_THEME;
   }
   return resolveThemeMode(window.localStorage.getItem(STORAGE_KEY));
@@ -45,7 +46,7 @@ export function ThemeProvider({ children, initialTheme }: ThemeProviderProps) {
   const [theme, setThemeState] = useState<ThemeMode>(initialTheme ?? resolveInitialTheme);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (!isBrowser()) {
       return;
     }
     const root = document.documentElement;

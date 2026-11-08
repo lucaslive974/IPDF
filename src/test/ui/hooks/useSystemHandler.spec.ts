@@ -97,6 +97,7 @@ describe('useSystemHandler / setupSystemEventListeners', () => {
       let dragOverHandler: ((e: DragEvent) => void) | null = null;
 
       const originalWindow = globalThis.window;
+      const originalDocument = globalThis.document;
       globalThis.window = {
         addEventListener: vi.fn((event: string, handler: unknown) => {
           if (event === 'drop') dropHandler = handler as (e: DragEvent) => Promise<void>;
@@ -104,6 +105,7 @@ describe('useSystemHandler / setupSystemEventListeners', () => {
         }),
         removeEventListener: vi.fn(),
       } as unknown as Window & typeof globalThis;
+      globalThis.document = {} as unknown as Document;
 
       try {
         const cleanup = setupSystemEventListeners({
@@ -151,6 +153,7 @@ describe('useSystemHandler / setupSystemEventListeners', () => {
         cleanup();
       } finally {
         globalThis.window = originalWindow;
+        globalThis.document = originalDocument;
       }
     });
   });

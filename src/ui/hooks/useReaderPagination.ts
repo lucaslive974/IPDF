@@ -3,6 +3,14 @@ import { BookFormat } from '@domain/types';
 import type { DocumentPage, IPdfViewer, IPresenceService, IReaderService } from '@ports';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useReaderStore } from '@stores/useReaderStore';
+import {
+  hasWindow,
+  isBrowser,
+  safeRequestAnimationFrame,
+  safeScrollTo,
+  selectElement,
+  selectElements,
+} from '@utils/dom';
 import { clamp } from '@utils/math';
 import { useEffect, useMemo, useRef } from 'react';
 
@@ -163,8 +171,7 @@ export function findFocalPageNumber(
  * Collects bounding rects for all visible page article elements currently in the DOM.
  */
 export function collectVisibleArticleRects(): ArticleRect[] {
-  if (typeof document === 'undefined') return [];
-  const elements = document.querySelectorAll<HTMLElement>('article[data-page-number]');
+  const elements = selectElements<HTMLElement>('article[data-page-number]');
   const rects: ArticleRect[] = [];
   for (const el of elements) {
     const pageNum = Number(el.getAttribute('data-page-number'));
@@ -187,7 +194,7 @@ export function collectVisibleArticleRects(): ArticleRect[] {
 export function detectFocalPageAndOffset(
   focalY?: number
 ): { pageNumber: number; offsetRatio: number } | null {
-  if (typeof window === 'undefined' || typeof document === 'undefined') return null;
+  if (!isBrowser()) return null;
   const rects = collectVisibleArticleRects();
   if (rects.length === 0) return null;
 
@@ -195,7 +202,7 @@ export function detectFocalPageAndOffset(
   const activePage = findFocalPageNumber(rects, targetFocalY);
   if (!activePage || activePage <= 0) return null;
 
-  const el = document.querySelector<HTMLElement>(`article[data-page-number="${activePage}"]`);
+  const el = selectElement<HTMLElement>(`article[data-page-number="${activePage}"]`);
   if (!el) return null;
 
   const rect = el.getBoundingClientRect();
@@ -330,20 +337,15 @@ export function createReaderPaginationController(
   };
 
   const scrollToTargetPage = (targetPage: number, offsetRatio: number, smooth: boolean): void => {
-    if (typeof window === 'undefined') return;
+    if (!hasWindow()) return;
 
     const performScroll = (): boolean => {
       if (targetPage === 1 && Math.abs(offsetRatio) <= 0.0001) {
-        if (typeof window.scrollTo === 'function') {
-          window.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'instant' });
-        }
+        safeScrollTo({ top: 0, behavior: smooth ? 'smooth' : 'instant' });
         return true;
       }
 
-      const el =
-        typeof document !== 'undefined'
-          ? document.querySelector<HTMLElement>(`article[data-page-number="${targetPage}"]`)
-          : null;
+      const el = selectElement<HTMLElement>(`article[data-page-number="${targetPage}"]`);
       if (!el) return false;
 
       const rect = el.getBoundingClientRect();
@@ -353,15 +355,13 @@ export function createReaderPaginationController(
         window.scrollY ?? 0,
         offsetRatio
       );
-      if (typeof window.scrollTo === 'function') {
-        window.scrollTo({ top: targetTop, behavior: smooth ? 'smooth' : 'instant' });
-      }
+      safeScrollTo({ top: targetTop, behavior: smooth ? 'smooth' : 'instant' });
       return true;
     };
 
     const executed = performScroll();
-    if (!executed && typeof window.requestAnimationFrame === 'function') {
-      window.requestAnimationFrame(() => {
+    if (!executed) {
+      safeRequestAnimationFrame(() => {
         performScroll();
       });
     }

@@ -1,8 +1,9 @@
 import type { IPdfEngine, PdfDocumentProxy } from '@ports/IPdfEngine';
+import { hasWindow } from '@utils/dom';
 
 export class DefaultPdfEngine implements IPdfEngine {
   private ensureWorkerConfigured(pdfjsLib: typeof import('pdfjs-dist')): void {
-    if (typeof window !== 'undefined' && 'GlobalWorkerOptions' in pdfjsLib) {
+    if (hasWindow() && 'GlobalWorkerOptions' in pdfjsLib) {
       if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
         try {
           pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(

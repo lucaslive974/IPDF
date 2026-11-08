@@ -1,5 +1,6 @@
 import type { Highlight } from '@domain/Highlight';
 import { useReaderStore } from '@stores/useReaderStore';
+import { hasIntersectionObserver } from '@utils/dom';
 import { getExpandedWordSelection } from '@utils/domSelection';
 import {
   type TextChunk,
@@ -40,12 +41,12 @@ export const ReaderPageParagraphs = memo(function ReaderPageParagraphs({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isNearViewport, setIsNearViewport] = useState<boolean>(() => {
     const targetPage = useReaderStore.getState().currentPage;
-    return typeof IntersectionObserver === 'undefined' || Math.abs(pageNumber - targetPage) <= 1;
+    return !hasIntersectionObserver() || Math.abs(pageNumber - targetPage) <= 1;
   });
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || typeof IntersectionObserver === 'undefined') {
+    if (!container || !hasIntersectionObserver()) {
       return;
     }
 

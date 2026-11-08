@@ -2,6 +2,7 @@ import type { PageInfo } from '@domain/types';
 import type { DocumentPage } from '@ports/IDocumentViewer';
 import type { IPdfEngine, PdfDocumentProxy, PdfPageProxy, PdfRenderTask } from '@ports/IPdfEngine';
 import type { IPdfViewer } from '@ports/IPdfViewer';
+import { getDevicePixelRatio, hasDocument, isBrowser } from '@utils/dom';
 import { DefaultPdfEngine } from './DefaultPdfEngine';
 
 export class PdfViewerAdapter implements IPdfViewer {
@@ -99,7 +100,7 @@ export class PdfViewerAdapter implements IPdfViewer {
       await this.abortCanvasTask(canvas);
     }
 
-    const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+    const dpr = getDevicePixelRatio();
     const scale = targetScale * dpr;
     const viewport = pageProxy.getViewport({ scale });
 
@@ -173,7 +174,7 @@ export class PdfViewerAdapter implements IPdfViewer {
 
     try {
       const pdfjsLib = await import('pdfjs-dist');
-      if (pdfjsLib.TextLayer && typeof window !== 'undefined' && typeof document !== 'undefined') {
+      if (pdfjsLib.TextLayer && isBrowser()) {
         type TextLayerParams = ConstructorParameters<typeof pdfjsLib.TextLayer>[0];
         const textLayer = new pdfjsLib.TextLayer({
           textContentSource: textContent as unknown as TextLayerParams['textContentSource'],
@@ -206,7 +207,7 @@ export class PdfViewerAdapter implements IPdfViewer {
       // In non-browser environments or when native TextLayer fails, gracefully fallback
     }
 
-    if (container && typeof document !== 'undefined') {
+    if (container && hasDocument()) {
       for (const item of textContent.items) {
         const text = 'str' in item ? item.str : '';
         if (text) {
