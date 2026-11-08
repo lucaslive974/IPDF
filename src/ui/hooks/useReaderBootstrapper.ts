@@ -9,12 +9,14 @@ import type { ILibraryService } from '@ports/ILibraryService';
 import type { IPdfViewer } from '@ports/IPdfViewer';
 import type { IPresenceService } from '@ports/IPresenceService';
 import type { IReaderService } from '@ports/IReaderService';
+import { useServiceContainer } from '@providers/ServiceContainerContext';
 import {
   EMPTY_DOCUMENT,
   type StudyDocumentDescriptor,
   useReaderStore,
 } from '@stores/useReaderStore';
 import { extractAndSyncPdfCover } from '@utils/pdfCoverGenerator';
+import { useEffect } from 'react';
 import { loadAndSyncBookHighlights } from './useReaderHighlights';
 
 export interface ReaderBootstrapDependencies {
@@ -229,4 +231,52 @@ export async function bootstrapReaderBook(
   });
 
   return doc;
+}
+
+export interface UseReaderBootstrapperOptions {
+  readonly store?: typeof useReaderStore;
+}
+
+/**
+ * Hook to orchestrate book bootstrapping when opening a reader session.
+ */
+export function useReaderBootstrapper(
+  book?: BookMetadata | null,
+  options?: UseReaderBootstrapperOptions
+): void {
+  const {
+    readerService,
+    libraryService,
+    highlightService,
+    presenceService,
+    getViewer,
+    epubViewer,
+    pdfViewer,
+  } = useServiceContainer();
+
+  useEffect(() => {
+    void bootstrapReaderBook(
+      {
+        readerService,
+        libraryService,
+        highlightService,
+        presenceService,
+        getViewer,
+        epubViewer,
+        pdfViewer,
+        store: options?.store,
+      },
+      book
+    );
+  }, [
+    book,
+    readerService,
+    libraryService,
+    highlightService,
+    presenceService,
+    getViewer,
+    epubViewer,
+    pdfViewer,
+    options?.store,
+  ]);
 }

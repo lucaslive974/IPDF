@@ -1,11 +1,10 @@
 import type { BookMetadata } from '@domain/BookMetadata';
-import { bootstrapReaderBook } from '@hooks/readerBootstrapper';
+import { useReaderBootstrapper } from '@hooks/useReaderBootstrapper';
 import { useReaderPagination } from '@hooks/useReaderPagination';
 import { useReaderView } from '@hooks/useReaderView';
 import { useNavigation } from '@providers/NavigationContext';
-import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useReaderStore } from '@stores/useReaderStore';
-import { memo, useEffect } from 'react';
+import { memo } from 'react';
 import { ReaderBottomBar } from './reader/ReaderBottomBar';
 import { ReaderHeader } from './reader/ReaderHeader';
 import { ReaderLoadingView } from './reader/ReaderLoadingView';
@@ -17,41 +16,10 @@ export interface ReaderViewProps {
 }
 
 export const ReaderView = memo(function ReaderView({ bookOverride }: ReaderViewProps) {
-  const {
-    readerService,
-    libraryService,
-    highlightService,
-    presenceService,
-    getViewer,
-    epubViewer,
-    pdfViewer,
-  } = useServiceContainer();
   const navigation = useNavigation();
   const book = bookOverride ?? navigation.selectedBook;
 
-  useEffect(() => {
-    void bootstrapReaderBook(
-      {
-        readerService,
-        libraryService,
-        highlightService,
-        presenceService,
-        getViewer,
-        epubViewer,
-        pdfViewer,
-      },
-      book
-    );
-  }, [
-    book,
-    readerService,
-    libraryService,
-    highlightService,
-    presenceService,
-    getViewer,
-    epubViewer,
-    pdfViewer,
-  ]);
+  useReaderBootstrapper(book);
 
   const isLoadingPages = useReaderStore((s) => s.isLoadingPages);
   const isStreamReady = useReaderStore((s) => s.isStreamReady);

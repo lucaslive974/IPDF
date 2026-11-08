@@ -7,14 +7,18 @@ import {
   bootstrapReaderBook,
   createStudyDocumentDescriptor,
   resolveDocumentViewer,
-} from '@hooks/readerBootstrapper';
+  useReaderBootstrapper,
+} from '@hooks/useReaderBootstrapper';
 import type { IDocumentViewer } from '@ports/IDocumentViewer';
 import type { IPdfViewer } from '@ports/IPdfViewer';
+import { ServiceContainerProvider } from '@providers/ServiceContainerContext';
 import { EMPTY_DOCUMENT, useReaderStore } from '@stores/useReaderStore';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MockBackend } from '../../mocks/MockBackend';
 
-describe('readerBootstrapper', () => {
+describe('useReaderBootstrapper / bootstrapReaderBook', () => {
   let backend: MockBackend;
   let viewer: EpubViewerAdapter;
 
@@ -268,6 +272,32 @@ describe('readerBootstrapper', () => {
       expect(useReaderStore.getState().totalPages).toBe(40);
       expect(useReaderStore.getState().loadedPages).toHaveLength(1);
       expect(useReaderStore.getState().chapterTitle).toBe('PDF Page 1');
+    });
+  });
+
+  describe('useReaderBootstrapper hook', () => {
+    it('executes book bootstrapping effect inside ServiceContainerProvider', () => {
+      function Consumer({ book }: { readonly book?: BookMetadata | null }) {
+        useReaderBootstrapper(book);
+        return null;
+      }
+
+      renderToStaticMarkup(
+        React.createElement(
+          ServiceContainerProvider,
+          {
+            readerService: backend,
+            libraryService: backend,
+            highlightService: backend,
+            presenceService: backend,
+            epubViewer: viewer,
+          },
+          React.createElement(Consumer, { book: null })
+        )
+      );
+
+      expect(useReaderStore.getState().document.bookHash).toBe('');
+      expect(useReaderStore.getState().isLoadingPages).toBe(false);
     });
   });
 });
