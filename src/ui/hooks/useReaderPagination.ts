@@ -11,7 +11,7 @@ import type { DocumentPage } from '@ports/IReaderService';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useReaderStore } from '@stores/useReaderStore';
 import { clamp } from '@utils/math';
-import { type RefObject, useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 export type ReaderPaginationDependencies = Omit<ReaderBootstrapDependencies, 'libraryService'>;
 
@@ -201,6 +201,50 @@ export function measureCurrentPageOffsetRatio(currentPage: number): number {
 }
 
 /**
+ * Collects bounding rects for all visible page article elements currently in the DOM.
+ */
+export function collectVisibleArticleRects(): ArticleRect[] {
+  if (typeof document === 'undefined') return [];
+  const elements = document.querySelectorAll<HTMLElement>('article[data-page-number]');
+  const rects: ArticleRect[] = [];
+  for (const el of elements) {
+    const pageNum = Number(el.getAttribute('data-page-number'));
+    if (pageNum > 0) {
+      const rect = el.getBoundingClientRect();
+      rects.push({
+        pageNumber: pageNum,
+        top: rect.top,
+        bottom: rect.bottom,
+        height: rect.height,
+      });
+    }
+  }
+  return rects;
+}
+
+/**
+ * Detects which page intersects the focal reading line and computes its relative offset ratio.
+ */
+export function detectFocalPageAndOffset(
+  focalY?: number
+): { pageNumber: number; offsetRatio: number } | null {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return null;
+  const rects = collectVisibleArticleRects();
+  if (rects.length === 0) return null;
+
+  const targetFocalY = focalY ?? window.innerHeight * 0.35;
+  const activePage = findFocalPageNumber(rects, targetFocalY);
+  if (!activePage || activePage <= 0) return null;
+
+  const el = document.querySelector<HTMLElement>(`article[data-page-number="${activePage}"]`);
+  if (!el) return null;
+
+  const rect = el.getBoundingClientRect();
+  const offsetRatio = calculatePageOffsetRatio(rect.top, rect.height, 0, activePage > 1);
+  return { pageNumber: activePage, offsetRatio };
+}
+
+/**
  * Creates the reader pagination controller to orchestrate document streaming, navigation and scroll.
  */
 export function createReaderPaginationController(
@@ -232,14 +276,28 @@ export function createReaderPaginationController(
 
   const isLocked = (): boolean => isScrollLocked;
 
+  const fetchPagesChunk = async (pageWindow: PageWindow): Promise<readonly DocumentPage[]> => {
+    const state = store.getState();
+    const format = state.document.format ?? BookFormat.EPUB;
+
+    if (format === BookFormat.PDF) {
+      const pdfViewer = resolvePdfViewer(deps);
+      return pdfViewer.getPagesChunk(pageWindow.startPage, pageWindow.count);
+    }
+
+    return deps.readerService.getBookPages(
+      state.document.bookHash,
+      pageWindow.startPage,
+      pageWindow.count
+    );
+  };
+
   const loadMorePages = async (direction: 'next' | 'prev'): Promise<void> => {
     if (isLoadingMore) return;
     isLoadingMore = true;
 
-    const state = store.getState();
-    const format = state.document.format ?? BookFormat.EPUB;
-
     try {
+      const state = store.getState();
       const pageWindow =
         direction === 'next'
           ? calculateNextPageWindow(state.loadedPages, state.totalPages)
@@ -247,52 +305,13 @@ export function createReaderPaginationController(
 
       if (!pageWindow) return;
 
-      const prevScrollHeight =
-        typeof document !== 'undefined' ? document.documentElement.scrollHeight : 0;
+      const pages = await fetchPagesChunk(pageWindow);
+      if (pages.length === 0) return;
 
-      if (format === BookFormat.PDF) {
-        const pdfViewer = resolvePdfViewer(deps);
-        const chunk = pdfViewer.getPagesChunk(pageWindow.startPage, pageWindow.count);
-        if (chunk.length > 0) {
-          if (direction === 'prev') {
-            lockScroll(300);
-          }
-          store.getState().upsertPages(chunk);
-          if (direction === 'prev' && prevScrollHeight > 0 && typeof window !== 'undefined') {
-            window.requestAnimationFrame(() => {
-              const newScrollHeight = document.documentElement.scrollHeight;
-              const diff = calculateScrollOffsetCompensation(prevScrollHeight, newScrollHeight);
-              if (diff > 0) {
-                window.scrollBy({ top: diff, behavior: 'instant' });
-              }
-              lockScroll(150);
-            });
-          }
-          return;
-        }
+      if (direction === 'prev') {
+        lockScroll(200);
       }
-
-      const pages = await deps.readerService.getBookPages(
-        state.document.bookHash,
-        pageWindow.startPage,
-        pageWindow.count
-      );
-      if (pages.length > 0) {
-        if (direction === 'prev') {
-          lockScroll(300);
-        }
-        store.getState().upsertPages(pages);
-        if (direction === 'prev' && prevScrollHeight > 0 && typeof window !== 'undefined') {
-          window.requestAnimationFrame(() => {
-            const newScrollHeight = document.documentElement.scrollHeight;
-            const diff = calculateScrollOffsetCompensation(prevScrollHeight, newScrollHeight);
-            if (diff > 0) {
-              window.scrollBy({ top: diff, behavior: 'instant' });
-            }
-            lockScroll(150);
-          });
-        }
-      }
+      store.getState().upsertPages(pages);
     } catch (err) {
       console.warn('Failed to load more pages:', err);
     } finally {
@@ -335,6 +354,41 @@ export function createReaderPaginationController(
     }
   };
 
+  const fetchTargetChunkIfNeeded = async (targetPage: number): Promise<void> => {
+    const state = store.getState();
+    const exists = state.loadedPages.some((p) => p.pageNumber === targetPage);
+    if (exists) return;
+
+    const pageWindow = calculateTargetPageWindow(targetPage, state.totalPages);
+    const pages = await fetchPagesChunk(pageWindow);
+    if (pages.length > 0) {
+      store.getState().upsertPages(pages);
+    }
+  };
+
+  const scrollToTargetPage = (targetPage: number, offsetRatio: number, smooth: boolean): void => {
+    if (typeof window === 'undefined') return;
+
+    window.requestAnimationFrame(() => {
+      if (targetPage === 1 && Math.abs(offsetRatio) <= 0.0001) {
+        window.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'instant' });
+        return;
+      }
+
+      const el = document.querySelector<HTMLElement>(`article[data-page-number="${targetPage}"]`);
+      if (!el) return;
+
+      const rect = el.getBoundingClientRect();
+      const targetTop = calculateScrollTargetTop(
+        rect.top,
+        rect.height,
+        window.scrollY,
+        offsetRatio
+      );
+      window.scrollTo({ top: targetTop, behavior: smooth ? 'smooth' : 'instant' });
+    });
+  };
+
   const goToPage = async (targetPage: number, options?: GoToPageOptions): Promise<void> => {
     const state = store.getState();
     const next = clamp(targetPage, 1, state.totalPages);
@@ -342,28 +396,7 @@ export function createReaderPaginationController(
     const smooth = options?.smooth ?? false;
 
     lockScroll(smooth ? 900 : 600);
-
-    const exists = state.loadedPages.some((p) => p.pageNumber === next);
-    if (!exists) {
-      const pageWindow = calculateTargetPageWindow(next, state.totalPages);
-      const format = state.document.format ?? BookFormat.EPUB;
-      if (format === BookFormat.PDF) {
-        const pdfViewer = resolvePdfViewer(deps);
-        const chunk = pdfViewer.getPagesChunk(pageWindow.startPage, pageWindow.count);
-        if (chunk.length > 0) {
-          store.getState().upsertPages(chunk);
-        }
-      } else {
-        const pages = await deps.readerService.getBookPages(
-          state.document.bookHash,
-          pageWindow.startPage,
-          pageWindow.count
-        );
-        if (pages.length > 0) {
-          store.getState().upsertPages(pages);
-        }
-      }
-    }
+    await fetchTargetChunkIfNeeded(next);
 
     store.getState().setCurrentPage(next);
     store.getState().setPageOffsetRatio(offsetRatio);
@@ -382,26 +415,7 @@ export function createReaderPaginationController(
       totalPages: state.totalPages,
     });
 
-    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-      window.requestAnimationFrame(() => {
-        if (next === 1 && Math.abs(offsetRatio) <= 0.0001) {
-          window.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'instant' });
-          return;
-        }
-
-        const el = document.querySelector<HTMLElement>(`article[data-page-number="${next}"]`);
-        if (el) {
-          const rect = el.getBoundingClientRect();
-          const targetTop = calculateScrollTargetTop(
-            rect.top,
-            rect.height,
-            window.scrollY,
-            offsetRatio
-          );
-          window.scrollTo({ top: targetTop, behavior: smooth ? 'smooth' : 'instant' });
-        }
-      });
-    }
+    scrollToTargetPage(next, offsetRatio, smooth);
 
     if (options?.onPageChanged) {
       await options.onPageChanged(next);
@@ -423,20 +437,8 @@ export function createReaderPaginationController(
       return;
     }
 
-    let attempts = 0;
-    const align = () => {
-      if (typeof document === 'undefined' || typeof window === 'undefined') {
-        return;
-      }
-      const el = document.querySelector<HTMLElement>(`article[data-page-number="${targetPage}"]`);
-      if (!el || el.getBoundingClientRect().height === 0) {
-        attempts++;
-        if (attempts < 30) {
-          window.requestAnimationFrame(align);
-        }
-        return;
-      }
-
+    const el = document.querySelector<HTMLElement>(`article[data-page-number="${targetPage}"]`);
+    if (el) {
       lockScroll(600);
       const rect = el.getBoundingClientRect();
       const targetTop = calculateScrollTargetTop(
@@ -446,9 +448,7 @@ export function createReaderPaginationController(
         offsetRatio
       );
       window.scrollTo({ top: targetTop, behavior: 'instant' });
-    };
-
-    align();
+    }
   };
 
   return {
@@ -464,9 +464,6 @@ export function createReaderPaginationController(
 }
 
 export interface UseReaderPaginationOptions {
-  readonly contentAreaRef?: RefObject<HTMLElement | null>;
-  readonly topSentinelRef?: RefObject<HTMLElement | null>;
-  readonly bottomSentinelRef?: RefObject<HTMLElement | null>;
   readonly isStreamReady?: boolean;
 }
 
@@ -493,9 +490,6 @@ export function useReaderPagination(
   );
 
   const isStreamReady = options?.isStreamReady;
-  const topSentinelRef = options?.topSentinelRef;
-  const bottomSentinelRef = options?.bottomSentinelRef;
-  const contentAreaRef = options?.contentAreaRef;
 
   // 1. Initial Scroll Restoration
   const hasRestoredRef = useRef(false);
@@ -514,110 +508,30 @@ export function useReaderPagination(
     }
   }, [isStreamReady, controller]);
 
-  // 2. Bottom Sentinel (loads next pages)
+  // 2. Focal Page & Offset Tracking at 60fps
   useEffect(() => {
-    const sentinel = bottomSentinelRef?.current;
-    if (!sentinel || typeof IntersectionObserver === 'undefined') return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          void controller.loadMorePages('next');
-        }
-      },
-      { rootMargin: '600px' }
-    );
-
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [bottomSentinelRef, controller]);
-
-  // 3. Top Sentinel (loads previous pages with anchoring)
-  useEffect(() => {
-    const sentinel = topSentinelRef?.current;
-    if (!sentinel || typeof IntersectionObserver === 'undefined') return;
-
-    let hasSettled = false;
-    const timer = setTimeout(() => {
-      hasSettled = true;
-    }, 600);
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (!hasSettled) return;
-        const currentPage = useReaderStore.getState().currentPage;
-        if (entries[0]?.isIntersecting && currentPage > 1) {
-          void controller.loadMorePages('prev');
-        }
-      },
-      { rootMargin: '100px' }
-    );
-
-    observer.observe(sentinel);
-    return () => {
-      clearTimeout(timer);
-      observer.disconnect();
-    };
-  }, [topSentinelRef, controller]);
-
-  // 4. Focal Page & Offset Tracking at 60fps
-  useEffect(() => {
-    if (!contentAreaRef) return;
+    if (!isStreamReady) return;
 
     let ticking = false;
 
     const handleScroll = () => {
-      if (controller.isLocked()) return;
+      if (controller.isLocked() || ticking) return;
+      ticking = true;
 
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          if (controller.isLocked()) {
-            ticking = false;
-            return;
-          }
+      window.requestAnimationFrame(() => {
+        ticking = false;
+        if (controller.isLocked()) return;
 
-          const elements = document.querySelectorAll<HTMLElement>('article[data-page-number]');
-          if (elements.length === 0) {
-            ticking = false;
-            return;
-          }
-
-          const focalY = window.innerHeight * 0.35;
-          const articleRects: ArticleRect[] = [];
-          for (const el of elements) {
-            const pageNum = Number(el.getAttribute('data-page-number'));
-            if (pageNum > 0) {
-              const rect = el.getBoundingClientRect();
-              articleRects.push({
-                pageNumber: pageNum,
-                top: rect.top,
-                bottom: rect.bottom,
-                height: rect.height,
-              });
-            }
-          }
-
-          const activePage = findFocalPageNumber(articleRects, focalY);
-          if (activePage && activePage > 0) {
-            const activeEl = document.querySelector<HTMLElement>(
-              `article[data-page-number="${activePage}"]`
-            );
-            const activeRect = activeEl?.getBoundingClientRect();
-            const offsetRatio = activeRect
-              ? calculatePageOffsetRatio(activeRect.top, activeRect.height, 0, activePage > 1)
-              : undefined;
-
-            controller.onPageVisible(activePage, offsetRatio);
-          }
-          ticking = false;
-        });
-        ticking = true;
-      }
+        const detected = detectFocalPageAndOffset();
+        if (detected) {
+          controller.onPageVisible(detected.pageNumber, detected.offsetRatio);
+        }
+      });
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [contentAreaRef, controller]);
+  }, [isStreamReady, controller]);
 
   return controller;
 }

@@ -1,4 +1,3 @@
-import { measureCurrentPageOffsetRatio, useReaderPagination } from '@hooks/useReaderPagination';
 import { useNavigation } from '@providers/NavigationContext';
 import { useReaderStore } from '@stores/useReaderStore';
 import { useCallback, useEffect } from 'react';
@@ -22,14 +21,12 @@ export function isImmersiveBackgroundClick(
 }
 
 export interface UseReaderViewReturn {
-  readonly scrollToPage: (pageNum: number) => void;
   readonly handleCloseReader: () => Promise<void>;
   readonly handleViewportClick: (e: React.MouseEvent<HTMLElement>) => void;
   readonly toggleChrome: () => void;
 }
 
 export function useReaderView(): UseReaderViewReturn {
-  const pagination = useReaderPagination();
   const navigation = useNavigation();
   const library = useLibrary();
   const {
@@ -59,10 +56,7 @@ export function useReaderView(): UseReaderViewReturn {
     if (!doc.bookHash) {
       return;
     }
-    const freshRatio = measureCurrentPageOffsetRatio(currentPage);
-    const finalRatio = freshRatio !== 0.0 ? freshRatio : pageOffsetRatio;
-    useReaderStore.getState().setPageOffsetRatio(finalRatio);
-    await saveProgress(doc.bookHash, currentPage, totalPages, finalRatio);
+    await saveProgress(doc.bookHash, currentPage, totalPages, pageOffsetRatio);
   }, [saveProgress]);
 
   useEffect(() => {
@@ -79,13 +73,6 @@ export function useReaderView(): UseReaderViewReturn {
       navigation.closeReader();
     }
   }, [closeAllOverlays, navigation, persistCurrentProgress]);
-
-  const scrollToPage = useCallback(
-    (pageNum: number) => {
-      void pagination.goToPage(pageNum, { smooth: true });
-    },
-    [pagination]
-  );
 
   const handleViewportClick = useCallback(
     (e: React.MouseEvent<HTMLElement>) => {
@@ -119,7 +106,6 @@ export function useReaderView(): UseReaderViewReturn {
   );
 
   return {
-    scrollToPage,
     handleCloseReader,
     handleViewportClick,
     toggleChrome,

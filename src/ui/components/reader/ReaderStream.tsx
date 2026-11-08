@@ -1,55 +1,47 @@
 import type { Highlight } from '@domain/Highlight';
 import { BookFormat } from '@domain/types';
 import { useHighlightsByPage } from '@hooks/useReaderHighlights';
-import { useReaderPagination } from '@hooks/useReaderPagination';
+import type { ReaderPaginationController } from '@hooks/useReaderPagination';
 import { useReaderStreamContextMenu } from '@hooks/useReaderStreamContextMenu';
+import { useReaderStreamVirtualization } from '@hooks/useReaderStreamVirtualization';
 import { useReaderUI } from '@hooks/useReaderUI';
 import { useReaderZoomGestures } from '@hooks/useReaderZoomGestures';
-import type { DocumentPage } from '@ports/IReaderService';
 import { useReaderStore } from '@stores/useReaderStore';
 import { useTypographyStore } from '@stores/useTypographyStore';
-import { memo, useCallback, useMemo, useRef } from 'react';
+import { memo, useCallback, useRef } from 'react';
 import { ReaderPageItem } from './ReaderPageItem';
 
-export const ReaderStream = memo(function ReaderStream() {
+export interface ReaderStreamProps {
+  readonly pagination: ReaderPaginationController;
+}
+
+export const ReaderStream = memo(function ReaderStream({ pagination }: ReaderStreamProps) {
   const document = useReaderStore((s) => s.document);
   const currentPage = useReaderStore((s) => s.currentPage);
   const totalPages = useReaderStore((s) => s.totalPages);
-  const loadedPages = useReaderStore((s) => s.loadedPages);
-  const isStreamReady = useReaderStore((s) => s.isStreamReady);
   const getHighlightsForPage = useHighlightsByPage();
   const { openHighlightPopover } = useReaderUI();
   const zoomLevel = useTypographyStore((s) => s.zoomLevel);
 
   const contentAreaRef = useRef<HTMLDivElement>(null);
-  const bottomSentinelRef = useRef<HTMLDivElement>(null);
-  const topSentinelRef = useRef<HTMLDivElement>(null);
+  const isPdf = document.format === BookFormat.PDF;
 
-  // 1. Unified Pagination, Continuous Infinite Scroll & Focal Offset Tracking
-  const pagination = useReaderPagination({
-    contentAreaRef,
-    bottomSentinelRef,
-    topSentinelRef,
-    isStreamReady,
-  });
+  // Encapsulated Virtual Spacers & Streaming Sentinels
+  const { sortedPages, topSentinelRef, bottomSentinelRef, topSpacerHeight, bottomSpacerHeight } =
+    useReaderStreamVirtualization({
+      pagination,
+      contentAreaRef,
+      isPdf,
+    });
 
-  // 2. Zoom Gestures & Keyboard Shortcuts
+  // Zoom Gestures & Keyboard Shortcuts
   useReaderZoomGestures();
 
-  // 3. Right-Click Context Menu for Selection and Highlights
+  // Right-Click Context Menu for Selection and Highlights
   const { handleHighlightContextMenu } = useReaderStreamContextMenu({
     contentAreaRef,
     currentPage,
   });
-
-  // Strict ascending order and deduplication of pages
-  const sortedPages = useMemo(() => {
-    const pageMap = new Map<number, DocumentPage>();
-    for (const p of loadedPages) {
-      pageMap.set(p.pageNumber, p);
-    }
-    return Array.from(pageMap.values()).sort((a, b) => a.pageNumber - b.pageNumber);
-  }, [loadedPages]);
 
   const handleHighlightClick = useCallback(
     (highlight: Highlight, coords: { x: number; y: number }) => {
@@ -57,8 +49,6 @@ export const ReaderStream = memo(function ReaderStream() {
     },
     [openHighlightPopover]
   );
-
-  const isPdf = document.format === BookFormat.PDF;
 
   return (
     <main
@@ -80,6 +70,15 @@ export const ReaderStream = memo(function ReaderStream() {
           width: isPdf ? 'min(calc(100vw - 2rem), 48rem)' : 'min(calc(100vw - 2rem), 42rem)',
         }}
       >
+        {/* Top virtual spacer for preceding unloaded pages */}
+        {topSpacerHeight > 0 && (
+          <div
+            data-testid="reader-top-spacer"
+            style={{ height: `${topSpacerHeight}px` }}
+            aria-hidden="true"
+          />
+        )}
+
         {/* Top sentinel for reverse scrolling */}
         <div ref={topSentinelRef} className="h-4 w-full pointer-events-none" />
 
@@ -99,12 +98,21 @@ export const ReaderStream = memo(function ReaderStream() {
           />
         ))}
 
-        {/* Bottom sentinel: triggers next 5 pages on demand before reaching bottom */}
+        {/* Bottom sentinel: triggers next pages on demand before reaching bottom */}
         <div ref={bottomSentinelRef} className="h-16 w-full flex items-center justify-center">
           {currentPage < totalPages && (
             <span className="text-xs text-tx-faint animate-pulse">Loading next pages...</span>
           )}
         </div>
+
+        {/* Bottom virtual spacer for subsequent unloaded pages */}
+        {bottomSpacerHeight > 0 && (
+          <div
+            data-testid="reader-bottom-spacer"
+            style={{ height: `${bottomSpacerHeight}px` }}
+            aria-hidden="true"
+          />
+        )}
       </div>
     </main>
   );

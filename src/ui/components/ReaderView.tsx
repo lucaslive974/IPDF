@@ -1,5 +1,6 @@
 import type { BookMetadata } from '@domain/BookMetadata';
 import { bootstrapReaderBook } from '@hooks/readerBootstrapper';
+import { useReaderPagination } from '@hooks/useReaderPagination';
 import { useReaderView } from '@hooks/useReaderView';
 import { useNavigation } from '@providers/NavigationContext';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
@@ -60,7 +61,8 @@ export const ReaderView = memo(function ReaderView({ bookOverride }: ReaderViewP
   const isReady = !isLoadingPages && loadedPages.length > 0;
   const showLoadingOverlay = !isReady || !isStreamReady;
 
-  const { scrollToPage, handleCloseReader, handleViewportClick, toggleChrome } = useReaderView();
+  const { handleCloseReader, handleViewportClick, toggleChrome } = useReaderView();
+  const pagination = useReaderPagination({ isStreamReady });
 
   return (
     <section
@@ -79,8 +81,8 @@ export const ReaderView = memo(function ReaderView({ bookOverride }: ReaderViewP
           <ReaderLoadingView document={document} />
         </div>
       )}
-      {isReady && <ReaderStream />}
-      <ReaderBottomBar onScrollToPage={scrollToPage} />
+      {isReady && <ReaderStream pagination={pagination} />}
+      <ReaderBottomBar onScrollToPage={pagination.goToPage} />
       <ReaderOverlays />
     </section>
   );

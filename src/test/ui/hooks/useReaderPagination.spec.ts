@@ -7,7 +7,9 @@ import {
   calculateScrollOffsetCompensation,
   calculateScrollTargetTop,
   calculateTargetPageWindow,
+  collectVisibleArticleRects,
   createReaderPaginationController,
+  detectFocalPageAndOffset,
   determinePrefetchDirection,
   findFocalPageNumber,
   measureCurrentPageOffsetRatio,
@@ -379,6 +381,47 @@ describe('useReaderPagination / createReaderPaginationController', () => {
         expect(measureCurrentPageOffsetRatio(99)).toBe(0.0);
       } finally {
         globalThis.document = originalDocument;
+      }
+    });
+
+    it('collects visible article rects and detects focal page and offset from DOM', () => {
+      const mockElement = {
+        getAttribute: vi.fn((attr: string) => (attr === 'data-page-number' ? '4' : null)),
+        getBoundingClientRect: () => ({
+          top: -200,
+          bottom: 800,
+          height: 1000,
+        }),
+      } as unknown as HTMLElement;
+
+      const originalDocument = globalThis.document;
+      const originalWindow = globalThis.window;
+
+      globalThis.document = {
+        querySelectorAll: vi.fn((selector: string) =>
+          selector === 'article[data-page-number]' ? [mockElement] : []
+        ),
+        querySelector: vi.fn((selector: string) =>
+          selector === 'article[data-page-number="4"]' ? mockElement : null
+        ),
+      } as unknown as Document;
+
+      globalThis.window = {
+        innerHeight: 1000,
+      } as unknown as Window & typeof globalThis;
+
+      try {
+        const rects = collectVisibleArticleRects();
+        expect(rects).toHaveLength(1);
+        expect(rects[0]?.pageNumber).toBe(4);
+
+        const detected = detectFocalPageAndOffset(350);
+        expect(detected).not.toBeNull();
+        expect(detected?.pageNumber).toBe(4);
+        expect(detected?.offsetRatio).toBe(0.2);
+      } finally {
+        globalThis.document = originalDocument;
+        globalThis.window = originalWindow;
       }
     });
   });
