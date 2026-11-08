@@ -1,13 +1,17 @@
 import { type PageWindow, calculatePageWindow } from '@domain/PageWindow';
 import { BookFormat } from '@domain/types';
-import { type ReaderBootstrapDependencies, resolvePdfViewer } from '@hooks/readerBootstrapper';
-import type { DocumentPage } from '@ports/IReaderService';
+import type { DocumentPage, IPdfViewer, IPresenceService, IReaderService } from '@ports';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useReaderStore } from '@stores/useReaderStore';
 import { clamp } from '@utils/math';
 import { useEffect, useMemo, useRef } from 'react';
 
-export type ReaderPaginationDependencies = Omit<ReaderBootstrapDependencies, 'libraryService'>;
+export interface ReaderPaginationDependencies {
+  readonly readerService: IReaderService;
+  readonly pdfViewer?: IPdfViewer;
+  readonly presenceService?: IPresenceService;
+  readonly store?: typeof useReaderStore;
+}
 
 export interface ArticleRect {
   readonly pageNumber: number;
@@ -235,9 +239,8 @@ export function createReaderPaginationController(
     const state = store.getState();
     const format = state.document.format ?? BookFormat.EPUB;
 
-    if (format === BookFormat.PDF) {
-      const pdfViewer = resolvePdfViewer(deps);
-      return pdfViewer.getPagesChunk(pageWindow.startPage, pageWindow.count);
+    if (format === BookFormat.PDF && deps.pdfViewer) {
+      return deps.pdfViewer.getPagesChunk(pageWindow.startPage, pageWindow.count);
     }
 
     return deps.readerService.getBookPages(
@@ -435,23 +438,15 @@ export interface UseReaderPaginationOptions {
 export function useReaderPagination(
   options?: UseReaderPaginationOptions
 ): ReaderPaginationController {
-  const container = useServiceContainer();
+  const { readerService, presenceService, pdfViewer } = useServiceContainer();
   const controller = useMemo(
     () =>
       createReaderPaginationController({
-        readerService: container.readerService,
-        presenceService: container.presenceService,
-        epubViewer: container.epubViewer,
-        pdfViewer: container.pdfViewer,
-        getViewer: container.getViewer,
+        readerService,
+        presenceService,
+        pdfViewer,
       }),
-    [
-      container.readerService,
-      container.presenceService,
-      container.epubViewer,
-      container.pdfViewer,
-      container.getViewer,
-    ]
+    [readerService, presenceService, pdfViewer]
   );
 
   const isStreamReady = options?.isStreamReady;

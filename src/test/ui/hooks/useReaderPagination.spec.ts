@@ -1,5 +1,5 @@
-import { EpubViewerAdapter } from '@adapters/viewers/EpubViewerAdapter';
 import { buildStreamPages } from '@components/reader/ReaderStream';
+import { BookFormat } from '@domain/types';
 import {
   type ArticleRect,
   calculateNextPageWindow,
@@ -13,6 +13,7 @@ import {
   findFocalPageNumber,
   useReaderPagination,
 } from '@hooks/useReaderPagination';
+import type { IPdfViewer } from '@ports/IPdfViewer';
 import { ServiceContainerProvider } from '@providers/ServiceContainerContext';
 import { useReaderStore } from '@stores/useReaderStore';
 import { clamp } from '@utils/math';
@@ -23,11 +24,9 @@ import { MockBackend } from '../../mocks/MockBackend';
 
 describe('useReaderPagination / createReaderPaginationController', () => {
   let backend: MockBackend;
-  let viewer: EpubViewerAdapter;
 
   beforeEach(() => {
     backend = new MockBackend();
-    viewer = new EpubViewerAdapter();
     useReaderStore.getState().reset();
   });
 
@@ -45,7 +44,6 @@ describe('useReaderPagination / createReaderPaginationController', () => {
 
     const controller = createReaderPaginationController({
       readerService: backend,
-      epubViewer: viewer,
     });
 
     useReaderStore.getState().setDocument({
@@ -71,13 +69,50 @@ describe('useReaderPagination / createReaderPaginationController', () => {
     expect(useReaderStore.getState().loadedPages.some((p) => p.pageNumber === 1)).toBe(true);
   });
 
+  it('loads pages from pdfViewer when book format is PDF', async () => {
+    const mockPdfViewer = {
+      getPagesChunk: vi.fn((startPage: number, count: number) => [
+        {
+          pageNumber: startPage,
+          chapterTitle: `PDF Page ${startPage}`,
+          paragraphs: [`Text ${startPage}`],
+          cfiBase: `/pdf/${startPage}`,
+        },
+      ]),
+    } as unknown as IPdfViewer;
+
+    const controller = createReaderPaginationController({
+      readerService: backend,
+      pdfViewer: mockPdfViewer,
+    });
+
+    useReaderStore.getState().setDocument({
+      bookHash: 'pdf-book-1',
+      bookTitle: 'PDF Title',
+      bookAuthor: 'PDF Author',
+      chapterTitle: 'PDF Chapter',
+      sampleParagraph: 'PDF Sample',
+      format: BookFormat.PDF,
+    });
+    useReaderStore.getState().setTotalPages(20);
+    useReaderStore
+      .getState()
+      .setLoadedPages([
+        { pageNumber: 5, chapterTitle: 'PDF Page 5', paragraphs: ['Text 5'], cfiBase: '/pdf/5' },
+      ]);
+
+    await controller.loadMorePages('next');
+
+    expect(mockPdfViewer.getPagesChunk).toHaveBeenCalledWith(6, 10);
+    expect(useReaderStore.getState().loadedPages.some((p) => p.pageNumber === 6)).toBe(true);
+  });
+
   it('updates page, chapter, and reading presence without touching SQLite when onPageVisible is called', () => {
     const updatePresenceSpy = vi.spyOn(backend, 'updateReadingPresence');
     const updateProgressSpy = vi.spyOn(backend, 'updateBookProgress');
     const controller = createReaderPaginationController({
       readerService: backend,
       presenceService: backend,
-      epubViewer: viewer,
     });
 
     useReaderStore.getState().setLoadedPages([
@@ -107,7 +142,6 @@ describe('useReaderPagination / createReaderPaginationController', () => {
 
     const controller = createReaderPaginationController({
       readerService: backend,
-      epubViewer: viewer,
     });
 
     useReaderStore.getState().setDocument({
@@ -146,7 +180,6 @@ describe('useReaderPagination / createReaderPaginationController', () => {
 
     const controller = createReaderPaginationController({
       readerService: backend,
-      epubViewer: viewer,
     });
 
     useReaderStore.getState().setDocument({
@@ -179,7 +212,6 @@ describe('useReaderPagination / createReaderPaginationController', () => {
   it('navigates and goes to page clamping boundaries and notifying listener', async () => {
     const controller = createReaderPaginationController({
       readerService: backend,
-      epubViewer: viewer,
     });
 
     useReaderStore.getState().setTotalPages(20);
@@ -301,7 +333,6 @@ describe('useReaderPagination / createReaderPaginationController', () => {
 
       const controller = createReaderPaginationController({
         readerService: backend,
-        epubViewer: viewer,
       });
 
       useReaderStore.getState().setDocument({
@@ -450,7 +481,6 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       vi.useFakeTimers();
       const controller = createReaderPaginationController({
         readerService: backend,
-        epubViewer: viewer,
       });
 
       expect(controller.isLocked()).toBe(false);
@@ -474,7 +504,6 @@ describe('useReaderPagination / createReaderPaginationController', () => {
     it('updates offsetRatio in store when onPageVisible is called with offset', () => {
       const controller = createReaderPaginationController({
         readerService: backend,
-        epubViewer: viewer,
       });
 
       useReaderStore
@@ -492,7 +521,6 @@ describe('useReaderPagination / createReaderPaginationController', () => {
     it('navigates with goToPage applying target page and offset ratio', async () => {
       const controller = createReaderPaginationController({
         readerService: backend,
-        epubViewer: viewer,
       });
 
       useReaderStore.getState().setTotalPages(50);
@@ -518,7 +546,6 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       try {
         const controller = createReaderPaginationController({
           readerService: backend,
-          epubViewer: viewer,
         });
 
         useReaderStore.getState().setCurrentPage(1);
@@ -569,7 +596,6 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       try {
         const controller = createReaderPaginationController({
           readerService: backend,
-          epubViewer: viewer,
         });
 
         useReaderStore.getState().setCurrentPage(5);
@@ -630,7 +656,6 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       try {
         const controller = createReaderPaginationController({
           readerService: backend,
-          epubViewer: viewer,
         });
 
         useReaderStore.getState().setCurrentPage(8);
