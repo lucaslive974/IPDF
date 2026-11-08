@@ -60,8 +60,7 @@ export const ReaderView = memo(function ReaderView({ bookOverride }: ReaderViewP
   const isReady = !isLoadingPages && loadedPages.length > 0;
   const showLoadingOverlay = !isReady || !isStreamReady;
 
-  const { scrollToPage, handleCloseReader, handleViewportClick, toggleChrome } =
-    useReaderView(isReady);
+  const { scrollToPage, handleCloseReader, handleViewportClick, toggleChrome } = useReaderView();
 
   return (
     <section

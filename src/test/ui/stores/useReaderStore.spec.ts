@@ -68,17 +68,14 @@ describe('useReaderStore', () => {
     expect(useReaderStore.getState().loadedPages.map((p) => p.pageNumber)).toEqual([1, 2, 3]);
   });
 
-  it('updates and resets pageOffsetRatio, isStreamReady, and isProgrammaticScroll', () => {
+  it('updates and resets pageOffsetRatio and isStreamReady', () => {
     useReaderStore.getState().setPageOffsetRatio(0.42);
     useReaderStore.getState().setStreamReady(true);
-    useReaderStore.getState().setIsProgrammaticScroll(true);
     expect(useReaderStore.getState().pageOffsetRatio).toBe(0.42);
     expect(useReaderStore.getState().isStreamReady).toBe(true);
-    expect(useReaderStore.getState().isProgrammaticScroll).toBe(true);
 
     useReaderStore.getState().reset();
     expect(useReaderStore.getState().pageOffsetRatio).toBe(0.0);
     expect(useReaderStore.getState().isStreamReady).toBe(false);
-    expect(useReaderStore.getState().isProgrammaticScroll).toBe(false);
   });
 });

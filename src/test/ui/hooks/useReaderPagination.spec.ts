@@ -1,15 +1,21 @@
 import { EpubViewerAdapter } from '@adapters/viewers/EpubViewerAdapter';
 import {
+  type ArticleRect,
   calculateNextPageWindow,
+  calculatePageOffsetRatio,
   calculatePrevPageWindow,
+  calculateScrollOffsetCompensation,
+  calculateScrollTargetTop,
   calculateTargetPageWindow,
-  clampPageNumber,
   createReaderPaginationController,
   determinePrefetchDirection,
+  findFocalPageNumber,
+  measureCurrentPageOffsetRatio,
   useReaderPagination,
 } from '@hooks/useReaderPagination';
 import { ServiceContainerProvider } from '@providers/ServiceContainerContext';
 import { useReaderStore } from '@stores/useReaderStore';
+import { clamp } from '@utils/math';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -107,27 +113,26 @@ describe('useReaderPagination / createReaderPaginationController', () => {
     useReaderStore.getState().setDocument({
       bookHash: 'book-hash-1',
       bookTitle: 'Test Book',
-      bookAuthor: 'Author',
-      chapterTitle: 'Initial',
+      bookAuthor: 'Test Author',
+      chapterTitle: 'Chapter 1',
       sampleParagraph: 'Sample',
     });
     useReaderStore.getState().setTotalPages(50);
-    // Loaded pages: 10 to 30 (upper boundary = 30)
     useReaderStore.getState().setLoadedPages(
-      Array.from({ length: 21 }, (_, i) => ({
-        pageNumber: 10 + i,
-        chapterTitle: `Ch ${10 + i}`,
-        paragraphs: [`P${10 + i}`],
-        cfiBase: `/6/${10 + i}!`,
+      Array.from({ length: 11 }, (_, i) => ({
+        pageNumber: 20 + i, // 20 to 30 loaded
+        chapterTitle: `Chapter ${20 + i}`,
+        paragraphs: [`P${20 + i}`],
+        cfiBase: `/6/${20 + i}!`,
       }))
     );
-    useReaderStore.getState().setCurrentPage(15);
+    useReaderStore.getState().setCurrentPage(20);
 
-    // Page 20 is distance 10 from boundary 30 (> 7) -> should NOT trigger next prefetch
-    controller.onPageVisible(20);
+    // Page 21 is distance 9 from upper boundary 30 (30 - 21 = 9 > 7) -> should NOT trigger next prefetch
+    controller.onPageVisible(21);
     expect(getBookPagesSpy).not.toHaveBeenCalled();
 
-    // Page 23 is distance 7 from boundary 30 (30 - 23 = 7 <= 7) -> triggers next prefetch in 10-page chunk
+    // Page 23 is distance 7 from upper boundary 30 (30 - 23 = 7 <= 7) -> triggers next prefetch
     controller.onPageVisible(23);
     expect(getBookPagesSpy).toHaveBeenCalledWith('book-hash-1', 31, 10);
   });
@@ -147,16 +152,15 @@ describe('useReaderPagination / createReaderPaginationController', () => {
     useReaderStore.getState().setDocument({
       bookHash: 'book-hash-1',
       bookTitle: 'Test Book',
-      bookAuthor: 'Author',
-      chapterTitle: 'Initial',
+      bookAuthor: 'Test Author',
+      chapterTitle: 'Chapter 1',
       sampleParagraph: 'Sample',
     });
     useReaderStore.getState().setTotalPages(50);
-    // Loaded pages: 20 to 40 (lower boundary = 20)
     useReaderStore.getState().setLoadedPages(
-      Array.from({ length: 21 }, (_, i) => ({
-        pageNumber: 20 + i,
-        chapterTitle: `Ch ${20 + i}`,
+      Array.from({ length: 11 }, (_, i) => ({
+        pageNumber: 20 + i, // 20 to 30 loaded
+        chapterTitle: `Chapter ${20 + i}`,
         paragraphs: [`P${20 + i}`],
         cfiBase: `/6/${20 + i}!`,
       }))
@@ -182,8 +186,10 @@ describe('useReaderPagination / createReaderPaginationController', () => {
     useReaderStore.getState().setCurrentPage(5);
 
     let changedPage = 0;
-    await controller.navigatePage(3, (p) => {
-      changedPage = p;
+    await controller.navigatePage(3, {
+      onPageChanged: (p) => {
+        changedPage = p;
+      },
     });
 
     expect(useReaderStore.getState().currentPage).toBe(8);
@@ -197,11 +203,11 @@ describe('useReaderPagination / createReaderPaginationController', () => {
   });
 
   describe('pure pagination math functions', () => {
-    it('clamps page number within totalPages bounds', () => {
-      expect(clampPageNumber(0, 100)).toBe(1);
-      expect(clampPageNumber(-5, 100)).toBe(1);
-      expect(clampPageNumber(50, 100)).toBe(50);
-      expect(clampPageNumber(105, 100)).toBe(100);
+    it('clamps page number within totalPages bounds using custom clamp', () => {
+      expect(clamp(0, 1, 100)).toBe(1);
+      expect(clamp(-5, 1, 100)).toBe(1);
+      expect(clamp(50, 1, 100)).toBe(50);
+      expect(clamp(105, 1, 100)).toBe(100);
     });
 
     it('calculates next page window accurately', () => {
@@ -274,8 +280,14 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       // Near end (30 - 25 <= 7) -> 'next'
       expect(determinePrefetchDirection(25, 24, loaded, 50)).toBe('next');
 
-      // Near start (15 - 10 <= 7) -> 'prev'
+      // Near start (15 - 10 <= 7) -> 'prev' when moving backward
       expect(determinePrefetchDirection(15, 16, loaded, 50)).toBe('prev');
+
+      // Moving forward while near start (15 > 14) -> does NOT trigger 'prev'
+      expect(determinePrefetchDirection(15, 14, loaded, 50)).toBeNull();
+
+      // Stationary (currentPage === previousPage) -> returns null
+      expect(determinePrefetchDirection(15, 15, loaded, 50)).toBeNull();
 
       // Near both ends: prioritize scroll direction
       const shortRange = [{ pageNumber: 10 }, { pageNumber: 14 }];
@@ -286,6 +298,88 @@ describe('useReaderPagination / createReaderPaginationController', () => {
 
       // Empty loaded pages
       expect(determinePrefetchDirection(1, 1, [], 50)).toBeNull();
+    });
+
+    it('calculates scroll offset compensation for newly prepended pages', () => {
+      const diff = calculateScrollOffsetCompensation(1000, 1600);
+      expect(diff).toBe(600);
+      expect(calculateScrollOffsetCompensation(1000, 1000)).toBe(0);
+      expect(calculateScrollOffsetCompensation(1200, 1000)).toBe(0);
+    });
+
+    it('calculates page offset ratio correctly with clamping', () => {
+      expect(calculatePageOffsetRatio(0, 1000)).toBe(0.0);
+      expect(calculatePageOffsetRatio(50, 1000)).toBe(0.0);
+      expect(calculatePageOffsetRatio(-100, 0)).toBe(0.0);
+      expect(calculatePageOffsetRatio(-100, -500)).toBe(0.0);
+      expect(calculatePageOffsetRatio(-250, 1000)).toBe(0.25);
+      expect(calculatePageOffsetRatio(-500, 1000)).toBe(0.5);
+      expect(calculatePageOffsetRatio(-750, 1000)).toBe(0.75);
+      expect(calculatePageOffsetRatio(-1500, 1000)).toBe(1.0);
+    });
+
+    it('calculates negative page offset ratio when allowNegative is enabled', () => {
+      expect(calculatePageOffsetRatio(200, 1000, 0, true)).toBe(-0.2);
+      expect(calculatePageOffsetRatio(350, 1000, 0, true)).toBe(-0.35);
+      expect(calculatePageOffsetRatio(2000, 1000, 0, true)).toBe(-1.0);
+      expect(calculatePageOffsetRatio(200, 1000, 0, false)).toBe(0.0);
+    });
+
+    it('calculates target scroll top accurately for positive and negative offset ratios', () => {
+      expect(calculateScrollTargetTop(600, 1000, 200, 0)).toBe(800);
+      expect(calculateScrollTargetTop(400, 800, 100, 0.25)).toBe(700);
+      expect(calculateScrollTargetTop(500, 1000, 100, -0.3)).toBe(300);
+      expect(calculateScrollTargetTop(500, 1000, 100, -1.5)).toBe(0);
+      expect(calculateScrollTargetTop(-1000, 500, 100, 0.1)).toBe(0);
+      expect(calculateScrollTargetTop(300, 500, 50)).toBe(350);
+    });
+
+    it('identifies focal page with strict boundary prioritizing incoming page', () => {
+      expect(findFocalPageNumber([], 350)).toBeNull();
+
+      const articles: ArticleRect[] = [
+        { pageNumber: 1, top: -200, bottom: 200 },
+        { pageNumber: 2, top: 200, bottom: 600 },
+        { pageNumber: 3, top: 600, bottom: 1000 },
+      ];
+
+      expect(findFocalPageNumber(articles, 350)).toBe(2);
+      expect(findFocalPageNumber(articles, 100)).toBe(1);
+      expect(findFocalPageNumber(articles, 750)).toBe(3);
+      expect(findFocalPageNumber(articles, 200)).toBe(2);
+    });
+
+    it('selects closest page when focal line falls between gaps', () => {
+      const articles: ArticleRect[] = [
+        { pageNumber: 1, top: 0, bottom: 200 },
+        { pageNumber: 2, top: 300, bottom: 500 },
+      ];
+      expect(findFocalPageNumber(articles, 290)).toBe(2);
+    });
+
+    it('measures current page offset ratio on demand from DOM', () => {
+      expect(measureCurrentPageOffsetRatio(0)).toBe(0.0);
+
+      const mockElement = {
+        getBoundingClientRect: () => ({
+          top: -250,
+          height: 1000,
+        }),
+      } as unknown as HTMLElement;
+
+      const originalDocument = globalThis.document;
+      globalThis.document = {
+        querySelector: vi.fn((selector: string) =>
+          selector === 'article[data-page-number="3"]' ? mockElement : null
+        ),
+      } as unknown as Document;
+
+      try {
+        expect(measureCurrentPageOffsetRatio(3)).toBe(0.25);
+        expect(measureCurrentPageOffsetRatio(99)).toBe(0.0);
+      } finally {
+        globalThis.document = originalDocument;
+      }
     });
   });
 
@@ -316,6 +410,68 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       expect(typeof controller.goToPage).toBe('function');
       expect(typeof controller.onPageVisible).toBe('function');
       expect(typeof controller.loadMorePages).toBe('function');
+    });
+
+    it('manages scroll lock state internally without globals', () => {
+      vi.useFakeTimers();
+      const controller = createReaderPaginationController({
+        readerService: backend,
+        epubViewer: viewer,
+      });
+
+      expect(controller.isLocked()).toBe(false);
+
+      controller.lockScroll(300);
+      expect(controller.isLocked()).toBe(true);
+
+      vi.advanceTimersByTime(299);
+      expect(controller.isLocked()).toBe(true);
+
+      vi.advanceTimersByTime(2);
+      expect(controller.isLocked()).toBe(false);
+
+      controller.lockScroll(500);
+      controller.unlockScroll();
+      expect(controller.isLocked()).toBe(false);
+
+      vi.useRealTimers();
+    });
+
+    it('updates offsetRatio in store when onPageVisible is called with offset', () => {
+      const controller = createReaderPaginationController({
+        readerService: backend,
+        epubViewer: viewer,
+      });
+
+      useReaderStore
+        .getState()
+        .setLoadedPages([
+          { pageNumber: 5, chapterTitle: 'Ch 5', paragraphs: ['P5'], cfiBase: '/6/10!' },
+        ]);
+
+      controller.onPageVisible(5, 0.35);
+
+      expect(useReaderStore.getState().currentPage).toBe(5);
+      expect(useReaderStore.getState().pageOffsetRatio).toBe(0.35);
+    });
+
+    it('navigates with goToPage applying target page and offset ratio', async () => {
+      const controller = createReaderPaginationController({
+        readerService: backend,
+        epubViewer: viewer,
+      });
+
+      useReaderStore.getState().setTotalPages(50);
+      useReaderStore
+        .getState()
+        .setLoadedPages([
+          { pageNumber: 10, chapterTitle: 'Ch 10', paragraphs: ['P10'], cfiBase: '/6/20!' },
+        ]);
+
+      await controller.goToPage(10, { offsetRatio: 0.25 });
+
+      expect(useReaderStore.getState().currentPage).toBe(10);
+      expect(useReaderStore.getState().pageOffsetRatio).toBe(0.25);
     });
   });
 });

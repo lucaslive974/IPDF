@@ -214,8 +214,9 @@ export async function bootstrapReaderBook(
   }
 
   const initialPage = book?.currentPage || 1;
+  const initialOffset = book?.pageOffsetRatio ?? 0.0;
   store.getState().setCurrentPage(initialPage);
-  store.getState().setPageOffsetRatio(book?.pageOffsetRatio ?? 0.0);
+  store.getState().setPageOffsetRatio(initialOffset);
   store.getState().setTotalPages(book?.totalPages ?? 0);
 
   const format = book?.format ?? BookFormat.EPUB;

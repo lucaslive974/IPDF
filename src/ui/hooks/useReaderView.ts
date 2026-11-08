@@ -1,24 +1,9 @@
-import { useReaderPagination } from '@hooks/useReaderPagination';
+import { measureCurrentPageOffsetRatio, useReaderPagination } from '@hooks/useReaderPagination';
 import { useNavigation } from '@providers/NavigationContext';
 import { useReaderStore } from '@stores/useReaderStore';
-import { clamp } from '@utils/math';
-import { type RefObject, useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useLibrary } from './useLibrary';
-import { measureCurrentPageOffsetRatio } from './useReaderFocalPageTracker';
 import { useReaderUI } from './useReaderUI';
-
-/**
- * Calculates the absolute window vertical scroll position to align an element with an offset ratio.
- * Clamped so targetTop is never negative.
- */
-export function calculateScrollTargetTop(
-  elementRectTop: number,
-  elementRectHeight: number,
-  currentScrollY: number,
-  offsetRatio = 0.0
-): number {
-  return Math.max(0, currentScrollY + elementRectTop + elementRectHeight * offsetRatio);
-}
 
 /**
  * Determines whether a click event in the reader viewport should toggle the chrome bars.
@@ -43,7 +28,7 @@ export interface UseReaderViewReturn {
   readonly toggleChrome: () => void;
 }
 
-export function useReaderView(isStreamReady: boolean): UseReaderViewReturn {
+export function useReaderView(): UseReaderViewReturn {
   const pagination = useReaderPagination();
   const navigation = useNavigation();
   const library = useLibrary();
@@ -58,45 +43,6 @@ export function useReaderView(isStreamReady: boolean): UseReaderViewReturn {
     closeAllOverlays,
   } = useReaderUI();
 
-  const hasAlignedScrollRef = useRef(false);
-
-  // Restore initial scroll position once ReaderStream is mounted and pages are loaded
-  useEffect(() => {
-    // Must wait until loading completes and pages are in store/DOM
-    if (!isStreamReady) {
-      return;
-    }
-
-    const { currentPage, pageOffsetRatio } = useReaderStore.getState();
-    const targetPage = Math.max(1, currentPage);
-    const offsetRatio = clamp(pageOffsetRatio || 0.0, -1.0, 1.0);
-
-    // First page with no offset is naturally aligned at top
-    if (targetPage <= 1 && Math.abs(offsetRatio) <= 0.0001) {
-      hasAlignedScrollRef.current = true;
-      useReaderStore.getState().setIsProgrammaticScroll(false);
-      return;
-    }
-
-    const el = document.querySelector<HTMLElement>(`article[data-page-number="${targetPage}"]`);
-    // Empty book or page not yet in DOM
-    if (!el) {
-      return;
-    }
-
-    hasAlignedScrollRef.current = true;
-    useReaderStore.getState().setIsProgrammaticScroll(true);
-
-    const rect = el.getBoundingClientRect();
-    const targetTop = calculateScrollTargetTop(rect.top, rect.height, window.scrollY, offsetRatio);
-
-    window.scrollTo({ top: targetTop, behavior: 'instant' });
-
-    setTimeout(() => {
-      useReaderStore.getState().setIsProgrammaticScroll(false);
-    }, 600);
-  }, [isStreamReady]);
-
   const saveProgress = useCallback(
     async (bookHash: string, currentPage: number, totalPages: number, pageOffsetRatio: number) => {
       try {
@@ -109,13 +55,14 @@ export function useReaderView(isStreamReady: boolean): UseReaderViewReturn {
   );
 
   const persistCurrentProgress = useCallback(async () => {
-    const { document: doc, currentPage, totalPages } = useReaderStore.getState();
+    const { document: doc, currentPage, totalPages, pageOffsetRatio } = useReaderStore.getState();
     if (!doc.bookHash) {
       return;
     }
-    const measuredRatio = measureCurrentPageOffsetRatio(currentPage);
-    useReaderStore.getState().setPageOffsetRatio(measuredRatio);
-    await saveProgress(doc.bookHash, currentPage, totalPages, measuredRatio);
+    const freshRatio = measureCurrentPageOffsetRatio(currentPage);
+    const finalRatio = freshRatio !== 0.0 ? freshRatio : pageOffsetRatio;
+    useReaderStore.getState().setPageOffsetRatio(finalRatio);
+    await saveProgress(doc.bookHash, currentPage, totalPages, finalRatio);
   }, [saveProgress]);
 
   useEffect(() => {
@@ -133,44 +80,13 @@ export function useReaderView(isStreamReady: boolean): UseReaderViewReturn {
     }
   }, [closeAllOverlays, navigation, persistCurrentProgress]);
 
-  // Smooth Page Scrolling Navigation
   const scrollToPage = useCallback(
     (pageNum: number) => {
-      const { totalPages } = useReaderStore.getState();
-      const target = clamp(pageNum, 1, totalPages);
-
-      useReaderStore.getState().setIsProgrammaticScroll(true);
-      setTimeout(() => {
-        useReaderStore.getState().setIsProgrammaticScroll(false);
-      }, 900);
-
-      pagination.onPageVisible(target);
-
-      if (target === 1) {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        return;
-      }
-
-      const el = document.querySelector(`article[data-page-number="${target}"]`);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } else {
-        void pagination.goToPage(target).then(() => {
-          window.requestAnimationFrame(() => {
-            if (target === 1) {
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            } else {
-              const newEl = document.querySelector(`article[data-page-number="${target}"]`);
-              newEl?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-          });
-        });
-      }
+      void pagination.goToPage(pageNum, { smooth: true });
     },
     [pagination]
   );
 
-  // Immersive Click / Tap Toggle for Chrome
   const handleViewportClick = useCallback(
     (e: React.MouseEvent<HTMLElement>) => {
       const hasOpenOverlays = Boolean(

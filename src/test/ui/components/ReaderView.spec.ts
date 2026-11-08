@@ -48,6 +48,6 @@ describe('ReaderView component', () => {
     );
 
     expect(markup).toContain('Book Reader Document');
-    expect(markup).toContain('Critique of Pure Reason');
+    expect(markup).toContain('Preparing book for reading');
   });
 });

@@ -1,8 +1,6 @@
 import type { Highlight } from '@domain/Highlight';
 import { BookFormat } from '@domain/types';
-import { useReaderFocalPageTracker } from '@hooks/useReaderFocalPageTracker';
 import { useHighlightsByPage } from '@hooks/useReaderHighlights';
-import { useReaderInfiniteScroll } from '@hooks/useReaderInfiniteScroll';
 import { useReaderPagination } from '@hooks/useReaderPagination';
 import { useReaderStreamContextMenu } from '@hooks/useReaderStreamContextMenu';
 import { useReaderUI } from '@hooks/useReaderUI';
@@ -14,11 +12,11 @@ import { memo, useCallback, useMemo, useRef } from 'react';
 import { ReaderPageItem } from './ReaderPageItem';
 
 export const ReaderStream = memo(function ReaderStream() {
-  const pagination = useReaderPagination();
   const document = useReaderStore((s) => s.document);
   const currentPage = useReaderStore((s) => s.currentPage);
   const totalPages = useReaderStore((s) => s.totalPages);
   const loadedPages = useReaderStore((s) => s.loadedPages);
+  const isStreamReady = useReaderStore((s) => s.isStreamReady);
   const getHighlightsForPage = useHighlightsByPage();
   const { openHighlightPopover } = useReaderUI();
   const zoomLevel = useTypographyStore((s) => s.zoomLevel);
@@ -27,24 +25,18 @@ export const ReaderStream = memo(function ReaderStream() {
   const bottomSentinelRef = useRef<HTMLDivElement>(null);
   const topSentinelRef = useRef<HTMLDivElement>(null);
 
-  // 1. Zoom Gestures & Keyboard Shortcuts
-  useReaderZoomGestures();
-
-  // 2. Continuous Focal Page Tracking (at 35% viewport reading line)
-  useReaderFocalPageTracker({
-    onPageVisible: pagination.onPageVisible,
-  });
-
-  // 3. Bidirectional Infinite Scroll with Scroll Anchoring
-  useReaderInfiniteScroll({
+  // 1. Unified Pagination, Continuous Infinite Scroll & Focal Offset Tracking
+  const pagination = useReaderPagination({
     contentAreaRef,
     bottomSentinelRef,
     topSentinelRef,
-    currentPage,
-    loadMorePages: pagination.loadMorePages,
+    isStreamReady,
   });
 
-  // 4. Right-Click Context Menu for Selection and Highlights
+  // 2. Zoom Gestures & Keyboard Shortcuts
+  useReaderZoomGestures();
+
+  // 3. Right-Click Context Menu for Selection and Highlights
   const { handleHighlightContextMenu } = useReaderStreamContextMenu({
     contentAreaRef,
     currentPage,
