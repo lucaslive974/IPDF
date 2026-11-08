@@ -5,6 +5,7 @@ import {
   getWindowSelection,
   hasDocument,
   hasIntersectionObserver,
+  hasResizeObserver,
   hasWindow,
   isBrowser,
   safeRequestAnimationFrame,
@@ -19,11 +20,13 @@ describe('DOM utility helpers', () => {
   const originalWindow = globalThis.window;
   const originalDocument = globalThis.document;
   const originalIntersectionObserver = globalThis.IntersectionObserver;
+  const originalResizeObserver = globalThis.ResizeObserver;
 
   beforeEach(() => {
     globalThis.window = originalWindow;
     globalThis.document = originalDocument;
     globalThis.IntersectionObserver = originalIntersectionObserver;
+    globalThis.ResizeObserver = originalResizeObserver;
   });
 
   describe('hasWindow', () => {
@@ -84,6 +87,19 @@ describe('DOM utility helpers', () => {
       // @ts-expect-error simulating missing API
       globalThis.IntersectionObserver = undefined;
       expect(hasIntersectionObserver()).toBe(false);
+    });
+  });
+
+  describe('hasResizeObserver', () => {
+    it('returns true when ResizeObserver is defined', () => {
+      globalThis.ResizeObserver = vi.fn() as unknown as typeof ResizeObserver;
+      expect(hasResizeObserver()).toBe(true);
+    });
+
+    it('returns false when ResizeObserver is undefined', () => {
+      // @ts-expect-error simulating missing API
+      globalThis.ResizeObserver = undefined;
+      expect(hasResizeObserver()).toBe(false);
     });
   });
 

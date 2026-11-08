@@ -1,7 +1,7 @@
 import type { Highlight } from '@domain/Highlight';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useReaderStore } from '@stores/useReaderStore';
-import { hasIntersectionObserver } from '@utils/dom';
+import { hasIntersectionObserver, hasResizeObserver, useIsomorphicLayoutEffect } from '@utils/dom';
 import { type RefObject, useEffect, useMemo, useRef, useState } from 'react';
 
 export function calculatePdfResponsiveScale(
@@ -72,8 +72,8 @@ export function usePdfPageRenderer({
     };
   }, []);
 
-  // Only render canvas and text layer when near viewport
-  useEffect(() => {
+  // Render canvas and text layer when near viewport (synchronous layout prep avoids blank canvas flicker)
+  useIsomorphicLayoutEffect(() => {
     if (!isNearViewport) {
       pdfViewer.cancelPageRender?.(canvasRef.current, textLayerRef.current);
       if (canvasRef.current) {
@@ -136,7 +136,7 @@ export function usePdfPageRenderer({
 
     // Re-align on container resize or zoom level changes
     let resizeObserver: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== 'undefined' && container) {
+    if (hasResizeObserver() && container) {
       resizeObserver = new ResizeObserver((entries) => {
         for (const entry of entries) {
           if (entry.contentRect && entry.contentRect.width > 0) {

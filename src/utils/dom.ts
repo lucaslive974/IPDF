@@ -31,6 +31,11 @@ export const useIsomorphicLayoutEffect = hasWindow() ? useLayoutEffect : useEffe
 export const hasIntersectionObserver = (): boolean => typeof IntersectionObserver !== 'undefined';
 
 /**
+ * Returns true if the ResizeObserver API is supported in the current environment.
+ */
+export const hasResizeObserver = (): boolean => typeof ResizeObserver !== 'undefined';
+
+/**
  * Safely queries a single DOM element matching the selector.
  * Returns null in non-browser runtimes or when the element is not found.
  */
