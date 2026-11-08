@@ -81,7 +81,7 @@ export const ReaderView = memo(function ReaderView({ bookOverride }: ReaderViewP
           <ReaderLoadingView document={document} />
         </div>
       )}
-      {isReady && <ReaderStream pagination={pagination} />}
+      {isReady && <ReaderStream />}
       <ReaderBottomBar onScrollToPage={pagination.goToPage} />
       <ReaderOverlays />
     </section>

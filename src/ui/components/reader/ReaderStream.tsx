@@ -1,7 +1,6 @@
 import type { Highlight } from '@domain/Highlight';
 import { BookFormat } from '@domain/types';
 import { useHighlightsByPage } from '@hooks/useReaderHighlights';
-import type { ReaderPaginationController } from '@hooks/useReaderPagination';
 import { useReaderStreamContextMenu } from '@hooks/useReaderStreamContextMenu';
 import { useReaderUI } from '@hooks/useReaderUI';
 import { useReaderZoomGestures } from '@hooks/useReaderZoomGestures';
@@ -10,10 +9,6 @@ import { useReaderStore } from '@stores/useReaderStore';
 import { useTypographyStore } from '@stores/useTypographyStore';
 import { memo, useCallback, useMemo, useRef } from 'react';
 import { ReaderPageItem } from './ReaderPageItem';
-
-export interface ReaderStreamProps {
-  readonly pagination?: ReaderPaginationController;
-}
 
 /**
  * Builds the complete list of pages (1..totalPages) for the document stream,
@@ -50,7 +45,7 @@ export function buildStreamPages(
   return pages;
 }
 
-export const ReaderStream = memo(function ReaderStream(_props: ReaderStreamProps) {
+export const ReaderStream = memo(function ReaderStream() {
   const document = useReaderStore((s) => s.document);
   const currentPage = useReaderStore((s) => s.currentPage);
   const totalPages = useReaderStore((s) => s.totalPages);
