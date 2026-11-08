@@ -25,6 +25,7 @@ export interface ReaderPageItemProps {
   readonly coverImageUrl?: string;
   readonly bookFormat?: BookFormat;
   readonly highlights: readonly Highlight[];
+  readonly showChapterHeader?: boolean;
   readonly onHighlightClick: (highlight: Highlight, coords: { x: number; y: number }) => void;
   readonly onHighlightContextMenu: (e: React.MouseEvent, text: string, pageNumber: number) => void;
 }
@@ -37,6 +38,7 @@ export const ReaderPageItem = memo(function ReaderPageItem({
   coverImageUrl,
   bookFormat = BookFormat.EPUB,
   highlights,
+  showChapterHeader = true,
   onHighlightClick,
   onHighlightContextMenu,
 }: ReaderPageItemProps) {
@@ -65,7 +67,7 @@ export const ReaderPageItem = memo(function ReaderPageItem({
         />
       )}
 
-      {!isPdf && (
+      {!isPdf && showChapterHeader && (
         <ReaderPageHeader
           chapterTitle={page.chapterTitle}
           bookAuthor={bookAuthor}

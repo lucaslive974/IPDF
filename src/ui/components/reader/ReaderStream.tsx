@@ -83,20 +83,28 @@ export const ReaderStream = memo(function ReaderStream() {
           width: isPdf ? 'min(calc(100vw - 2rem), 48rem)' : 'min(calc(100vw - 2rem), 42rem)',
         }}
       >
-        {streamPages.map((page) => (
-          <ReaderPageItem
-            key={`page-${page.pageNumber}`}
-            page={page}
-            totalPages={totalPages}
-            bookTitle={document.bookTitle}
-            bookAuthor={document.bookAuthor}
-            coverImageUrl={document.coverImageUrl}
-            bookFormat={document.format ?? BookFormat.EPUB}
-            highlights={getHighlightsForPage(page.pageNumber)}
-            onHighlightClick={handleHighlightClick}
-            onHighlightContextMenu={handleHighlightContextMenu}
-          />
-        ))}
+        {streamPages.map((page) => {
+          const prevChapterTitle = loadedPages.byPage.get(page.pageNumber - 1)?.chapterTitle;
+          const hasTitle = page.chapterTitle.trim().length > 0;
+          const showChapterHeader =
+            hasTitle && (!prevChapterTitle || prevChapterTitle !== page.chapterTitle);
+
+          return (
+            <ReaderPageItem
+              key={`page-${page.pageNumber}`}
+              page={page}
+              totalPages={totalPages}
+              bookTitle={document.bookTitle}
+              bookAuthor={document.bookAuthor}
+              coverImageUrl={document.coverImageUrl}
+              bookFormat={document.format ?? BookFormat.EPUB}
+              highlights={getHighlightsForPage(page.pageNumber)}
+              showChapterHeader={showChapterHeader}
+              onHighlightClick={handleHighlightClick}
+              onHighlightContextMenu={handleHighlightContextMenu}
+            />
+          );
+        })}
       </div>
     </main>
   );
