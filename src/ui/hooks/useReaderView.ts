@@ -1,6 +1,6 @@
 import { useNavigation } from '@providers/NavigationContext';
 import { useReaderStore } from '@stores/useReaderStore';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useLibrary } from './useLibrary';
 import { useReaderUI } from './useReaderUI';
 
@@ -28,7 +28,7 @@ export interface UseReaderViewReturn {
 
 export function useReaderView(): UseReaderViewReturn {
   const navigation = useNavigation();
-  const library = useLibrary();
+  const { updateBookProgress } = useLibrary();
   const {
     toggleChrome,
     contextMenu,
@@ -43,12 +43,12 @@ export function useReaderView(): UseReaderViewReturn {
   const saveProgress = useCallback(
     async (bookHash: string, currentPage: number, totalPages: number, pageOffsetRatio: number) => {
       try {
-        await library.updateBookProgress(bookHash, currentPage, totalPages, pageOffsetRatio);
+        await updateBookProgress(bookHash, currentPage, totalPages, pageOffsetRatio);
       } catch (err) {
         console.warn('Failed to notify library of book progress:', err);
       }
     },
-    [library]
+    [updateBookProgress]
   );
 
   const persistCurrentProgress = useCallback(async () => {
@@ -59,17 +59,22 @@ export function useReaderView(): UseReaderViewReturn {
     await saveProgress(doc.bookHash, currentPage, totalPages, pageOffsetRatio);
   }, [saveProgress]);
 
+  const persistRef = useRef(persistCurrentProgress);
+  persistRef.current = persistCurrentProgress;
+
   useEffect(() => {
     return () => {
-      void persistCurrentProgress();
+      void persistRef.current();
+      useReaderStore.getState().reset();
     };
-  }, [persistCurrentProgress]);
+  }, []);
 
   const handleCloseReader = useCallback(async () => {
     try {
       await persistCurrentProgress();
     } finally {
       closeAllOverlays();
+      useReaderStore.getState().reset();
       navigation.closeReader();
     }
   }, [closeAllOverlays, navigation, persistCurrentProgress]);

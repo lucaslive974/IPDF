@@ -433,12 +433,18 @@ export function createReaderPaginationController(
     const offsetRatio = clamp(pageOffsetRatio || 0.0, -1.0, 1.0);
 
     if (targetPage <= 1 && Math.abs(offsetRatio) <= 0.0001) {
+      if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }
       unlockScroll();
       return;
     }
 
-    const el = document.querySelector<HTMLElement>(`article[data-page-number="${targetPage}"]`);
-    if (el) {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const scrollToPageElement = (el: HTMLElement) => {
       lockScroll(600);
       const rect = el.getBoundingClientRect();
       const targetTop = calculateScrollTargetTop(
@@ -447,7 +453,26 @@ export function createReaderPaginationController(
         window.scrollY,
         offsetRatio
       );
-      window.scrollTo({ top: targetTop, behavior: 'instant' });
+      if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+        window.scrollTo({ top: targetTop, behavior: 'instant' });
+      }
+    };
+
+    const el = document.querySelector<HTMLElement>(`article[data-page-number="${targetPage}"]`);
+    if (el) {
+      scrollToPageElement(el);
+    } else if (
+      typeof window !== 'undefined' &&
+      typeof window.requestAnimationFrame === 'function'
+    ) {
+      window.requestAnimationFrame(() => {
+        const retryEl = document.querySelector<HTMLElement>(
+          `article[data-page-number="${targetPage}"]`
+        );
+        if (retryEl) {
+          scrollToPageElement(retryEl);
+        }
+      });
     }
   };
 
@@ -502,7 +527,12 @@ export function useReaderPagination(
   }
 
   useEffect(() => {
-    if (isStreamReady && !hasRestoredRef.current) {
+    if (!isStreamReady) {
+      hasRestoredRef.current = false;
+      return;
+    }
+
+    if (!hasRestoredRef.current) {
       hasRestoredRef.current = true;
       controller.restoreInitialScroll();
     }

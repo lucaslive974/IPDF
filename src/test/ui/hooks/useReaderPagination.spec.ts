@@ -516,5 +516,152 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       expect(useReaderStore.getState().currentPage).toBe(10);
       expect(useReaderStore.getState().pageOffsetRatio).toBe(0.25);
     });
+
+    it('restoreInitialScroll scrolls to top 0 when targetPage is 1 with no offset', () => {
+      const originalWindow = globalThis.window;
+      const scrollToSpy = vi.fn();
+      globalThis.window = {
+        scrollTo: scrollToSpy,
+      } as unknown as Window & typeof globalThis;
+
+      try {
+        const controller = createReaderPaginationController({
+          readerService: backend,
+          epubViewer: viewer,
+        });
+
+        useReaderStore.getState().setCurrentPage(1);
+        useReaderStore.getState().setPageOffsetRatio(0);
+
+        controller.restoreInitialScroll();
+
+        expect(scrollToSpy).toHaveBeenCalledWith({ top: 0, behavior: 'instant' });
+        expect(controller.isLocked()).toBe(false);
+      } finally {
+        globalThis.window = originalWindow;
+      }
+    });
+
+    it('restoreInitialScroll calculates scroll position and locks scroll when page article is present', () => {
+      const originalDocument = globalThis.document;
+      const originalWindow = globalThis.window;
+      const scrollToSpy = vi.fn();
+
+      const mockArticle = {
+        getBoundingClientRect: () => ({
+          top: 300,
+          height: 800,
+          bottom: 1100,
+          left: 0,
+          right: 800,
+          width: 800,
+          x: 0,
+          y: 300,
+          toJSON: () => ({}),
+        }),
+      } as unknown as HTMLElement;
+
+      globalThis.document = {
+        querySelector: vi.fn((selector: string) => {
+          if (selector === 'article[data-page-number="5"]') {
+            return mockArticle;
+          }
+          return null;
+        }),
+      } as unknown as Document;
+
+      globalThis.window = {
+        scrollTo: scrollToSpy,
+        scrollY: 100,
+      } as unknown as Window & typeof globalThis;
+
+      try {
+        const controller = createReaderPaginationController({
+          readerService: backend,
+          epubViewer: viewer,
+        });
+
+        useReaderStore.getState().setCurrentPage(5);
+        useReaderStore.getState().setPageOffsetRatio(0.2);
+
+        controller.restoreInitialScroll();
+
+        expect(controller.isLocked()).toBe(true);
+        expect(scrollToSpy).toHaveBeenCalledWith({
+          top: 100 + 300 + 800 * 0.2, // 560
+          behavior: 'instant',
+        });
+      } finally {
+        globalThis.document = originalDocument;
+        globalThis.window = originalWindow;
+      }
+    });
+
+    it('restoreInitialScroll retries on requestAnimationFrame if element is initially missing', () => {
+      const originalDocument = globalThis.document;
+      const originalWindow = globalThis.window;
+      const scrollToSpy = vi.fn();
+      let rafCallback: FrameRequestCallback | null = null;
+      let found = false;
+
+      const mockArticle = {
+        getBoundingClientRect: () => ({
+          top: 400,
+          height: 600,
+          bottom: 1000,
+          left: 0,
+          right: 800,
+          width: 800,
+          x: 0,
+          y: 400,
+          toJSON: () => ({}),
+        }),
+      } as unknown as HTMLElement;
+
+      globalThis.document = {
+        querySelector: vi.fn((selector: string) => {
+          if (selector === 'article[data-page-number="8"]' && found) {
+            return mockArticle;
+          }
+          return null;
+        }),
+      } as unknown as Document;
+
+      globalThis.window = {
+        scrollTo: scrollToSpy,
+        scrollY: 0,
+        requestAnimationFrame: (cb: FrameRequestCallback) => {
+          rafCallback = cb;
+          return 1;
+        },
+      } as unknown as Window & typeof globalThis;
+
+      try {
+        const controller = createReaderPaginationController({
+          readerService: backend,
+          epubViewer: viewer,
+        });
+
+        useReaderStore.getState().setCurrentPage(8);
+        useReaderStore.getState().setPageOffsetRatio(0.1);
+
+        controller.restoreInitialScroll();
+        expect(scrollToSpy).not.toHaveBeenCalled();
+
+        // Trigger the rAF retry
+        found = true;
+        if (rafCallback) {
+          (rafCallback as (time: number) => void)(16);
+        }
+
+        expect(scrollToSpy).toHaveBeenCalledWith({
+          top: 400 + 600 * 0.1, // 460
+          behavior: 'instant',
+        });
+      } finally {
+        globalThis.document = originalDocument;
+        globalThis.window = originalWindow;
+      }
+    });
   });
 });

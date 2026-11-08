@@ -5,7 +5,7 @@ import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useHighlightStore } from '@stores/useHighlightStore';
 import { useLibraryStore } from '@stores/useLibraryStore';
 import { generatePdfPageCoverDataUrl } from '@utils/pdfCoverGenerator';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
 export interface LibraryViewModel {
   readonly books: readonly BookMetadata[];
@@ -249,17 +249,32 @@ export function useLibrary(): LibraryViewModel {
     }
   }, [books.length, loadBooks]);
 
-  return {
-    books,
-    isLoading,
-    loadBooks,
-    importBookFile,
-    pickAndImportBook,
-    importSampleBook,
-    updateBookProgress,
-    renameBook,
-    updateBookMetadata,
-    updateBookCover,
-    deleteBook,
-  };
+  return useMemo(
+    () => ({
+      books,
+      isLoading,
+      loadBooks,
+      importBookFile,
+      pickAndImportBook,
+      importSampleBook,
+      updateBookProgress,
+      renameBook,
+      updateBookMetadata,
+      updateBookCover,
+      deleteBook,
+    }),
+    [
+      books,
+      isLoading,
+      loadBooks,
+      importBookFile,
+      pickAndImportBook,
+      importSampleBook,
+      updateBookProgress,
+      renameBook,
+      updateBookMetadata,
+      updateBookCover,
+      deleteBook,
+    ]
+  );
 }
