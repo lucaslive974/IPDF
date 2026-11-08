@@ -86,7 +86,7 @@ describe('useReaderView', () => {
       expect(updateProgressSpy).toHaveBeenCalledWith('book-hash-close', 7, 20, 0.4);
       expect(useReaderStore.getState().document.bookHash).toBe('');
       expect(useReaderStore.getState().isStreamReady).toBe(false);
-      expect(useReaderStore.getState().loadedPages).toHaveLength(0);
+      expect(useReaderStore.getState().loadedPages.byPage.size).toBe(0);
     });
   });
 });

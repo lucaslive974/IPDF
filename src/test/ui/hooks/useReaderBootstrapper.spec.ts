@@ -109,8 +109,10 @@ describe('useReaderBootstrapper / bootstrapReaderBook', () => {
     expect(state.document.bookTitle).toBe('Republic');
     expect(state.currentPage).toBe(10);
     expect(state.totalPages).toBe(300);
-    expect(state.loadedPages).toHaveLength(4);
-    expect(state.loadedPages.map((p) => p.pageNumber)).toEqual([8, 9, 10, 11]);
+    expect(state.loadedPages.byPage.size).toBe(4);
+    expect(Array.from(state.loadedPages.byPage.keys())).toEqual([8, 9, 10, 11]);
+    expect(state.loadedPages.minPage).toBe(8);
+    expect(state.loadedPages.maxPage).toBe(11);
     expect(state.chapterTitle).toBe('Book VII - Cave Allegory');
     expect(updatePresenceSpy).toHaveBeenCalledWith({
       bookHash: 'hash-socrates',
@@ -230,7 +232,7 @@ describe('useReaderBootstrapper / bootstrapReaderBook', () => {
         }
       );
 
-      expect(useReaderStore.getState().loadedPages).toHaveLength(1);
+      expect(useReaderStore.getState().loadedPages.byPage.size).toBe(1);
       expect(useReaderStore.getState().isStreamReady).toBe(true);
       expect(useReaderStore.getState().chapterTitle).toBe('Intro');
     });
@@ -270,7 +272,7 @@ describe('useReaderBootstrapper / bootstrapReaderBook', () => {
       );
 
       expect(useReaderStore.getState().totalPages).toBe(40);
-      expect(useReaderStore.getState().loadedPages).toHaveLength(1);
+      expect(useReaderStore.getState().loadedPages.byPage.size).toBe(1);
       expect(useReaderStore.getState().chapterTitle).toBe('PDF Page 1');
     });
   });

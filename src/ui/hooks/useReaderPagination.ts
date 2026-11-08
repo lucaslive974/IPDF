@@ -2,7 +2,7 @@ import { type PageWindow, calculatePageWindow } from '@domain/PageWindow';
 import { BookFormat } from '@domain/types';
 import type { DocumentPage, IPdfViewer, IPresenceService, IReaderService } from '@ports';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
-import { useReaderStore } from '@stores/useReaderStore';
+import { type LoadedPagesInfo, useReaderStore } from '@stores/useReaderStore';
 import {
   hasWindow,
   isBrowser,
@@ -49,54 +49,50 @@ export const PAGINATION_CHUNK_SIZE = 10;
 export const PREFETCH_PAGES_TRIGGER_DISTANCE = 7;
 
 /**
- * Calculates the forward window of pages to fetch.
+ * Calculates the forward window of pages to fetch in O(1).
  */
 export function calculateNextPageWindow(
-  loadedPages: readonly Pick<DocumentPage, 'pageNumber'>[],
+  loadedPages: LoadedPagesInfo,
   totalPages: number,
   chunkSize = PAGINATION_CHUNK_SIZE
 ): PageWindow | null {
-  const lastPageNum =
-    loadedPages.length > 0 ? Math.max(...loadedPages.map((p) => p.pageNumber)) : 0;
-  if (lastPageNum >= totalPages) {
+  if (loadedPages.maxPage >= totalPages || loadedPages.maxPage <= 0) {
     return null;
   }
-  const count = Math.min(chunkSize, totalPages - lastPageNum);
-  return { startPage: lastPageNum + 1, count };
+  const count = Math.min(chunkSize, totalPages - loadedPages.maxPage);
+  return { startPage: loadedPages.maxPage + 1, count };
 }
 
 /**
- * Calculates the backward window of pages to fetch.
+ * Calculates the backward window of pages to fetch in O(1).
  */
 export function calculatePrevPageWindow(
-  loadedPages: readonly Pick<DocumentPage, 'pageNumber'>[],
+  loadedPages: LoadedPagesInfo,
   chunkSize = PAGINATION_CHUNK_SIZE
 ): PageWindow | null {
-  const firstPageNum =
-    loadedPages.length > 0 ? Math.min(...loadedPages.map((p) => p.pageNumber)) : 1;
-  if (firstPageNum <= 1) {
+  if (loadedPages.minPage <= 1) {
     return null;
   }
-  const startPage = Math.max(1, firstPageNum - chunkSize);
-  const count = firstPageNum - startPage;
+  const startPage = Math.max(1, loadedPages.minPage - chunkSize);
+  const count = loadedPages.minPage - startPage;
   return { startPage, count };
 }
 
 /**
- * Determines whether proactive page loading is needed based on reader position.
+ * Determines whether proactive page loading is needed based on reader position in O(1).
  */
 export function determinePrefetchDirection(
   currentPage: number,
   previousPage: number,
-  loadedPages: readonly Pick<DocumentPage, 'pageNumber'>[],
+  loadedPages: LoadedPagesInfo,
   totalPages: number,
   triggerDistance = PREFETCH_PAGES_TRIGGER_DISTANCE
 ): 'next' | 'prev' | null {
-  if (loadedPages.length === 0 || currentPage === previousPage) {
+  if (currentPage === previousPage || (loadedPages.minPage === 0 && loadedPages.maxPage === 0)) {
     return null;
   }
-  const lastLoaded = Math.max(...loadedPages.map((p) => p.pageNumber));
-  const firstLoaded = Math.min(...loadedPages.map((p) => p.pageNumber));
+  const lastLoaded = loadedPages.maxPage;
+  const firstLoaded = loadedPages.minPage;
 
   const isMovingForward = currentPage > previousPage;
   const isMovingBackward = currentPage < previousPage;
@@ -294,7 +290,7 @@ export function createReaderPaginationController(
 
     if (pageNumber !== previousPage) {
       store.getState().setCurrentPage(pageNumber);
-      const visible = state.loadedPages.find((p) => p.pageNumber === pageNumber);
+      const visible = state.loadedPages.byPage.get(pageNumber);
       if (visible?.chapterTitle) {
         store.getState().setChapterTitle(visible.chapterTitle);
       }
@@ -308,7 +304,7 @@ export function createReaderPaginationController(
       });
     }
 
-    if (!state.loadedPages.some((p) => p.pageNumber === pageNumber)) {
+    if (!state.loadedPages.byPage.has(pageNumber)) {
       void fetchTargetChunkIfNeeded(pageNumber);
       return;
     }
@@ -326,7 +322,7 @@ export function createReaderPaginationController(
 
   const fetchTargetChunkIfNeeded = async (targetPage: number): Promise<void> => {
     const state = store.getState();
-    const exists = state.loadedPages.some((p) => p.pageNumber === targetPage);
+    const exists = state.loadedPages.byPage.has(targetPage);
     if (exists) return;
 
     const pageWindow = calculatePageWindow(targetPage, state.totalPages);
@@ -379,7 +375,7 @@ export function createReaderPaginationController(
     store.getState().setCurrentPage(next);
     store.getState().setPageOffsetRatio(offsetRatio);
 
-    const active = store.getState().loadedPages.find((p) => p.pageNumber === next);
+    const active = store.getState().loadedPages.byPage.get(next);
     if (active?.chapterTitle) {
       store.getState().setChapterTitle(active.chapterTitle);
     }

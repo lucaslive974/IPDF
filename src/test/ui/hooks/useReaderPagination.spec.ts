@@ -15,7 +15,7 @@ import {
 } from '@hooks/useReaderPagination';
 import type { IPdfViewer } from '@ports/IPdfViewer';
 import { ServiceContainerProvider } from '@providers/ServiceContainerContext';
-import { useReaderStore } from '@stores/useReaderStore';
+import { EMPTY_LOADED_PAGES, createLoadedPagesInfo, useReaderStore } from '@stores/useReaderStore';
 import { clamp } from '@utils/math';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -56,17 +56,19 @@ describe('useReaderPagination / createReaderPaginationController', () => {
     useReaderStore.getState().setTotalPages(10);
     useReaderStore
       .getState()
-      .setLoadedPages([
-        { pageNumber: 2, chapterTitle: 'C2', paragraphs: ['P2'], cfiBase: '/6/4!' },
-      ]);
+      .setLoadedPages(
+        createLoadedPagesInfo([
+          { pageNumber: 2, chapterTitle: 'C2', paragraphs: ['P2'], cfiBase: '/6/4!' },
+        ])
+      );
 
     // Load next
     await controller.loadMorePages('next');
-    expect(useReaderStore.getState().loadedPages.some((p) => p.pageNumber === 3)).toBe(true);
+    expect(useReaderStore.getState().loadedPages.byPage.has(3)).toBe(true);
 
     // Load prev
     await controller.loadMorePages('prev');
-    expect(useReaderStore.getState().loadedPages.some((p) => p.pageNumber === 1)).toBe(true);
+    expect(useReaderStore.getState().loadedPages.byPage.has(1)).toBe(true);
   });
 
   it('loads pages from pdfViewer when book format is PDF', async () => {
@@ -97,14 +99,16 @@ describe('useReaderPagination / createReaderPaginationController', () => {
     useReaderStore.getState().setTotalPages(20);
     useReaderStore
       .getState()
-      .setLoadedPages([
-        { pageNumber: 5, chapterTitle: 'PDF Page 5', paragraphs: ['Text 5'], cfiBase: '/pdf/5' },
-      ]);
+      .setLoadedPages(
+        createLoadedPagesInfo([
+          { pageNumber: 5, chapterTitle: 'PDF Page 5', paragraphs: ['Text 5'], cfiBase: '/pdf/5' },
+        ])
+      );
 
     await controller.loadMorePages('next');
 
     expect(mockPdfViewer.getPagesChunk).toHaveBeenCalledWith(6, 10);
-    expect(useReaderStore.getState().loadedPages.some((p) => p.pageNumber === 6)).toBe(true);
+    expect(useReaderStore.getState().loadedPages.byPage.has(6)).toBe(true);
   });
 
   it('updates page, chapter, and reading presence without touching SQLite when onPageVisible is called', () => {
@@ -115,10 +119,12 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       presenceService: backend,
     });
 
-    useReaderStore.getState().setLoadedPages([
-      { pageNumber: 1, chapterTitle: 'Intro', paragraphs: ['Intro text'], cfiBase: '/6/2!' },
-      { pageNumber: 5, chapterTitle: 'Chapter 5', paragraphs: ['Text 5'], cfiBase: '/6/10!' },
-    ]);
+    useReaderStore.getState().setLoadedPages(
+      createLoadedPagesInfo([
+        { pageNumber: 1, chapterTitle: 'Intro', paragraphs: ['Intro text'], cfiBase: '/6/2!' },
+        { pageNumber: 5, chapterTitle: 'Chapter 5', paragraphs: ['Text 5'], cfiBase: '/6/10!' },
+      ])
+    );
 
     controller.onPageVisible(5);
 
@@ -153,12 +159,14 @@ describe('useReaderPagination / createReaderPaginationController', () => {
     });
     useReaderStore.getState().setTotalPages(50);
     useReaderStore.getState().setLoadedPages(
-      Array.from({ length: 11 }, (_, i) => ({
-        pageNumber: 20 + i, // 20 to 30 loaded
-        chapterTitle: `Chapter ${20 + i}`,
-        paragraphs: [`P${20 + i}`],
-        cfiBase: `/6/${20 + i}!`,
-      }))
+      createLoadedPagesInfo(
+        Array.from({ length: 11 }, (_, i) => ({
+          pageNumber: 20 + i, // 20 to 30 loaded
+          chapterTitle: `Chapter ${20 + i}`,
+          paragraphs: [`P${20 + i}`],
+          cfiBase: `/6/${20 + i}!`,
+        }))
+      )
     );
     useReaderStore.getState().setCurrentPage(20);
 
@@ -191,12 +199,14 @@ describe('useReaderPagination / createReaderPaginationController', () => {
     });
     useReaderStore.getState().setTotalPages(50);
     useReaderStore.getState().setLoadedPages(
-      Array.from({ length: 11 }, (_, i) => ({
-        pageNumber: 20 + i, // 20 to 30 loaded
-        chapterTitle: `Chapter ${20 + i}`,
-        paragraphs: [`P${20 + i}`],
-        cfiBase: `/6/${20 + i}!`,
-      }))
+      createLoadedPagesInfo(
+        Array.from({ length: 11 }, (_, i) => ({
+          pageNumber: 20 + i, // 20 to 30 loaded
+          chapterTitle: `Chapter ${20 + i}`,
+          paragraphs: [`P${20 + i}`],
+          cfiBase: `/6/${20 + i}!`,
+        }))
+      )
     );
     useReaderStore.getState().setCurrentPage(35);
 
@@ -242,49 +252,62 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       expect(clamp(105, 1, 100)).toBe(100);
     });
 
-    it('calculates next page window accurately', () => {
-      const pages = [{ pageNumber: 10 }, { pageNumber: 11 }];
+    it('calculates next page window accurately in O(1)', () => {
+      const loaded = createLoadedPagesInfo([
+        { pageNumber: 10, chapterTitle: '', paragraphs: [], cfiBase: '' },
+        { pageNumber: 11, chapterTitle: '', paragraphs: [], cfiBase: '' },
+      ]);
 
       // Regular next window
-      expect(calculateNextPageWindow(pages, 50, 10)).toEqual({
+      expect(calculateNextPageWindow(loaded, 50, 10)).toEqual({
         startPage: 12,
         count: 10,
       });
 
       // Window bounded by totalPages
-      expect(calculateNextPageWindow(pages, 15, 10)).toEqual({
+      expect(calculateNextPageWindow(loaded, 15, 10)).toEqual({
         startPage: 12,
         count: 4, // 12, 13, 14, 15
       });
 
       // Already at or past totalPages
-      expect(calculateNextPageWindow(pages, 11, 10)).toBeNull();
-      expect(calculateNextPageWindow(pages, 10, 10)).toBeNull();
+      expect(calculateNextPageWindow(loaded, 11, 10)).toBeNull();
+      expect(calculateNextPageWindow(loaded, 10, 10)).toBeNull();
     });
 
-    it('calculates prev page window accurately', () => {
-      const pages = [{ pageNumber: 15 }, { pageNumber: 16 }];
+    it('calculates prev page window accurately in O(1)', () => {
+      const loaded = createLoadedPagesInfo([
+        { pageNumber: 15, chapterTitle: '', paragraphs: [], cfiBase: '' },
+        { pageNumber: 16, chapterTitle: '', paragraphs: [], cfiBase: '' },
+      ]);
 
       // Regular prev window
-      expect(calculatePrevPageWindow(pages, 10)).toEqual({
+      expect(calculatePrevPageWindow(loaded, 10)).toEqual({
         startPage: 5,
         count: 10,
       });
 
       // Close to page 1
-      const earlyPages = [{ pageNumber: 4 }];
-      expect(calculatePrevPageWindow(earlyPages, 10)).toEqual({
+      const earlyLoaded = createLoadedPagesInfo([
+        { pageNumber: 4, chapterTitle: '', paragraphs: [], cfiBase: '' },
+      ]);
+      expect(calculatePrevPageWindow(earlyLoaded, 10)).toEqual({
         startPage: 1,
         count: 3,
       });
 
       // Already at page 1
-      const firstPage = [{ pageNumber: 1 }];
-      expect(calculatePrevPageWindow(firstPage, 10)).toBeNull();
+      const firstPageLoaded = createLoadedPagesInfo([
+        { pageNumber: 1, chapterTitle: '', paragraphs: [], cfiBase: '' },
+      ]);
+      expect(calculatePrevPageWindow(firstPageLoaded, 10)).toBeNull();
     });
 
-    it('determines prefetch direction based on reading boundaries', () => {
-      const loaded = [{ pageNumber: 10 }, { pageNumber: 30 }];
+    it('determines prefetch direction based on reading boundaries in O(1)', () => {
+      const loaded = createLoadedPagesInfo([
+        { pageNumber: 10, chapterTitle: '', paragraphs: [], cfiBase: '' },
+        { pageNumber: 30, chapterTitle: '', paragraphs: [], cfiBase: '' },
+      ]);
 
       // Not near boundaries (within 7): 20 - 10 = 10 > 7, 30 - 20 = 10 > 7
       expect(determinePrefetchDirection(20, 19, loaded, 50)).toBeNull();
@@ -302,20 +325,23 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       expect(determinePrefetchDirection(15, 15, loaded, 50)).toBeNull();
 
       // Near both ends: prioritize scroll direction
-      const shortRange = [{ pageNumber: 10 }, { pageNumber: 14 }];
+      const shortRange = createLoadedPagesInfo([
+        { pageNumber: 10, chapterTitle: '', paragraphs: [], cfiBase: '' },
+        { pageNumber: 14, chapterTitle: '', paragraphs: [], cfiBase: '' },
+      ]);
       // Moving down (page 12 > previous 11) -> 'next'
       expect(determinePrefetchDirection(12, 11, shortRange, 50)).toBe('next');
       // Moving up (page 11 < previous 12) -> 'prev'
       expect(determinePrefetchDirection(11, 12, shortRange, 50)).toBe('prev');
 
       // Empty loaded pages
-      expect(determinePrefetchDirection(1, 1, [], 50)).toBeNull();
+      expect(determinePrefetchDirection(1, 1, EMPTY_LOADED_PAGES, 50)).toBeNull();
     });
 
     it('builds full stream pages list merging loaded content with empty placeholders', () => {
-      const loaded = [
+      const loaded = createLoadedPagesInfo([
         { pageNumber: 2, chapterTitle: 'Ch 2', paragraphs: ['P2'], cfiBase: '/6/4!' },
-      ];
+      ]);
       const stream = buildStreamPages(4, loaded);
       expect(stream).toHaveLength(4);
       expect(stream.map((p) => p.pageNumber)).toEqual([1, 2, 3, 4]);
@@ -345,9 +371,11 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       useReaderStore.getState().setTotalPages(100);
       useReaderStore
         .getState()
-        .setLoadedPages([
-          { pageNumber: 1, chapterTitle: 'Ch 1', paragraphs: ['P1'], cfiBase: '/6/1!' },
-        ]);
+        .setLoadedPages(
+          createLoadedPagesInfo([
+            { pageNumber: 1, chapterTitle: 'Ch 1', paragraphs: ['P1'], cfiBase: '/6/1!' },
+          ])
+        );
 
       controller.onPageVisible(40, 0.15);
 
@@ -508,9 +536,11 @@ describe('useReaderPagination / createReaderPaginationController', () => {
 
       useReaderStore
         .getState()
-        .setLoadedPages([
-          { pageNumber: 5, chapterTitle: 'Ch 5', paragraphs: ['P5'], cfiBase: '/6/10!' },
-        ]);
+        .setLoadedPages(
+          createLoadedPagesInfo([
+            { pageNumber: 5, chapterTitle: 'Ch 5', paragraphs: ['P5'], cfiBase: '/6/10!' },
+          ])
+        );
 
       controller.onPageVisible(5, 0.35);
 
@@ -526,9 +556,11 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       useReaderStore.getState().setTotalPages(50);
       useReaderStore
         .getState()
-        .setLoadedPages([
-          { pageNumber: 10, chapterTitle: 'Ch 10', paragraphs: ['P10'], cfiBase: '/6/20!' },
-        ]);
+        .setLoadedPages(
+          createLoadedPagesInfo([
+            { pageNumber: 10, chapterTitle: 'Ch 10', paragraphs: ['P10'], cfiBase: '/6/20!' },
+          ])
+        );
 
       await controller.goToPage(10, { offsetRatio: 0.25 });
 

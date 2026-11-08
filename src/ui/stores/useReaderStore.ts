@@ -20,13 +20,50 @@ export const EMPTY_DOCUMENT: StudyDocumentDescriptor = {
   sampleParagraph: '',
 };
 
+export interface LoadedPagesInfo {
+  readonly byPage: ReadonlyMap<number, DocumentPage>;
+  readonly minPage: number;
+  readonly maxPage: number;
+}
+
+export const EMPTY_LOADED_PAGES: LoadedPagesInfo = {
+  byPage: new Map(),
+  minPage: 0,
+  maxPage: 0,
+};
+
+export function createLoadedPagesInfo(
+  pages: readonly DocumentPage[],
+  base?: LoadedPagesInfo
+): LoadedPagesInfo {
+  if (pages.length === 0) {
+    return base ?? EMPTY_LOADED_PAGES;
+  }
+  const byPage = new Map(base?.byPage);
+  const isEmpty = !base || base.byPage.size === 0;
+  let minPage = isEmpty ? Number.POSITIVE_INFINITY : base.minPage;
+  let maxPage = isEmpty ? Number.NEGATIVE_INFINITY : base.maxPage;
+
+  for (const page of pages) {
+    byPage.set(page.pageNumber, page);
+    if (page.pageNumber < minPage) minPage = page.pageNumber;
+    if (page.pageNumber > maxPage) maxPage = page.pageNumber;
+  }
+
+  return {
+    byPage,
+    minPage: minPage === Number.POSITIVE_INFINITY ? 0 : minPage,
+    maxPage: maxPage === Number.NEGATIVE_INFINITY ? 0 : maxPage,
+  };
+}
+
 export interface ReaderState {
   readonly document: StudyDocumentDescriptor;
   readonly currentPage: number;
   readonly totalPages: number;
   readonly pageOffsetRatio: number;
   readonly chapterTitle: string;
-  readonly loadedPages: readonly DocumentPage[];
+  readonly loadedPages: LoadedPagesInfo;
   readonly isLoadingPages: boolean;
   readonly isStreamReady: boolean;
 
@@ -35,7 +72,7 @@ export interface ReaderState {
   setTotalPages(totalPages: number): void;
   setPageOffsetRatio(ratio: number): void;
   setChapterTitle(chapterTitle: string): void;
-  setLoadedPages(pages: readonly DocumentPage[]): void;
+  setLoadedPages(pages: LoadedPagesInfo): void;
   upsertPages(pages: readonly DocumentPage[]): void;
   setLoadingPages(loading: boolean): void;
   setStreamReady(ready: boolean): void;
@@ -48,7 +85,7 @@ export const useReaderStore = create<ReaderState>((set) => ({
   totalPages: 1,
   pageOffsetRatio: 0.0,
   chapterTitle: '',
-  loadedPages: [],
+  loadedPages: EMPTY_LOADED_PAGES,
   isLoadingPages: false,
   isStreamReady: false,
 
@@ -59,7 +96,7 @@ export const useReaderStore = create<ReaderState>((set) => ({
       loadedPages:
         state.document.bookHash === document.bookHash && document.bookHash !== ''
           ? state.loadedPages
-          : [],
+          : EMPTY_LOADED_PAGES,
     })),
 
   setCurrentPage: (currentPage) => set({ currentPage }),
@@ -73,17 +110,9 @@ export const useReaderStore = create<ReaderState>((set) => ({
   setLoadedPages: (loadedPages) => set({ loadedPages }),
 
   upsertPages: (newPages) =>
-    set((state) => {
-      const pageMap = new Map<number, DocumentPage>();
-      for (const p of state.loadedPages) {
-        pageMap.set(p.pageNumber, p);
-      }
-      for (const p of newPages) {
-        pageMap.set(p.pageNumber, p);
-      }
-      const sorted = Array.from(pageMap.values()).sort((a, b) => a.pageNumber - b.pageNumber);
-      return { loadedPages: sorted };
-    }),
+    set((state) => ({
+      loadedPages: createLoadedPagesInfo(newPages, state.loadedPages),
+    })),
 
   setLoadingPages: (isLoadingPages) => set({ isLoadingPages }),
 
@@ -96,7 +125,7 @@ export const useReaderStore = create<ReaderState>((set) => ({
       totalPages: 1,
       pageOffsetRatio: 0.0,
       chapterTitle: '',
-      loadedPages: [],
+      loadedPages: EMPTY_LOADED_PAGES,
       isLoadingPages: false,
       isStreamReady: false,
     }),

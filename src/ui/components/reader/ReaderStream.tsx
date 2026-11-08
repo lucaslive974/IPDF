@@ -5,44 +5,29 @@ import { useReaderStreamContextMenu } from '@hooks/useReaderStreamContextMenu';
 import { useReaderUI } from '@hooks/useReaderUI';
 import { useReaderZoomGestures } from '@hooks/useReaderZoomGestures';
 import type { DocumentPage } from '@ports/IReaderService';
-import { useReaderStore } from '@stores/useReaderStore';
+import { type LoadedPagesInfo, useReaderStore } from '@stores/useReaderStore';
 import { useTypographyStore } from '@stores/useTypographyStore';
 import { memo, useCallback, useMemo, useRef } from 'react';
 import { ReaderPageItem } from './ReaderPageItem';
 
 /**
  * Builds the complete list of pages (1..totalPages) for the document stream,
- * merging loaded page content with lightweight placeholders for unloaded slots.
+ * merging loaded page content with lightweight placeholders for unloaded slots in O(1) per page.
  */
-export function buildStreamPages(
-  totalPages: number,
-  loadedPages: readonly DocumentPage[]
-): DocumentPage[] {
-  const loadedByPage = new Map<number, DocumentPage>();
-  let maxLoadedPage = 0;
+export function buildStreamPages(totalPages: number, loadedPages: LoadedPagesInfo): DocumentPage[] {
+  const count = Math.max(1, totalPages, loadedPages.maxPage);
 
-  for (const page of loadedPages) {
-    loadedByPage.set(page.pageNumber, page);
-    if (page.pageNumber > maxLoadedPage) {
-      maxLoadedPage = page.pageNumber;
-    }
-  }
-
-  const count = Math.max(1, totalPages, maxLoadedPage);
-  const pages: DocumentPage[] = [];
-
-  for (let pageNumber = 1; pageNumber <= count; pageNumber++) {
-    pages.push(
-      loadedByPage.get(pageNumber) ?? {
+  return Array.from({ length: count }, (_, index) => {
+    const pageNumber = index + 1;
+    return (
+      loadedPages.byPage.get(pageNumber) ?? {
         pageNumber,
         chapterTitle: '',
         paragraphs: [],
         cfiBase: '',
       }
     );
-  }
-
-  return pages;
+  });
 }
 
 export const ReaderStream = memo(function ReaderStream() {

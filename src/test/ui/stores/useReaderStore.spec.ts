@@ -1,5 +1,10 @@
 import type { DocumentPage } from '@ports/IReaderService';
-import { EMPTY_DOCUMENT, useReaderStore } from '@stores/useReaderStore';
+import {
+  EMPTY_DOCUMENT,
+  EMPTY_LOADED_PAGES,
+  createLoadedPagesInfo,
+  useReaderStore,
+} from '@stores/useReaderStore';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 describe('useReaderStore', () => {
@@ -13,7 +18,7 @@ describe('useReaderStore', () => {
     expect(state.currentPage).toBe(1);
     expect(state.totalPages).toBe(1);
     expect(state.pageOffsetRatio).toBe(0.0);
-    expect(state.loadedPages).toEqual([]);
+    expect(state.loadedPages).toEqual(EMPTY_LOADED_PAGES);
   });
 
   it('sets document and synchronizes chapterTitle', () => {
@@ -41,7 +46,7 @@ describe('useReaderStore', () => {
     expect(useReaderStore.getState().totalPages).toBe(1);
   });
 
-  it('upserts pages deduplicating and maintaining ascending order', () => {
+  it('upserts pages deduplicating and maintaining min/max and byPage map', () => {
     const page3: DocumentPage = {
       pageNumber: 3,
       chapterTitle: 'Ch 3',
@@ -62,10 +67,43 @@ describe('useReaderStore', () => {
     };
 
     useReaderStore.getState().upsertPages([page3, page1]);
-    expect(useReaderStore.getState().loadedPages.map((p) => p.pageNumber)).toEqual([1, 3]);
+    const state1 = useReaderStore.getState().loadedPages;
+    expect(Array.from(state1.byPage.keys())).toEqual([3, 1]);
+    expect(state1.minPage).toBe(1);
+    expect(state1.maxPage).toBe(3);
 
     useReaderStore.getState().upsertPages([page2]);
-    expect(useReaderStore.getState().loadedPages.map((p) => p.pageNumber)).toEqual([1, 2, 3]);
+    const state2 = useReaderStore.getState().loadedPages;
+    expect(state2.byPage.size).toBe(3);
+    expect(state2.byPage.get(1)).toEqual(page1);
+    expect(state2.byPage.get(2)).toEqual(page2);
+    expect(state2.byPage.get(3)).toEqual(page3);
+    expect(state2.minPage).toBe(1);
+    expect(state2.maxPage).toBe(3);
+  });
+
+  it('createLoadedPagesInfo handles empty array and correctly tracks boundaries', () => {
+    expect(createLoadedPagesInfo([])).toEqual(EMPTY_LOADED_PAGES);
+
+    const info = createLoadedPagesInfo([
+      { pageNumber: 5, chapterTitle: 'Ch 5', paragraphs: [], cfiBase: '' },
+      { pageNumber: 2, chapterTitle: 'Ch 2', paragraphs: [], cfiBase: '' },
+    ]);
+    expect(info.minPage).toBe(2);
+    expect(info.maxPage).toBe(5);
+    expect(info.byPage.size).toBe(2);
+
+    // Merging with existing base
+    const merged = createLoadedPagesInfo(
+      [{ pageNumber: 8, chapterTitle: 'Ch 8', paragraphs: [], cfiBase: '' }],
+      info
+    );
+    expect(merged.minPage).toBe(2);
+    expect(merged.maxPage).toBe(8);
+    expect(merged.byPage.size).toBe(3);
+
+    // Empty array with base preserves base
+    expect(createLoadedPagesInfo([], merged)).toBe(merged);
   });
 
   it('updates and resets pageOffsetRatio and isStreamReady', () => {

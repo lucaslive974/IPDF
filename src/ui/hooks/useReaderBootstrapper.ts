@@ -12,7 +12,9 @@ import type { IReaderService } from '@ports/IReaderService';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import {
   EMPTY_DOCUMENT,
+  EMPTY_LOADED_PAGES,
   type StudyDocumentDescriptor,
+  createLoadedPagesInfo,
   useReaderStore,
 } from '@stores/useReaderStore';
 import { extractAndSyncPdfCover } from '@utils/pdfCoverGenerator';
@@ -130,7 +132,7 @@ export async function bootstrapPdfReaderSession(
     chunk = await deps.readerService.getBookPages(doc.bookHash, window.startPage, window.count);
   }
 
-  store.getState().setLoadedPages(chunk);
+  store.getState().setLoadedPages(createLoadedPagesInfo(chunk));
   const active = chunk.find((p) => p.pageNumber === initialPage) ?? chunk[0];
   if (active?.chapterTitle) {
     store.getState().setChapterTitle(active.chapterTitle);
@@ -160,7 +162,7 @@ export async function bootstrapEpubReaderSession(
 ): Promise<void> {
   const pages = await deps.readerService.getBookPages(doc.bookHash, window.startPage, window.count);
 
-  store.getState().setLoadedPages(pages);
+  store.getState().setLoadedPages(createLoadedPagesInfo(pages));
   const active = pages.find((p) => p.pageNumber === initialPage) ?? pages[0];
   if (active?.chapterTitle) {
     store.getState().setChapterTitle(active.chapterTitle);
@@ -180,7 +182,7 @@ export async function bootstrapReaderBook(
   book?: BookMetadata | null
 ): Promise<StudyDocumentDescriptor> {
   const store = deps.store ?? useReaderStore;
-  store.getState().setLoadedPages([]);
+  store.getState().setLoadedPages(EMPTY_LOADED_PAGES);
   store.getState().setLoadingPages(true);
   store.getState().setStreamReady(false);
 

@@ -23,7 +23,7 @@ export const ReaderView = memo(function ReaderView({ book, onClose }: ReaderView
   const loadedPages = useReaderStore((s) => s.loadedPages);
   const document = useReaderStore((s) => s.document);
 
-  const isReady = !isLoadingPages && loadedPages.length > 0;
+  const isReady = !isLoadingPages && loadedPages.byPage.size > 0;
   const showLoadingOverlay = !isReady || !isStreamReady;
 
   const { handleCloseReader, handleViewportClick, toggleChrome } = useReaderView({ onClose });
