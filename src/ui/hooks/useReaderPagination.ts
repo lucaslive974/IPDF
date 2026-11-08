@@ -38,6 +38,7 @@ export interface GoToPageOptions {
 export interface ReaderPaginationController {
   loadMorePages(direction: 'next' | 'prev'): Promise<void>;
   onPageVisible(pageNumber: number, offsetRatio?: number): void;
+  syncPresence(pageNumber: number): void;
   goToPage(targetPage: number, options?: GoToPageOptions): Promise<void>;
   navigatePage(delta: number, options?: GoToPageOptions): Promise<void>;
   restoreInitialScroll(): void;
@@ -174,12 +175,14 @@ export function collectVisibleArticleRects(): ArticleRect[] {
     const pageNum = Number(el.getAttribute('data-page-number'));
     if (pageNum > 0) {
       const rect = el.getBoundingClientRect();
-      rects.push({
-        pageNumber: pageNum,
-        top: rect.top,
-        bottom: rect.bottom,
-        height: rect.height,
-      });
+      if (rect.height > 0) {
+        rects.push({
+          pageNumber: pageNum,
+          top: rect.top,
+          bottom: rect.bottom,
+          height: rect.height,
+        });
+      }
     }
   }
   return rects;
@@ -217,6 +220,22 @@ export function createReaderPaginationController(
   let isLoadingMore = false;
   let isScrollLocked = false;
   let scrollLockTimer: ReturnType<typeof setTimeout> | null = null;
+  let lastReportedPresencePage: number | null = null;
+
+  const syncPresence = (pageNumber: number): void => {
+    const state = store.getState();
+
+    lastReportedPresencePage = pageNumber;
+    const visible = state.loadedPages.byPage.get(pageNumber);
+    void deps.presenceService?.updateReadingPresence({
+      bookHash: state.document.bookHash,
+      bookTitle: state.document.bookTitle,
+      bookAuthor: state.document.bookAuthor,
+      chapterTitle: visible?.chapterTitle ?? state.chapterTitle,
+      currentPage: pageNumber,
+      totalPages: state.totalPages,
+    });
+  };
 
   const lockScroll = (durationMs: number): void => {
     if (scrollLockTimer) {
@@ -295,14 +314,6 @@ export function createReaderPaginationController(
       if (visible?.chapterTitle) {
         store.getState().setChapterTitle(visible.chapterTitle);
       }
-      void deps.presenceService?.updateReadingPresence({
-        bookHash: state.document.bookHash,
-        bookTitle: state.document.bookTitle,
-        bookAuthor: state.document.bookAuthor,
-        chapterTitle: visible?.chapterTitle ?? state.chapterTitle,
-        currentPage: pageNumber,
-        totalPages: state.totalPages,
-      });
     }
 
     if (!state.loadedPages.byPage.has(pageNumber)) {
@@ -381,14 +392,7 @@ export function createReaderPaginationController(
       store.getState().setChapterTitle(active.chapterTitle);
     }
 
-    void deps.presenceService?.updateReadingPresence({
-      bookHash: state.document.bookHash,
-      bookTitle: state.document.bookTitle,
-      bookAuthor: state.document.bookAuthor,
-      chapterTitle: store.getState().chapterTitle,
-      currentPage: next,
-      totalPages: state.totalPages,
-    });
+    syncPresence(next);
 
     scrollToTargetPage(next, offsetRatio, smooth);
 
@@ -419,6 +423,7 @@ export function createReaderPaginationController(
   return {
     loadMorePages,
     onPageVisible,
+    syncPresence,
     goToPage,
     navigatePage,
     restoreInitialScroll,
@@ -486,6 +491,7 @@ export function useReaderPagination(
 
         const detected = detectFocalPageAndOffset();
         if (detected) {
+          controller.syncPresence(detected.pageNumber);
           controller.onPageVisible(detected.pageNumber, detected.offsetRatio);
         }
       });

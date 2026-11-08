@@ -139,6 +139,71 @@ describe('useReaderPagination / createReaderPaginationController', () => {
     expect(updateProgressSpy).not.toHaveBeenCalled();
   });
 
+  it('does not repeatedly dispatch reading presence when focal page is unchanged (actual === last)', () => {
+    const updatePresenceSpy = vi.spyOn(backend, 'updateReadingPresence');
+    const controller = createReaderPaginationController({
+      readerService: backend,
+      presenceService: backend,
+    });
+
+    useReaderStore.getState().setLoadedPages(
+      createLoadedPagesInfo([
+        { pageNumber: 1, chapterTitle: 'Intro', paragraphs: ['Intro text'], cfiBase: '/6/2!' },
+        { pageNumber: 5, chapterTitle: 'Chapter 5', paragraphs: ['Text 5'], cfiBase: '/6/10!' },
+      ])
+    );
+
+    controller.onPageVisible(5);
+    expect(updatePresenceSpy).toHaveBeenCalledTimes(1);
+
+    // Call onPageVisible again on page 5 with different offset - presence should not re-trigger
+    controller.onPageVisible(5, 0.4);
+    expect(updatePresenceSpy).toHaveBeenCalledTimes(1);
+
+    // Transition to page 6
+    useReaderStore.getState().setLoadedPages(
+      createLoadedPagesInfo([
+        { pageNumber: 5, chapterTitle: 'Chapter 5', paragraphs: ['Text 5'], cfiBase: '/6/10!' },
+        { pageNumber: 6, chapterTitle: 'Chapter 6', paragraphs: ['Text 6'], cfiBase: '/6/12!' },
+      ])
+    );
+    controller.onPageVisible(6);
+    expect(updatePresenceSpy).toHaveBeenCalledTimes(2);
+
+    // Re-call onPageVisible(6) - should remain 2 calls
+    controller.onPageVisible(6, 0.8);
+    expect(updatePresenceSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('updates reading presence via syncPresence only when page or book has changed', () => {
+    const updatePresenceSpy = vi.spyOn(backend, 'updateReadingPresence');
+    const controller = createReaderPaginationController({
+      readerService: backend,
+      presenceService: backend,
+    });
+
+    useReaderStore
+      .getState()
+      .setLoadedPages(
+        createLoadedPagesInfo([
+          { pageNumber: 3, chapterTitle: 'Chapter 3', paragraphs: ['P3'], cfiBase: '/6/3!' },
+        ])
+      );
+
+    controller.syncPresence(3);
+    expect(updatePresenceSpy).toHaveBeenCalledTimes(1);
+    expect(updatePresenceSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        currentPage: 3,
+        chapterTitle: 'Chapter 3',
+      })
+    );
+
+    // Calling again with same page should do nothing
+    controller.syncPresence(3);
+    expect(updatePresenceSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('proactively triggers prefetch for next pages when within 7 pages of loaded upper boundary', async () => {
     const getBookPagesSpy = vi
       .spyOn(backend, 'getBookPages')
@@ -472,6 +537,48 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       } finally {
         globalThis.document = originalDocument;
         globalThis.window = originalWindow;
+      }
+    });
+
+    it('filters out zero-height or unrendered article elements in collectVisibleArticleRects', () => {
+      const originalDocument = globalThis.document;
+
+      const mockActive = {
+        getAttribute: vi.fn((name: string) => (name === 'data-page-number' ? '2' : null)),
+        getBoundingClientRect: vi.fn(() => ({
+          top: 100,
+          bottom: 600,
+          height: 500,
+          left: 0,
+          right: 800,
+          width: 800,
+        })),
+      };
+
+      const mockZeroHeight = {
+        getAttribute: vi.fn((name: string) => (name === 'data-page-number' ? '3' : null)),
+        getBoundingClientRect: vi.fn(() => ({
+          top: 600,
+          bottom: 600,
+          height: 0,
+          left: 0,
+          right: 800,
+          width: 800,
+        })),
+      };
+
+      globalThis.document = {
+        querySelectorAll: vi.fn((selector: string) =>
+          selector === 'article[data-page-number]' ? [mockActive, mockZeroHeight] : []
+        ),
+      } as unknown as Document;
+
+      try {
+        const rects = collectVisibleArticleRects();
+        expect(rects).toHaveLength(1);
+        expect(rects[0]?.pageNumber).toBe(2);
+      } finally {
+        globalThis.document = originalDocument;
       }
     });
   });
