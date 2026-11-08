@@ -12,7 +12,6 @@ import {
   detectFocalPageAndOffset,
   determinePrefetchDirection,
   findFocalPageNumber,
-  measureCurrentPageOffsetRatio,
   useReaderPagination,
 } from '@hooks/useReaderPagination';
 import { ServiceContainerProvider } from '@providers/ServiceContainerContext';
@@ -395,31 +394,6 @@ describe('useReaderPagination / createReaderPaginationController', () => {
         { pageNumber: 2, top: 300, bottom: 500 },
       ];
       expect(findFocalPageNumber(articles, 290)).toBe(2);
-    });
-
-    it('measures current page offset ratio on demand from DOM', () => {
-      expect(measureCurrentPageOffsetRatio(0)).toBe(0.0);
-
-      const mockElement = {
-        getBoundingClientRect: () => ({
-          top: -250,
-          height: 1000,
-        }),
-      } as unknown as HTMLElement;
-
-      const originalDocument = globalThis.document;
-      globalThis.document = {
-        querySelector: vi.fn((selector: string) =>
-          selector === 'article[data-page-number="3"]' ? mockElement : null
-        ),
-      } as unknown as Document;
-
-      try {
-        expect(measureCurrentPageOffsetRatio(3)).toBe(0.25);
-        expect(measureCurrentPageOffsetRatio(99)).toBe(0.0);
-      } finally {
-        globalThis.document = originalDocument;
-      }
     });
 
     it('collects visible article rects and detects focal page and offset from DOM', () => {

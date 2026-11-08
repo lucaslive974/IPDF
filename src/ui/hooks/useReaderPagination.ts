@@ -176,21 +176,6 @@ export function findFocalPageNumber(
 }
 
 /**
- * Measures the relative scroll offset ratio for the given page element in the DOM on demand.
- */
-export function measureCurrentPageOffsetRatio(currentPage: number): number {
-  if (typeof document === 'undefined' || currentPage < 1) {
-    return 0.0;
-  }
-  const el = document.querySelector<HTMLElement>(`article[data-page-number="${currentPage}"]`);
-  if (!el) {
-    return 0.0;
-  }
-  const rect = el.getBoundingClientRect();
-  return calculatePageOffsetRatio(rect.top, rect.height, 0, currentPage > 1);
-}
-
-/**
  * Collects bounding rects for all visible page article elements currently in the DOM.
  */
 export function collectVisibleArticleRects(): ArticleRect[] {
