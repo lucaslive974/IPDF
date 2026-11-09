@@ -1,83 +1,73 @@
 # 04. Agent Engineering Guidelines: TDD, Quality Gates & Git Workflow
 
-Este documento define as regras operacionais obrigatórias para qualquer agente de IA (Antigravity) atuando neste repositório.
+This document defines the mandatory operational rules for any AI coding agent working in this repository.
 
 ---
 
-## 1. Filosofia de Design e Testabilidade
+## 1. Design Philosophy & Testability
 
-1. **"Difícil de testar = Acoplamento Incorreto":**
-   Se testar um método exigir subir uma janela do Tauri, instanciar o `epub.js`/`PDF.js` real, conectar ao SQLite em disco ou fazer chamadas de rede, **PARE IMEDIATAMENTE**. Extraia a dependência externa para uma interface em `src/core/ports/` e injete-a no construtor.
-2. **Proibição de Estado Global / Singletons:**
-   Nenhuma classe em `src/core/` pode acessar variáveis globais, `window` diretamente ou singletons importados estaticamente. Toda dependência deve entrar via `constructor`.
+1. **"Hard to test = Bad coupling":**
+   If testing a function or method requires spinning up a Tauri window, instantiating the real PDF.js engine without a mock, connecting to a physical SQLite file without an abstraction, or making live network calls, **STOP IMMEDIATELY**. Extract the external dependency into a port in `src/core/ports/` (or trait in `src-tauri/crates/ipdf-core/src/core/ports/`) and inject it via constructor, factory arguments, or Context Provider.
+2. **No Direct DOM Access Outside Utilities/Viewers:**
+   On the frontend, safe access to `window`, `document`, `requestAnimationFrame`, and selectors must go through the utilities in `src/utils/dom.ts` and `src/utils/domSelection.ts` or the viewer adapters in `src/adapters/viewers/`.
 3. **Zero `any` Policy:**
-   O uso de `any` é estritamente proibido. Utilize tipos estritos, Generics ou `unknown` com *type guards*.
-4. **English-Only Source Code & Comments Policy:**
-   Todo o código-fonte em `src/`, `src-tauri/` e `test/` (incluindo nomes de tipos, variáveis, funções, strings técnicas e quaisquer comentários) deve ser escrito **100% em inglês**. Não adicione comentários em português ou comentários redundantes em estruturas de dados autoexplicativas.
-5. **Paridade de Modularização (TypeScript & Rust) e Frontend MVVC:**
-   - **Proibição de "Super Arquivos" em TS e Rust:** Tanto em `src/` (TypeScript) quanto em `src-tauri/crates/ipdf-core/src/` (Rust), cada entidade de domínio, porta (interface/trait), serviço, adaptador e suíte de teste deve viver em seu próprio arquivo dedicado dentro de `core/domain/`, `core/ports/`, `core/services/`, `adapters/` e `tests/`. Nunca agrupe múltiplos serviços ou entidades em arquivos monolíticos (`domain.rs`, `services.rs`, etc.).
-   - **Frontend MVVC (`src/ui/`):** Nunca crie "super arquivos" React que misturem instanciação de dependências (IoC), gerenciamento de estado (`useState`/`useEffect`), chamadas de serviços e marcação JSX extensa. Todo recurso visual deve ser dividido em:
-     - **IoC Provider (`src/ui/providers/`):** Injeção do container de serviços via Context.
-     - **ViewModel Hook (`src/ui/hooks/`):** Custom Hook isolando toda a lógica de estado e interação com `src/core/services/`.
-     - **Reusable Presentational Components (`src/ui/components/`):** Componentes pequenos, desacoplados e orientados a `props` (sem valores hardcoded fixos quando puderem receber configuração por props).
-6. **Meta Mínima de Cobertura de Testes (>= 80% em TypeScript e Rust + Coverage Gutters):**
-   É obrigatório manter **pelo menos 80% de cobertura de testes** tanto no TypeScript (`src/core/` e `src/adapters/`, validado pelo `@vitest/coverage-v8`) quanto no Rust (`src-tauri/crates/ipdf-core/src/`, validado pelo `llvm-cov` via `npm run test:rust:coverage` exigindo `lines >= 80%`, `functions >= 80%` e `regions >= 80%`). Ambos exportam relatórios LCOV unificados para `coverage/lcov.info` e `coverage/rust-lcov.info`, pré-configurados em `.vscode/settings.json` para exibição em tempo real na extensão **Coverage Gutters**.
+   Using `any` is strictly prohibited. Use strict types, Generics, or `unknown` with type guards.
+4. **English-Only Source Code & Documentation Policy:**
+   All source code in `src/`, `src-tauri/`, and `docs/` (including type names, variables, functions, technical strings, and comments/JSDoc) must be written **100% in English**.
+5. **Modularization Parity (TypeScript & Rust) & SQL Query Isolation:**
+   - **No "Super Files":** In both TypeScript and Rust, every entity, port, service, adapter, and test suite must live in its own dedicated file.
+   - **Isolated SQL Queries:** In Rust SQLite adapters (`sqlite_book_repository.rs`, `sqlite_highlight_repository.rs`, `sqlite_configuration_store.rs`), all SQL constants and statements must be isolated in their respective `*_queries.rs` modules (`sqlite_book_queries.rs`, `sqlite_highlight_queries.rs`, `sqlite_configuration_queries.rs`).
+   - **MVVC + Zustand Frontend (`src/ui/`):** Separate strictly into:
+     - **IoC Providers (`src/ui/providers/`):** Service container, theme, and navigation injection.
+     - **Zustand Stores (`src/ui/stores/`):** Reactive modular state always consumed via atomic selectors (`useReaderStore((s) => s.currentPage)`).
+     - **ViewModel Hooks (`src/ui/hooks/`):** Custom Hooks and controller factories isolating orchestration rules and side effects.
+     - **Design System (`src/ui/components/ui/`) & Visual Components (`src/ui/components/`):** Declarative components built from Design System atoms (`@ui`), avoiding raw HTML tags with repetitive utility classes.
+6. **Minimum Test Coverage Target (>= 80% in TypeScript and Rust):**
+   Maintaining **at least 80% test coverage** is mandatory across both TypeScript (validated by `@vitest/coverage-v8`) and Rust (`src-tauri/crates/ipdf-core/src/`, validated by `llvm-cov` via `scripts/rust-coverage.mjs` requiring `lines >= 80%`, `functions >= 80%`, and `regions >= 80%`).
 
 ---
 
-## 2. O Ciclo Obrigatório: Red -> Green -> Verify -> Commit
+## 2. The Mandatory Cycle: Red -> Green -> Verify -> Commit
 
-O agente tem autonomia para avançar nas tarefas e realizar commits no Git, mas **DEVE** cumprir estritamente os 4 passos abaixo para cada classe ou funcionalidade criada:
+For every feature or fix implemented, strictly follow these 4 steps:
 
-### Passo 1: Teste Primeiro (Red)
-- **Separação Estrita em `src/test/`:** NUNCA misture arquivos `*.spec.ts` ou dublês junto aos arquivos de produção em `src/core/`, `src/adapters/` ou `src/ui/`. Todos os testes TypeScript/UI devem residir na pasta `src/test/` espelhando a estrutura de `src/` (ex.: `src/core/services/Foo.ts` -> `src/test/core/services/Foo.spec.ts`).
-- Crie os dublês de teste necessários (`MockBackend`, etc.) em `src/test/mocks/`.
-- Escreva o arquivo de teste unitário (`src/test/**/*.spec.ts`) validando tanto o caminho feliz quanto os casos de borda listados na Matriz de Cenários abaixo, garantindo cobertura >= 80%.
+### Step 1: Test First (Red)
+- **Strict Separation in `src/test/`:** All TypeScript/UI tests (`*.spec.ts`) must reside under `src/test/`, mirroring the folder structure of `src/`.
+- Use or extend `MockBackend` in `src/test/mocks/MockBackend.ts` for frontend tests and the test doubles in `src-tauri/crates/ipdf-core/tests/fakes/mod.rs` for Rust tests.
+- **Note on Zustand in SSR Tests (`renderToStaticMarkup`):** Because React SSR's `useSyncExternalStore` uses `getServerSnapshot` (which returns the initial store state), pass data via `props` when testing purely visual components with `renderToStaticMarkup`, or test store/hook logic directly.
 
-### Passo 2: Implementação Limpa (Green)
-- Escreva o código de produção seguindo os contratos definidos em `docs/03-CORE-CONTRACTS.md`.
+### Step 2: Clean Implementation (Green)
+- Implement production code adhering to the contracts in `docs/03-CORE-CONTRACTS.md` and the configured path aliases (`@domain`, `@ports`, `@adapters`, `@hooks`, `@stores`, `@ui`, `@utils`).
 
-### Passo 3: Portão de Qualidade Bloqueante (Verify)
-Antes de considerar qualquer arquivo pronto ou iniciar o próximo módulo, execute no terminal:
+### Step 3: Blocking Quality Gate (Verify)
+Before considering any task complete, run:
 
 ```bash
 npm run verify
 ```
 
-O comando `npm run verify` executa em sequência os comandos globais (onde cada comando `<acao>` roda `<acao>:frontend` e `<acao>:backend`):
-1. `npm run format` (`format:frontend` via Biome + `format:backend` via `cargo fmt`)
-2. `npm run lint` (`lint:frontend` via `biome check` + `lint:backend` via `cargo fmt --check` & `cargo clippy -- -D warnings`)
-3. `npm run typecheck` (`typecheck:frontend` via `tsc --noEmit` + `typecheck:backend` via `cargo check --all-targets`)
-4. `npm run test` (`test:frontend` via `vitest run --coverage` + `test:backend` via `node scripts/rust-coverage.mjs` com `llvm-cov`, ambos exigindo >= 80% de cobertura)
+`npm run verify` executes in sequence:
+1. `npm run format` (`biome format --write ./src` + `cargo fmt`)
+2. `npm run lint` (`biome check ./src && node scripts/lint-tailwind.mjs` + `cargo fmt --check && cargo clippy --all-targets -- -D warnings`)
+3. `npm run typecheck` (`tsc --noEmit` + `cargo check --all-targets`)
+4. `npm run test` (`vitest run --coverage` + `node scripts/rust-coverage.mjs`, both enforcing >= 80% coverage)
 
 > [!CAUTION]
-> **REGRA DE BLOQUEIO:** Se qualquer uma dessas 4 etapas falhar, emitir erros ou ficar abaixo de **80% de cobertura de testes**, o agente **ESTÁ PROIBIDO** de fazer commit ou avançar para a próxima tarefa. Corrija a formatação, a tipagem, o teste quebrado ou adicione casos de teste faltantes até que `npm run verify` retorne `exit code 0`.
+> **BLOCKING RULE:** If any step of `npm run verify` fails or drops below **80% coverage**, committing or finishing the task is strictly prohibited.
 
-### Passo 4: Commit Atômico (Conventional Commits)
-Com o `npm run verify` 100% verde, faça um commit pequeno, atômico e focado exclusivamente na unidade recém-implementada:
-
-- `feat(domain): implement Highlight entity with EPUB CFI and PDF AABB overlap check`
-- `feat(highlights): implement HighlightManager and InMemoryHighlightRepository`
-- `feat(portability): implement DataPortabilityService with Last-Write-Wins merge`
-- `feat(llm): implement PromptBuilder and ContextualAssistant with AbortController`
-- `feat(presence): implement RichPresenceManager with 3000ms debounce and allSettled dispatch`
-- `feat(sync): implement CloudlessSyncEngine over IRemoteStorageProvider`
+### Step 4: Atomic Commit (Conventional Commits)
+Once `npm run verify` returns `exit code 0`, create small, semantic commits (`feat(...)`, `fix(...)`, `refactor(...)`, `test(...)`, `docs(...)`).
 
 ---
 
-## 3. Matriz de Cenários de Testes Unitários (Vitest Frontend + Cargo Rust Backend)
+## 3. Mandatory Test Suite Matrix
 
-| Camada | Módulo / Serviço | Suíte de Teste | Asserções Obrigatórias |
+| Layer | Scope | Test Suites | Verified Responsibilities |
 | :--- | :--- | :--- | :--- |
-| **TypeScript (`src/test/`)** | **`Highlight` & `RichAnnotation`** | `src/test/core/domain/Highlight.spec.ts` | 1. `updateNote`, `changeColor`, `setRichAnnotation` e `removeRichAnnotation` atualizam `updatedAt`.<br>2. Discriminated Union (`IRichAnnotation`) com Handler Map (`highlight.formatAnnotations(formatterMap)`) formata e despacha para cada variante tipada sem `switch/case`.<br>3. `overlapsWith` detecta colisão exata de CFI (EPUB) e intersecção geométrica AABB de `BoundingBox` (PDF). |
-| **TypeScript (`src/test/`)** | **`AnnotationWorkbenchService` + Strategies** | `src/test/core/services/AnnotationWorkbenchService.spec.ts` | 1. Carrega grifos via `IHighlightService` e filtra por página (`getForPage(n)`).<br>2. Aplica todos os estilos de formatação assistida (`AssistedRichTextStrategy` com Command Dispatch Map) e quadros visuais (`tldraw` / `draw.io`), persistindo cada atualização via `IHighlightService`. |
-| **TypeScript (`src/test/`)** | **`TauriIpcServices` (Modular)** | `src/test/adapters/ipc/TauriBackend.spec.ts` | 1. Serializa e desserializa `Highlight`, `BookMetadata` e todas as variantes de `IRichAnnotation` via mapa de desserializadores (`ANNOTATION_DESERIALIZERS`) sem `switch/if`.<br>2. Encaminha comandos IPC modulares (`TauriLibraryService`, `TauriHighlightService`, `TauriReaderService`, `TauriPresenceService`, `TauriSettingsService`). |
-| **TypeScript (`src/test/`)** | **`EpubViewerAdapter`** | `src/test/adapters/viewers/EpubViewerAdapter.spec.ts` | 1. Extrai capa (PNG/JPEG/WEBP) diretamente para `Uint8Array` sem usar `Buffer`.<br>2. Renderiza capítulos EPUB, navega por página e CFI (`goToPage`), injeta grifos `<mark>` e anotações inline `<ruby>`, extrai sentenças visíveis e destaca sentença ativa do TTS. |
-| **Rust (`ipdf-core`)** | **`Highlight` & `RichAnnotation`** | `src-tauri/crates/ipdf-core/tests/highlight_spec.rs` | 1. Interseção AABB de PDF, colisão de CFI e pattern matching exaustivo no enum `RichAnnotation` nativo do Rust. |
-| **Rust (`ipdf-core`)** | **`Sha256BookHasher`** | `src-tauri/crates/ipdf-core/tests/sha256_book_hasher_spec.rs` | 1. Calcula o hash SHA-256 em *streaming* (chunks de 64 KB) produzindo o mesmo digest que o buffer completo sem alocar o arquivo inteiro em RAM. |
-| **Rust (`ipdf-core`)** | **`LibraryManager`, SQLite & `LocalFolderStorageAdapter`** | `src-tauri/crates/ipdf-core/tests/library_and_sqlite_spec.rs` | 1. `LibraryManager` gerencia livros a partir de pastas de dados e arquivos locais via `StorageProvider`, descobre arquivos `.epub`/`.pdf`, implanta assets padrão (`republic-plato.epub`), abre arquivos diretamente do FS e preserva progresso.<br>2. `SqliteHighlightRepository` persiste e consulta grifos e anotações ricas via SQLite.<br>3. `LocalFolderStorageAdapter` lê/escreve binários `.epub`/`.pdf` e artefatos JSON em diretório local. |
-| **Rust (`ipdf-core`)** | **`PlatformEnvironment` & `ConfigurationStore`** | `src-tauri/crates/ipdf-core/tests/platform_and_config_spec.rs` | 1. `PlatformEnvironment` resolve caminhos de dados/config/cache por SO (`LinuxEnvironment` com `.var` Flatpak, `AndroidEnvironment` com files/shared_prefs, `WindowsEnvironment` com `AppData`, `IosEnvironment` com Documents/Application Support).<br>2. `SqliteConfigurationStore` persiste chaves/valores de configurações de forma unificada no SQLite (`ipdf.db`).<br>3. Integração com `SqliteHighlightRepository::open_for_platform` e `LocalFolderStorageAdapter::for_platform`. |
-| **Rust (`ipdf-core`)** | **`HighlightManager`, `DataPortabilityService` & `CloudlessSyncEngine`** | `src-tauri/crates/ipdf-core/tests/cloudless_sync_and_portability_spec.rs` | 1. Merge *Last-Write-Wins (LWW)* atualiza registros locais apenas quando `incoming.updated_at > local.updated_at`.<br>2. Sincroniza `<bookHash>.highlights.json` sobre a trait unificada `StorageProvider`. |
-| **Rust (`ipdf-core`)** | **`CachedStorageDecorator` & `RichPresenceManager`** | `src-tauri/crates/ipdf-core/tests/cached_storage_and_presence_spec.rs` | 1. Cacheia binários sob demanda no `local_cache` e opera *offline* quando o `primary` está indisponível.<br>2. Aplica janela de *debounce* no `RichPresenceManager` antes de notificar provedores de presença. |
-| **Rust (`ipdf-core`)** | **`DiscordPresenceAdapter` & `DiscordIpcTransport`** | `src-tauri/crates/ipdf-core/tests/discord_presence_spec.rs` | 1. Realiza handshake com Discord via IPC nativo (Unix/Windows).<br>2. Formata e despacha `SET_ACTIVITY` com detalhes do livro, autor, capítulo e progresso percentual.<br>3. Limpeza de status e resiliência com desconexão e reconexão automática sem travar o leitor. |
-| **Rust (`ipdf-core`)** | **`TtsSessionManager` & `SystemBridge`** | `src-tauri/crates/ipdf-core/tests/tts_and_system_bridge_spec.rs` | 1. Coordena `TtsProvider` com *prefetch* automático da próxima sentença.<br>2. Aciona `PowerSaveBlocker::keep_screen_awake(true/false)` e `MediaControlService::set_playback_state` automaticamente em `start_session`, `pause`, `resume` e `stop`. |
+| **TS Core & Utils** | Domain, Page Windows & LRU Cache | `src/test/core/domain/Highlight.spec.ts`<br>`src/test/core/domain/PageWindow.spec.ts`<br>`src/test/core/utils/lruCache.spec.ts` | CFI (EPUB) and AABB (PDF) collision detection, formatting via `AnnotationFormatterMap`, `PageWindow` bounds calculation, and LRU eviction. |
+| **TS Adapters** | Tauri IPC, Cache Decorator & Viewers (EPUB/PDF) | `src/test/adapters/ipc/TauriBackend.spec.ts`<br>`src/test/adapters/ipc/CachedReaderServiceDecorator.spec.ts`<br>`src/test/adapters/viewers/EpubViewerAdapter.spec.ts`<br>`src/test/adapters/viewers/PdfViewerAdapter.spec.ts`<br>`src/test/adapters/viewers/DefaultPdfEngine.spec.ts` | IPC serialization/deserialization, batch file import (`openBookFiles`), LRU caching of pages/binaries, EPUB chapter rendering, and PDF canvas/text-layer rendering with cooperative cancellation. |
+| **TS UI Stores & Hooks** | Zustand Stores, Pagination, Bootstrap, Highlights & Library | `src/test/ui/stores/*.spec.ts`<br>`src/test/ui/hooks/useReaderBootstrapper.spec.ts`<br>`src/test/ui/hooks/useReaderPagination.spec.ts`<br>`src/test/ui/hooks/useReaderHighlights.spec.ts`<br>`src/test/ui/hooks/usePdfPageRenderer.spec.ts`<br>`src/test/ui/hooks/useLibrary*.spec.ts`<br>`src/test/ui/hooks/useSystemHandler.spec.ts` | Decoupled bootstrap, $O(1)$ pagination (`LoadedPagesInfo`), focal detection filtering `rect.height > 0`, idempotent Rich Presence sync (`actual === last`), zoom gestures, text selection, and notes. |
+| **TS UI Components & Utils** | Visual Components & Pure Utilities | `src/test/ui/components/*.spec.ts`<br>`src/test/utils/*.spec.ts` | Viewport chapter indicator, suppression of repetitive EPUB chapter headers, PDF highlight overlay, paragraph tokenization, Markdown formatting, and PDF cover generation. |
+| **Rust (`ipdf-core`)** | Domain, Hashing & SQLite Repositories | `tests/highlight_spec.rs`<br>`tests/sha256_book_hasher_spec.rs`<br>`tests/sqlite_book_repository_spec.rs`<br>`tests/library_and_sqlite_spec.rs` | Streaming SHA-256 hashing (64 KB), SQLite persistence for books and highlights, and batch file opening (`open_books_from_paths`). |
+| **Rust (`ipdf-core`)** | Paginators, Cover Extractors & Reader | `tests/reader_and_paginator_spec.rs`<br>`tests/cover_extractor_spec.rs` | Native EPUB and PDF pagination (`EpubBookPaginator`, `PdfBookPaginator`), `ReaderManager`, and cover extraction (`CoverExtractorAdapter`). |
+| **Rust (`ipdf-core`)** | Platform, Sync, Discord IPC & TTS | `tests/platform_and_config_spec.rs`<br>`tests/cloudless_sync_and_portability_spec.rs`<br>`tests/cached_storage_and_presence_spec.rs`<br>`tests/discord_presence_spec.rs`<br>`tests/tts_and_system_bridge_spec.rs` | OS directory resolution, LWW merge, `CachedStorageDecorator`, `RichPresenceManager`, `DiscordPresenceAdapter`, and `TtsSessionManager`. |

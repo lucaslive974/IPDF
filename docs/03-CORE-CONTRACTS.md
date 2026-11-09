@@ -1,16 +1,21 @@
 # 03. Core TypeScript Contracts & Domain Specifications
 
-Os agentes de código devem respeitar integralmente as assinaturas abaixo ao implementar `src/core/`.
+Coding agents must strictly adhere to the signatures below when maintaining or extending `src/core/`.
 
 > [!IMPORTANT]
-> **Nota de Compatibilidade Multiplataforma:** Sempre utilize `Uint8Array` ou `ArrayBuffer` em vez de `Node.js Buffer` para garantir compatibilidade total entre Desktop e iOS (`WKWebView`).
+> **Cross-Platform Compatibility:** Always use `Uint8Array` or `ArrayBuffer` instead of `Node.js Buffer` in `src/core/` to ensure full portability across Desktop and Mobile (`WKWebView` / Android WebView).
 
 ---
 
-## 1. Tipos de Valor e Ancoragem (`src/core/domain/types.ts`)
+## 1. Value Types & Anchoring (`src/core/domain/types.ts`)
 
 ```typescript
-export type BookFormat = 'epub' | 'pdf';
+export const BookFormat = {
+  EPUB: 'epub',
+  PDF: 'pdf',
+} as const;
+
+export type BookFormat = (typeof BookFormat)[keyof typeof BookFormat];
 
 export interface BoundingBox {
   x: number;
@@ -46,7 +51,7 @@ export interface SentenceNode {
   anchor: HighlightAnchor;
 }
 
-export type RichAnnotationType = 'assisted-markdown' | 'tldraw' | 'drawio';
+export type RichAnnotationType = 'assisted-markdown';
 
 export type TextFormatStyle =
   | { kind: 'bold' }
@@ -59,57 +64,11 @@ export type TextFormatStyle =
   | { kind: 'bulletList' }
   | { kind: 'orderedList' }
   | { kind: 'blockquote' };
-
-export type AssistedMarkdownCommand =
-  | {
-      target: 'assisted-markdown';
-      action: 'insert-text';
-      text: string;
-    }
-  | {
-      target: 'assisted-markdown';
-      action: 'replace-text';
-      text: string;
-    }
-  | {
-      target: 'assisted-markdown';
-      action: 'apply-format';
-      selectionRange: { start: number; end: number };
-      formatStyle: TextFormatStyle;
-    };
-
-export type TldrawCommand =
-  | {
-      target: 'tldraw';
-      action: 'save-snapshot';
-      snapshotJson: string;
-      svgPreview?: string;
-    }
-  | {
-      target: 'tldraw';
-      action: 'clear-canvas';
-      svgPreview?: string;
-    };
-
-export type DrawioCommand =
-  | {
-      target: 'drawio';
-      action: 'save-diagram';
-      xmlOrJsonDiagram: string;
-      svgPreview?: string;
-    }
-  | {
-      target: 'drawio';
-      action: 'clear-diagram';
-      svgPreview?: string;
-    };
-
-export type AnnotationCommand = AssistedMarkdownCommand | TldrawCommand | DrawioCommand;
 ```
 
 ---
 
-## 2. Entidades `Highlight`, `RichAnnotation` (Discriminated Union) e Metadados (`src/core/domain/BookMetadata.ts`, `src/core/domain/RichAnnotation.ts` & `src/core/domain/Highlight.ts`)
+## 2. Domain Entities & Objects (`src/core/domain/`)
 
 ### `src/core/domain/BookMetadata.ts`
 
@@ -124,15 +83,33 @@ export interface BookMetadata {
   currentPage: number;
   totalPages: number;
   percentage: number;
+  pageOffsetRatio?: number;
   coverImageBuffer?: Uint8Array;
   coverMimeType?: 'image/webp' | 'image/png' | 'image/jpeg';
   coverImageUrl?: string;
+  description?: string;
+  tags: string[];
   lastReadAt: Date;
   updatedAt: Date;
 }
 ```
 
-### `src/core/domain/RichAnnotation.ts` (Discriminated Union + Handler Map)
+### `src/core/domain/PageWindow.ts`
+
+```typescript
+export interface PageWindow {
+  readonly startPage: number;
+  readonly count: number;
+}
+
+export const INITIAL_BACKWARD_PAGES = 5;
+export const INITIAL_ACTIVE_PAGES = 5;
+export const INITIAL_FORWARD_PAGES = 5;
+
+export function calculatePageWindow(targetPage: number, totalPages?: number): PageWindow;
+```
+
+### `src/core/domain/RichAnnotation.ts`
 
 ```typescript
 import type { RichAnnotationType } from './types';
@@ -144,61 +121,12 @@ export interface AssistedTextAnnotationData {
   readonly updatedAt: Date;
 }
 
-export interface TldrawBoardAnnotationData {
-  readonly type: 'tldraw';
-  readonly rawData: string;
-  readonly svgPreview?: string;
-  readonly updatedAt: Date;
-}
-
-export interface DrawioDiagramAnnotationData {
-  readonly type: 'drawio';
-  readonly rawData: string;
-  readonly svgPreview?: string;
-  readonly updatedAt: Date;
-}
-
-export type IRichAnnotation =
-  | AssistedTextAnnotationData
-  | TldrawBoardAnnotationData
-  | DrawioDiagramAnnotationData;
+export type IRichAnnotation = AssistedTextAnnotationData;
 
 export function createAssistedTextAnnotation(
   rawData: string,
   updatedAt: Date = new Date()
-): AssistedTextAnnotationData {
-  return {
-    type: 'assisted-markdown',
-    rawData,
-    updatedAt,
-  };
-}
-
-export function createTldrawBoardAnnotation(
-  rawData: string,
-  svgPreview?: string,
-  updatedAt: Date = new Date()
-): TldrawBoardAnnotationData {
-  return {
-    type: 'tldraw',
-    rawData,
-    svgPreview,
-    updatedAt,
-  };
-}
-
-export function createDrawioDiagramAnnotation(
-  rawData: string,
-  svgPreview?: string,
-  updatedAt: Date = new Date()
-): DrawioDiagramAnnotationData {
-  return {
-    type: 'drawio',
-    rawData,
-    svgPreview,
-    updatedAt,
-  };
-}
+): AssistedTextAnnotationData;
 
 export type AnnotationFormatterMap<R> = {
   readonly [K in RichAnnotationType]: (annotation: Extract<IRichAnnotation, { type: K }>) => R;
@@ -207,10 +135,7 @@ export type AnnotationFormatterMap<R> = {
 export function formatRichAnnotation<R>(
   annotation: IRichAnnotation,
   formatterMap: AnnotationFormatterMap<R>
-): R {
-  const formatter = formatterMap[annotation.type] as (ann: IRichAnnotation) => R;
-  return formatter(annotation);
-}
+): R;
 ```
 
 ### `src/core/domain/Highlight.ts`
@@ -221,7 +146,7 @@ import {
   type IRichAnnotation,
   formatRichAnnotation,
 } from './RichAnnotation';
-import type { HighlightAnchor, RichAnnotationType } from './types';
+import { BookFormat, type HighlightAnchor, type RichAnnotationType } from './types';
 
 export class Highlight {
   private readonly annotationsMap = new Map<RichAnnotationType, IRichAnnotation>();
@@ -236,130 +161,174 @@ export class Highlight {
     public readonly createdAt: Date = new Date(),
     public updatedAt: Date = new Date(),
     initialAnnotations: IRichAnnotation[] = []
-  ) {
-    for (const annotation of initialAnnotations) {
-      this.annotationsMap.set(annotation.type, annotation);
-    }
-  }
+  );
 
-  public updateNote(newNote: string): void {
-    this.note = newNote.trim();
-    this.updatedAt = new Date();
-  }
-
-  public changeColor(newColor: string): void {
-    this.color = newColor;
-    this.updatedAt = new Date();
-  }
-
-  public setRichAnnotation(annotation: IRichAnnotation): void {
-    this.annotationsMap.set(annotation.type, annotation);
-    if (annotation.type === 'assisted-markdown') {
-      this.note = annotation.rawData.trim();
-    }
-    this.updatedAt = new Date();
-  }
-
-  public getRichAnnotation(type: RichAnnotationType): IRichAnnotation | undefined {
-    return this.annotationsMap.get(type);
-  }
-
-  public getAllRichAnnotations(): IRichAnnotation[] {
-    return Array.from(this.annotationsMap.values());
-  }
-
-  public removeRichAnnotation(type: RichAnnotationType): void {
-    if (this.annotationsMap.delete(type)) {
-      this.updatedAt = new Date();
-    }
-  }
-
-  public formatAnnotations<R>(formatterMap: AnnotationFormatterMap<R>): R[] {
-    return this.getAllRichAnnotations().map((annotation) =>
-      formatRichAnnotation(annotation, formatterMap)
-    );
-  }
-
-  public overlapsWith(otherAnchor: HighlightAnchor): boolean {
-    if (this.anchor.format !== otherAnchor.format || this.anchor.pageNumber !== otherAnchor.pageNumber) {
-      return false;
-    }
-    if (this.anchor.format === 'epub') {
-      return Boolean(this.anchor.epubCfi && this.anchor.epubCfi === otherAnchor.epubCfi);
-    }
-    if (this.anchor.format === 'pdf' && this.anchor.pdfRects && otherAnchor.pdfRects) {
-      return this.anchor.pdfRects.some((r1) =>
-        otherAnchor.pdfRects!.some(
-          (r2) =>
-            r1.x < r2.x + r2.width &&
-            r1.x + r1.width > r2.x &&
-            r1.y < r2.y + r2.height &&
-            r1.y + r1.height > r2.y
-        )
-      );
-    }
-    return false;
-  }
+  public updateNote(newNote: string): void;
+  public changeColor(newColor: string): void;
+  public setRichAnnotation(annotation: IRichAnnotation): void;
+  public getRichAnnotation(type: RichAnnotationType): IRichAnnotation | undefined;
+  public getAllRichAnnotations(): IRichAnnotation[];
+  public removeRichAnnotation(type: RichAnnotationType): void;
+  public formatAnnotations<R>(formatterMap: AnnotationFormatterMap<R>): R[];
+  public overlapsWith(otherAnchor: HighlightAnchor): boolean;
 }
 ```
 
 ---
 
-## 3. Portas de Estratégia de Anotação (`src/core/ports/IAnnotationStrategy.ts`) e Repositório (`src/core/ports/IRepository.ts`)
+## 3. IPC Service Ports (`src/core/ports/`)
 
-### `src/core/ports/IAnnotationStrategy.ts`
+### `src/core/ports/ILibraryService.ts`
 
 ```typescript
-import type { Highlight } from '../domain/Highlight';
-import type { IRichAnnotation } from '../domain/RichAnnotation';
-import type { AnnotationCommand, RichAnnotationType, TextFormatStyle } from '../domain/types';
+import type { BookMetadata } from '../domain/BookMetadata';
+import type { BookFormat } from '../domain/types';
 
-export interface IAnnotationToolStrategy {
-  readonly type: RichAnnotationType;
-  applyToHighlight(highlight: Highlight, command: AnnotationCommand): Promise<IRichAnnotation>;
-  serialize(annotation: IRichAnnotation): string;
-  deserialize(rawData: string, updatedAt?: Date, svgPreview?: string): IRichAnnotation;
+export interface ImportLibraryBookInput {
+  readonly rawBytes: Uint8Array;
+  readonly title: string;
+  readonly author: string;
+  readonly format: BookFormat;
+  readonly totalPages: number;
+  readonly coverImageUrl?: string;
 }
 
-export interface IAssistedTextFormattingStrategy extends IAnnotationToolStrategy {
-  readonly type: 'assisted-markdown';
-  formatSelection(
-    currentContent: string,
-    range: { start: number; end: number },
-    style: TextFormatStyle
-  ): string;
+export interface UpdateBookMetadataInput {
+  readonly title: string;
+  readonly author: string;
+  readonly tags: readonly string[];
+  readonly description?: string;
+}
+
+export interface ILibraryService {
+  listLibraryBooks(): Promise<BookMetadata[]>;
+  getStartupBook(): Promise<BookMetadata | null>;
+  openBookFile(filePath: string): Promise<BookMetadata>;
+  openBookFiles?(filePaths: readonly string[]): Promise<BookMetadata[]>;
+  importLibraryBook(input: ImportLibraryBookInput): Promise<BookMetadata>;
+  renameBook(bookHash: string, newTitle: string): Promise<BookMetadata>;
+  updateBookMetadata(bookHash: string, input: UpdateBookMetadataInput): Promise<BookMetadata>;
+  listAuthors(): Promise<string[]>;
+  listTags(): Promise<string[]>;
+  deleteBook(bookHash: string): Promise<boolean>;
+  pickAndImportBook?(): Promise<BookMetadata | null>;
+  updateBookCover?(bookHash: string, coverImageUrl: string): Promise<BookMetadata>;
 }
 ```
 
-### `src/core/ports/IRepository.ts`
+### `src/core/ports/IReaderService.ts`
+
+```typescript
+import type { BookMetadata } from '../domain/BookMetadata';
+
+export interface DocumentPage {
+  readonly pageNumber: number;
+  readonly chapterTitle: string;
+  readonly paragraphs: string[];
+  readonly cfiBase: string;
+}
+
+export interface ReadingContext {
+  readonly bookTitle: string;
+  readonly bookAuthor?: string;
+  readonly chapterTitle?: string;
+  readonly selectedText: string;
+  readonly surroundingContext: string;
+}
+
+export interface LLMRequest {
+  readonly systemPrompt: string;
+  readonly userPrompt: string;
+  readonly temperature: number;
+  readonly maxTokens: number;
+}
+
+export interface IReaderService {
+  readBookBinary(bookHash: string): Promise<Uint8Array>;
+  getBookPages(bookHash: string, startPage: number, count: number): Promise<DocumentPage[]>;
+  updateBookProgress(
+    bookHash: string,
+    currentPage: number,
+    totalPages: number,
+    pageOffsetRatio?: number
+  ): Promise<BookMetadata>;
+  getBookFilePath(bookHash: string): Promise<string | null>;
+  buildTermLookupRequest(context: ReadingContext, targetLanguage?: string): Promise<LLMRequest>;
+}
+```
+
+### `src/core/ports/IHighlightService.ts`
 
 ```typescript
 import type { Highlight } from '../domain/Highlight';
 
-export interface IRepository<T, ID = string> {
-  save(entity: T): Promise<void>;
-  findById(id: ID): Promise<T | null>;
-  update(entity: T): Promise<void>;
-  delete(id: ID): Promise<void>;
+export interface IHighlightService {
+  loadBookHighlights(bookHash: string): Promise<Highlight[]>;
+  loadAllHighlights(): Promise<Highlight[]>;
+  saveHighlight(highlight: Highlight): Promise<void>;
+  deleteHighlight(highlightId: string): Promise<void>;
+}
+```
+
+### `src/core/ports/IPresenceService.ts`
+
+```typescript
+export interface PresenceHealthStatus {
+  readonly ok: boolean;
+  readonly message: string;
 }
 
-export interface IHighlightRepository extends IRepository<Highlight, string> {
-  findByBook(bookHash: string): Promise<Highlight[]>;
-  findByBookAndPage(bookHash: string, pageNumber: number): Promise<Highlight[]>;
-  searchByTextOrNote(bookHash: string, query: string): Promise<Highlight[]>;
+export interface ReadingPresenceInput {
+  readonly bookHash: string;
+  readonly bookTitle: string;
+  readonly bookAuthor: string;
+  readonly chapterTitle?: string;
+  readonly currentPage: number;
+  readonly totalPages: number;
+}
+
+export interface IPresenceService {
+  setDiscordPresenceEnabled(enabled: boolean): Promise<void>;
+  clearRichPresence(): Promise<void>;
+  updateLibraryPresence(totalBooks: number): Promise<void>;
+  updateAnnotationsPresence(totalAnnotations: number): Promise<void>;
+  updateReadingPresence(input: ReadingPresenceInput): Promise<void>;
+  getDiscordPresenceHealth(): Promise<PresenceHealthStatus>;
+}
+```
+
+### `src/core/ports/ISettingsService.ts`
+
+```typescript
+export interface PlatformInfo {
+  readonly platform: string;
+  readonly configDir: string;
+  readonly dataDir: string;
+  readonly cacheDir: string;
+  readonly databasePath: string;
+  readonly supportsDiscordPresence: boolean;
+}
+
+export interface ISettingsService {
+  getAppSetting(key: string): Promise<string | null>;
+  setAppSetting(key: string, value: string): Promise<void>;
+  syncBookWorkspace(bookHash: string): Promise<string>;
+  getPlatformInfo(): Promise<PlatformInfo>;
 }
 ```
 
 ---
 
-## 4. Porta de Visualização (`src/core/ports/IDocumentViewer.ts`)
+## 4. Document Viewer Ports (`src/core/ports/`)
+
+### `src/core/ports/IDocumentViewer.ts` & `IDocumentViewerFactory.ts`
 
 ```typescript
-import type { Highlight } from '../domain/Highlight';
-import type { HighlightAnchor, PageInfo, SentenceNode, TextSelection } from '../domain/types';
+import type { BookFormat, PageInfo } from '../domain/types';
+import type { DocumentPage } from './IReaderService';
 
 export interface IDocumentViewer {
-  render(container: HTMLElement, fileData: ArrayBuffer): Promise<void>;
+  render(container: HTMLElement, fileData: ArrayBuffer | string): Promise<void>;
   destroy(): void;
 
   goToPage(target: number | string): Promise<void>;
@@ -367,215 +336,52 @@ export interface IDocumentViewer {
   prevPage(): Promise<void>;
   getCurrentPage(): PageInfo;
 
-  getSelection(): TextSelection | null;
-  clearSelection(): void;
-  renderHighlights(highlights: Highlight[]): void;
-  eraseHighlightFromDOM(highlightId: string): void;
-  injectInlineAnnotation(anchor: HighlightAnchor, shortText: string, tooltipDetails?: string): void;
-
-  extractVisibleSentences(): Promise<SentenceNode[]>;
-  setActiveTTSSentence(sentenceId: string | null): void;
+  getPage(pageNumber: number): DocumentPage | null;
+  getPagesChunk(startPage: number, count: number): DocumentPage[];
+  setPages(pages: DocumentPage[]): void;
 
   onPageChanged(callback: (pageInfo: PageInfo) => void): void;
-  onTextSelected(callback: (selection: TextSelection | null) => void): void;
-  onHighlightClicked(callback: (highlight: Highlight, rect: DOMRect) => void): void;
+}
+
+export interface IDocumentViewerFactory {
+  getViewer(format: BookFormat): IDocumentViewer;
 }
 ```
 
----
-
-## 5. Porta de Assistente LLM e Tradução (`src/core/ports/ILLMProvider.ts`)
+### `src/core/ports/IEpubViewer.ts`
 
 ```typescript
-export interface ReadingContext {
-  bookTitle: string;
-  bookAuthor: string;
-  chapterTitle?: string;
-  selectedText: string;
-  surroundingContext: string;
+import type { IDocumentViewer } from './IDocumentViewer';
+
+export interface EpubChapterDescriptor {
+  readonly title: string;
+  readonly cfiBase: string;
+  readonly content: string;
 }
 
-export interface LLMRequest {
-  systemInstruction: string;
-  userPrompt: string;
-  temperature?: number;
-}
-
-export interface TermDefinition {
-  term: string;
-  shortMeaningInContext: string;
-  detailedDefinition: string;
-  etymologyOrOriginal?: string;
-  synonymsInContext: string[];
-}
-
-export interface TranslationResult {
-  originalText: string;
-  translatedText: string;
-  translatorNotes?: string;
-}
-
-export interface ILLMProvider {
-  readonly providerName: string;
-  generateText(request: LLMRequest, signal?: AbortSignal): Promise<string>;
-  generateStructured<T>(request: LLMRequest, jsonSchema?: Record<string, unknown>, signal?: AbortSignal): Promise<T>;
-  streamText(request: LLMRequest, onChunk: (chunk: string) => void, signal?: AbortSignal): Promise<string>;
+export interface IEpubViewer extends IDocumentViewer {
+  getChapters(): EpubChapterDescriptor[];
+  getParagraphsForChapter(index?: number): string[];
 }
 ```
 
----
-
-## 6. Porta de Síntese de Voz (`src/core/ports/ITTSProvider.ts`)
+### `src/core/ports/IPdfViewer.ts` & `IPdfEngine.ts`
 
 ```typescript
-export interface SpeakOptions {
-  voiceId?: string;
-  speed?: number;
-  pitch?: number;
-}
+import type { IDocumentViewer } from './IDocumentViewer';
+import type { PdfPageProxy } from './IPdfEngine';
 
-export interface TTSBoundaryEvent {
-  charIndex: number;
-  charLength: number;
-  word: string;
-}
+export interface IPdfViewer extends IDocumentViewer {
+  renderPageCanvas(
+    pageNumber: number,
+    canvas: HTMLCanvasElement,
+    scale?: number
+  ): Promise<{ width: number; height: number }>;
 
-export interface ITTSProvider {
-  initialize(): Promise<void>;
-  speak(text: string, options?: SpeakOptions): Promise<void>;
-  prefetch?(text: string, options?: SpeakOptions): Promise<void>;
-  pause(): void;
-  resume(): void;
-  stop(): void;
+  renderPageTextLayer(pageNumber: number, container: HTMLElement, scale?: number): Promise<void>;
 
-  onWordBoundary(callback: (event: TTSBoundaryEvent) => void): void;
-  onSentenceEnd(callback: () => void): void;
-  onError(callback: (err: Error) => void): void;
-}
-```
+  cancelPageRender?(canvas?: HTMLCanvasElement | null, container?: HTMLElement | null): void;
 
----
-
-## 7. Portas de Presença Social e SystemBridge (`src/core/ports/IPresenceProvider.ts` & `src/core/ports/ISystemBridge.ts`)
-
-### `src/core/ports/IPresenceProvider.ts`
-
-```typescript
-export interface ReadingActivity {
-  bookHash: string;
-  bookTitle: string;
-  bookAuthor: string;
-  chapterTitle?: string;
-  currentPage: number;
-  totalPages: number;
-  percentage: number;
-  state: 'reading' | 'listening_tts' | 'annotating' | 'paused';
-  sessionStartedAt: Date;
-  coverImageBuffer?: Uint8Array;
-  coverMimeType?: 'image/webp' | 'image/png' | 'image/jpeg';
-  coverImageUrl?: string;
-}
-
-export interface IPresenceProvider {
-  readonly id: string;
-  readonly name: string;
-  isEnabled: boolean;
-  connect(): Promise<void>;
-  publishActivity(activity: ReadingActivity): Promise<void>;
-  clearActivity(): Promise<void>;
-  disconnect(): Promise<void>;
-}
-```
-
-### `src/core/ports/ISystemBridge.ts`
-
-```typescript
-export type PlaybackState = 'playing' | 'paused' | 'none';
-
-export interface INotificationService {
-  requestPermission(): Promise<boolean>;
-  notify(title: string, body: string, icon?: string): Promise<void>;
-}
-
-export interface IMediaControlService {
-  setMetadata(bookTitle: string, author: string, chapter?: string, coverBuffer?: Uint8Array): void;
-  setPlaybackState(state: PlaybackState): void;
-  onPlay(callback: () => void): void;
-  onPause(callback: () => void): void;
-  onNextSentence(callback: () => void): void;
-  onPrevSentence(callback: () => void): void;
-}
-
-export interface IPowerSaveBlocker {
-  keepScreenAwake(enable: boolean): Promise<void>;
-}
-
-export interface IClipboardService {
-  writeText(text: string): Promise<void>;
-  readText(): Promise<string>;
-}
-```
-
----
-
-## 8. Porta Unificada de Storage e Portabilidade (`src/core/ports/IStorageProvider.ts`)
-
-```typescript
-import type { BookMetadata } from '../domain/BookMetadata';
-import type { Highlight } from '../domain/Highlight';
-import type { BookFormat } from '../domain/types';
-
-export interface SyncPayload {
-  schemaVersion: number;
-  exportedAt: Date;
-  deviceId: string;
-  books: BookMetadata[];
-  highlights: Highlight[];
-  deletedIds?: string[];
-  binaries?: Map<string, ArrayBuffer>;
-}
-
-export interface ExportOptions {
-  bookHashes?: string[];
-  includeBookFiles: boolean;
-  format: 'zip-bundle' | 'json-only' | 'markdown';
-}
-
-export type ConflictResolution = 'last-write-wins' | 'keep-local' | 'keep-imported';
-
-export interface ImportReport {
-  booksImported: number;
-  booksUpdated: number;
-  highlightsAdded: number;
-  highlightsUpdated: number;
-  binariesRestored: number;
-  conflictsResolved: number;
-}
-
-export interface IExportStrategy {
-  serialize(payload: SyncPayload): Promise<Uint8Array | string>;
-  deserialize(raw: Uint8Array | string): Promise<SyncPayload>;
-}
-
-export interface StorageEntry {
-  name: string;
-  sizeBytes: number;
-  mimeType: string;
-  modifiedAt: Date;
-}
-
-export interface IStorageProvider {
-  readonly providerId: string;
-
-  initialize(): Promise<boolean>;
-  isAvailable(): boolean;
-
-  hasBookBinary(bookHash: string): Promise<boolean>;
-  readBookBinary(bookHash: string, onProgress?: (pct: number) => void): Promise<ArrayBuffer>;
-  writeBookBinary(bookHash: string, data: ArrayBuffer, format: BookFormat): Promise<void>;
-
-  listEntries(prefix?: string): Promise<StorageEntry[]>;
-  readEntry(name: string): Promise<Uint8Array | null>;
-  writeEntry(name: string, data: Uint8Array | string, mimeType?: string): Promise<StorageEntry>;
+  getPageProxy(pageNumber: number): Promise<PdfPageProxy | null>;
 }
 ```

@@ -1,38 +1,36 @@
-# AGENTS.md — Active Study Book Reader (IPDF)
+# AGENTS.md — Active Study Book Reader (IPDF / Scholarium)
 
-Este repositório segue uma arquitetura **Hexagonal (Ports & Adapters)** estrita com desenvolvimento guiado por testes (**TDD**). Todo agente ou subagente atuando neste projeto deve consultar a documentação modular em `docs/` antes de escrever qualquer linha de código.
+This repository follows a strict **Hexagonal Architecture (Ports & Adapters)** with **Test-Driven Development (TDD)**. Every agent or subagent working in this project must consult the modular documentation in `docs/` before writing any code.
 
-## 📚 Mapa de Documentação Obrigatória
+## 📚 Mandatory Documentation Map
 
 1. **[`docs/01-PRD-OVERVIEW.md`](docs/01-PRD-OVERVIEW.md)**
-   Visão do produto, stack tecnológica (Tauri v2, TypeScript Strict, EPUB/PDF, SQLite, BYOC), requisitos funcionais e o Roadmap dividido em 6 fases.
+   Product vision, consolidated tech stack (Tauri v2, React 19, TypeScript Strict, Zustand v5, Tailwind v4, EPUB/PDF, SQLite, BYOC), and functional requirements.
 2. **[`docs/02-ARCHITECTURE-UML.md`](docs/02-ARCHITECTURE-UML.md)**
-   Princípios de Clean Architecture, árvore de diretórios obrigatória (`src/core/domain`, `src/core/ports`, `src/core/services`, `src/adapters`, `src/ui` e `src/test/` para os testes de frontend/TS), diagrama de classes UML e estrutura de sincronização remota (*Cloudless Sync*).
+   Clean Architecture principles, updated directory tree (`src/core/`, `src/adapters/`, `src/ui/`, `src/utils/`, `src/test/`, `src-tauri/src/`, and `src-tauri/crates/ipdf-core/`), path aliases, architecture diagram, and reader pagination/stream flow.
 3. **[`docs/03-CORE-CONTRACTS.md`](docs/03-CORE-CONTRACTS.md)**
-   Contratos TypeScript exatos e imutáveis para objetos de valor, entidades (`Highlight`, `RichAnnotation` com Discriminated Unions e Handler Maps, `BookMetadata`) e portas (`IAnnotationToolStrategy`, `IAssistedTextFormattingStrategy`, `IDocumentViewer`, `ILibraryService`, `IHighlightService`, `IReaderService`, `IPresenceService`, `ISettingsService`).
+   Exact TypeScript contracts for value objects, entities (`BookMetadata`, `Highlight`, `RichAnnotation`, `PageWindow`), and ports (`ILibraryService`, `IReaderService`, `IHighlightService`, `IPresenceService`, `ISettingsService`, `IDocumentViewer`, `IEpubViewer`, `IPdfViewer`, `IPdfEngine`, `IDocumentViewerFactory`).
 4. **[`docs/04-AGENT-WORKFLOW-AND-TDD.md`](docs/04-AGENT-WORKFLOW-AND-TDD.md)**
-   Regras de engenharia, ciclo obrigatório **Red -> Green -> Verify -> Commit**, política *Zero `any`*, meta mínima obrigatória de **80% de cobertura de testes (Test Coverage)**, comando bloqueante `npm run verify` e matriz de testes unitários obrigatórios no Vitest.
+   Engineering rules, SQL query isolation (`*_queries.rs`), mandatory **Red -> Green -> Verify -> Commit** cycle, *Zero `any`* policy, mandatory **>= 80% test coverage** target, blocking `npm run verify` gate, and Vitest/Cargo test matrix.
 
-## ⚡ Regras de Ouro Inegociáveis
+## ⚡ Non-Negotiable Golden Rules
 
-- **Arquitetura Backend-Heavy em Rust (`Caminho 2`):**
-  - **Rust (`src-tauri/crates/ipdf-core/` & `src-tauri/`):** Concentra o motor pesado de dados, hashing SHA-256 em *streaming* (`Sha256BookHasher`), persistência SQLite, `StorageProvider` (arquivos avulsos, pastas locais, nuvem e `CachedStorageDecorator`), `DataPortabilityService` (LWW, ZIP), `CloudlessSyncEngine`, `RichPresenceManager` (Discord IPC / Webhooks), `PromptBuilder`, `TtsProvider` + `TtsSessionManager` (síntese de voz neural/nativa com *prefetch*) e `SystemBridge` (`MediaControlService`, `PowerSaveBlocker`, `NotificationService`, `ClipboardService`).
-  - **TypeScript (`src/`):** Focado exclusivamente em renderização DOM/Canvas (`IDocumentViewer`), edição visual/assistida a 60fps (`IAnnotationToolStrategy`: `AssistedRichTextStrategy`, `tldraw`, `draw.io`), ponte IPC modular (`TauriLibraryService`, `TauriHighlightService`, `TauriReaderService`, `TauriPresenceService`, `TauriSettingsService`) e camada de apresentação **MVVC** (`src/ui/providers`, `src/ui/hooks`, `src/ui/components`).
-- **Código e Comentários 100% em Inglês:** Todo código-fonte (`src/` e `src-tauri/`), nomes de símbolos, mensagens de erro e comentários/JSDoc (quando estritamente necessários) devem ser escritos **exclusivamente em inglês**. Evite comentários óbvios nas estruturas de dados.
-- **Portabilidade Desktop + iOS (`WKWebView`):** Nunca utilize `Buffer` do Node.js em `src/core/`. Utilize sempre `Uint8Array` ou `ArrayBuffer`.
-- **Injeção de Dependência Pura:** Nenhuma classe em `src/core/` ou `ipdf-core` pode acessar singletons globais, `window` diretamente, banco de dados físico ou rede. Tudo entra via `constructor` / traits tipados pelas portas.
-- **Paridade de Modularização Estrita (TypeScript & Rust):** É terminantemente proibido concentrar múltiplas entidades, portas, serviços ou testes em "super arquivos" monolíticos (como um único `domain.rs`, `ports.rs` ou `services.rs`). O backend Rust (`src-tauri/crates/ipdf-core/src/`) **DEVE** espelhar a mesma organização modular de um arquivo por responsabilidade usada no TypeScript:
-  - `core/domain/` (`types.rs`, `book_metadata.rs`, `rich_annotation.rs`, `highlight.rs`),
-  - `core/ports/` (`repository.rs`, `storage_provider.rs`, `platform_environment.rs`, `configuration_store.rs`, `export_strategy.rs`, `llm_provider.rs`, `presence_provider.rs`, `tts_provider.rs`, `system_bridge.rs`),
-  - `core/services/` (`sha256_book_hasher.rs`, `library_manager.rs`, `highlight_manager.rs`, `data_portability_service.rs`, `cloudless_sync_engine.rs`, `prompt_builder.rs`, `rich_presence_manager.rs`, `tts_session_manager.rs`),
-  - `adapters/` (`persistence/sqlite_highlight_repository.rs`, `platform/` (`linux_environment.rs`, `android_environment.rs`, `windows_environment.rs`, `ios_environment.rs`), `configuration/` (`sqlite_configuration_store.rs`), `presence/` (`discord_ipc_transport.rs`, `discord_presence_adapter.rs`), `storage/local_folder_storage_adapter.rs`, `storage/cached_storage_decorator.rs`),
-  - `tests/` (`fakes/mod.rs` e arquivos `*_spec.rs` dedicados por domínio/serviço).
-- **Frontend MVVC / MVVM Modular (`src/ui/`):** Proibido misturar IoC, gerenciamento de estado/regras e JSX em "super arquivos". Separe estritamente em:
-  1. `src/ui/providers/` (Inversão de Controle / Contextos de DI e Tema),
-  2. `src/ui/hooks/` (ViewModels / Custom Hooks concentrando estado e casos de uso),
-  3. `src/ui/components/ui/` (Componentes atômicos do Design System: `Button`, `IconButton`, `Card`, `Badge`, `Input`, `Modal`, `Popover`),
-  4. `src/ui/components/` (Componentes visuais de alto nível e telas recebendo dados via props).
-- **Design System Obrigatório (Sem HTML Puro Repetitivo):** Toda a interface deve ser composta por componentes pré-estilizados do Design System (`src/ui/components/ui/`) e tokens semânticos do Tailwind (`styles.css`). É proibido escrever tags HTML cruas com classes repetidas de estilização inline (`<button className="...">`, `<div className="rounded-xl border...">`, `<input className="...">`) nos componentes de visão. A consistência visual e o suporte a temas (Light/Dark) dependem exclusivamente dessa camada de componentes reutilizáveis.
-- **Zero `any` Policy:** Proibido usar `any`.
-- **Cobertura de Testes Mínima (>= 80% em TypeScript & Rust + Coverage Gutters):** Todo código em `src/core/`, `src/adapters/` e `src-tauri/crates/ipdf-core/src/` deve manter no mínimo **80% de cobertura** (validado por `@vitest/coverage-v8` no TS e `llvm-cov` via `scripts/rust-coverage.mjs` no Rust), gerando LCOV unificado em `coverage/lcov.info` compatível com a extensão **Coverage Gutters**.
-- **Quality Gate Bloqueante:** Nenhum commit pode ser realizado sem que `npm run verify` (`format` + `lint` + `typecheck` + `test`, onde cada script executa tanto `:frontend` quanto `:backend`) retorne `exit code 0`.
+- **Backend-Heavy Rust Architecture + Reactive MVVC Frontend:**
+  - **Rust (`src-tauri/crates/ipdf-core/` & `src-tauri/src/`):** Handles heavy data processing, streaming SHA-256 hashing (`Sha256BookHasher`), native pagination (`EpubBookPaginator`, `PdfBookPaginator`), cover extraction (`CoverExtractorAdapter`), SQLite persistence (`SqliteBookRepository`, `SqliteHighlightRepository`, `SqliteConfigurationStore` with SQL isolated in `*_queries.rs`), `StorageProvider` (`LocalFolderStorageAdapter`, `CachedStorageDecorator`), `DataPortabilityService`, `CloudlessSyncEngine`, `RichPresenceManager` (`DiscordPresenceAdapter`), `PromptBuilder`, `TtsSessionManager`, and modular IPC commands (`src-tauri/src/commands/`).
+  - **TypeScript (`src/`):** Focused on 60fps DOM/Canvas rendering (`EpubViewerAdapter`, `PdfViewerAdapter`, `DefaultPdfEngine`), LRU caching (`CachedReaderServiceDecorator`), modular IPC bridges (`TauriLibraryService`, `TauriReaderService`, `TauriHighlightService`, `TauriPresenceService`, `TauriSettingsService`), pure utilities (`src/utils/`), and the **MVVC with Zustand** presentation layer (`src/ui/providers`, `src/ui/stores`, `src/ui/hooks`, `src/ui/components`).
+- **100% English Code and Documentation:** All source code (`src/` and `src-tauri/`), symbol names, error messages, comments/JSDoc, and technical documentation must be written **exclusively in English**.
+- **Desktop + Mobile Portability (`WKWebView` / Android):** Never use Node.js `Buffer` in `src/core/`. Always use `Uint8Array` or `ArrayBuffer`.
+- **Dependency Injection & DOM Isolation:** No class in `src/core/` or `ipdf-core` may access global singletons, `window` directly, physical databases, or network APIs. On the frontend, DOM interactions must go through the safe helpers in `src/utils/dom.ts` and `src/utils/domSelection.ts` or the viewer adapters in `src/adapters/viewers/`.
+- **Strict Modularization Parity (TypeScript & Rust):** Concentrating multiple entities, ports, services, commands, or SQL queries into monolithic "super files" is strictly forbidden:
+  - In `src-tauri/crates/ipdf-core/src/`: maintain modular separation across `core/domain/`, `core/ports/`, `core/services/`, and `adapters/` (`configuration/`, `extractor/`, `pagination/`, `persistence/`, `platform/`, `presence/`, `storage/`).
+  - In `src-tauri/src/`: keep Tauri commands split by domain in `commands/` (`library.rs`, `reader.rs`, `highlights.rs`, `settings.rs`, `ai.rs`, `system.rs`).
+- **Modular MVVC Frontend with Zustand (`src/ui/`):** Never mix IoC, state management, business rules, and extensive JSX in the same file. Separate strictly into:
+  1. `src/ui/providers/` (DI, Navigation, and Theme contexts),
+  2. `src/ui/stores/` (Zustand stores consumed via atomic selectors),
+  3. `src/ui/hooks/` (ViewModels / Custom Hooks and controllers encapsulating use cases),
+  4. `src/ui/components/ui/` (Atomic Design System components exported via `@ui`),
+  5. `src/ui/components/` (Domain visual components grouped under `library/`, `reader/`, `settings/`).
+- **Mandatory Design System (No Repetitive Raw HTML):** The entire UI must be composed of Design System components (`@ui`) and semantic Tailwind tokens (`styles.css`), validated by `scripts/lint-tailwind.mjs`.
+- **Zero `any` Policy:** Using `any` is strictly prohibited.
+- **Minimum Test Coverage (>= 80% in TypeScript & Rust):** All code must maintain at least **80% coverage** (validated by `@vitest/coverage-v8` in TS and `llvm-cov` via `scripts/rust-coverage.mjs` in Rust).
+- **Blocking Quality Gate:** No commit may be made unless `npm run verify` (`format` + `lint` + `typecheck` + `test`, running both `:frontend` and `:backend`) returns `exit code 0`.

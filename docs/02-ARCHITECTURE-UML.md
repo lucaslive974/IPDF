@@ -1,230 +1,166 @@
 # 02. Software Architecture & Directory Structure
 
-## 1. Princípios Arquiteturais e Divisão Rust vs. TypeScript (Backend-Heavy)
+## 1. Architectural Principles & Rust vs. TypeScript Division (Backend-Heavy)
 
-O projeto utiliza **Clean Architecture / Hexagonal Architecture (Ports & Adapters)** combinada com uma estratégia **Backend-Heavy em Rust** para garantir baixo consumo de memória (essencial no iOS `WKWebView`) e UI a 60fps:
+The project uses **Clean Architecture / Hexagonal Architecture (Ports & Adapters)** combined with a **Backend-Heavy Rust** core and a **Reactive MVVC Frontend** to ensure low memory usage and a 60fps UI:
 
-- **Core Nativo em Rust (`src-tauri/crates/ipdf-core/`):**
-  - Isolado como uma crate pura (sem dependência direta de janelas/WebKit, permitindo rodar `cargo test` e `cargo clippy` instantaneamente em qualquer ambiente).
-  - Concentra o domínio (`Highlight`, `BookMetadata`, `RichAnnotation`), as traits de portas (`HighlightRepository`, `StorageProvider`, `ExportStrategy`, `PresenceProvider`), o cálculo de hash SHA-256 em *streaming* de 64 KB (`Sha256BookHasher`), o gerenciamento de biblioteca baseado em arquivos e storage (`LibraryManager`), o merge *Last-Write-Wins* (`DataPortabilityService`), o `CloudlessSyncEngine`, o `CachedStorageDecorator`, o `PromptBuilder` e o `RichPresenceManager`.
-- **Shell Tauri v2 (`src-tauri/src/`):**
-  - Expõe comandos IPC (`#[tauri::command]`) conectando a WebView à crate `ipdf-core` e aos plugins/recursos do sistema operacional.
-- **Domínio, Portas e Adaptadores de WebView em TypeScript (`src/core/` e `src/adapters/`):**
-  - Focados nas responsabilidades que vivem no DOM/Canvas da WebView: renderização de documentos (`IDocumentViewer`: `EpubViewerAdapter`, `PdfViewerAdapter`) e estratégias de edição visual/formatação assistida (`IAnnotationToolStrategy`: `AssistedRichTextStrategy`, `TldrawAnnotationStrategy`, `DrawioAnnotationStrategy` com *Command Dispatch Maps*), além de espelhos leves para modo de bancada/testes.
-- **Frontend UI — Padrão MVVC / MVVM (`src/ui/`):**
-  - `src/ui/providers/`: *Composition Root* e provedores React Context (`ServiceContainerContext.tsx`) responsáveis exclusivamente pela Inversão de Controle (DI).
-  - `src/ui/hooks/`: *ViewModels / ViewControllers* implementados como Custom Hooks (`useStudyWorkbenchViewModel.ts`), encapsulando todo o estado de tela.
-  - `src/ui/components/`: Componentes visuais puramente declarativos, modulares e reutilizáveis (`PassageReaderPanel`, `SectionAnnotationPanel`, `AssistedFormattingToolbar`, `HighlightCard`, `CodeInspectorBox`).
-- **Testes e Dublês (`src/test/` no TypeScript + `src-tauri/crates/ipdf-core/tests/` no Rust):**
-  - No TypeScript, todos os arquivos `*.spec.ts` ficam na pasta `src/test/` espelhando os módulos de `src/`.
-  - No Rust, os testes de integração e unidade ficam em `src-tauri/crates/ipdf-core/tests/`.
+- **Native Rust Core (`src-tauri/crates/ipdf-core/`):**
+  - Isolated as a pure library crate (with no direct WebKit/window dependencies, allowing `cargo test` and `cargo clippy` to run standalone).
+  - Houses domain entities (`BookMetadata`, `BookStorageLocation`, `Highlight`, `RichAnnotation`), port traits (`BookRepository`, `HighlightRepository`, `BookPaginator`, `BookCoverExtractor`, `StorageProvider`, `ConfigurationStore`, `PlatformEnvironment`, `ExportStrategy`, `LlmProvider`, `PresenceProvider`, `TtsProvider`, `SystemBridge`), and application services (`LibraryManager`, `ReaderManager`, `HighlightManager`, `Sha256BookHasher`, `DataPortabilityService`, `CloudlessSyncEngine`, `PromptBuilder`, `RichPresenceManager`, `TtsSessionManager`).
+  - Contains concrete adapters for SQLite persistence (with SQL queries isolated in `*_queries.rs` files), EPUB/PDF pagination, cover extraction, OS platform environments (`LinuxEnvironment`, `WindowsEnvironment`, `AndroidEnvironment`, `IosEnvironment`), Discord IPC, and local/cached storage.
+- **Modular Tauri v2 Shell (`src-tauri/src/`):**
+  - Organized into dedicated modules: `bootstrap.rs` (app initialization and command registration), `state.rs` (`BackendRuntime`), `dtos.rs` (serializable transport structs), `seed.rs` (default book seeding), `utils.rs`, and `commands/` (`library.rs`, `reader.rs`, `highlights.rs`, `settings.rs`, `ai.rs`, `system.rs`).
+- **TypeScript Domain, Ports & WebView Adapters (`src/core/` and `src/adapters/`):**
+  - `src/core/domain/`: Entities and value objects (`BookMetadata`, `Highlight`, `RichAnnotation`, `PageWindow`, `types`).
+  - `src/core/ports/`: IPC service contracts (`ILibraryService`, `IReaderService`, `IHighlightService`, `IPresenceService`, `ISettingsService`) and document viewer contracts (`IDocumentViewer`, `IEpubViewer`, `IPdfViewer`, `IPdfEngine`, `IDocumentViewerFactory`).
+  - `src/core/utils/`: Pure support data structures (`LruCache`).
+  - `src/adapters/ipc/`: Modular Tauri `invoke()` clients and `CachedReaderServiceDecorator` (in-memory LRU cache for binaries and page chunks).
+  - `src/adapters/viewers/`: `EpubViewerAdapter`, `PdfViewerAdapter`, and `DefaultPdfEngine`.
+- **Frontend UI — MVVC Pattern with Zustand (`src/ui/` and `src/utils/`):**
+  - `src/ui/providers/`: Dependency injection (`ServiceContainerContext`), theme (`ThemeContext`), and navigation (`NavigationContext`).
+  - `src/ui/stores/`: Atomic Zustand stores (`useLibraryStore`, `useReaderStore`, `useReaderUIStore`, `useHighlightStore`, `useTypographyStore`) consumed via granular selectors to prevent cascading re-renders.
+  - `src/ui/hooks/`: Modular ViewModels / Controllers (`useLibrary`, `useReaderBootstrapper`, `useReaderPagination`, `useReaderHighlights`, `usePdfPageRenderer`, `useReaderZoomGestures`, `useSystemHandler`, etc.).
+  - `src/ui/components/ui/`: Atomic Design System (`Button`, `IconButton`, `Card`, `Badge`, `Input`, `Textarea`, `Modal`, `Dialog`, `Popover`, `DropdownMenu`, `SegmentedControl`, `TagInput`, `ColorPicker`, `ProgressBar`, `EmptyState`, `PassageQuote`, `AutocompleteInput`).
+  - `src/ui/components/`: Domain components grouped by context (`library/`, `reader/`, `settings/`).
+  - `src/utils/`: Pure frontend utilities (`dom`, `domSelection`, `fileReader`, `markdownFormatting`, `math`, `pdfCoordinates`, `pdfCoverGenerator`, `readerTokenizer`).
 
 ---
 
-## 2. Estrutura de Diretórios Obrigatória
+## 2. Directory Structure
 
 ```text
 ├── src-tauri/
 │   ├── crates/
-│   │   └── ipdf-core/                    # Crate Rust pura modularizada (espelhando a arquitetura Hexagonal)
+│   │   └── ipdf-core/
 │   │       ├── src/
 │   │       │   ├── core/
-│   │       │   │   ├── domain/           # types.rs, book_metadata.rs, rich_annotation.rs, highlight.rs
-│   │       │   │   ├── ports/            # repository.rs, storage_provider.rs, export_strategy.rs, llm_provider.rs, presence_provider.rs, tts_provider.rs, system_bridge.rs
-│   │       │   │   └── services/         # sha256_book_hasher.rs, highlight_manager.rs, data_portability_service.rs, cloudless_sync_engine.rs, prompt_builder.rs, rich_presence_manager.rs, tts_session_manager.rs
+│   │       │   │   ├── domain/           # types.rs, book_metadata.rs, book_storage_location.rs, rich_annotation.rs, highlight.rs
+│   │       │   │   ├── ports/            # book_repository.rs, repository.rs, book_paginator.rs, book_cover_extractor.rs, storage_provider.rs, configuration_store.rs, platform_environment.rs, export_strategy.rs, llm_provider.rs, presence_provider.rs, tts_provider.rs, system_bridge.rs
+│   │       │   │   └── services/         # sha256_book_hasher.rs, library_manager.rs, reader_manager.rs, highlight_manager.rs, data_portability_service.rs, cloudless_sync_engine.rs, prompt_builder.rs, rich_presence_manager.rs, tts_session_manager.rs
 │   │       │   ├── adapters/
-│   │       │   │   └── storage/          # cached_storage_decorator.rs
+│   │       │   │   ├── configuration/    # sqlite_configuration_store.rs, sqlite_configuration_queries.rs
+│   │       │   │   ├── extractor/        # cover_extractor_adapter.rs, epub_cover_extractor.rs, pdf_cover_extractor.rs
+│   │       │   │   ├── pagination/       # epub_book_paginator.rs, pdf_book_paginator.rs
+│   │       │   │   ├── persistence/      # sqlite_book_repository.rs, sqlite_book_queries.rs, sqlite_highlight_repository.rs, sqlite_highlight_queries.rs
+│   │       │   │   ├── platform/         # linux_environment.rs, windows_environment.rs, android_environment.rs, ios_environment.rs
+│   │       │   │   ├── presence/         # discord_presence_adapter.rs, discord_presence_client.rs
+│   │       │   │   └── storage/          # local_folder_storage_adapter.rs, cached_storage_decorator.rs
 │   │       │   └── lib.rs
-│   │       └── tests/                    # Suíte de testes Rust modularizada
-│   │           ├── fakes/                # mod.rs (InMemoryHighlightRepo, InMemoryStorage, SpyPresence, SpyTtsProvider, SpyMediaControls, SpyPowerBlocker)
-│   │           ├── highlight_spec.rs
-│   │           ├── sha256_book_hasher_spec.rs
-│   │           ├── cloudless_sync_and_portability_spec.rs
+│   │       └── tests/                    # Unit and integration test suites for ipdf-core
+│   │           ├── fakes/mod.rs
 │   │           ├── cached_storage_and_presence_spec.rs
+│   │           ├── cloudless_sync_and_portability_spec.rs
+│   │           ├── cover_extractor_spec.rs
+│   │           ├── discord_presence_spec.rs
+│   │           ├── highlight_spec.rs
+│   │           ├── library_and_sqlite_spec.rs
+│   │           ├── platform_and_config_spec.rs
+│   │           ├── reader_and_paginator_spec.rs
+│   │           ├── sha256_book_hasher_spec.rs
+│   │           ├── sqlite_book_repository_spec.rs
 │   │           └── tts_and_system_bridge_spec.rs
-│   └── src/
-│       └── lib.rs                        # Comandos IPC Tauri (#[tauri::command]) expondo o ipdf-core
+│   └── src/                              # Tauri v2 application shell and IPC layer
+│       ├── commands/                     # library.rs, reader.rs, highlights.rs, settings.rs, ai.rs, system.rs
+│       ├── bootstrap.rs
+│       ├── dtos.rs
+│       ├── lib.rs
+│       ├── main.rs
+│       ├── seed.rs
+│       ├── state.rs
+│       └── utils.rs
 ├── src/
 │   ├── core/
-│   │   ├── domain/
-│   │   │   ├── types.ts                  # Value Objects (BoundingBox, HighlightAnchor, AnnotationCommand, etc.)
-│   │   │   ├── Highlight.ts              # Entidade/DTO Highlight para colisão e formatação a 60fps na UI
-│   │   │   ├── RichAnnotation.ts         # Discriminated Unions de anotações (AssistedText, Tldraw, Drawio) + FormatterMap
-│   │   │   └── BookMetadata.ts           # Estrutura de metadados do livro
-│   │   ├── ports/
-│   │   │   ├── ILibraryService.ts        # Porta de catálogo de livros e importação
-│   │   │   ├── IHighlightService.ts      # Porta de destaques e anotações ricas
-│   │   │   ├── IReaderService.ts         # Porta de leitura binária, paginação e progresso
-│   │   │   ├── IPresenceService.ts       # Porta de Rich Presence (Discord)
-│   │   │   ├── ISettingsService.ts       # Porta de configurações e sync
-│   │   │   ├── IDocumentViewer.ts        # Contrato de renderização DOM/Canvas (EPUB/PDF)
-│   │   │   └── IAnnotationStrategy.ts    # Contratos Strategy para editores visuais a 60fps (Texto Assistido, tldraw, draw.io)
-│   │   └── services/
-│   │       └── AnnotationWorkbenchService.ts # Orquestrador de edição 60fps persistindo via IHighlightService
+│   │   ├── domain/                       # types.ts, BookMetadata.ts, Highlight.ts, RichAnnotation.ts, PageWindow.ts
+│   │   ├── ports/                        # ILibraryService.ts, IReaderService.ts, IHighlightService.ts, IPresenceService.ts, ISettingsService.ts, IDocumentViewer.ts, IEpubViewer.ts, IPdfViewer.ts, IPdfEngine.ts, IDocumentViewerFactory.ts
+│   │   └── utils/                        # lruCache.ts
 │   ├── adapters/
-│   │   ├── ipc/                          # Adaptadores modulares Tauri invoke() (TauriLibraryService, TauriHighlightService, etc.)
-│   │   └── annotations/                  # AssistedRichTextStrategy.ts, DiagramAnnotationStrategies.ts
-│   ├── ui/                               # Camada de Apresentação em Arquitetura MVVC
-│   │   ├── providers/                    # IoC / Injeção de Dependências e Tema (ServiceContainerContext.tsx, ThemeContext.tsx)
-│   │   ├── hooks/                        # ViewModels / ViewControllers (Custom Hooks)
-│   │   ├── components/                   # Telas e painéis visuais de alto nível
-│   │   │   └── ui/                       # Componentes atômicos do Design System (Button, Card, Badge, Input, Modal, Popover)
-│   │   └── App.tsx                       # Composição declarativa de alto nível
-│   └── test/                             # Testes TypeScript/UI espelhando a estrutura de src/
-│       ├── core/
-│       │   ├── domain/                   # Highlight.spec.ts
-│       │   └── services/                 # AnnotationWorkbenchService.spec.ts
-│       ├── adapters/
-│       │   └── ipc/                      # TauriBackend.spec.ts
-│       └── mocks/                        # MockBackend.ts
+│   │   ├── ipc/                          # TauriLibraryService.ts, TauriReaderService.ts, CachedReaderServiceDecorator.ts, TauriHighlightService.ts, TauriPresenceService.ts, TauriSettingsService.ts
+│   │   └── viewers/                      # EpubViewerAdapter.ts, PdfViewerAdapter.ts, DefaultPdfEngine.ts
+│   ├── ui/
+│   │   ├── providers/                    # ServiceContainerContext.tsx, ThemeContext.tsx, NavigationContext.tsx
+│   │   ├── stores/                       # useLibraryStore.ts, useReaderStore.ts, useReaderUIStore.ts, useHighlightStore.ts, useTypographyStore.ts
+│   │   ├── hooks/                        # Custom Hooks / Controllers (useLibrary, useReaderBootstrapper, useReaderPagination, etc.)
+│   │   ├── components/
+│   │   │   ├── ui/                       # Atomic Design System
+│   │   │   ├── library/                  # Library, Collections, and Annotations components
+│   │   │   ├── reader/                   # Reader components (ReaderStream, ReaderPageItem, ReaderPagePdf, PdfHighlightLayer, etc.)
+│   │   │   ├── settings/                 # Settings sections
+│   │   │   ├── LibraryView.tsx
+│   │   │   ├── ReaderView.tsx
+│   │   │   └── SettingsView.tsx
+│   │   ├── App.tsx
+│   │   ├── main.tsx
+│   │   └── styles.css
+│   ├── utils/                            # Pure functions (dom.ts, domSelection.ts, fileReader.ts, markdownFormatting.ts, math.ts, pdfCoordinates.ts, pdfCoverGenerator.ts, readerTokenizer.ts)
+│   └── test/                             # Vitest test suite mirroring src/
 ```
 
 ---
 
-## 3. Diagrama de Classes Global (Mermaid UML)
+## 3. Mandatory Path Aliases (`tsconfig.json` & `vite.config.ts`)
+
+To keep imports clean and decoupled from relative folder depth, use the configured path aliases:
+- `@domain` / `@domain/*` -> `src/core/domain/*`
+- `@ports` / `@ports/*` -> `src/core/ports/*`
+- `@core/utils` / `@core/*` -> `src/core/*`
+- `@adapters` / `@adapters/*` -> `src/adapters/*`
+- `@providers/*` -> `src/ui/providers/*`
+- `@stores/*` -> `src/ui/stores/*`
+- `@hooks/*` -> `src/ui/hooks/*`
+- `@components/*` -> `src/ui/components/*`
+- `@ui` / `@ui/*` -> `src/ui/components/ui/index.ts` / `src/ui/*`
+- `@utils` / `@utils/*` -> `src/utils/*`
+
+---
+
+## 4. Architecture Diagram (Mermaid UML)
 
 ```mermaid
-classDiagram
-    class ReaderController {
-        -IDocumentViewer viewer
-        -HighlightManager highlightManager
-        -LibraryManager libraryManager
-        -ContextualAssistant assistant
-        -ITTSProvider tts
-        -SystemBridge systemBridge
-        -RichPresenceManager presenceManager
-        -CloudlessSyncEngine syncEngine
-        +openBook(bookHash: string) Promise~void~
-        +onPageTurned(pageInfo: PageInfo) void
-        +highlightSelection(color: string, note?: string) Promise~Highlight~
-        +explainOrTranslateSelection(mode: AssistantMode) Promise~void~
-    }
+flowchart TB
+    subgraph UI["Presentation Layer (src/ui/)"]
+        Views["Views (LibraryView, ReaderView, SettingsView)"]
+        Hooks["ViewModels / Hooks (useReaderPagination, useReaderBootstrapper, useLibrary)"]
+        Stores["Zustand Stores (useReaderStore, useLibraryStore, useHighlightStore)"]
+        Views --> Hooks
+        Hooks --> Stores
+        Views --> Stores
+    end
 
-    class IDocumentViewer {
-        <<interface>>
-        +render(container: HTMLElement, fileData: ArrayBuffer) Promise~void~
-        +destroy() void
-        +goToPage(target: number | string) Promise~void~
-        +nextPage() Promise~void~
-        +prevPage() Promise~void~
-        +getCurrentPage() PageInfo
-        +getSelection() TextSelection
-        +clearSelection() void
-        +renderHighlights(highlights: Highlight[]) void
-        +eraseHighlightFromDOM(highlightId: string) void
-        +injectInlineAnnotation(anchor: HighlightAnchor, shortText: string, tooltipDetails?: string) void
-        +extractVisibleSentences() Promise~SentenceNode[]~
-        +setActiveTTSSentence(sentenceId: string) void
-    }
+    subgraph CoreTS["Frontend Core & Adapters (src/core/ & src/adapters/)"]
+        PortsTS["Ports (ILibraryService, IReaderService, IHighlightService, IPdfViewer, IEpubViewer)"]
+        CachedReader["CachedReaderServiceDecorator (LRU Cache)"]
+        TauriIPC["Tauri IPC Adapters (invoke)"]
+        Viewers["Viewers (EpubViewerAdapter, PdfViewerAdapter, DefaultPdfEngine)"]
+        Hooks --> PortsTS
+        PortsTS --> CachedReader
+        CachedReader --> TauriIPC
+        PortsTS --> Viewers
+    end
 
-    class HighlightManager {
-        -IHighlightRepository repository
-        -Map~string, Highlight~ cache
-        -Map~RichAnnotationType, IAnnotationToolStrategy~ strategies
-        +registerStrategy(strategy: IAnnotationToolStrategy) void
-        +loadBookHighlights(bookHash: string) Promise~Highlight[]~
-        +createFromSelection(bookHash: string, sel: TextSelection, color: string, note?: string) Promise~Highlight~
-        +interactWithAnnotation(highlightId: string, type: RichAnnotationType, action: AnnotationCommand) Promise~Highlight~
-        +formatHighlightAnnotations~R~(highlightId: string, formatterMap: AnnotationFormatterMap~R~) R[]
-        +getForPage(pageNumber: number) Highlight[]
-    }
+    subgraph TauriShell["Tauri v2 Shell (src-tauri/src/)"]
+        Commands["Commands (library.rs, reader.rs, highlights.rs, settings.rs, ai.rs, system.rs)"]
+        Runtime["BackendRuntime State (Mutex)"]
+        TauriIPC == "IPC Bridge" ==> Commands
+        Commands --> Runtime
+    end
 
-    class IAnnotationToolStrategy {
-        <<interface>>
-        +readonly type: RichAnnotationType
-        +applyToHighlight(highlight: Highlight, command: AnnotationCommand) Promise~void~
-        +serialize(annotation: IRichAnnotation) string
-        +deserialize(rawData: string, updatedAt: Date) IRichAnnotation
-    }
-
-    class DataPortabilityService {
-        -IHighlightRepository highlightRepo
-        -IStorageProvider storage
-        +exportData(options: ExportOptions, strategy: IExportStrategy) Promise~Uint8Array | string~
-        +importData(raw: Uint8Array | string, strategy: IExportStrategy, rule: ConflictResolution) Promise~ImportReport~
-    }
-
-    class CloudlessSyncEngine {
-        -IStorageProvider storage
-        -DataPortabilityService portabilityService
-        +syncBookState(bookHash: string) Promise~void~
-        +syncLibraryIndex() Promise~void~
-    }
-
-    class IStorageProvider {
-        <<interface>>
-        +readonly providerId: string
-        +initialize() Promise~boolean~
-        +isAvailable() boolean
-        +hasBookBinary(bookHash: string) Promise~boolean~
-        +readBookBinary(bookHash: string, onProgress?: Function) Promise~ArrayBuffer~
-        +writeBookBinary(bookHash: string, data: ArrayBuffer, format: BookFormat) Promise~void~
-        +listEntries(prefix?: string) Promise~StorageEntry[]~
-        +readEntry(name: string) Promise~Uint8Array | null~
-        +writeEntry(name: string, data: Uint8Array | string, mimeType?: string) Promise~StorageEntry~
-    }
-
-    class ContextualAssistant {
-        -ILLMProvider llmProvider
-        -PromptBuilder promptBuilder
-        +lookupTerm(ctx: ReadingContext, targetLang: string) Promise~TermDefinition~
-        +translateInPlace(ctx: ReadingContext, targetLang: string) Promise~TranslationResult~
-        +explainPassage(ctx: ReadingContext, onChunk: Function, question?: string) Promise~string~
-    }
-
-    class RichPresenceManager {
-        -Map~string, IPresenceProvider~ providers
-        +registerProvider(provider: IPresenceProvider) void
-        +updateActivity(activity: ReadingActivity, immediate?: boolean) void
-        +clearAllPresence() Promise~void~
-    }
-
-    class SystemBridge {
-        +readonly notifications: INotificationService
-        +readonly mediaSession: IMediaControlService
-        +readonly power: IPowerSaveBlocker
-        +readonly clipboard: IClipboardService
-    }
-
-    ReaderController --> IDocumentViewer
-    ReaderController --> HighlightManager
-    HighlightManager --> IAnnotationToolStrategy
-    ReaderController --> ContextualAssistant
-    ReaderController --> SystemBridge
-    ReaderController --> RichPresenceManager
-    ReaderController --> CloudlessSyncEngine
-    CloudlessSyncEngine --> DataPortabilityService
-    CloudlessSyncEngine --> IStorageProvider
-    DataPortabilityService --> IStorageProvider
+    subgraph RustCore["Native Crate (src-tauri/crates/ipdf-core/)"]
+        ServicesRS["Services (LibraryManager, ReaderManager, HighlightManager, RichPresenceManager, CloudlessSyncEngine)"]
+        AdaptersRS["Adapters (SqliteBookRepository, SqliteHighlightRepository, EpubBookPaginator, PdfBookPaginator, CoverExtractorAdapter, DiscordPresenceAdapter, LocalFolderStorageAdapter)"]
+        Runtime --> ServicesRS
+        ServicesRS --> AdaptersRS
+    end
 ```
 
 ---
 
-## 4. Abstração Unificada de Storage (`IStorageProvider` + Decorator Pattern)
+## 5. Reader Pagination & Stream Architecture
 
-O Core (`ReaderController`, `LibraryManager`, `DataPortabilityService`, `CloudlessSyncEngine`) conversa exclusivamente com a porta `IStorageProvider`, sem saber qual adaptador está por trás:
-
-- **`StandaloneFileStorageAdapter`:** Mapeia arquivos `.epub`/`.pdf` avulsos abertos pelo usuário a partir de qualquer caminho do sistema de arquivos ao seu `bookHash` SHA-256.
-- **`LocalFolderStorageAdapter`:** Lê e grava diretamente em uma pasta local do dispositivo (ou pasta sincronizada por Syncthing/iCloud/Dropbox).
-- **`GoogleDriveStorageAdapter`:** Implementa a mesma interface sobre a API do Google Drive.
-- **`CachedStorageDecorator` (`implements IStorageProvider`):** Envolve um `localCache: IStorageProvider` e um `primaryStorage: IStorageProvider`, realizando cache local sob demanda (*On-Demand Caching*) e fallback offline de forma 100% transparente.
-
-Estrutura lógica de entradas mantida pelo `IStorageProvider`:
-
-```text
-📁 Storage Root (Local Folder, App Data ou Google Drive)
- ├── 📄 .reader_library_index.json       # Catálogo leve com metadados, capas e página atual
- ├── 📁 books/
- │    └── 📕 <bookHash>.epub | .pdf      # Binários completos acessados por bookHash
- └── 📁 highlights/
-      └── 📄 <bookHash>.highlights.json  # Grifos e notas isolados por livro para merge rápido (LWW)
-```
-
-### Fluxo de Sincronização (Last-Write-Wins)
-1. **Verificação de Autenticação:** Se `remoteStorage.isAuthenticated()` retornar `false`, o `CloudlessSyncEngine` ignora silenciosamente a operação sem lançar erro (garantindo operação *Offline-First*).
-2. **Sincronização de Grifos por Livro (`syncBookState`):**
-   - Localiza `<bookHash>.highlights.json` na pasta remota.
-   - Caso exista, baixa o payload e delega ao `DataPortabilityService.importData(..., 'last-write-wins')` para mesclar os grifos remotos com os locais baseando-se em `updatedAt`.
-   - Exporta o estado consolidado do livro via `DataPortabilityService.exportData` (`includeBookFiles: false`, formato `json-only`) e faz upload de `<bookHash>.highlights.json`.
-3. **Sincronização do Catálogo (`syncLibraryIndex`):**
-   - Mescla `.reader_library_index.json` contendo os metadados (`BookMetadata`) e progresso de leitura (`currentPage`, `percentage`, `updatedAt`) entre dispositivos.
+1. **Decoupled Bootstrap (`useReaderBootstrapper`):**
+   - When opening a book, resolves the binary via `IReaderService` (decorated by `CachedReaderServiceDecorator`), initializes the matching viewer (`EpubViewerAdapter` or `PdfViewerAdapter`), and loads the initial page window centered around the saved page (`calculatePageWindow`).
+   - For PDFs without an existing cover, asynchronously renders page 1 via `pdfCoverGenerator` and persists the cover in the backend without blocking reader startup.
+2. **$O(1)$ Indexed Page Map (`LoadedPagesInfo` in `useReaderStore`):**
+   - Loaded pages are stored in a `Map<number, DocumentPage>` (`byPage`) alongside `minPage` and `maxPage` bounds, enabling constant-time $O(1)$ lookups when rendering `ReaderStream` (including checking chapter title transitions between `pageNumber - 1` and `pageNumber`).
+3. **Focal Detection & Presence Synchronization (`useReaderPagination`):**
+   - The 60fps scroll listener (`requestAnimationFrame`) collects only rendered `<article data-page-number>` elements (`rect.height > 0`), identifying the page crossing the focal reading line (35% of viewport height) and computing its `offsetRatio`.
+   - Rich Presence is dispatched when the focal page changes (`detected.pageNumber !== lastPresencePageRef.current`) or on direct jumps (`goToPage`), avoiding duplicate calls (`actual === last`).

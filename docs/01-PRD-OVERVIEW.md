@@ -1,72 +1,54 @@
-# 01. Product Requirements Document (PRD): Active Study Book Reader (IPDF)
+# 01. Product Requirements Document (PRD): Active Study Book Reader (IPDF / Scholarium)
 
-## 1. Visão do Produto
+## 1. Product Vision
 
-Um leitor de livros digitais (**EPUB** e **PDF**) multiplataforma (**Desktop: Windows, Linux, macOS** e **Mobile: iOS**) projetado especificamente para leitura densa, filosofia e estudo ativo.
+A cross-platform digital book reader (**EPUB** and **PDF**) targeting **Desktop (Linux, Windows, macOS)** and **Mobile (Android, iOS)**, designed specifically for dense reading, philosophy, and active study.
 
-O sistema opera sob os princípios **Offline-First** e **BYOC (Bring Your Own Cloud)**, integrando:
-- Marca-texto polimórfico persistente e **anotações ricas por seção/trecho** (texto em Markdown, quadros brancos/desenhos livres via **tldraw** e diagramas estruturados via **draw.io**);
-- Síntese de voz natural (**TTS**) sincronizada com destaque de sentença e *prefetching*;
-- Tradução *in-place* e dicionário filosófico/contextual via **LLM**;
-- Tutor **LLM** contextual via *streaming*;
-- Compartilhamento de status de leitura em tempo real (**Discord Rich Presence** e **Webhooks customizados**);
-- Portabilidade completa de dados e sincronização *serverless* (**Cloudless Sync**).
+The system operates under **Offline-First** and **BYOC (Bring Your Own Cloud)** principles, integrating:
+- **Continuous Page Streaming (`ReaderStream`):** Fluid reading with sliding-window pagination ($O(1)$ lookup via `LoadedPagesInfo`), accurate sub-page scroll restoration (`pageOffsetRatio`), smart chapter headers, and a subtle viewport chapter indicator;
+- **Polymorphic Highlighter & Assisted Markdown Notes:** Persistent multi-color highlights anchored via `epubCfi` (for EPUB) or normalized `BoundingBox` rectangles (for PDF), featuring an assisted Markdown formatting toolbar and margin notes;
+- **Library & Collections:** Visual catalog with batch file import (`openBookFiles`), hybrid cover extraction (native in Rust for EPUB and PDF.js Canvas fallback for PDFs), metadata editing, tags, and collections;
+- **Contextual LLM Translation & Dictionary:** Structured prompt construction (`PromptBuilder`) injecting book title, author, chapter, selected text, and surrounding paragraph context;
+- **Text-to-Speech (TTS) & System Bridge:** Read-aloud session orchestration (`TtsSessionManager`) with sentence prefetching, screen wake lock (`PowerSaveBlocker`), and OS media controls;
+- **Native Discord Rich Presence:** Real-time reading status broadcasting (book title, author, chapter, current/total pages, and elapsed time) over local IPC with debouncing and resilient reconnection;
+- **Data Portability & Cloudless Sync:** Serverless synchronization and backup using *Last-Write-Wins (LWW)* conflict resolution based on `updatedAt` timestamps.
 
 ---
 
-## 2. Stack Tecnológica Core
+## 2. Core Technology Stack
 
-| Camada | Tecnologia / Biblioteca | Detalhes e Decisões Técnicas |
+| Layer | Technology / Library | Technical Decisions & Details |
 | :--- | :--- | :--- |
-| **Runtime Multiplataforma** | **Tauri v2 (Backend-Heavy em Rust)** | Core pesado de dados, Storage, SHA-256 em *streaming*, Sync LWW, ZIP, SQLite, Discord IPC e HTTP em **Rust (`src-tauri/crates/ipdf-core`)** + UI MVVC e Renderizadores DOM em **TypeScript/React**. |
-| **Paridade de Modularização (TS & Rust)** | **Arquitetura Hexagonal Simétrica** | Proibido usar "super arquivos" tanto em TypeScript quanto em Rust. O crate `ipdf-core` segue exatamente a mesma divisão granular em pastas (`core/domain/`, `core/ports/`, `core/services/`, `adapters/` e `tests/`) de 1 arquivo por entidade/porta/serviço. |
-| **Linguagem Principal** | **TypeScript (Strict Mode)** | `strict: true`, proibição de `any`, uso exclusivo de `Uint8Array` / `ArrayBuffer` (sem `Node.js Buffer`). |
-| **Renderizador EPUB** | `epub.js` ou `foliate-js` | Baseado em DOM dinâmico e *Canonical Fragment Identifier* (**CFI**). |
-| **Renderizador PDF** | `pdfjs-dist` (Mozilla PDF.js) | Renderização em Canvas + TextLayer com coordenadas cartesianas normalizadas (`BoundingBox`). |
-| **Anotações Ricas (Strategy + Discriminated Unions)** | Editor WYSIWYG Assistido + `tldraw` + `draw.io` | Formatação de texto assistida (negrito, sublinhado, cores, listas sem exigir conhecimento de sintaxe Markdown), quadro branco livre (`tldraw`) e diagramas (`draw.io`) abstraídos via *Strategy Pattern* e *Discriminated Unions/Handler Maps* compondo o `AnnotationWorkbenchService`. |
-| **Persistência Local** | **SQLite** + **Local FS** | `@tauri-apps/plugin-sql` para metadados/grifos/anotações e `@tauri-apps/plugin-fs` para binários de livros. |
-| **Identidade de Obras** | **SHA-256 (`bookHash`)** | Calculado sobre o `ArrayBuffer` binário do arquivo, garantindo identidade única entre dispositivos independente do nome do arquivo. |
-| **Qualidade & Testes** | **Vitest (+ Coverage v8)** + **Biome** + **TSC** | Pipeline bloqueante via `npm run verify` (`format` + `lint` + `typecheck` + `test --coverage` com **meta mínima obrigatória de 80% de cobertura**). |
+| **Cross-Platform Runtime** | **Tauri v2 (Backend-Heavy in Rust)** | Heavy data processing, storage, streaming SHA-256 hashing (64 KB chunks), EPUB/PDF pagination, cover extraction, SQLite, LWW Sync, and Discord IPC in **Rust (`src-tauri/crates/ipdf-core`)** + modular IPC shell in **`src-tauri/src/`**. |
+| **Modularization Parity (TS & Rust)** | **Symmetric Hexagonal Architecture** | Monolithic "super files" are prohibited in both TypeScript and Rust. Every entity, port, service, adapter, and SQL query resides in its own dedicated file. |
+| **Frontend & State** | **React 19 + TypeScript Strict + Zustand v5 + React Hook Form** | **MVVC** architecture (`providers/`, `stores/`, `hooks/`, `components/`). Decoupled reactive state in selective Zustand stores (`useReaderStore`, `useLibraryStore`, `useHighlightStore`, `useReaderUIStore`, `useTypographyStore`) ensuring zero unnecessary re-renders at 60fps. |
+| **Styling & Design System** | **Tailwind CSS v4 + Atomic Components (`@ui`)** | Semantic design tokens (`bg-canvas`, `bg-surface`, `text-tx-main`, etc.) with multi-theme support (Light/Dark/Sepia) and static enforcement (`scripts/lint-tailwind.mjs`). |
+| **EPUB Renderer** | **`EpubViewerAdapter` + Rust Paginator (`EpubBookPaginator`)** | Dynamic typographic reflow with inline highlight tokenization and *Canonical Fragment Identifier* (**CFI**) anchoring. |
+| **PDF Renderer** | **`pdfjs-dist` (`PdfViewerAdapter` + `DefaultPdfEngine`)** | On-demand `<canvas>` rasterization + transparent `TextLayer` for pixel-accurate selection + `PdfHighlightLayer` with normalized Cartesian coordinates (`[0..1]`) and cooperative cancellation. |
+| **In-Memory Cache (Frontend)** | **LRU Cache (`CachedReaderServiceDecorator`)** | Decorator over `IReaderService` caching book binaries and page windows in an LRU cache with automatic invalidation. |
+| **Local Persistence** | **SQLite (`rusqlite` bundled) + Local FS** | Native Rust SQLite repositories (`SqliteBookRepository`, `SqliteHighlightRepository`, `SqliteConfigurationStore`) with SQL statements isolated in `*_queries.rs` modules. |
+| **Book Identity** | **SHA-256 (`bookHash`)** | Computed over the raw file binary via `Sha256BookHasher`, guaranteeing immutable cross-device identity regardless of filename. |
+| **Quality & Testing** | **Vitest (v8 Coverage) + Cargo llvm-cov + Biome + TSC** | Blocking quality gate via `npm run verify` enforcing **>= 80% coverage** across both Frontend and Rust Backend. |
 
 ---
 
-## 3. Requisitos Funcionais (Features)
+## 3. Consolidated Functional Requirements
 
-1. **Biblioteca Unificada via `IStorageProvider` Único (Arquivos Avulsos, Pastas Locais & On-Demand Cloud):**
-   Toda leitura/escrita de binários (`.epub` e `.pdf`) e artefatos de sincronização é abstraída sob uma única interface (`IStorageProvider`), de modo que o restante do software (`ReaderController`, `LibraryManager`, `DataPortabilityService`, `CloudlessSyncEngine`) jamais saiba qual mecanismo físico está por trás:
-   - **`StandaloneFileStorageAdapter`:** Abertura direta de arquivos `.epub` ou `.pdf` avulsos do sistema operacional, mapeados internamente pelo `bookHash` SHA-256.
-   - **`LocalFolderStorageAdapter`:** Operação direta sobre uma pasta local escolhida pelo usuário (ou sincronizada via Syncthing/iCloud/Dropbox).
-   - **`GoogleDriveStorageAdapter` + `CachedStorageDecorator` (Decorator Pattern):** Sincronização remota sob demanda (*On-Demand Caching*) transparente para o Core.
-2. **Marca-Texto Polimórfico & Anotações Ricas de Seção (Strategy + Discriminated Unions):**
-   - Seleção de texto com grifos em múltiplas cores e notas pessoais associadas, persistidos por `epubCfi` (no EPUB) ou array de `BoundingBox` (no PDF), com detecção de colisão/sobreposição geométrica (AABB no PDF e igualdade de CFI no EPUB).
-   - **Anotações Assistidas e Gráficas na Seção/Trecho:** O usuário pode deixar anotações ricas na seção ou grifo sem precisar conhecer sintaxe técnica:
-     - **Texto Rico Assistido (Markdown Transparente):** Barra de ferramentas visual pronta com comandos de **negrito, itálico, sublinhado, tachado, cores de texto/fundo, listas e títulos**, gerando Markdown/HTML estruturado nos bastidores.
-     - **Desenhos e Diagramas (`tldraw` e `draw.io`):** Quadros brancos livres e diagramas estruturados vinculados diretamente à seção.
-     - **Desacoplamento via Strategy & Discriminated Unions:** Cada modalidade de anotação (`AssistedRichTextStrategy`, `TldrawAnnotationStrategy`, `DrawioAnnotationStrategy`) implementa contratos próprios com Command Handlers que atualizam a entidade `Highlight`, mantendo o domínio 100% agnóstico das bibliotecas gráficas e formatável via mapas canônicos.
-3. **Tradução In-Place & Dicionário Filosófico/Contextual:**
-   Ao selecionar um termo (ex.: conceitos gregos transliterados em Platão) ou uma frase em outro idioma, o sistema consulta uma LLM injetando o contexto da obra e exibe o significado diretamente sobre a linha (usando tag `<ruby>` no EPUB ou *overlay badge* no PDF) ou via Popover.
-4. **Tutor LLM Contextual:**
-   Explicação profunda de passagens selecionadas via *streaming*, enviando automaticamente `[Autor + Obra + Capítulo + Parágrafo Adjacente + Trecho Selecionado]`, com cancelamento automático de requisições pendentes (`AbortController`) e possibilidade de salvar a resposta da IA diretamente como nota de um grifo.
-5. **Text-to-Speech (TTS) Sincronizado:**
-   Leitura em voz alta com motores neurais locais (Piper TTS / ONNX no Desktop) ou nativos (`AVSpeechSynthesizer` no iOS), destacando visualmente a frase atual, fazendo *prefetch* do áudio da próxima sentença e virando a página automaticamente.
-6. **Rich Presence Multi-Provedor:**
-   Transmissão da sessão de leitura (livro, autor, capítulo, página, porcentagem, capa e tempo decorrido) com *debounce* de `3000ms` e despacho resiliente (`Promise.allSettled`) para **Discord RPC** (IPC local no Desktop) e **Webhooks customizados** (HTTP POST com suporte a imagem/capa).
-7. **Portabilidade de Dados e Cloudless Sync:**
-   Exportação/Importação de pacotes completos (`.zip` com livros e grifos), apenas metadados (`.json`) ou notas de estudo para Obsidian (`.md`), usando resolução de conflitos *Last-Write-Wins (LWW)* baseada em timestamps (`updatedAt`).
-
----
-
-## 4. Roadmap de Implementação (Milestones para os Agentes)
-
-- **Fase 1 (Foundation & Core Contracts):**
-  Setup do Tauri v2 + TypeScript + Vitest + Biome. Criação de todas as interfaces em `src/core/`, implementação das entidades (`Highlight`, `BookMetadata`), serviços de domínio (`HighlightManager`, `DataPortabilityService`, `PromptBuilder`, `ContextualAssistant`, `RichPresenceManager`, `CloudlessSyncEngine`) e suíte de testes + dublês *In-Memory* / *Spies* na pasta raiz `test/` espelhando `src/`.
-- **Fase 2 (Library & EPUB Viewer):**
-  Cálculo de hash SHA-256, extração de capa para `Uint8Array`, `LibraryManager`, repositórios SQLite e `EpubViewerAdapter` com suporte completo a CFI e grifos.
-- **Fase 3 (Contextual Assistant & In-Place Translation):**
-  Integração completa dos adaptadores para LLM (`OllamaLocalLLMProvider` e `CloudAPILLMProvider`) e injeção de anotações *in-place* nos visualizadores.
-- **Fase 4 (Rich Presence & SystemBridge):**
-  Implementação do comando Rust para Discord IPC (`DiscordIPCProvider`), `CustomWebhookProvider` e adaptadores concretos da fachada `SystemBridge`.
-- **Fase 5 (TTS & PDF Viewer):**
-  Implementação do `PdfViewerAdapter` (com limpeza de cabeçalhos e hifenização) e adaptadores `ITTSProvider` (`PiperLocalTTS`, `NativeSystemTTS`) com *prefetching* de sentenças.
-- **Fase 6 (Portabilidade & Google Drive Sync):**
-  Implementação das estratégias de serialização (`zip-bundle`, `json-only`, `markdown`), `GoogleDriveStorageProvider` e integração completa do `CloudlessSyncEngine`.
+1. **Unified Library & Batch Import:**
+   - Supports opening and importing multiple `.epub` and `.pdf` files simultaneously (`openBookFiles` / `open_book_files`) with automatic `bookHash` deduplication.
+   - Automatic metadata and cover extraction (cached on disk at `<cache_dir>/covers/<bookHash>.<ext>`, with client-side PDF.js page-1 rendering fallback when a PDF lacks an embedded cover).
+   - Organization by authors, tags, full-text search, and centralized library-wide annotation and collection views (`LibraryAnnotationsTab` and `LibraryCollectionsTab`).
+2. **Continuous 60fps Reading (`ReaderView` & `ReaderStream`):**
+   - On-demand windowed pagination (`PageWindow`) with bidirectional automatic prefetching (`useReaderPagination`).
+   - 60fps focal page detection via `requestAnimationFrame`, filtering out collapsed/unrendered elements (`rect.height > 0`) and preserving exact sub-page scroll position (`pageOffsetRatio`).
+   - In EPUB mode, repetitive chapter headers across consecutive pages of the same chapter are suppressed, while a subtle floating chapter indicator is shown in the top-right corner of the viewport when immersive mode is active (`!isChromeVisible`).
+   - Typography controls (font family, font size, line spacing) and zoom gestures (`Ctrl+Wheel`, keyboard shortcuts, and zoom bar).
+3. **Polymorphic Highlights & Assisted Notes:**
+   - Custom selection context menu (`ReaderContextMenu`) supporting multi-color highlights, copy, translation, and AI explanation.
+   - Assisted Markdown notes (`assisted-markdown`) with a visual formatting toolbar (`AssistedFormattingToolbar`) applying bold, italic, underline, strikethrough, headings, lists, and blockquotes via pure functions (`src/utils/markdownFormatting.ts`).
+   - Paragraph margin note indicators (`ParagraphMarginNotes`) and quick-edit popovers/modals (`HighlightPopover` / `HighlightDetailModal`).
+4. **Focal-Driven Discord Rich Presence:**
+   - Reading presence synchronization tied directly to the focal scroll calculation (`useReaderPagination`) and direct page jumps (`goToPage`), guarded by a last-reported page ref (`actual === last` skips redundant calls) and backend debouncing in `RichPresenceManager`.
+5. **Data Portability & Synchronization (`DataPortabilityService` & `CloudlessSyncEngine`):**
+   - Export and import of reading state and highlights with *Last-Write-Wins (LWW)* conflict resolution based on `updatedAt`.
+   - Storage abstraction via `StorageProvider` (`LocalFolderStorageAdapter` and `CachedStorageDecorator`).
