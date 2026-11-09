@@ -16,4 +16,5 @@ export * from './ProgressBar';
 export * from './SegmentedControl';
 export * from './TagInput';
 export * from './Textarea';
+export * from './TransitionOverlay';
 export * from './icons';

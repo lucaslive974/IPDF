@@ -5,6 +5,7 @@ import { useReaderPagination } from '@hooks/useReaderPagination';
 import { useReaderView } from '@hooks/useReaderView';
 import { useReaderStore } from '@stores/useReaderStore';
 import { useReaderUIStore } from '@stores/useReaderUIStore';
+import { TransitionOverlay } from '@ui';
 import { memo } from 'react';
 import { ReaderBottomBar } from './reader/ReaderBottomBar';
 import { ReaderHeader } from './reader/ReaderHeader';
@@ -51,11 +52,14 @@ export const ReaderView = memo(function ReaderView({ book, onClose }: ReaderView
         chapterTitle={chapterTitle}
         isVisible={!isPdf && !isChromeVisible}
       />
-      {showLoadingOverlay && (
-        <div className="fixed inset-0 z-30 bg-canvas flex flex-col justify-center">
-          <ReaderLoadingView document={document} />
-        </div>
-      )}
+      <TransitionOverlay
+        isVisible={showLoadingOverlay}
+        durationMs={250}
+        minDisplayMs={200}
+        className="bg-canvas flex flex-col justify-center"
+      >
+        <ReaderLoadingView document={document} />
+      </TransitionOverlay>
       {isReady && <ReaderStream />}
       <ReaderBottomBar onScrollToPage={pagination.goToPage} />
       <ReaderOverlays />
