@@ -220,12 +220,9 @@ export function createReaderPaginationController(
   let isLoadingMore = false;
   let isScrollLocked = false;
   let scrollLockTimer: ReturnType<typeof setTimeout> | null = null;
-  let lastReportedPresencePage: number | null = null;
 
   const syncPresence = (pageNumber: number): void => {
     const state = store.getState();
-
-    lastReportedPresencePage = pageNumber;
     const visible = state.loadedPages.byPage.get(pageNumber);
     void deps.presenceService?.updateReadingPresence({
       bookHash: state.document.bookHash,
