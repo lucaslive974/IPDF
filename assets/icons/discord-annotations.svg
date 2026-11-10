@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- 60% DOMINANT: Deep Warm Graphite Squircle Base -->
+    <linearGradient id="bg-graphite" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#22201E" />
+      <stop offset="50%" stop-color="#181715" />
+      <stop offset="100%" stop-color="#121110" />
+    </linearGradient>
+
+    <!-- 30% SECONDARY: Warm Ivory Study Card -->
+    <linearGradient id="card-paper" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FAF8F5" />
+      <stop offset="85%" stop-color="#F2EFE9" />
+      <stop offset="100%" stop-color="#E8E4DC" />
+    </linearGradient>
+
+    <!-- 10% ACCENT: Warm Amber Highlight Bar & Nib -->
+    <linearGradient id="highlight-amber" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FBBF24" />
+      <stop offset="50%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+
+    <filter id="card-shadow" x="-12%" y="-12%" width="124%" height="130%">
+      <feDropShadow dx="0" dy="22" stdDeviation="24" flood-color="#000000" flood-opacity="0.65" />
+    </filter>
+    <filter id="nib-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#151413" flood-opacity="0.45" />
+    </filter>
+  </defs>
+
+  <!-- 60% Dominant: Dark Warm Graphite Squircle -->
+  <rect x="0" y="0" width="1024" height="1024" rx="228" ry="228" fill="url(#bg-graphite)" />
+  <rect x="3" y="3" width="1018" height="1018" rx="225" ry="225" fill="none" stroke="#2D2B29" stroke-width="4" />
+
+  <!-- 30% Secondary: Tactile Warm Ivory Study Page -->
+  <rect
+    x="204"
+    y="192"
+    width="616"
+    height="640"
+    rx="72"
+    ry="72"
+    fill="url(#card-paper)"
+    stroke="#D5CFC5"
+    stroke-width="3"
+    filter="url(#card-shadow)"
+  />
+
+  <!-- Subtle Muted Text Lines on the Page -->
+  <rect x="292" y="310" width="340" height="36" rx="18" fill="#C7C2B8" />
+  <rect x="292" y="624" width="280" height="36" rx="18" fill="#C7C2B8" />
+
+  <!-- 10% Accent: Bold Glowing Warm Amber Highlighted Passage -->
+  <rect x="276" y="428" width="472" height="128" rx="32" fill="url(#highlight-amber)" />
+  <rect x="308" y="474" width="380" height="36" rx="18" fill="#1C1B1A" opacity="0.88" />
+
+  <!-- 10% Accent Detail: Minimalist Scholarly Fountain Pen Nib Badge -->
+  <g filter="url(#nib-shadow)" transform="translate(690, 670) rotate(-40)">
+    <path
+      d="M 0 -96
+         L 54 12
+         L 28 84
+         L -28 84
+         L -54 12
+         Z"
+      fill="url(#highlight-amber)"
+      stroke="#FAF8F5"
+      stroke-width="8"
+      stroke-linejoin="round"
+    />
+    <line x1="0" y1="-92" x2="0" y2="-10" stroke="#1C1B1A" stroke-width="8" stroke-linecap="round" />
+    <circle cx="0" cy="-4" r="12" fill="#1C1B1A" />
+  </g>
+</svg>

@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- 60% DOMINANT: Deep Warm Graphite Squircle Base -->
+    <linearGradient id="bg-graphite" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#22201E" />
+      <stop offset="50%" stop-color="#181715" />
+      <stop offset="100%" stop-color="#121110" />
+    </linearGradient>
+
+    <!-- 10% ACCENT: Warm Amber Hardcover & Bookmark -->
+    <linearGradient id="accent-amber" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+
+    <linearGradient id="bookmark-amber" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24" />
+      <stop offset="50%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#B45309" />
+    </linearGradient>
+
+    <!-- 30% SECONDARY: Warm Ivory Open Pages -->
+    <linearGradient id="paper-left" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FAF8F5" />
+      <stop offset="85%" stop-color="#F5F2EB" />
+      <stop offset="100%" stop-color="#E4DFD5" />
+    </linearGradient>
+
+    <linearGradient id="paper-right" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#DBD5CA" />
+      <stop offset="18%" stop-color="#F2EFE9" />
+      <stop offset="100%" stop-color="#FAF8F5" />
+    </linearGradient>
+
+    <filter id="cover-shadow" x="-12%" y="-12%" width="124%" height="130%">
+      <feDropShadow dx="0" dy="22" stdDeviation="26" flood-color="#000000" flood-opacity="0.65" />
+    </filter>
+    <filter id="page-shadow" x="-8%" y="-8%" width="116%" height="120%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#151413" flood-opacity="0.35" />
+    </filter>
+    <filter id="ribbon-shadow" x="-20%" y="-10%" width="140%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#151413" flood-opacity="0.4" />
+    </filter>
+  </defs>
+
+  <!-- 60% Dominant: Dark Warm Graphite Squircle -->
+  <rect x="0" y="0" width="1024" height="1024" rx="228" ry="228" fill="url(#bg-graphite)" />
+  <rect x="3" y="3" width="1018" height="1018" rx="225" ry="225" fill="none" stroke="#2D2B29" stroke-width="4" />
+
+  <!-- 10% Accent: Warm Amber Hardcover Backplate (enlarged slightly for 64x64 clarity) -->
+  <rect
+    x="140"
+    y="276"
+    width="744"
+    height="504"
+    rx="68"
+    ry="68"
+    fill="url(#accent-amber)"
+    stroke="#FBBF24"
+    stroke-width="2"
+    stroke-opacity="0.6"
+    filter="url(#cover-shadow)"
+  />
+
+  <!-- 30% Secondary: Tactile Warm Ivory Paper Pages -->
+  <g filter="url(#page-shadow)">
+    <!-- Left Page -->
+    <path
+      d="M 512 288
+         C 430 228, 300 214, 222 232
+         C 196 238, 182 260, 182 288
+         L 182 686
+         C 182 716, 202 736, 230 732
+         C 312 718, 430 726, 512 776
+         Z"
+      fill="url(#paper-left)"
+    />
+
+    <!-- Right Page -->
+    <path
+      d="M 512 288
+         C 594 228, 724 214, 802 232
+         C 828 238, 842 260, 842 288
+         L 842 686
+         C 842 716, 822 736, 794 732
+         C 712 718, 594 726, 512 776
+         Z"
+      fill="url(#paper-right)"
+    />
+  </g>
+
+  <!-- 10% Accent Detail: Scholarly Bookmark Ribbon on the Right Page -->
+  <path
+    d="M 620 226
+       L 684 226
+       L 684 548
+       L 652 516
+       L 620 548
+       Z"
+    fill="url(#bookmark-amber)"
+    filter="url(#ribbon-shadow)"
+  />
+</svg>

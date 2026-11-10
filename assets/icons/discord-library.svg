@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- 60% DOMINANT: Deep Warm Graphite Squircle Base -->
+    <linearGradient id="bg-graphite" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#22201E" />
+      <stop offset="50%" stop-color="#181715" />
+      <stop offset="100%" stop-color="#121110" />
+    </linearGradient>
+
+    <!-- 30% SECONDARY: Warm Ivory & Warm Stone Spines -->
+    <linearGradient id="spine-ivory" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FAF8F5" />
+      <stop offset="75%" stop-color="#F2EFE9" />
+      <stop offset="100%" stop-color="#D5CFC5" />
+    </linearGradient>
+
+    <linearGradient id="spine-stone" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#E8E4DC" />
+      <stop offset="70%" stop-color="#C7C2B8" />
+      <stop offset="100%" stop-color="#9E988E" />
+    </linearGradient>
+
+    <!-- 10% ACCENT: Warm Amber Featured Book Spine -->
+    <linearGradient id="spine-amber" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FBBF24" />
+      <stop offset="35%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+
+    <filter id="shelf-shadow" x="-15%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="20" stdDeviation="22" flood-color="#000000" flood-opacity="0.6" />
+    </filter>
+  </defs>
+
+  <!-- 60% Dominant: Dark Warm Graphite Squircle -->
+  <rect x="0" y="0" width="1024" height="1024" rx="228" ry="228" fill="url(#bg-graphite)" />
+  <rect x="3" y="3" width="1018" height="1018" rx="225" ry="225" fill="none" stroke="#2D2B29" stroke-width="4" />
+
+  <g filter="url(#shelf-shadow)">
+    <!-- Book 1 (Left Upright — Warm Ivory Paper) -->
+    <rect x="208" y="230" width="156" height="564" rx="34" fill="url(#spine-ivory)" />
+    <rect x="208" y="310" width="156" height="18" fill="#D5CFC5" opacity="0.7" />
+    <rect x="208" y="688" width="156" height="18" fill="#D5CFC5" opacity="0.7" />
+
+    <!-- Book 2 (Middle Upright — Warm Parchment Stone) -->
+    <rect x="392" y="266" width="156" height="528" rx="34" fill="url(#spine-stone)" />
+    <rect x="392" y="344" width="156" height="18" fill="#847E76" opacity="0.45" />
+    <rect x="392" y="688" width="156" height="18" fill="#847E76" opacity="0.45" />
+
+    <!-- Book 3 (Right Tilted — 10% Warm Amber Accent) -->
+    <g transform="rotate(-12 690 530)">
+      <rect x="596" y="250" width="160" height="540" rx="34" fill="url(#spine-amber)" stroke="#FBBF24" stroke-width="2" stroke-opacity="0.5" />
+      <rect x="596" y="332" width="160" height="20" fill="#FAF8F5" opacity="0.88" />
+      <rect x="596" y="684" width="160" height="20" fill="#FAF8F5" opacity="0.88" />
+    </g>
+  </g>
+</svg>

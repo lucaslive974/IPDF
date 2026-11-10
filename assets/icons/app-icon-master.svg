@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- 60% DOMINANT: Deep Warm Graphite Squircle Base (#1E1D1C -> #151413) -->
+    <linearGradient id="bg-graphite-60" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#22201E" />
+      <stop offset="50%" stop-color="#181715" />
+      <stop offset="100%" stop-color="#121110" />
+    </linearGradient>
+
+    <!-- 10% ACCENT: Warm Amber Hardcover Rim (#F59E0B -> #D97706) -->
+    <linearGradient id="accent-amber-10" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+
+    <!-- 30% SECONDARY: Warm Paper Open Pages (#FAF8F5 -> #E8E4DC) -->
+    <linearGradient id="paper-left-30" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FAF8F5" />
+      <stop offset="85%" stop-color="#F5F2EB" />
+      <stop offset="100%" stop-color="#E4DFD5" />
+    </linearGradient>
+
+    <linearGradient id="paper-right-30" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#DBD5CA" />
+      <stop offset="18%" stop-color="#F2EFE9" />
+      <stop offset="100%" stop-color="#FAF8F5" />
+    </linearGradient>
+
+    <filter id="cover-shadow" x="-12%" y="-12%" width="124%" height="130%">
+      <feDropShadow dx="0" dy="22" stdDeviation="26" flood-color="#000000" flood-opacity="0.65" />
+    </filter>
+    <filter id="page-shadow" x="-8%" y="-8%" width="116%" height="120%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#151413" flood-opacity="0.35" />
+    </filter>
+  </defs>
+
+  <!-- 60% Dominant: Dark Warm Graphite Squircle -->
+  <rect x="0" y="0" width="1024" height="1024" rx="228" ry="228" fill="url(#bg-graphite-60)" />
+  <rect x="3" y="3" width="1018" height="1018" rx="225" ry="225" fill="none" stroke="#2D2B29" stroke-width="4" />
+
+  <!-- 10% Accent: Slim Warm Amber Hardcover Backplate peeking around the pages -->
+  <rect
+    x="166"
+    y="300"
+    width="692"
+    height="464"
+    rx="64"
+    ry="64"
+    fill="url(#accent-amber-10)"
+    stroke="#FBBF24"
+    stroke-width="2"
+    stroke-opacity="0.6"
+    filter="url(#cover-shadow)"
+  />
+
+  <!-- 30% Secondary: Tactile Warm Ivory Paper Pages -->
+  <g filter="url(#page-shadow)">
+    <!-- Left Page -->
+    <path
+      d="M 512 310
+         C 436 254, 316 242, 244 258
+         C 220 264, 206 284, 206 310
+         L 206 676
+         C 206 704, 224 722, 250 718
+         C 326 705, 436 712, 512 760
+         Z"
+      fill="url(#paper-left-30)"
+    />
+
+    <!-- Right Page -->
+    <path
+      d="M 512 310
+         C 588 254, 708 242, 780 258
+         C 804 264, 818 284, 818 310
+         L 818 676
+         C 818 704, 800 722, 774 718
+         C 698 705, 588 712, 512 760
+         Z"
+      fill="url(#paper-right-30)"
+    />
+  </g>
+</svg>
