@@ -97,7 +97,7 @@ impl<C: DiscordPresenceClient> PresenceProvider for DiscordPresenceAdapter<C> {
             self.has_started = true;
         }
 
-        let (details, state, start_time_secs, large_text) = match activity {
+        let (details, state, start_time_secs, large_image, large_text) = match activity {
             PresenceActivity::Reading(reading) => {
                 let details = Self::format_reading_details(reading);
                 let state = Self::format_reading_state(reading);
@@ -106,6 +106,7 @@ impl<C: DiscordPresenceClient> PresenceProvider for DiscordPresenceAdapter<C> {
                     details,
                     state,
                     start_time,
+                    "reading",
                     "Scholarium — Active Study Reader",
                 )
             }
@@ -124,7 +125,13 @@ impl<C: DiscordPresenceClient> PresenceProvider for DiscordPresenceAdapter<C> {
                 } else {
                     0
                 };
-                (details, state, start_time, "Scholarium — Library")
+                (
+                    details,
+                    state,
+                    start_time,
+                    "library",
+                    "Scholarium — Library",
+                )
             }
             PresenceActivity::Annotations {
                 total_annotations,
@@ -141,7 +148,13 @@ impl<C: DiscordPresenceClient> PresenceProvider for DiscordPresenceAdapter<C> {
                 } else {
                     0
                 };
-                (details, state, start_time, "Scholarium — Annotations")
+                (
+                    details,
+                    state,
+                    start_time,
+                    "annotations",
+                    "Scholarium — Annotations",
+                )
             }
         };
 
@@ -149,7 +162,7 @@ impl<C: DiscordPresenceClient> PresenceProvider for DiscordPresenceAdapter<C> {
             &details,
             &state,
             start_time_secs,
-            Some("app_logo"),
+            Some(large_image),
             Some(large_text),
         );
 

@@ -47,7 +47,7 @@ fn test_discord_presence_start_and_publish_reading_activity() {
         "Part 1: Chapter 2 — Page 45 of 350 (12.9%)"
     );
     assert_eq!(activities[0].start_time_secs, 1_700_000_000);
-    assert_eq!(activities[0].large_image.as_deref(), Some("app_logo"));
+    assert_eq!(activities[0].large_image.as_deref(), Some("reading"));
     assert_eq!(
         activities[0].large_text.as_deref(),
         Some("Scholarium — Active Study Reader")
@@ -76,6 +76,7 @@ fn test_discord_presence_library_and_annotations_formatting() {
     assert_eq!(activities.len(), 1);
     assert_eq!(activities[0].details, "Browsing Library");
     assert_eq!(activities[0].state, "12 books in collection");
+    assert_eq!(activities[0].large_image.as_deref(), Some("library"));
     assert_eq!(
         activities[0].large_text.as_deref(),
         Some("Scholarium — Library")
@@ -105,6 +106,16 @@ fn test_discord_presence_library_and_annotations_formatting() {
     assert_eq!(
         adapter.client().activities.last().unwrap().state,
         "42 notes taken"
+    );
+    assert_eq!(
+        adapter
+            .client()
+            .activities
+            .last()
+            .unwrap()
+            .large_image
+            .as_deref(),
+        Some("annotations")
     );
     assert_eq!(
         adapter
