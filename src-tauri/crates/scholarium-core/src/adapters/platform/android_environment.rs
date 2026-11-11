@@ -8,7 +8,8 @@ pub struct AndroidEnvironment {
 
 impl AndroidEnvironment {
     pub fn new(custom_root: Option<PathBuf>) -> Self {
-        let base = custom_root.unwrap_or_else(|| PathBuf::from("/data/user/0/com.ipdf.reader"));
+        let base =
+            custom_root.unwrap_or_else(|| PathBuf::from("/data/user/0/com.scholarium.reader"));
         Self { base_dir: base }
     }
 }

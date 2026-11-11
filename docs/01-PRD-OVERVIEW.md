@@ -1,4 +1,4 @@
-# 01. Product Requirements Document (PRD): Active Study Book Reader (IPDF / Scholarium)
+# 01. Product Requirements Document (PRD): Scholarium Active Study Book Reader
 
 ## 1. Product Vision
 
@@ -19,7 +19,7 @@ The system operates under **Offline-First** and **BYOC (Bring Your Own Cloud)** 
 
 | Layer | Technology / Library | Technical Decisions & Details |
 | :--- | :--- | :--- |
-| **Cross-Platform Runtime** | **Tauri v2 (Backend-Heavy in Rust)** | Heavy data processing, storage, streaming SHA-256 hashing (64 KB chunks), EPUB/PDF pagination, cover extraction, SQLite, LWW Sync, and Discord IPC in **Rust (`src-tauri/crates/ipdf-core`)** + modular IPC shell in **`src-tauri/src/`**. |
+| **Cross-Platform Runtime** | **Tauri v2 (Backend-Heavy in Rust)** | Heavy data processing, storage, streaming SHA-256 hashing (64 KB chunks), EPUB/PDF pagination, cover extraction, SQLite, LWW Sync, and Discord IPC in **Rust (`src-tauri/crates/scholarium-core`)** + modular IPC shell in **`src-tauri/src/`**. |
 | **Modularization Parity (TS & Rust)** | **Symmetric Hexagonal Architecture** | Monolithic "super files" are prohibited in both TypeScript and Rust. Every entity, port, service, adapter, and SQL query resides in its own dedicated file. |
 | **Frontend & State** | **React 19 + TypeScript Strict + Zustand v5 + React Hook Form** | **MVVC** architecture (`providers/`, `stores/`, `hooks/`, `components/`). Decoupled reactive state in selective Zustand stores (`useReaderStore`, `useLibraryStore`, `useHighlightStore`, `useReaderUIStore`, `useTypographyStore`) ensuring zero unnecessary re-renders at 60fps. |
 | **Styling & Design System** | **Tailwind CSS v4 + Atomic Components (`@ui`)** | Semantic design tokens (`bg-canvas`, `bg-surface`, `text-tx-main`, etc.) with multi-theme support (Light/Dark/Sepia) and static enforcement (`scripts/lint-tailwind.mjs`). |

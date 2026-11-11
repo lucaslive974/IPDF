@@ -1,10 +1,12 @@
 mod fakes;
 
 use fakes::{InMemoryBookRepo, InMemoryStorage};
-use ipdf_core::adapters::pagination::{BookPaginatorFactory, EpubBookPaginator, PdfBookPaginator};
-use ipdf_core::core::domain::{BookFormat, BookMetadata, BookStorageLocation};
-use ipdf_core::core::ports::{BookPaginator, BookRepository, StorageProvider};
-use ipdf_core::core::services::ReaderManager;
+use scholarium_core::adapters::pagination::{
+    BookPaginatorFactory, EpubBookPaginator, PdfBookPaginator,
+};
+use scholarium_core::core::domain::{BookFormat, BookMetadata, BookStorageLocation};
+use scholarium_core::core::ports::{BookPaginator, BookRepository, StorageProvider};
+use scholarium_core::core::services::ReaderManager;
 use std::env;
 use std::fs;
 use std::io::Write;

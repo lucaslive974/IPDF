@@ -1,9 +1,9 @@
 use crate::dtos::UpdateBookProgressDto;
 use crate::state::BackendState;
 use crate::utils::current_epoch_ms;
-use ipdf_core::adapters::extractor::CoverExtractorAdapter;
-use ipdf_core::core::domain::{BookMetadata, BookPagePayload};
-use ipdf_core::core::ports::BookRepository;
+use scholarium_core::adapters::extractor::CoverExtractorAdapter;
+use scholarium_core::core::domain::{BookMetadata, BookPagePayload};
+use scholarium_core::core::ports::BookRepository;
 use std::sync::Mutex;
 use tauri::State;
 

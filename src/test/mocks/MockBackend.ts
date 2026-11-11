@@ -282,7 +282,7 @@ export class MockBackend
     const highlights = await this.loadBookHighlights(bookHash);
     return JSON.stringify({
       schemaVersion: 1,
-      engine: 'ipdf-core (Mock Sync)',
+      engine: 'scholarium-core (Mock Sync)',
       bookHash,
       highlightsCount: highlights.length,
       highlights,
@@ -337,7 +337,7 @@ export class MockBackend
       configDir: '/mock/config',
       dataDir: '/mock/data',
       cacheDir: '/mock/cache',
-      databasePath: '/mock/data/ipdf.db',
+      databasePath: '/mock/data/scholarium.db',
       supportsDiscordPresence: isDesktop,
     };
   }

@@ -1,7 +1,7 @@
 use crate::dtos::{domain_to_ipc_highlight, ipc_highlight_to_domain, IpcHighlightDto};
 use crate::state::BackendState;
 use crate::utils::current_epoch_ms;
-use ipdf_core::core::ports::HighlightRepository;
+use scholarium_core::core::ports::HighlightRepository;
 use std::sync::Mutex;
 use tauri::State;
 
@@ -64,7 +64,7 @@ pub fn sync_book_workspace(
 
     let payload = serde_json::json!({
         "schemaVersion": 1,
-        "engine": "ipdf-core (Rust Native LWW Sync)",
+        "engine": "scholarium-core (Rust Native LWW Sync)",
         "bookHash": book_hash,
         "highlightsCount": highlights.len(),
         "highlights": highlights,

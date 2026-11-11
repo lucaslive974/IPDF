@@ -1,4 +1,4 @@
-use ipdf_core::core::domain::{Highlight, HighlightAnchor, RichAnnotation, RichAnnotationType};
+use scholarium_core::core::domain::{Highlight, HighlightAnchor, RichAnnotation, RichAnnotationType};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

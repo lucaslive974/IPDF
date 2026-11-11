@@ -1,4 +1,4 @@
-use ipdf_core::core::services::Sha256BookHasher;
+use scholarium_core::core::services::Sha256BookHasher;
 use std::io::Cursor;
 
 #[test]

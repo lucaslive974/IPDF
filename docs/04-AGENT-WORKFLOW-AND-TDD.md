@@ -7,7 +7,7 @@ This document defines the mandatory operational rules for any AI coding agent wo
 ## 1. Design Philosophy & Testability
 
 1. **"Hard to test = Bad coupling":**
-   If testing a function or method requires spinning up a Tauri window, instantiating the real PDF.js engine without a mock, connecting to a physical SQLite file without an abstraction, or making live network calls, **STOP IMMEDIATELY**. Extract the external dependency into a port in `src/core/ports/` (or trait in `src-tauri/crates/ipdf-core/src/core/ports/`) and inject it via constructor, factory arguments, or Context Provider.
+   If testing a function or method requires spinning up a Tauri window, instantiating the real PDF.js engine without a mock, connecting to a physical SQLite file without an abstraction, or making live network calls, **STOP IMMEDIATELY**. Extract the external dependency into a port in `src/core/ports/` (or trait in `src-tauri/crates/scholarium-core/src/core/ports/`) and inject it via constructor, factory arguments, or Context Provider.
 2. **No Direct DOM Access Outside Utilities/Viewers:**
    On the frontend, safe access to `window`, `document`, `requestAnimationFrame`, and selectors must go through the utilities in `src/utils/dom.ts` and `src/utils/domSelection.ts` or the viewer adapters in `src/adapters/viewers/`.
 3. **Zero `any` Policy:**
@@ -23,7 +23,7 @@ This document defines the mandatory operational rules for any AI coding agent wo
      - **ViewModel Hooks (`src/ui/hooks/`):** Custom Hooks and controller factories isolating orchestration rules and side effects.
      - **Design System (`src/ui/components/ui/`) & Visual Components (`src/ui/components/`):** Declarative components built from Design System atoms (`@ui`), avoiding raw HTML tags with repetitive utility classes.
 6. **Minimum Test Coverage Target (>= 80% in TypeScript and Rust):**
-   Maintaining **at least 80% test coverage** is mandatory across both TypeScript (validated by `@vitest/coverage-v8`) and Rust (`src-tauri/crates/ipdf-core/src/`, validated by `llvm-cov` via `scripts/rust-coverage.mjs` requiring `lines >= 80%`, `functions >= 80%`, and `regions >= 80%`).
+   Maintaining **at least 80% test coverage** is mandatory across both TypeScript (validated by `@vitest/coverage-v8`) and Rust (`src-tauri/crates/scholarium-core/src/`, validated by `llvm-cov` via `scripts/rust-coverage.mjs` requiring `lines >= 80%`, `functions >= 80%`, and `regions >= 80%`).
 
 ---
 
@@ -33,7 +33,7 @@ For every feature or fix implemented, strictly follow these 4 steps:
 
 ### Step 1: Test First (Red)
 - **Strict Separation in `src/test/`:** All TypeScript/UI tests (`*.spec.ts`) must reside under `src/test/`, mirroring the folder structure of `src/`.
-- Use or extend `MockBackend` in `src/test/mocks/MockBackend.ts` for frontend tests and the test doubles in `src-tauri/crates/ipdf-core/tests/fakes/mod.rs` for Rust tests.
+- Use or extend `MockBackend` in `src/test/mocks/MockBackend.ts` for frontend tests and the test doubles in `src-tauri/crates/scholarium-core/tests/fakes/mod.rs` for Rust tests.
 - **Note on Zustand in SSR Tests (`renderToStaticMarkup`):** Because React SSR's `useSyncExternalStore` uses `getServerSnapshot` (which returns the initial store state), pass data via `props` when testing purely visual components with `renderToStaticMarkup`, or test store/hook logic directly.
 
 ### Step 2: Clean Implementation (Green)
@@ -68,6 +68,6 @@ Once `npm run verify` returns `exit code 0`, create small, semantic commits (`fe
 | **TS Adapters** | Tauri IPC, Cache Decorator & Viewers (EPUB/PDF) | `src/test/adapters/ipc/TauriBackend.spec.ts`<br>`src/test/adapters/ipc/CachedReaderServiceDecorator.spec.ts`<br>`src/test/adapters/viewers/EpubViewerAdapter.spec.ts`<br>`src/test/adapters/viewers/PdfViewerAdapter.spec.ts`<br>`src/test/adapters/viewers/DefaultPdfEngine.spec.ts` | IPC serialization/deserialization, batch file import (`openBookFiles`), LRU caching of pages/binaries, EPUB chapter rendering, and PDF canvas/text-layer rendering with cooperative cancellation. |
 | **TS UI Stores & Hooks** | Zustand Stores, Pagination, Bootstrap, Highlights & Library | `src/test/ui/stores/*.spec.ts`<br>`src/test/ui/hooks/useReaderBootstrapper.spec.ts`<br>`src/test/ui/hooks/useReaderPagination.spec.ts`<br>`src/test/ui/hooks/useReaderHighlights.spec.ts`<br>`src/test/ui/hooks/usePdfPageRenderer.spec.ts`<br>`src/test/ui/hooks/useLibrary*.spec.ts`<br>`src/test/ui/hooks/useSystemHandler.spec.ts` | Decoupled bootstrap, $O(1)$ pagination (`LoadedPagesInfo`), focal detection filtering `rect.height > 0`, idempotent Rich Presence sync (`actual === last`), zoom gestures, text selection, and notes. |
 | **TS UI Components & Utils** | Visual Components & Pure Utilities | `src/test/ui/components/*.spec.ts`<br>`src/test/utils/*.spec.ts` | Viewport chapter indicator, suppression of repetitive EPUB chapter headers, PDF highlight overlay, paragraph tokenization, Markdown formatting, and PDF cover generation. |
-| **Rust (`ipdf-core`)** | Domain, Hashing & SQLite Repositories | `tests/highlight_spec.rs`<br>`tests/sha256_book_hasher_spec.rs`<br>`tests/sqlite_book_repository_spec.rs`<br>`tests/library_and_sqlite_spec.rs` | Streaming SHA-256 hashing (64 KB), SQLite persistence for books and highlights, and batch file opening (`open_books_from_paths`). |
-| **Rust (`ipdf-core`)** | Paginators, Cover Extractors & Reader | `tests/reader_and_paginator_spec.rs`<br>`tests/cover_extractor_spec.rs` | Native EPUB and PDF pagination (`EpubBookPaginator`, `PdfBookPaginator`), `ReaderManager`, and cover extraction (`CoverExtractorAdapter`). |
-| **Rust (`ipdf-core`)** | Platform, Sync, Discord IPC & TTS | `tests/platform_and_config_spec.rs`<br>`tests/cloudless_sync_and_portability_spec.rs`<br>`tests/cached_storage_and_presence_spec.rs`<br>`tests/discord_presence_spec.rs`<br>`tests/tts_and_system_bridge_spec.rs` | OS directory resolution, LWW merge, `CachedStorageDecorator`, `RichPresenceManager`, `DiscordPresenceAdapter`, and `TtsSessionManager`. |
+| **Rust (`scholarium-core`)** | Domain, Hashing & SQLite Repositories | `tests/highlight_spec.rs`<br>`tests/sha256_book_hasher_spec.rs`<br>`tests/sqlite_book_repository_spec.rs`<br>`tests/library_and_sqlite_spec.rs` | Streaming SHA-256 hashing (64 KB), SQLite persistence for books and highlights, and batch file opening (`open_books_from_paths`). |
+| **Rust (`scholarium-core`)** | Paginators, Cover Extractors & Reader | `tests/reader_and_paginator_spec.rs`<br>`tests/cover_extractor_spec.rs` | Native EPUB and PDF pagination (`EpubBookPaginator`, `PdfBookPaginator`), `ReaderManager`, and cover extraction (`CoverExtractorAdapter`). |
+| **Rust (`scholarium-core`)** | Platform, Sync, Discord IPC & TTS | `tests/platform_and_config_spec.rs`<br>`tests/cloudless_sync_and_portability_spec.rs`<br>`tests/cached_storage_and_presence_spec.rs`<br>`tests/discord_presence_spec.rs`<br>`tests/tts_and_system_bridge_spec.rs` | OS directory resolution, LWW merge, `CachedStorageDecorator`, `RichPresenceManager`, `DiscordPresenceAdapter`, and `TtsSessionManager`. |

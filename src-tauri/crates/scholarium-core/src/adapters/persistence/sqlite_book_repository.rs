@@ -40,7 +40,7 @@ impl SqliteBookRepository {
     }
 
     pub fn open_for_platform<E: PlatformEnvironment + ?Sized>(env: &E) -> Result<Self, String> {
-        let db_path = env.resolve_database_path("ipdf.db")?;
+        let db_path = env.resolve_database_path("scholarium.db")?;
         Self::open_file(db_path)
     }
 

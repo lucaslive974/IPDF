@@ -1,11 +1,11 @@
 mod fakes;
 
 use fakes::FakeDiscordPresenceClient;
-use ipdf_core::adapters::presence::{
+use scholarium_core::adapters::presence::{
     DiscordPresenceAdapter, NativeDiscordPresenceAdapter, DEFAULT_DISCORD_CLIENT_ID,
 };
-use ipdf_core::core::ports::{PresenceActivity, PresenceProvider, ReadingActivity};
-use ipdf_core::core::services::RichPresenceManager;
+use scholarium_core::core::ports::{PresenceActivity, PresenceProvider, ReadingActivity};
+use scholarium_core::core::services::RichPresenceManager;
 
 #[test]
 fn test_discord_presence_start_and_publish_reading_activity() {

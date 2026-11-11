@@ -1820,19 +1820,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ipdf-core"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "discord-presence",
- "rusqlite",
- "serde",
- "serde_json",
- "sha2",
- "zip",
-]
-
-[[package]]
 name = "ipnet"
 version = "2.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3179,13 +3166,26 @@ name = "scholarium"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
- "ipdf-core",
  "rfd",
+ "scholarium-core",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-single-instance",
+]
+
+[[package]]
+name = "scholarium-core"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "discord-presence",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "zip",
 ]
 
 [[package]]

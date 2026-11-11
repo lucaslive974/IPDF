@@ -260,19 +260,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ipdf-core"
-version = "0.1.0"
-dependencies = [
- "base64",
- "discord-presence",
- "rusqlite",
- "serde",
- "serde_json",
- "sha2",
- "zip",
-]
-
-[[package]]
 name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -530,6 +517,19 @@ name = "rustversion"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
+
+[[package]]
+name = "scholarium-core"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "discord-presence",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "zip",
+]
 
 [[package]]
 name = "scopeguard"

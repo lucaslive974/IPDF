@@ -2,37 +2,38 @@ use crate::core::domain::PlatformKind;
 use crate::core::ports::PlatformEnvironment;
 use std::path::PathBuf;
 
-pub struct WindowsEnvironment {
+pub struct IosEnvironment {
     base_dir: PathBuf,
 }
 
-impl WindowsEnvironment {
+impl IosEnvironment {
     pub fn new(custom_root: Option<PathBuf>) -> Self {
-        let base = custom_root.unwrap_or_else(|| PathBuf::from("C:\\Users\\Default\\AppData"));
+        let base = custom_root
+            .unwrap_or_else(|| PathBuf::from("/var/mobile/Containers/Data/Application/Scholarium"));
         Self { base_dir: base }
     }
 }
 
-impl Default for WindowsEnvironment {
+impl Default for IosEnvironment {
     fn default() -> Self {
         Self::new(None)
     }
 }
 
-impl PlatformEnvironment for WindowsEnvironment {
+impl PlatformEnvironment for IosEnvironment {
     fn platform_kind(&self) -> PlatformKind {
-        PlatformKind::Windows
+        PlatformKind::Ios
     }
 
     fn config_dir(&self) -> Result<PathBuf, String> {
-        Ok(self.base_dir.join("Roaming").join("IPDF"))
+        Ok(self.base_dir.join("Library/Application Support/Scholarium"))
     }
 
     fn data_dir(&self) -> Result<PathBuf, String> {
-        Ok(self.base_dir.join("Local").join("IPDF").join("Data"))
+        Ok(self.base_dir.join("Documents"))
     }
 
     fn cache_dir(&self) -> Result<PathBuf, String> {
-        Ok(self.base_dir.join("Local").join("IPDF").join("Cache"))
+        Ok(self.base_dir.join("Library/Caches/Scholarium"))
     }
 }

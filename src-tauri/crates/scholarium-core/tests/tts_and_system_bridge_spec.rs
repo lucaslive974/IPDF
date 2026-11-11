@@ -1,8 +1,8 @@
 mod fakes;
 
 use fakes::{SpyMediaControls, SpyPowerBlocker, SpyTtsProvider};
-use ipdf_core::core::ports::{MediaMetadata, PlaybackState, SpeakOptions};
-use ipdf_core::core::services::{SentenceQueueItem, TtsSessionManager};
+use scholarium_core::core::ports::{MediaMetadata, PlaybackState, SpeakOptions};
+use scholarium_core::core::services::{SentenceQueueItem, TtsSessionManager};
 
 #[test]
 fn test_tts_session_coordinates_prefetch_media_controls_and_wake_lock() {

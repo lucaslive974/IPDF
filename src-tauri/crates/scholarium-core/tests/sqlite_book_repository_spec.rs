@@ -1,8 +1,8 @@
 mod fakes;
 
-use ipdf_core::adapters::persistence::SqliteBookRepository;
-use ipdf_core::core::domain::{BookFormat, BookMetadata, BookStorageLocation};
-use ipdf_core::core::ports::BookRepository;
+use scholarium_core::adapters::persistence::SqliteBookRepository;
+use scholarium_core::core::domain::{BookFormat, BookMetadata, BookStorageLocation};
+use scholarium_core::core::ports::BookRepository;
 
 #[test]
 fn test_sqlite_book_repository_lifecycle() {
@@ -166,7 +166,7 @@ fn test_sqlite_book_storage_locations() {
     assert_eq!(repo.get_storage_locations("hash-ethics").unwrap().len(), 0);
 
     // 5. Test open_for_platform and open_file
-    use ipdf_core::adapters::platform::LinuxEnvironment;
+    use scholarium_core::adapters::platform::LinuxEnvironment;
     let temp_dir = std::env::temp_dir().join(format!("test_sqlite_book_{}", std::process::id()));
     let env = LinuxEnvironment::new(Some(temp_dir.clone()));
     let platform_repo = SqliteBookRepository::open_for_platform(&env);

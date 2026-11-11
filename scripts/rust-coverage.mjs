@@ -4,11 +4,11 @@ import { join, resolve } from 'node:path';
 
 const MIN_COVERAGE_THRESHOLD = 80;
 const rootDir = resolve(import.meta.dirname, '..');
-const crateDir = join(rootDir, 'src-tauri', 'crates', 'ipdf-core');
+const crateDir = join(rootDir, 'src-tauri', 'crates', 'scholarium-core');
 const manifestPath = join(crateDir, 'Cargo.toml');
 const coverageDir = join(rootDir, 'coverage');
 const profrawDir = join(coverageDir, 'profraw');
-const profdataPath = join(coverageDir, 'ipdf-core.profdata');
+const profdataPath = join(coverageDir, 'scholarium-core.profdata');
 const rustLcovPath = join(coverageDir, 'rust-lcov.info');
 const tsLcovPath = join(coverageDir, 'lcov.info');
 
@@ -30,7 +30,7 @@ const testRun = spawnSync(
     env: {
       ...process.env,
       RUSTFLAGS: '-C instrument-coverage',
-      LLVM_PROFILE_FILE: join(profrawDir, 'ipdf-core-%p-%m.profraw'),
+      LLVM_PROFILE_FILE: join(profrawDir, 'scholarium-core-%p-%m.profraw'),
     },
     encoding: 'utf8',
     stdio: ['inherit', 'pipe', 'inherit'],
@@ -67,7 +67,7 @@ execFileSync(llvmProfdata, ['merge', '-sparse', ...profrawFiles, '-o', profdataP
 const objectArgs = executables.flatMap((exe, index) => (index === 0 ? [exe] : ['--object', exe]));
 const srcDir = join(crateDir, 'src');
 
-console.log('\n % Rust Coverage report from llvm-cov (ipdf-core)');
+console.log('\n % Rust Coverage report from llvm-cov (scholarium-core)');
 execFileSync(llvmCov, ['report', ...objectArgs, `--instr-profile=${profdataPath}`, srcDir], {
   stdio: 'inherit',
 });
@@ -82,7 +82,7 @@ writeFileSync(rustLcovPath, lcovOutput, 'utf8');
 
 if (existsSync(tsLcovPath)) {
   const existingLcov = readFileSync(tsLcovPath, 'utf8');
-  if (!existingLcov.includes('src-tauri/crates/ipdf-core')) {
+  if (!existingLcov.includes('src-tauri/crates/scholarium-core')) {
     writeFileSync(tsLcovPath, `${existingLcov.trimEnd()}\n${lcovOutput}`, 'utf8');
   }
 } else {

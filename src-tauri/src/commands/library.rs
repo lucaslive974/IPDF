@@ -1,9 +1,9 @@
 use crate::state::BackendState;
 use crate::utils::current_epoch_ms;
-use ipdf_core::adapters::extractor::CoverExtractorAdapter;
-use ipdf_core::core::domain::{BookFormat, BookMetadata};
-use ipdf_core::core::ports::{BookRepository, HighlightRepository, ReadingActivity};
-use ipdf_core::core::services::{ImportBookInput, Sha256BookHasher};
+use scholarium_core::adapters::extractor::CoverExtractorAdapter;
+use scholarium_core::core::domain::{BookFormat, BookMetadata};
+use scholarium_core::core::ports::{BookRepository, HighlightRepository, ReadingActivity};
+use scholarium_core::core::services::{ImportBookInput, Sha256BookHasher};
 use std::io::Cursor;
 use std::path::Path;
 use std::sync::Mutex;

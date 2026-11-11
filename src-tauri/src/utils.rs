@@ -42,28 +42,28 @@ mod tests {
         std::fs::write(&txt_path, b"text content").unwrap();
 
         // 1. Only binary name passed
-        assert!(find_file_argument(&["ipdf".to_string()]).is_none());
+        assert!(find_file_argument(&["scholarium".to_string()]).is_none());
 
         // 2. Flags are ignored
         assert!(
-            find_file_argument(&["ipdf".to_string(), "--help".to_string(), "-v".to_string()])
+            find_file_argument(&["scholarium".to_string(), "--help".to_string(), "-v".to_string()])
                 .is_none()
         );
 
         // 3. EPUB file is found
         let args_epub = vec![
-            "ipdf".to_string(),
+            "scholarium".to_string(),
             "--debug".to_string(),
             epub_path.to_string_lossy().to_string(),
         ];
         assert_eq!(find_file_argument(&args_epub), Some(epub_path.clone()));
 
         // 4. PDF file is found
-        let args_pdf = vec!["ipdf".to_string(), pdf_path.to_string_lossy().to_string()];
+        let args_pdf = vec!["scholarium".to_string(), pdf_path.to_string_lossy().to_string()];
         assert_eq!(find_file_argument(&args_pdf), Some(pdf_path.clone()));
 
         // 5. TXT file is ignored
-        let args_txt = vec!["ipdf".to_string(), txt_path.to_string_lossy().to_string()];
+        let args_txt = vec!["scholarium".to_string(), txt_path.to_string_lossy().to_string()];
         assert!(find_file_argument(&args_txt).is_none());
 
         let _ = std::fs::remove_file(&epub_path);

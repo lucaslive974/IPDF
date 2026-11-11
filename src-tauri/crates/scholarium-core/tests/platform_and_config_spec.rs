@@ -1,42 +1,42 @@
-use ipdf_core::adapters::configuration::SqliteConfigurationStore;
-use ipdf_core::adapters::persistence::SqliteHighlightRepository;
-use ipdf_core::adapters::platform::{
+use scholarium_core::adapters::configuration::SqliteConfigurationStore;
+use scholarium_core::adapters::persistence::SqliteHighlightRepository;
+use scholarium_core::adapters::platform::{
     create_platform_environment, AndroidEnvironment, IosEnvironment, LinuxEnvironment,
     WindowsEnvironment,
 };
-use ipdf_core::adapters::storage::LocalFolderStorageAdapter;
-use ipdf_core::core::domain::{BookFormat, Highlight, HighlightAnchor, PlatformKind};
-use ipdf_core::core::ports::{
+use scholarium_core::adapters::storage::LocalFolderStorageAdapter;
+use scholarium_core::core::domain::{BookFormat, Highlight, HighlightAnchor, PlatformKind};
+use scholarium_core::core::ports::{
     ConfigurationStore, HighlightRepository, PlatformEnvironment, StorageProvider,
 };
-use ipdf_core::core::services::LibraryManager;
+use scholarium_core::core::services::LibraryManager;
 use std::env;
 use std::fs;
 
 #[test]
 fn test_platform_environments_path_resolution() {
-    let temp_base = env::temp_dir().join(format!("ipdf_env_test_{}", std::process::id()));
+    let temp_base = env::temp_dir().join(format!("scholarium_env_test_{}", std::process::id()));
     let _ = fs::remove_dir_all(&temp_base);
 
     // 1. Linux with Flatpak .var path
-    let linux = LinuxEnvironment::new(Some(temp_base.join(".var/app/com.ipdf.reader")));
+    let linux = LinuxEnvironment::new(Some(temp_base.join(".var/app/com.scholarium.reader")));
     assert_eq!(linux.platform_kind(), PlatformKind::Linux);
     let linux_data = linux.data_dir().unwrap();
     let linux_cfg = linux.config_dir().unwrap();
     let linux_cache = linux.cache_dir().unwrap();
     assert!(linux_data
         .to_string_lossy()
-        .contains(".var/app/com.ipdf.reader/data"));
+        .contains(".var/app/com.scholarium.reader/data"));
     assert!(linux_cfg
         .to_string_lossy()
-        .contains(".var/app/com.ipdf.reader/config"));
+        .contains(".var/app/com.scholarium.reader/config"));
     assert!(linux_cache
         .to_string_lossy()
-        .contains(".var/app/com.ipdf.reader/cache"));
+        .contains(".var/app/com.scholarium.reader/cache"));
     assert!(linux
-        .resolve_database_path("ipdf.db")
+        .resolve_database_path("scholarium.db")
         .unwrap()
-        .ends_with("ipdf.db"));
+        .ends_with("scholarium.db"));
     assert!(linux
         .resolve_highlights_path("sha256-book1")
         .unwrap()
@@ -77,17 +77,17 @@ fn test_platform_environments_path_resolution() {
         .config_dir()
         .unwrap()
         .to_string_lossy()
-        .contains("Roaming/IPDF"));
+        .contains("Roaming/Scholarium"));
     assert!(windows
         .data_dir()
         .unwrap()
         .to_string_lossy()
-        .contains("Local/IPDF/Data"));
+        .contains("Local/Scholarium/Data"));
     assert!(windows
         .cache_dir()
         .unwrap()
         .to_string_lossy()
-        .contains("Local/IPDF/Cache"));
+        .contains("Local/Scholarium/Cache"));
 
     let windows_default = WindowsEnvironment::default();
     assert_eq!(windows_default.platform_kind(), PlatformKind::Windows);
@@ -107,12 +107,12 @@ fn test_platform_environments_path_resolution() {
         .config_dir()
         .unwrap()
         .to_string_lossy()
-        .contains("Library/Application Support/IPDF"));
+        .contains("Library/Application Support/Scholarium"));
     assert!(ios
         .cache_dir()
         .unwrap()
         .to_string_lossy()
-        .contains("Library/Caches/IPDF"));
+        .contains("Library/Caches/Scholarium"));
 
     let ios_default = IosEnvironment::default();
     assert_eq!(ios_default.platform_kind(), PlatformKind::Ios);
@@ -144,7 +144,7 @@ fn test_platform_environments_path_resolution() {
 
 #[test]
 fn test_configuration_store_sqlite() {
-    let temp_base = env::temp_dir().join(format!("ipdf_cfg_test_{}", std::process::id()));
+    let temp_base = env::temp_dir().join(format!("scholarium_cfg_test_{}", std::process::id()));
     let _ = fs::remove_dir_all(&temp_base);
 
     // 1. File-backed SqliteConfigurationStore with persistence verification
@@ -204,11 +204,14 @@ fn test_configuration_store_sqlite() {
 
 #[test]
 fn test_repositories_and_storage_integration_with_platform_environment() {
-    let temp_base = env::temp_dir().join(format!("ipdf_integration_test_{}", std::process::id()));
+    let temp_base = env::temp_dir().join(format!(
+        "scholarium_integration_test_{}",
+        std::process::id()
+    ));
     let _ = fs::remove_dir_all(&temp_base);
 
     // Use Linux Flatpak environment as representative
-    let env = LinuxEnvironment::new(Some(temp_base.join(".var/app/com.ipdf.reader")));
+    let env = LinuxEnvironment::new(Some(temp_base.join(".var/app/com.scholarium.reader")));
 
     // 1. Open SQLite highlight repository and storage for platform environment
     let mut hl_repo = SqliteHighlightRepository::open_for_platform(&env).unwrap();
@@ -222,7 +225,7 @@ fn test_repositories_and_storage_integration_with_platform_environment() {
         "Lifestyle design",
         "#eab308",
         HighlightAnchor {
-            format: ipdf_core::core::domain::BookFormat::Epub,
+            format: scholarium_core::core::domain::BookFormat::Epub,
             page_number: 1,
             epub_cfi: Some("epubcfi(/6/2!/4/2)".to_string()),
             pdf_rects: None,
@@ -252,7 +255,7 @@ fn test_repositories_and_storage_integration_with_platform_environment() {
         b"epub-content".to_vec()
     );
 
-    // 3. Configuration Store for platform environment (SqliteConfigurationStore in ipdf.db)
+    // 3. Configuration Store for platform environment (SqliteConfigurationStore in scholarium.db)
     let mut sqlite_config_store = SqliteConfigurationStore::for_platform(&env).unwrap();
     sqlite_config_store
         .set("platform_setting", "enabled")

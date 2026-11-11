@@ -1,10 +1,10 @@
 mod fakes;
 
 use fakes::{InMemoryStorage, SpyPresence};
-use ipdf_core::adapters::storage::CachedStorageDecorator;
-use ipdf_core::core::domain::BookFormat;
-use ipdf_core::core::ports::{ReadingActivity, ReadingContext, StorageProvider};
-use ipdf_core::core::services::{PromptBuilder, RichPresenceManager};
+use scholarium_core::adapters::storage::CachedStorageDecorator;
+use scholarium_core::core::domain::BookFormat;
+use scholarium_core::core::ports::{ReadingActivity, ReadingContext, StorageProvider};
+use scholarium_core::core::services::{PromptBuilder, RichPresenceManager};
 
 #[test]
 fn test_cached_storage_decorator_and_presence_debounce() {

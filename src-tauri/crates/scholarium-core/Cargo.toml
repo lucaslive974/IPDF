@@ -1,8 +1,8 @@
 [package]
-name = "ipdf-core"
+name = "scholarium-core"
 version = "0.1.0"
 edition = "2021"
-description = "Hexagonal Core Domain, Ports, and Services for IPDF Active Study Reader"
+description = "Hexagonal Core Domain, Ports, and Services for Scholarium Active Study Reader"
 
 [dependencies]
 base64 = "0.22"

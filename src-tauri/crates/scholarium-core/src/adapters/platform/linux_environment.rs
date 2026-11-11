@@ -11,9 +11,9 @@ impl LinuxEnvironment {
     pub fn new(custom_root: Option<PathBuf>) -> Self {
         let base = custom_root.unwrap_or_else(|| {
             if let Ok(home) = env::var("HOME") {
-                PathBuf::from(home).join(".var/app/com.ipdf.reader")
+                PathBuf::from(home).join(".var/app/com.scholarium.reader")
             } else {
-                PathBuf::from("/tmp/ipdf")
+                PathBuf::from("/tmp/scholarium")
             }
         });
         Self { base_dir: base }

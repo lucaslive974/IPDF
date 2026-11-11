@@ -4,7 +4,7 @@
 
 The project uses **Clean Architecture / Hexagonal Architecture (Ports & Adapters)** combined with a **Backend-Heavy Rust** core and a **Reactive MVVC Frontend** to ensure low memory usage and a 60fps UI:
 
-- **Native Rust Core (`src-tauri/crates/ipdf-core/`):**
+- **Native Rust Core (`src-tauri/crates/scholarium-core/`):**
   - Isolated as a pure library crate (with no direct WebKit/window dependencies, allowing `cargo test` and `cargo clippy` to run standalone).
   - Houses domain entities (`BookMetadata`, `BookStorageLocation`, `Highlight`, `RichAnnotation`), port traits (`BookRepository`, `HighlightRepository`, `BookPaginator`, `BookCoverExtractor`, `StorageProvider`, `ConfigurationStore`, `PlatformEnvironment`, `ExportStrategy`, `LlmProvider`, `PresenceProvider`, `TtsProvider`, `SystemBridge`), and application services (`LibraryManager`, `ReaderManager`, `HighlightManager`, `Sha256BookHasher`, `DataPortabilityService`, `CloudlessSyncEngine`, `PromptBuilder`, `RichPresenceManager`, `TtsSessionManager`).
   - Contains concrete adapters for SQLite persistence (with SQL queries isolated in `*_queries.rs` files), EPUB/PDF pagination, cover extraction, OS platform environments (`LinuxEnvironment`, `WindowsEnvironment`, `AndroidEnvironment`, `IosEnvironment`), Discord IPC, and local/cached storage.
@@ -31,7 +31,7 @@ The project uses **Clean Architecture / Hexagonal Architecture (Ports & Adapters
 ```text
 ├── src-tauri/
 │   ├── crates/
-│   │   └── ipdf-core/
+│   │   └── scholarium-core/
 │   │       ├── src/
 │   │       │   ├── core/
 │   │       │   │   ├── domain/           # types.rs, book_metadata.rs, book_storage_location.rs, rich_annotation.rs, highlight.rs
@@ -46,7 +46,7 @@ The project uses **Clean Architecture / Hexagonal Architecture (Ports & Adapters
 │   │       │   │   ├── presence/         # discord_presence_adapter.rs, discord_presence_client.rs
 │   │       │   │   └── storage/          # local_folder_storage_adapter.rs, cached_storage_decorator.rs
 │   │       │   └── lib.rs
-│   │       └── tests/                    # Unit and integration test suites for ipdf-core
+│   │       └── tests/                    # Unit and integration test suites for scholarium-core
 │   │           ├── fakes/mod.rs
 │   │           ├── cached_storage_and_presence_spec.rs
 │   │           ├── cloudless_sync_and_portability_spec.rs
@@ -144,7 +144,7 @@ flowchart TB
         Commands --> Runtime
     end
 
-    subgraph RustCore["Native Crate (src-tauri/crates/ipdf-core/)"]
+    subgraph RustCore["Native Crate (src-tauri/crates/scholarium-core/)"]
         ServicesRS["Services (LibraryManager, ReaderManager, HighlightManager, RichPresenceManager, CloudlessSyncEngine)"]
         AdaptersRS["Adapters (SqliteBookRepository, SqliteHighlightRepository, EpubBookPaginator, PdfBookPaginator, CoverExtractorAdapter, DiscordPresenceAdapter, LocalFolderStorageAdapter)"]
         Runtime --> ServicesRS

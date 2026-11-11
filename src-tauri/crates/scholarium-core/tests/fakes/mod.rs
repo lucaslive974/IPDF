@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
-use ipdf_core::core::domain::{BookFormat, BookMetadata, BookStorageLocation, Highlight};
-use ipdf_core::core::ports::{
+use scholarium_core::core::domain::{BookFormat, BookMetadata, BookStorageLocation, Highlight};
+use scholarium_core::core::ports::{
     BookRepository, ExportStrategy, HighlightRepository, MediaControlService, MediaMetadata,
     PlaybackState, PowerSaveBlocker, PresenceActivity, PresenceHealth, PresenceProvider,
     SpeakOptions, StorageEntry, StorageProvider, SyncPayload, TtsProvider,
@@ -433,7 +433,7 @@ impl Default for FakeDiscordPresenceClient {
     }
 }
 
-impl ipdf_core::adapters::presence::DiscordPresenceClient for FakeDiscordPresenceClient {
+impl scholarium_core::adapters::presence::DiscordPresenceClient for FakeDiscordPresenceClient {
     fn is_started(&self) -> bool {
         self.started
     }

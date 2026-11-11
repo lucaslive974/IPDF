@@ -1,6 +1,6 @@
 use crate::dtos::IpcLlmRequestDto;
-use ipdf_core::core::ports::ReadingContext;
-use ipdf_core::core::services::PromptBuilder;
+use scholarium_core::core::ports::ReadingContext;
+use scholarium_core::core::services::PromptBuilder;
 
 #[tauri::command]
 pub fn build_term_lookup_prompt(

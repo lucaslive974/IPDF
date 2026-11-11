@@ -1,16 +1,16 @@
 use crate::seed::seed_bundled_assets_if_needed;
 use crate::utils::find_file_argument;
-use ipdf_core::adapters::configuration::SqliteConfigurationStore;
-use ipdf_core::adapters::persistence::{SqliteBookRepository, SqliteHighlightRepository};
+use scholarium_core::adapters::configuration::SqliteConfigurationStore;
+use scholarium_core::adapters::persistence::{SqliteBookRepository, SqliteHighlightRepository};
 #[allow(unused_imports)]
-use ipdf_core::adapters::platform::{
+use scholarium_core::adapters::platform::{
     AndroidEnvironment, IosEnvironment, LinuxEnvironment, WindowsEnvironment,
 };
-use ipdf_core::adapters::presence::NativeDiscordPresenceAdapter;
-use ipdf_core::adapters::storage::LocalFolderStorageAdapter;
-use ipdf_core::core::domain::BookMetadata;
-use ipdf_core::core::ports::{ConfigurationStore, PlatformEnvironment};
-use ipdf_core::core::services::{LibraryManager, ReaderManager, RichPresenceManager};
+use scholarium_core::adapters::presence::NativeDiscordPresenceAdapter;
+use scholarium_core::adapters::storage::LocalFolderStorageAdapter;
+use scholarium_core::core::domain::BookMetadata;
+use scholarium_core::core::ports::{ConfigurationStore, PlatformEnvironment};
+use scholarium_core::core::services::{LibraryManager, ReaderManager, RichPresenceManager};
 
 pub struct BackendState {
     pub library: LibraryManager<LocalFolderStorageAdapter>,

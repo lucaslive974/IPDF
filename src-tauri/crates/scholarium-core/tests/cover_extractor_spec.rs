@@ -1,8 +1,8 @@
-use ipdf_core::adapters::extractor::{
+use scholarium_core::adapters::extractor::{
     BookCoverExtractorFactory, CoverExtractorAdapter, EpubCoverExtractor, PdfCoverExtractor,
 };
-use ipdf_core::core::domain::BookFormat;
-use ipdf_core::core::ports::{BookCoverExtractor, StorageProvider};
+use scholarium_core::core::domain::BookFormat;
+use scholarium_core::core::ports::{BookCoverExtractor, StorageProvider};
 use std::io::Write;
 
 mod fakes;

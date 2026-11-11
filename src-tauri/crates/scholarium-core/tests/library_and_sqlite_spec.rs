@@ -1,13 +1,13 @@
 mod fakes;
 
 use fakes::InMemoryStorage;
-use ipdf_core::adapters::persistence::SqliteHighlightRepository;
-use ipdf_core::adapters::storage::LocalFolderStorageAdapter;
-use ipdf_core::core::domain::{
+use scholarium_core::adapters::persistence::SqliteHighlightRepository;
+use scholarium_core::adapters::storage::LocalFolderStorageAdapter;
+use scholarium_core::core::domain::{
     BookFormat, BoundingBox, Highlight, HighlightAnchor, RichAnnotation,
 };
-use ipdf_core::core::ports::{BookRepository, HighlightRepository, StorageProvider};
-use ipdf_core::core::services::{ImportBookInput, LibraryManager, Sha256BookHasher};
+use scholarium_core::core::ports::{BookRepository, HighlightRepository, StorageProvider};
+use scholarium_core::core::services::{ImportBookInput, LibraryManager, Sha256BookHasher};
 use std::env;
 use std::fs;
 
@@ -124,7 +124,7 @@ fn test_library_manager_import_progress_and_sorting() {
 
 #[test]
 fn test_sqlite_highlight_repository() {
-    let db_path = env::temp_dir().join(format!("ipdf_sqlite_test_{}.db", std::process::id()));
+    let db_path = env::temp_dir().join(format!("scholarium_sqlite_test_{}.db", std::process::id()));
     let _ = fs::remove_file(&db_path);
     let _file_hl_repo = SqliteHighlightRepository::open_file(&db_path).unwrap();
     let _ = fs::remove_file(&db_path);
@@ -185,7 +185,7 @@ fn test_sqlite_highlight_repository() {
 
 #[test]
 fn test_local_folder_storage_adapter() {
-    let temp_dir = env::temp_dir().join(format!("ipdf_storage_test_{}", std::process::id()));
+    let temp_dir = env::temp_dir().join(format!("scholarium_storage_test_{}", std::process::id()));
     let _ = fs::remove_dir_all(&temp_dir);
 
     let mut adapter = LocalFolderStorageAdapter::new("local-folder", &temp_dir);
@@ -253,7 +253,7 @@ fn test_local_folder_storage_adapter() {
 #[test]
 fn test_library_manager_and_reader_get_book_pages_on_demand() {
     use fakes::InMemoryBookRepo;
-    use ipdf_core::core::services::ReaderManager;
+    use scholarium_core::core::services::ReaderManager;
 
     let storage = InMemoryStorage::new("local-memory");
     let book_repo = InMemoryBookRepo::default();
@@ -464,7 +464,7 @@ fn test_library_manager_and_sqlite_delete_book_cascades() {
 #[test]
 fn test_library_manager_with_sqlite_book_repo_integration() {
     use fakes::InMemoryBookRepo;
-    use ipdf_core::core::ports::BookRepository;
+    use scholarium_core::core::ports::BookRepository;
 
     let storage = InMemoryStorage::new("local-storage");
     let book_repo = InMemoryBookRepo::default();
@@ -597,8 +597,8 @@ fn test_library_manager_with_sqlite_book_repo_integration() {
 #[test]
 fn test_library_manager_zip_epub_and_open_binary_fallbacks() {
     use fakes::InMemoryBookRepo;
-    use ipdf_core::core::domain::{BookMetadata, BookStorageLocation};
-    use ipdf_core::core::ports::BookRepository;
+    use scholarium_core::core::domain::{BookMetadata, BookStorageLocation};
+    use scholarium_core::core::ports::BookRepository;
     use std::io::Write;
 
     let storage = InMemoryStorage::new("local-memory");

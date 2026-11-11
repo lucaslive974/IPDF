@@ -1,8 +1,8 @@
 use crate::dtos::{IpcPlatformInfoDto, UpdateReadingPresenceDto};
 use crate::state::BackendState;
 use crate::utils::current_epoch_ms;
-use ipdf_core::core::domain::BookMetadata;
-use ipdf_core::core::ports::{
+use scholarium_core::core::domain::BookMetadata;
+use scholarium_core::core::ports::{
     ConfigurationStore, PresenceActivity, PresenceHealth, ReadingActivity,
 };
 use std::sync::Mutex;
@@ -10,7 +10,7 @@ use tauri::State;
 
 #[tauri::command]
 pub fn healthcheck() -> &'static str {
-    "IPDF Tauri v2 Native Backend Active"
+    "Scholarium Tauri v2 Native Backend Active"
 }
 
 #[tauri::command]
@@ -27,7 +27,7 @@ pub fn get_platform_info(
         data_dir: env.data_dir()?.to_string_lossy().to_string(),
         cache_dir: env.cache_dir()?.to_string_lossy().to_string(),
         database_path: env
-            .resolve_database_path("ipdf.db")?
+            .resolve_database_path("scholarium.db")?
             .to_string_lossy()
             .to_string(),
         supports_discord_presence: supports_discord,

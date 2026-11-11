@@ -1,4 +1,4 @@
-use ipdf_core::core::domain::{
+use scholarium_core::core::domain::{
     BookFormat, BoundingBox, Highlight, HighlightAnchor, RichAnnotation, RichAnnotationType,
 };
 

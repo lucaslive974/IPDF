@@ -1,7 +1,7 @@
-use ipdf_core::adapters::extractor::CoverExtractorAdapter;
-use ipdf_core::core::domain::BookFormat;
-use ipdf_core::core::ports::{BookRepository, ConfigurationStore, StorageProvider};
-use ipdf_core::core::services::{ImportBookInput, LibraryManager, Sha256BookHasher};
+use scholarium_core::adapters::extractor::CoverExtractorAdapter;
+use scholarium_core::core::domain::BookFormat;
+use scholarium_core::core::ports::{BookRepository, ConfigurationStore, StorageProvider};
+use scholarium_core::core::services::{ImportBookInput, LibraryManager, Sha256BookHasher};
 
 pub const BUNDLED_REPUBLIC_EPUB: &[u8] = include_bytes!("../../assets/republic-plato.epub");
 pub const INITIAL_SEED_KEY: &str = "initial_seed_completed_v1";
@@ -49,15 +49,15 @@ pub fn seed_bundled_assets_if_needed<S: StorageProvider, R: BookRepository, C: C
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ipdf_core::adapters::configuration::SqliteConfigurationStore;
-    use ipdf_core::adapters::persistence::SqliteBookRepository;
-    use ipdf_core::adapters::storage::LocalFolderStorageAdapter;
+    use scholarium_core::adapters::configuration::SqliteConfigurationStore;
+    use scholarium_core::adapters::persistence::SqliteBookRepository;
+    use scholarium_core::adapters::storage::LocalFolderStorageAdapter;
     use std::env;
     use std::fs;
 
     #[test]
     fn test_seed_bundled_assets_first_run_and_subsequent_runs() {
-        let temp_dir = env::temp_dir().join(format!("ipdf_seed_test_{}", std::process::id()));
+        let temp_dir = env::temp_dir().join(format!("scholarium_seed_test_{}", std::process::id()));
         let _ = fs::remove_dir_all(&temp_dir);
         let storage = LocalFolderStorageAdapter::new("local-folder", &temp_dir);
         let book_repo = SqliteBookRepository::new_in_memory().unwrap();

@@ -277,7 +277,7 @@ vi.mock('@tauri-apps/api/core', () => ({
         configDir: '/mock/config',
         dataDir: '/mock/data',
         cacheDir: '/mock/cache',
-        databasePath: '/mock/data/ipdf.db',
+        databasePath: '/mock/data/scholarium.db',
         supportsDiscordPresence: true,
       } as unknown as T;
     }

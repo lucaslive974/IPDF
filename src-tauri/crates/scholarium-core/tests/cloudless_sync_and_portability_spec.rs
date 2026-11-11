@@ -1,12 +1,12 @@
 mod fakes;
 
 use fakes::{InMemoryHighlightRepo, InMemoryStorage, JsonExport};
-use ipdf_core::core::domain::{BookFormat, BookMetadata, Highlight, HighlightAnchor};
-use ipdf_core::core::ports::{
+use scholarium_core::core::domain::{BookFormat, BookMetadata, Highlight, HighlightAnchor};
+use scholarium_core::core::ports::{
     ConflictResolution, ExportOptions, ExportStrategy, HighlightRepository, StorageProvider,
     SyncPayload,
 };
-use ipdf_core::core::services::{
+use scholarium_core::core::services::{
     CloudlessSyncEngine, CreateHighlightInput, DataPortabilityService, HighlightManager,
 };
 use std::collections::BTreeMap;

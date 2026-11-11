@@ -1,5 +1,5 @@
 use crate::state::BackendState;
-use ipdf_core::core::ports::ConfigurationStore;
+use scholarium_core::core::ports::ConfigurationStore;
 use std::sync::Mutex;
 use tauri::State;
 
