@@ -1,4 +1,6 @@
 import {
+  BookWebglContext,
+  computeFanningPageTransform,
   computePageProgress,
   createBookViewMatrix,
   createPageGridGeometry,
@@ -40,6 +42,24 @@ describe('bookWebglRenderer', () => {
     expect(wrapped).toBeCloseTo(0);
   });
 
+  it('computes eased angle, curvature bend, and edge fade for fanning pages', () => {
+    const start = computeFanningPageTransform(0);
+    const mid = computeFanningPageTransform(0.5);
+    const end = computeFanningPageTransform(1);
+
+    expect(start.angle).toBeCloseTo(0.12);
+    expect(start.bend).toBeCloseTo(0);
+    expect(start.opacity).toBe(0);
+
+    expect(mid.angle).toBeCloseTo(Math.PI / 2);
+    expect(mid.bend).toBeCloseTo(0.42);
+    expect(mid.opacity).toBe(1);
+
+    expect(end.angle).toBeCloseTo(Math.PI - 0.12);
+    expect(end.bend).toBeCloseTo(0);
+    expect(end.opacity).toBe(0);
+  });
+
   it('falls back gracefully when WebGL context is unavailable', () => {
     const fakeCanvas = {
       getContext: vi.fn().mockReturnValue(null),
@@ -51,5 +71,88 @@ describe('bookWebglRenderer', () => {
       antialias: true,
     });
     expect(() => cleanup()).not.toThrow();
+  });
+
+  it('manages WebGL lifecycle, renders frames, and disposes GPU resources cleanly', () => {
+    const mockGl = {
+      VERTEX_SHADER: 1,
+      FRAGMENT_SHADER: 2,
+      COMPILE_STATUS: 3,
+      LINK_STATUS: 4,
+      ARRAY_BUFFER: 5,
+      ELEMENT_ARRAY_BUFFER: 6,
+      STATIC_DRAW: 7,
+      DEPTH_TEST: 8,
+      BLEND: 9,
+      SRC_ALPHA: 10,
+      ONE_MINUS_SRC_ALPHA: 11,
+      COLOR_BUFFER_BIT: 12,
+      DEPTH_BUFFER_BIT: 13,
+      FLOAT: 14,
+      TRIANGLES: 15,
+      UNSIGNED_SHORT: 16,
+      createShader: vi.fn(() => ({})),
+      shaderSource: vi.fn(),
+      compileShader: vi.fn(),
+      getShaderParameter: vi.fn(() => true),
+      deleteShader: vi.fn(),
+      createProgram: vi.fn(() => ({})),
+      attachShader: vi.fn(),
+      linkProgram: vi.fn(),
+      getProgramParameter: vi.fn(() => true),
+      deleteProgram: vi.fn(),
+      createBuffer: vi.fn(() => ({})),
+      deleteBuffer: vi.fn(),
+      bindBuffer: vi.fn(),
+      bufferData: vi.fn(),
+      getAttribLocation: vi.fn(() => 0),
+      getUniformLocation: vi.fn(() => ({})),
+      enable: vi.fn(),
+      blendFunc: vi.fn(),
+      viewport: vi.fn(),
+      clearColor: vi.fn(),
+      clear: vi.fn(),
+      useProgram: vi.fn(),
+      enableVertexAttribArray: vi.fn(),
+      vertexAttribPointer: vi.fn(),
+      uniformMatrix4fv: vi.fn(),
+      uniform1f: vi.fn(),
+      uniform3f: vi.fn(),
+      drawElements: vi.fn(),
+    } as unknown as WebGLRenderingContext;
+
+    const fakeCanvas = {
+      clientWidth: 160,
+      clientHeight: 160,
+      width: 0,
+      height: 0,
+      getContext: vi.fn().mockReturnValue(mockGl),
+    } as unknown as HTMLCanvasElement;
+
+    const originalWindow = globalThis.window;
+    globalThis.window = {
+      devicePixelRatio: 1,
+      requestAnimationFrame: vi.fn(() => 42),
+      cancelAnimationFrame: vi.fn(),
+    } as unknown as Window & typeof globalThis;
+
+    try {
+      const ctx = BookWebglContext.create(fakeCanvas);
+      expect(ctx).not.toBeNull();
+      if (!ctx) return;
+
+      ctx.start();
+      ctx.renderFrame(performance.now() + 100);
+      // 4 static surfaces + 5 fanning pages = 9 drawElements calls
+      expect(mockGl.drawElements).toHaveBeenCalledTimes(9);
+
+      ctx.dispose();
+      // Idempotent second dispose
+      ctx.dispose();
+      expect(mockGl.deleteBuffer).toHaveBeenCalledTimes(2);
+      expect(mockGl.deleteProgram).toHaveBeenCalledTimes(1);
+    } finally {
+      globalThis.window = originalWindow;
+    }
   });
 });
