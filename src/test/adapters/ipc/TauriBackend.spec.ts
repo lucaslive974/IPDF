@@ -230,6 +230,9 @@ vi.mock('@tauri-apps/api/core', () => ({
         },
       ] as unknown as T;
     }
+    if (cmd === 'healthcheck') {
+      return 'Scholarium Tauri v2 Native Backend Active' as unknown as T;
+    }
     if (cmd === 'sync_book_workspace') {
       return `synced:${String(args.bookHash)}` as unknown as T;
     }
@@ -468,6 +471,9 @@ describe('Modular Tauri IPC Adapters', () => {
     expect(health.ok).toBe(true);
     expect(health.message).toBe('Connected to Discord client');
 
+    const backendHealth = await settingsService.healthcheck();
+    expect(backendHealth).toBe('Scholarium Tauri v2 Native Backend Active');
+
     const platformInfo = await settingsService.getPlatformInfo();
     expect(platformInfo.platform).toBe('Linux');
     expect(platformInfo.supportsDiscordPresence).toBe(true);
@@ -570,6 +576,9 @@ describe('MockBackend (In-Memory Modular Double)', () => {
     const mockHealth = await mock.getDiscordPresenceHealth();
     expect(mockHealth.ok).toBe(true);
     expect(mockHealth.message).toBe('Connected to Discord client');
+
+    const mockBackendHealth = await mock.healthcheck();
+    expect(mockBackendHealth).toBe('Scholarium Mock Backend Active');
 
     const mockPlatform = await mock.getPlatformInfo();
     expect(mockPlatform.supportsDiscordPresence).toBe(true);

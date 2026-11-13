@@ -289,6 +289,10 @@ export class MockBackend
     });
   }
 
+  public async healthcheck(): Promise<string> {
+    return 'Scholarium Mock Backend Active';
+  }
+
   public async getAppSetting(key: string): Promise<string | null> {
     return this.settings.get(key) ?? null;
   }

@@ -8,6 +8,7 @@ export interface PlatformInfo {
 }
 
 export interface ISettingsService {
+  healthcheck(): Promise<string>;
   getAppSetting(key: string): Promise<string | null>;
   setAppSetting(key: string, value: string): Promise<void>;
   syncBookWorkspace(bookHash: string): Promise<string>;

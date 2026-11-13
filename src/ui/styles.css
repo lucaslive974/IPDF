@@ -142,3 +142,35 @@
   --color-brand: var(--color-brand);
   --color-brand-hover: var(--color-brand-hover);
 }
+
+/* Startup Splash Screen (60-30-10 Warm Graphite / Warm Parchment / Antique Gold) */
+@keyframes scholarium-gold-glow {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@utility scholarium-splash-backdrop {
+  background-color: #151413;
+  color: #faf8f5;
+}
+
+@utility scholarium-logo-squircle {
+  background: radial-gradient(circle at 50% 50%, #201e1c 0%, #171614 70%, #131211 100%);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(250, 248, 245, 0.04);
+}
+
+@utility scholarium-gold-accent {
+  color: #f59e0b;
+}
+
+@utility scholarium-gold-ring {
+  border: 1.5px solid rgba(245, 158, 11, 0.75);
+  box-shadow: 0 0 36px 2px rgba(245, 158, 11, 0.24);
+  will-change: opacity;
+  animation: scholarium-gold-glow 3s ease-in-out infinite;
+}

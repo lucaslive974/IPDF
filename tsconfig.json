@@ -35,7 +35,8 @@
       "@utils": ["src/utils/index.ts"],
       "@components/*": ["src/ui/components/*"],
       "@ui/*": ["src/ui/*"],
-      "@ui": ["src/ui/components/ui/index.ts"]
+      "@ui": ["src/ui/components/ui/index.ts"],
+      "@assets/*": ["assets/*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"]

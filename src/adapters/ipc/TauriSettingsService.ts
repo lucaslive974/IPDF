@@ -2,6 +2,10 @@ import type { ISettingsService, PlatformInfo } from '@ports/ISettingsService';
 import { invoke } from '@tauri-apps/api/core';
 
 export class TauriSettingsService implements ISettingsService {
+  public async healthcheck(): Promise<string> {
+    return invoke<string>('healthcheck');
+  }
+
   public async getAppSetting(key: string): Promise<string | null> {
     return invoke<string | null>('get_app_setting', { key });
   }
