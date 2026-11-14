@@ -86,6 +86,16 @@ export interface PdfCoverSyncTarget {
 }
 
 /**
+ * Returns true if the cover URL is already an extracted WebP or PNG Data URL.
+ */
+export function hasCachedPdfCoverUrl(coverImageUrl?: string): boolean {
+  return Boolean(
+    coverImageUrl &&
+      (coverImageUrl.startsWith('data:image/webp') || coverImageUrl.startsWith('data:image/png'))
+  );
+}
+
+/**
  * Extracts page 1 cover for a PDF document if missing, and syncs it to the library service.
  */
 export async function extractAndSyncPdfCover(
@@ -93,8 +103,7 @@ export async function extractAndSyncPdfCover(
   target: PdfCoverSyncTarget,
   libraryService?: Pick<ILibraryService, 'updateBookCover'>
 ): Promise<string | null> {
-  const hasCover = target.coverImageUrl?.startsWith('data:image/webp');
-  if (hasCover) {
+  if (hasCachedPdfCoverUrl(target.coverImageUrl)) {
     return target.coverImageUrl ?? null;
   }
 

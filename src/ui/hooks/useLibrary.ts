@@ -4,7 +4,7 @@ import type { UpdateBookMetadataInput } from '@ports/ILibraryService';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useHighlightStore } from '@stores/useHighlightStore';
 import { useLibraryStore } from '@stores/useLibraryStore';
-import { generatePdfPageCoverDataUrl } from '@utils/pdfCoverGenerator';
+import { generatePdfPageCoverDataUrl, hasCachedPdfCoverUrl } from '@utils/pdfCoverGenerator';
 import { useCallback, useEffect, useMemo } from 'react';
 
 export interface LibraryViewModel {
@@ -41,7 +41,7 @@ export function useLibrary(): LibraryViewModel {
   const ensurePdfCover = useCallback(
     async (book: BookMetadata): Promise<void> => {
       if (book.format !== BookFormat.PDF) return;
-      if (book.coverImageUrl?.startsWith('data:image/webp')) return;
+      if (hasCachedPdfCoverUrl(book.coverImageUrl)) return;
       try {
         let source: string | ArrayBuffer | null = null;
         if (readerService.getBookFilePath) {
@@ -85,10 +85,7 @@ export function useLibrary(): LibraryViewModel {
       const result = await libraryService.listLibraryBooks();
       setBooks(result);
       for (const b of result) {
-        if (
-          b.format === BookFormat.PDF &&
-          (!b.coverImageUrl || !b.coverImageUrl.startsWith('data:image/webp'))
-        ) {
+        if (b.format === BookFormat.PDF && !hasCachedPdfCoverUrl(b.coverImageUrl)) {
           void ensurePdfCover(b);
         }
       }

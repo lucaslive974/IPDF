@@ -1,18 +1,12 @@
 import type { IPdfEngine, PdfDocumentProxy } from '@ports/IPdfEngine';
 import { hasWindow } from '@utils/dom';
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 export class DefaultPdfEngine implements IPdfEngine {
   private ensureWorkerConfigured(pdfjsLib: typeof import('pdfjs-dist')): void {
     if (hasWindow() && 'GlobalWorkerOptions' in pdfjsLib) {
       if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-        try {
-          pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-            'pdfjs-dist/build/pdf.worker.min.mjs',
-            import.meta.url
-          ).toString();
-        } catch {
-          // Gracefully fallback if worker URL cannot be constructed
-        }
+        pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
       }
     }
   }

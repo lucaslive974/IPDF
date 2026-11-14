@@ -120,14 +120,19 @@ describe('pdfCoverGenerator', () => {
   });
 
   describe('extractAndSyncPdfCover', () => {
-    it('returns existing cover without extracting when already webp data url', async () => {
+    it('returns existing cover without extracting when already webp or png data url', async () => {
       const mockViewer = { getPageProxy: vi.fn() };
-      const cover = await extractAndSyncPdfCover(mockViewer, {
+      const webpCover = await extractAndSyncPdfCover(mockViewer, {
         bookHash: 'pdf-hash-1',
         coverImageUrl: 'data:image/webp;base64,alreadyExtracted',
       });
+      const pngCover = await extractAndSyncPdfCover(mockViewer, {
+        bookHash: 'pdf-hash-1b',
+        coverImageUrl: 'data:image/png;base64,alreadyExtractedPng',
+      });
 
-      expect(cover).toBe('data:image/webp;base64,alreadyExtracted');
+      expect(webpCover).toBe('data:image/webp;base64,alreadyExtracted');
+      expect(pngCover).toBe('data:image/png;base64,alreadyExtractedPng');
       expect(mockViewer.getPageProxy).not.toHaveBeenCalled();
     });
 
