@@ -1,8 +1,7 @@
-import { TransitionOverlay } from '@ui';
+import { LoadingSplash, TransitionOverlay } from '@ui';
 import { LibraryView } from './components/LibraryView';
 import { ReaderView } from './components/ReaderView';
 import { SettingsView } from './components/SettingsView';
-import { StartupSplash } from './components/StartupSplash';
 import { useAppStartup } from './hooks/useAppStartup';
 import { useSystemHandler } from './hooks/useSystemHandler';
 import { NavigationProvider, useNavigation } from './providers/NavigationContext';
@@ -38,11 +37,12 @@ function AppShell() {
         zIndexClass="z-50"
         testId="startup-transition-overlay"
       >
-        <StartupSplash
+        <LoadingSplash
           status={startup.status}
           error={startup.error}
           theme={theme}
           onRetry={startup.retry}
+          testId="startup-splash"
         />
       </TransitionOverlay>
     </>

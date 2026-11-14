@@ -5,11 +5,11 @@ import { useReaderPagination } from '@hooks/useReaderPagination';
 import { useReaderView } from '@hooks/useReaderView';
 import { useReaderStore } from '@stores/useReaderStore';
 import { useReaderUIStore } from '@stores/useReaderUIStore';
-import { TransitionOverlay } from '@ui';
+import { LoadingSplash, TransitionOverlay } from '@ui';
 import { memo } from 'react';
+import { isValidAuthor } from './library/BookCover';
 import { ReaderBottomBar } from './reader/ReaderBottomBar';
 import { ReaderHeader } from './reader/ReaderHeader';
-import { ReaderLoadingView } from './reader/ReaderLoadingView';
 import { ReaderOverlays } from './reader/ReaderOverlays';
 import { ReaderStream } from './reader/ReaderStream';
 import { ReaderViewportChapterIndicator } from './reader/ReaderViewportChapterIndicator';
@@ -55,10 +55,16 @@ export const ReaderView = memo(function ReaderView({ book, onClose }: ReaderView
       <TransitionOverlay
         isVisible={showLoadingOverlay}
         durationMs={250}
-        minDisplayMs={200}
-        className="bg-canvas flex flex-col justify-center"
+        minDisplayMs={3000}
+        zIndexClass="z-40"
+        testId="reader-transition-overlay"
       >
-        <ReaderLoadingView document={document} />
+        <LoadingSplash
+          title={document.bookTitle || 'Loading Document'}
+          subtitle={isValidAuthor(document.bookAuthor) ? document.bookAuthor : ''}
+          message="Preparing book for reading..."
+          testId="reader-loading-view"
+        />
       </TransitionOverlay>
       {isReady && <ReaderStream />}
       <ReaderBottomBar onScrollToPage={pagination.goToPage} />

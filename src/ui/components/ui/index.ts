@@ -9,6 +9,7 @@ export * from './EmptyState';
 export * from './FilterButton';
 export * from './IconButton';
 export * from './Input';
+export * from './LoadingSplash';
 export * from './Modal';
 export * from './PassageQuote';
 export * from './Popover';
