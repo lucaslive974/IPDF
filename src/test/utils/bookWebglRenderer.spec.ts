@@ -2,6 +2,7 @@ import {
   BookWebglContext,
   computeFanningPageTransform,
   computePageProgress,
+  computePageShadowProjection,
   createBookViewMatrix,
   createPageGridGeometry,
   createPerspectiveMatrix,
@@ -47,7 +48,7 @@ describe('bookWebglRenderer', () => {
     const mid = computeFanningPageTransform(0.5);
     const end = computeFanningPageTransform(1);
 
-    expect(start.angle).toBeCloseTo(0.12);
+    expect(start.angle).toBeCloseTo(0.36);
     expect(start.bend).toBeCloseTo(0);
     expect(start.opacity).toBe(0);
 
@@ -55,9 +56,18 @@ describe('bookWebglRenderer', () => {
     expect(mid.bend).toBeCloseTo(0.42);
     expect(mid.opacity).toBe(1);
 
-    expect(end.angle).toBeCloseTo(Math.PI - 0.12);
+    expect(end.angle).toBeCloseTo(Math.PI - 0.36);
     expect(end.bend).toBeCloseTo(0);
     expect(end.opacity).toBe(0);
+  });
+
+  it('computes sinusoidal shadow reach and strength from neighbor page angle', () => {
+    const castLeft = computePageShadowProjection(Math.PI - 0.11, 2.2, 1);
+    expect(castLeft.reach).toBeGreaterThan(0.5);
+    expect(castLeft.strength).toBeGreaterThan(0);
+
+    const noShadow = computePageShadowProjection(1.5, 0.12, 1);
+    expect(noShadow).toEqual({ reach: 0, strength: 0 });
   });
 
   it('falls back gracefully when WebGL context is unavailable', () => {
@@ -109,6 +119,7 @@ describe('bookWebglRenderer', () => {
       getAttribLocation: vi.fn(() => 0),
       getUniformLocation: vi.fn(() => ({})),
       enable: vi.fn(),
+      depthMask: vi.fn(),
       blendFunc: vi.fn(),
       viewport: vi.fn(),
       clearColor: vi.fn(),
@@ -118,6 +129,7 @@ describe('bookWebglRenderer', () => {
       vertexAttribPointer: vi.fn(),
       uniformMatrix4fv: vi.fn(),
       uniform1f: vi.fn(),
+      uniform1fv: vi.fn(),
       uniform3f: vi.fn(),
       drawElements: vi.fn(),
     } as unknown as WebGLRenderingContext;
@@ -144,14 +156,14 @@ describe('bookWebglRenderer', () => {
 
       ctx.start();
       ctx.renderFrame(performance.now() + 100);
-      // 4 static surfaces + 5 fanning pages = 9 drawElements calls
-      expect(mockGl.drawElements).toHaveBeenCalledTimes(9);
+      // 4 static cover layers + 2 base pages + 5 fanning pages = 11 drawElements calls
+      expect(mockGl.drawElements).toHaveBeenCalledTimes(11);
 
       ctx.dispose();
       // Idempotent second dispose
       ctx.dispose();
       expect(mockGl.deleteBuffer).toHaveBeenCalledTimes(2);
-      expect(mockGl.deleteProgram).toHaveBeenCalledTimes(1);
+      expect(mockGl.deleteProgram).toHaveBeenCalledTimes(2);
 
       const lightCtx = BookWebglContext.create(fakeCanvas, 'light');
       expect(lightCtx).not.toBeNull();

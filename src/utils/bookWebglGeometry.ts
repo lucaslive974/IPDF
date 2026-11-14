@@ -117,7 +117,7 @@ export function computePageProgress(
   return raw < 0 ? raw + 1 : raw;
 }
 
-const MIN_PAGE_REST_ANGLE_RAD = 0.12;
+const MIN_PAGE_REST_ANGLE_RAD = 0.36;
 const MAX_PAGE_ARCH_BEND = 0.42;
 const EDGE_FADE_WINDOW = 0.12;
 
@@ -133,4 +133,42 @@ export function computeFanningPageTransform(progress: number): FanningPageTransf
   const opacity = Math.min(1, Math.min(t / EDGE_FADE_WINDOW, (1 - t) / EDGE_FADE_WINDOW));
 
   return { angle, bend, opacity };
+}
+
+export interface PageShadowProjection {
+  readonly reach: number;
+  readonly strength: number;
+}
+
+const LIGHT_XZ_SLOPE = 0.35 / 0.55;
+
+/**
+ * Computes the sinusoidal shadow reach (along vUv.x in [0, 1]) and strength [0, 1]
+ * cast by a higher neighbor page onto a target page.
+ */
+export function computePageShadowProjection(
+  targetAngle: number,
+  casterAngle: number,
+  casterOpacity: number
+): PageShadowProjection {
+  const liftDiff = Math.sin(casterAngle) - Math.sin(targetAngle);
+  if (liftDiff <= 0.02 || casterOpacity <= 0) {
+    return { reach: 0, strength: 0 };
+  }
+
+  const xShadow = Math.cos(casterAngle) - Math.sin(casterAngle) * LIGHT_XZ_SLOPE;
+  const rawReach = targetAngle > Math.PI / 2 ? Math.max(0, -xShadow) : Math.max(0, xShadow);
+  const reach = clamp(rawReach, 0, 1);
+  if (reach <= 0.01) {
+    return { reach: 0, strength: 0 };
+  }
+
+  const proximity = clamp(1 - Math.abs(targetAngle - casterAngle) / 1.4, 0, 1);
+  const strength = clamp(
+    casterOpacity * Math.min(1, liftDiff * 4) * (0.35 + 0.65 * proximity),
+    0,
+    1
+  );
+
+  return { reach, strength };
 }

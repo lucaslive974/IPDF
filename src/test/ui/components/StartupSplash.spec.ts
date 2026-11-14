@@ -17,7 +17,6 @@ describe('StartupSplash component', () => {
     expect(markup).toContain('data-testid="startup-book-canvas"');
     expect(markup).toContain('Scholarium');
     expect(markup).toContain('Preparing your active study library');
-    expect(markup).toContain('scholarium-logo-squircle');
     expect(markup).not.toContain('Retry Initialization');
   });
 

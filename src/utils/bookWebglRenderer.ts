@@ -1,8 +1,10 @@
 import fragmentShaderSource from '@assets/shaders/book_fragment.glsl?raw';
+import staticFragmentShaderSource from '@assets/shaders/book_static_fragment.glsl?raw';
 import vertexShaderSource from '@assets/shaders/book_vertex.glsl?raw';
 import {
   computeFanningPageTransform,
   computePageProgress,
+  computePageShadowProjection,
   createBookViewMatrix,
   createPageGridGeometry,
   createPerspectiveMatrix,
@@ -11,8 +13,10 @@ import {
 export {
   type FanningPageTransform,
   type PageGridGeometry,
+  type PageShadowProjection,
   computeFanningPageTransform,
   computePageProgress,
+  computePageShadowProjection,
   createBookViewMatrix,
   createPageGridGeometry,
   createPerspectiveMatrix,
@@ -32,14 +36,21 @@ interface BookShaderUniforms {
   readonly uBaseColor: WebGLUniformLocation | null;
   readonly uShadowColor: WebGLUniformLocation | null;
   readonly uOpacity: WebGLUniformLocation | null;
+  readonly uShadowReach: WebGLUniformLocation | null;
+  readonly uShadowStrength: WebGLUniformLocation | null;
+}
+
+interface BookProgramBundle {
+  readonly program: WebGLProgram;
+  readonly uniforms: BookShaderUniforms;
 }
 
 interface BookGpuResources {
-  readonly program: WebGLProgram;
+  readonly staticBundle: BookProgramBundle;
+  readonly fanBundle: BookProgramBundle;
   readonly vbo: WebGLBuffer;
   readonly ibo: WebGLBuffer;
   readonly indexCount: number;
-  readonly uniforms: BookShaderUniforms;
 }
 
 export type BookWebglTheme = 'light' | 'dark';
@@ -59,6 +70,8 @@ interface BookSurfaceSpec {
   readonly liftY: number;
   readonly colorKind: 'gold' | 'paper';
   readonly opacity: number;
+  readonly shadowReach?: number;
+  readonly shadowStrength?: number;
 }
 
 const BOOK_PALETTES: Record<BookWebglTheme, BookWebglPalette> = {
@@ -76,9 +89,27 @@ const BOOK_PALETTES: Record<BookWebglTheme, BookWebglPalette> = {
   },
 };
 
-const STATIC_BOOK_SURFACES: readonly BookSurfaceSpec[] = [
+const STATIC_COVER_SURFACES: readonly BookSurfaceSpec[] = [
   {
-    angle: 0.06,
+    angle: 0.295,
+    bend: -0.02,
+    width: 0.945,
+    height: 1.245,
+    liftY: -0.052,
+    colorKind: 'gold',
+    opacity: 1,
+  },
+  {
+    angle: Math.PI - 0.295,
+    bend: 0.02,
+    width: 0.945,
+    height: 1.245,
+    liftY: -0.052,
+    colorKind: 'gold',
+    opacity: 1,
+  },
+  {
+    angle: 0.3,
     bend: -0.02,
     width: 0.94,
     height: 1.24,
@@ -87,7 +118,7 @@ const STATIC_BOOK_SURFACES: readonly BookSurfaceSpec[] = [
     opacity: 1,
   },
   {
-    angle: Math.PI - 0.06,
+    angle: Math.PI - 0.3,
     bend: 0.02,
     width: 0.94,
     height: 1.24,
@@ -95,23 +126,30 @@ const STATIC_BOOK_SURFACES: readonly BookSurfaceSpec[] = [
     colorKind: 'gold',
     opacity: 1,
   },
+];
+
+const STATIC_BASE_PAGES: readonly BookSurfaceSpec[] = [
   {
-    angle: 0.11,
-    bend: -0.08,
-    width: 0.86,
-    height: 1.15,
+    angle: 0.35,
+    bend: -0.02,
+    width: 0.85,
+    height: 1.14,
     liftY: 0,
     colorKind: 'paper',
     opacity: 1,
+    shadowReach: 0.75,
+    shadowStrength: 0.25,
   },
   {
-    angle: Math.PI - 0.11,
-    bend: 0.08,
-    width: 0.86,
-    height: 1.15,
+    angle: Math.PI - 0.35,
+    bend: 0.02,
+    width: 0.85,
+    height: 1.14,
     liftY: 0,
     colorKind: 'paper',
     opacity: 1,
+    shadowReach: 0.92,
+    shadowStrength: 0.58,
   },
 ];
 
@@ -134,9 +172,9 @@ function compileShader(
   return shader;
 }
 
-function createShaderProgram(gl: WebGLRenderingContext): WebGLProgram | null {
+function createShaderProgram(gl: WebGLRenderingContext, fragSource: string): WebGLProgram | null {
   const vertex = compileShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-  const fragment = compileShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+  const fragment = compileShader(gl, gl.FRAGMENT_SHADER, fragSource);
   if (!vertex || !fragment) {
     if (vertex) gl.deleteShader(vertex);
     if (fragment) gl.deleteShader(fragment);
@@ -164,9 +202,32 @@ function createShaderProgram(gl: WebGLRenderingContext): WebGLProgram | null {
   return program;
 }
 
+function readUniforms(gl: WebGLRenderingContext, program: WebGLProgram): BookShaderUniforms {
+  return {
+    aUv: gl.getAttribLocation(program, 'aUv'),
+    uProjection: gl.getUniformLocation(program, 'uProjection'),
+    uView: gl.getUniformLocation(program, 'uView'),
+    uAngle: gl.getUniformLocation(program, 'uAngle'),
+    uBend: gl.getUniformLocation(program, 'uBend'),
+    uWidth: gl.getUniformLocation(program, 'uWidth'),
+    uHeight: gl.getUniformLocation(program, 'uHeight'),
+    uLiftY: gl.getUniformLocation(program, 'uLiftY'),
+    uBaseColor: gl.getUniformLocation(program, 'uBaseColor'),
+    uShadowColor: gl.getUniformLocation(program, 'uShadowColor'),
+    uOpacity: gl.getUniformLocation(program, 'uOpacity'),
+    uShadowReach: gl.getUniformLocation(program, 'uShadowReach'),
+    uShadowStrength: gl.getUniformLocation(program, 'uShadowStrength'),
+  };
+}
+
 function allocateGpuResources(gl: WebGLRenderingContext): BookGpuResources | null {
-  const program = createShaderProgram(gl);
-  if (!program) return null;
+  const staticProgram = createShaderProgram(gl, staticFragmentShaderSource);
+  const fanProgram = createShaderProgram(gl, fragmentShaderSource);
+  if (!staticProgram || !fanProgram) {
+    if (staticProgram) gl.deleteProgram(staticProgram);
+    if (fanProgram) gl.deleteProgram(fanProgram);
+    return null;
+  }
 
   const geometry = createPageGridGeometry(22, 4);
   const vbo = gl.createBuffer();
@@ -174,7 +235,8 @@ function allocateGpuResources(gl: WebGLRenderingContext): BookGpuResources | nul
   if (!vbo || !ibo) {
     if (vbo) gl.deleteBuffer(vbo);
     if (ibo) gl.deleteBuffer(ibo);
-    gl.deleteProgram(program);
+    gl.deleteProgram(staticProgram);
+    gl.deleteProgram(fanProgram);
     return null;
   }
 
@@ -185,23 +247,17 @@ function allocateGpuResources(gl: WebGLRenderingContext): BookGpuResources | nul
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, geometry.indices, gl.STATIC_DRAW);
 
   return {
-    program,
+    staticBundle: {
+      program: staticProgram,
+      uniforms: readUniforms(gl, staticProgram),
+    },
+    fanBundle: {
+      program: fanProgram,
+      uniforms: readUniforms(gl, fanProgram),
+    },
     vbo,
     ibo,
     indexCount: geometry.indexCount,
-    uniforms: {
-      aUv: gl.getAttribLocation(program, 'aUv'),
-      uProjection: gl.getUniformLocation(program, 'uProjection'),
-      uView: gl.getUniformLocation(program, 'uView'),
-      uAngle: gl.getUniformLocation(program, 'uAngle'),
-      uBend: gl.getUniformLocation(program, 'uBend'),
-      uWidth: gl.getUniformLocation(program, 'uWidth'),
-      uHeight: gl.getUniformLocation(program, 'uHeight'),
-      uLiftY: gl.getUniformLocation(program, 'uLiftY'),
-      uBaseColor: gl.getUniformLocation(program, 'uBaseColor'),
-      uShadowColor: gl.getUniformLocation(program, 'uShadowColor'),
-      uOpacity: gl.getUniformLocation(program, 'uOpacity'),
-    },
   };
 }
 
@@ -210,8 +266,11 @@ function allocateGpuResources(gl: WebGLRenderingContext): BookGpuResources | nul
  * for the 3D curved-page book scene.
  */
 export class BookWebglContext {
-  private readonly viewMatrix = createBookViewMatrix(-0.66, 2.75);
+  private readonly viewMatrix = createBookViewMatrix(-0.66, 3.05);
   private readonly startTimeMs = performance.now();
+  private readonly fanAngles = new Float32Array(FAN_PAGE_COUNT);
+  private readonly fanBends = new Float32Array(FAN_PAGE_COUNT);
+  private readonly fanOpacities = new Float32Array(FAN_PAGE_COUNT);
   private rafId: number | null = null;
   private isDisposed = false;
   private palette: BookWebglPalette;
@@ -255,7 +314,8 @@ export class BookWebglContext {
     }
     this.gl.deleteBuffer(this.resources.vbo);
     this.gl.deleteBuffer(this.resources.ibo);
-    this.gl.deleteProgram(this.resources.program);
+    this.gl.deleteProgram(this.resources.staticBundle.program);
+    this.gl.deleteProgram(this.resources.fanBundle.program);
   }
 
   private readonly onFrame = (nowMs: number): void => {
@@ -281,8 +341,8 @@ export class BookWebglContext {
     this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
   }
 
-  private drawSurface(spec: BookSurfaceSpec): void {
-    const { uniforms } = this.resources;
+  private drawSurface(bundle: BookProgramBundle, spec: BookSurfaceSpec): void {
+    const { uniforms } = bundle;
     const baseColor = spec.colorKind === 'gold' ? this.palette.goldBase : this.palette.paperBase;
     const shadowColor =
       spec.colorKind === 'gold' ? this.palette.goldShadow : this.palette.paperShadow;
@@ -295,18 +355,77 @@ export class BookWebglContext {
     this.gl.uniform3f(uniforms.uBaseColor, baseColor[0], baseColor[1], baseColor[2]);
     this.gl.uniform3f(uniforms.uShadowColor, shadowColor[0], shadowColor[1], shadowColor[2]);
     this.gl.uniform1f(uniforms.uOpacity, spec.opacity);
+    if (uniforms.uShadowReach !== null) {
+      this.gl.uniform1f(uniforms.uShadowReach, spec.shadowReach ?? 0);
+    }
+    if (uniforms.uShadowStrength !== null) {
+      this.gl.uniform1f(uniforms.uShadowStrength, spec.shadowStrength ?? 0);
+    }
+    this.gl.depthMask(spec.opacity >= 0.99);
     this.gl.drawElements(this.gl.TRIANGLES, this.resources.indexCount, this.gl.UNSIGNED_SHORT, 0);
   }
 
-  public renderFrame(nowMs: number): void {
-    this.clearBuffer();
-
-    const { program, vbo, ibo, uniforms } = this.resources;
+  private bindProgram(bundle: BookProgramBundle, projectionMatrix: Float32Array): void {
+    const { program, uniforms } = bundle;
     this.gl.useProgram(program);
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, vbo);
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.resources.vbo);
     this.gl.enableVertexAttribArray(uniforms.aUv);
     this.gl.vertexAttribPointer(uniforms.aUv, 2, this.gl.FLOAT, false, 0, 0);
-    this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, ibo);
+    this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.resources.ibo);
+    this.gl.uniformMatrix4fv(uniforms.uProjection, false, projectionMatrix);
+    this.gl.uniformMatrix4fv(uniforms.uView, false, this.viewMatrix);
+  }
+
+  private drawStaticSurfaces(projectionMatrix: Float32Array): void {
+    const { staticBundle } = this.resources;
+    this.bindProgram(staticBundle, projectionMatrix);
+    for (const surface of STATIC_COVER_SURFACES) {
+      this.drawSurface(staticBundle, surface);
+    }
+  }
+
+  private updateFanningTransforms(elapsedSec: number): void {
+    for (let i = 0; i < FAN_PAGE_COUNT; i += 1) {
+      const progress = computePageProgress(elapsedSec, i, FAN_PAGE_COUNT, FAN_CYCLE_SECONDS);
+      const { angle, bend, opacity } = computeFanningPageTransform(progress);
+      this.fanAngles[i] = angle;
+      this.fanBends[i] = bend;
+      this.fanOpacities[i] = opacity;
+    }
+  }
+
+  private drawFanningPages(projectionMatrix: Float32Array): void {
+    const { fanBundle } = this.resources;
+    this.bindProgram(fanBundle, projectionMatrix);
+    for (const page of STATIC_BASE_PAGES) {
+      this.drawSurface(fanBundle, page);
+    }
+    for (let i = 0; i < FAN_PAGE_COUNT; i += 1) {
+      const angle = this.fanAngles[i] ?? 0;
+      const prevIdx = (i - 1 + FAN_PAGE_COUNT) % FAN_PAGE_COUNT;
+      const shadow = computePageShadowProjection(
+        angle,
+        this.fanAngles[prevIdx] ?? 0,
+        this.fanOpacities[prevIdx] ?? 0
+      );
+
+      this.drawSurface(fanBundle, {
+        angle,
+        bend: this.fanBends[i] ?? 0,
+        width: 0.85,
+        height: 1.14,
+        liftY: 0.005,
+        colorKind: 'paper',
+        opacity: this.fanOpacities[i] ?? 0,
+        shadowReach: shadow.reach,
+        shadowStrength: shadow.strength,
+      });
+    }
+  }
+
+  public renderFrame(nowMs: number): void {
+    this.gl.depthMask(true);
+    this.clearBuffer();
 
     const projectionMatrix = createPerspectiveMatrix(
       (42 * Math.PI) / 180,
@@ -314,27 +433,10 @@ export class BookWebglContext {
       0.1,
       20
     );
-    this.gl.uniformMatrix4fv(uniforms.uProjection, false, projectionMatrix);
-    this.gl.uniformMatrix4fv(uniforms.uView, false, this.viewMatrix);
 
-    for (const surface of STATIC_BOOK_SURFACES) {
-      this.drawSurface(surface);
-    }
-
-    const elapsedSec = (nowMs - this.startTimeMs) / 1000;
-    for (let i = 0; i < FAN_PAGE_COUNT; i += 1) {
-      const progress = computePageProgress(elapsedSec, i, FAN_PAGE_COUNT, FAN_CYCLE_SECONDS);
-      const { angle, bend, opacity } = computeFanningPageTransform(progress);
-      this.drawSurface({
-        angle,
-        bend,
-        width: 0.85,
-        height: 1.14,
-        liftY: 0.01,
-        colorKind: 'paper',
-        opacity,
-      });
-    }
+    this.drawStaticSurfaces(projectionMatrix);
+    this.updateFanningTransforms((nowMs - this.startTimeMs) / 1000);
+    this.drawFanningPages(projectionMatrix);
   }
 }
 
