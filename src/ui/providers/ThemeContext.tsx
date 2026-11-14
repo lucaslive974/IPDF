@@ -1,13 +1,5 @@
-import { isBrowser } from '@utils/dom';
-import {
-  type ReactNode,
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { isBrowser, useIsomorphicLayoutEffect } from '@utils/dom';
+import { type ReactNode, createContext, useCallback, useContext, useMemo, useState } from 'react';
 
 export type ThemeMode = 'light' | 'dark';
 
@@ -45,7 +37,7 @@ export interface ThemeProviderProps {
 export function ThemeProvider({ children, initialTheme }: ThemeProviderProps) {
   const [theme, setThemeState] = useState<ThemeMode>(initialTheme ?? resolveInitialTheme);
 
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!isBrowser()) {
       return;
     }

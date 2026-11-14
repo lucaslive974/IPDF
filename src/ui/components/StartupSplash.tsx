@@ -1,4 +1,5 @@
 import type { AppStartupStatus } from '@hooks/useAppStartup';
+import type { ThemeMode } from '@providers/ThemeContext';
 import { Button } from '@ui';
 import { mountBookWebglScene } from '@utils/bookWebglRenderer';
 import { useIsomorphicLayoutEffect } from '@utils/dom';
@@ -7,16 +8,18 @@ import { memo, useRef } from 'react';
 export interface StartupSplashProps {
   readonly status: AppStartupStatus;
   readonly error: string | null;
+  readonly theme?: ThemeMode;
   readonly onRetry: () => void;
 }
 
 /**
  * Startup loading screen featuring a 60fps WebGL 3D curved-page fanning book
- * in the 60-30-10 Warm Graphite / Warm Parchment / Antique Gold palette.
+ * adapting to light (Warm Paper) and dark (Warm Graphite) themes with Antique Gold accents.
  */
 export const StartupSplash = memo(function StartupSplash({
   status,
   error,
+  theme = 'light',
   onRetry,
 }: StartupSplashProps) {
   const isError = status === 'error';
@@ -25,8 +28,8 @@ export const StartupSplash = memo(function StartupSplash({
   useIsomorphicLayoutEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    return mountBookWebglScene(canvas);
-  }, []);
+    return mountBookWebglScene(canvas, theme);
+  }, [theme]);
 
   return (
     <div
@@ -56,15 +59,17 @@ export const StartupSplash = memo(function StartupSplash({
         {isError ? (
           <div
             data-testid="startup-error"
-            className="flex flex-col items-center gap-3 rounded-xl border border-amber-500/30 bg-black/30 px-4 py-3"
+            className="flex flex-col items-center gap-3 rounded-xl border border-amber-600/30 bg-surface-subtle/80 px-4 py-3 dark:border-amber-500/30 dark:bg-black/30"
           >
-            <p className="text-xs text-amber-200">{error ?? 'Startup initialization failed.'}</p>
+            <p className="text-xs text-amber-800 dark:text-amber-200">
+              {error ?? 'Startup initialization failed.'}
+            </p>
             <Button variant="secondary" size="sm" onClick={onRetry}>
               Retry Initialization
             </Button>
           </div>
         ) : (
-          <p className="text-xs text-stone-400">Preparing your active study library…</p>
+          <p className="text-xs text-tx-muted">Preparing your active study library…</p>
         )}
       </div>
     </div>

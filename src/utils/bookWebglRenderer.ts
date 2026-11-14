@@ -42,21 +42,39 @@ interface BookGpuResources {
   readonly uniforms: BookShaderUniforms;
 }
 
+export type BookWebglTheme = 'light' | 'dark';
+
+interface BookWebglPalette {
+  readonly goldBase: RgbColor;
+  readonly goldShadow: RgbColor;
+  readonly paperBase: RgbColor;
+  readonly paperShadow: RgbColor;
+}
+
 interface BookSurfaceSpec {
   readonly angle: number;
   readonly bend: number;
   readonly width: number;
   readonly height: number;
   readonly liftY: number;
-  readonly baseColor: RgbColor;
-  readonly shadowColor: RgbColor;
+  readonly colorKind: 'gold' | 'paper';
   readonly opacity: number;
 }
 
-const GOLD_BASE: RgbColor = [0.96, 0.62, 0.04];
-const GOLD_SHADOW: RgbColor = [0.58, 0.31, 0.02];
-const PAPER_BASE: RgbColor = [0.98, 0.97, 0.96];
-const PAPER_SHADOW: RgbColor = [0.76, 0.72, 0.66];
+const BOOK_PALETTES: Record<BookWebglTheme, BookWebglPalette> = {
+  light: {
+    goldBase: [0.85, 0.49, 0.04],
+    goldShadow: [0.5, 0.25, 0.02],
+    paperBase: [0.99, 0.98, 0.96],
+    paperShadow: [0.68, 0.63, 0.56],
+  },
+  dark: {
+    goldBase: [0.96, 0.62, 0.04],
+    goldShadow: [0.58, 0.31, 0.02],
+    paperBase: [0.98, 0.97, 0.96],
+    paperShadow: [0.76, 0.72, 0.66],
+  },
+};
 
 const STATIC_BOOK_SURFACES: readonly BookSurfaceSpec[] = [
   {
@@ -65,8 +83,7 @@ const STATIC_BOOK_SURFACES: readonly BookSurfaceSpec[] = [
     width: 0.94,
     height: 1.24,
     liftY: -0.03,
-    baseColor: GOLD_BASE,
-    shadowColor: GOLD_SHADOW,
+    colorKind: 'gold',
     opacity: 1,
   },
   {
@@ -75,8 +92,7 @@ const STATIC_BOOK_SURFACES: readonly BookSurfaceSpec[] = [
     width: 0.94,
     height: 1.24,
     liftY: -0.03,
-    baseColor: GOLD_BASE,
-    shadowColor: GOLD_SHADOW,
+    colorKind: 'gold',
     opacity: 1,
   },
   {
@@ -85,8 +101,7 @@ const STATIC_BOOK_SURFACES: readonly BookSurfaceSpec[] = [
     width: 0.86,
     height: 1.15,
     liftY: 0,
-    baseColor: PAPER_BASE,
-    shadowColor: PAPER_SHADOW,
+    colorKind: 'paper',
     opacity: 1,
   },
   {
@@ -95,8 +110,7 @@ const STATIC_BOOK_SURFACES: readonly BookSurfaceSpec[] = [
     width: 0.86,
     height: 1.15,
     liftY: 0,
-    baseColor: PAPER_BASE,
-    shadowColor: PAPER_SHADOW,
+    colorKind: 'paper',
     opacity: 1,
   },
 ];
@@ -200,25 +214,31 @@ export class BookWebglContext {
   private readonly startTimeMs = performance.now();
   private rafId: number | null = null;
   private isDisposed = false;
+  private palette: BookWebglPalette;
 
   private constructor(
     private readonly canvas: HTMLCanvasElement,
     private readonly gl: WebGLRenderingContext,
-    private readonly resources: BookGpuResources
+    private readonly resources: BookGpuResources,
+    theme: BookWebglTheme
   ) {
+    this.palette = BOOK_PALETTES[theme];
     this.gl.enable(this.gl.DEPTH_TEST);
     this.gl.enable(this.gl.BLEND);
-    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+    this.gl.blendFunc(this.gl.ONE, this.gl.ONE_MINUS_SRC_ALPHA);
   }
 
-  public static create(canvas: HTMLCanvasElement): BookWebglContext | null {
+  public static create(
+    canvas: HTMLCanvasElement,
+    theme: BookWebglTheme = 'dark'
+  ): BookWebglContext | null {
     const gl = canvas.getContext('webgl', { alpha: true, antialias: true });
     if (!gl) return null;
 
     const resources = allocateGpuResources(gl);
     if (!resources) return null;
 
-    return new BookWebglContext(canvas, gl, resources);
+    return new BookWebglContext(canvas, gl, resources, theme);
   }
 
   public start(): void {
@@ -263,18 +283,17 @@ export class BookWebglContext {
 
   private drawSurface(spec: BookSurfaceSpec): void {
     const { uniforms } = this.resources;
+    const baseColor = spec.colorKind === 'gold' ? this.palette.goldBase : this.palette.paperBase;
+    const shadowColor =
+      spec.colorKind === 'gold' ? this.palette.goldShadow : this.palette.paperShadow;
+
     this.gl.uniform1f(uniforms.uAngle, spec.angle);
     this.gl.uniform1f(uniforms.uBend, spec.bend);
     this.gl.uniform1f(uniforms.uWidth, spec.width);
     this.gl.uniform1f(uniforms.uHeight, spec.height);
     this.gl.uniform1f(uniforms.uLiftY, spec.liftY);
-    this.gl.uniform3f(uniforms.uBaseColor, spec.baseColor[0], spec.baseColor[1], spec.baseColor[2]);
-    this.gl.uniform3f(
-      uniforms.uShadowColor,
-      spec.shadowColor[0],
-      spec.shadowColor[1],
-      spec.shadowColor[2]
-    );
+    this.gl.uniform3f(uniforms.uBaseColor, baseColor[0], baseColor[1], baseColor[2]);
+    this.gl.uniform3f(uniforms.uShadowColor, shadowColor[0], shadowColor[1], shadowColor[2]);
     this.gl.uniform1f(uniforms.uOpacity, spec.opacity);
     this.gl.drawElements(this.gl.TRIANGLES, this.resources.indexCount, this.gl.UNSIGNED_SHORT, 0);
   }
@@ -312,8 +331,7 @@ export class BookWebglContext {
         width: 0.85,
         height: 1.14,
         liftY: 0.01,
-        baseColor: PAPER_BASE,
-        shadowColor: PAPER_SHADOW,
+        colorKind: 'paper',
         opacity,
       });
     }
@@ -324,8 +342,11 @@ export class BookWebglContext {
  * Mounts a 60fps WebGL 3D curved-page book animation onto the provided canvas.
  * Returns a cleanup callback that cancels animation frames and frees GPU resources.
  */
-export function mountBookWebglScene(canvas: HTMLCanvasElement): () => void {
-  const context = BookWebglContext.create(canvas);
+export function mountBookWebglScene(
+  canvas: HTMLCanvasElement,
+  theme: BookWebglTheme = 'dark'
+): () => void {
+  const context = BookWebglContext.create(canvas, theme);
   if (!context) {
     return () => {};
   }

@@ -155,22 +155,36 @@
 }
 
 @utility scholarium-splash-backdrop {
-  background-color: #151413;
-  color: #faf8f5;
+  background-color: var(--color-canvas);
+  color: var(--color-tx-main);
 }
 
 @utility scholarium-logo-squircle {
-  background: radial-gradient(circle at 50% 50%, #201e1c 0%, #171614 70%, #131211 100%);
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(250, 248, 245, 0.04);
+  background: radial-gradient(circle at 50% 50%, #ffffff 0%, #f2efe9 70%, #eae6dd 100%);
+  box-shadow: 0 20px 48px rgba(28, 27, 26, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+
+  :where(.dark, [data-theme="dark"]) & {
+    background: radial-gradient(circle at 50% 50%, #201e1c 0%, #171614 70%, #131211 100%);
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(250, 248, 245, 0.04);
+  }
 }
 
 @utility scholarium-gold-accent {
-  color: #f59e0b;
+  color: #b45309;
+
+  :where(.dark, [data-theme="dark"]) & {
+    color: #f59e0b;
+  }
 }
 
 @utility scholarium-gold-ring {
-  border: 1.5px solid rgba(245, 158, 11, 0.75);
-  box-shadow: 0 0 36px 2px rgba(245, 158, 11, 0.24);
+  border: 1.5px solid rgba(217, 119, 6, 0.55);
+  box-shadow: 0 0 28px 2px rgba(217, 119, 6, 0.14);
   will-change: opacity;
   animation: scholarium-gold-glow 3s ease-in-out infinite;
+
+  :where(.dark, [data-theme="dark"]) & {
+    border-color: rgba(245, 158, 11, 0.75);
+    box-shadow: 0 0 36px 2px rgba(245, 158, 11, 0.24);
+  }
 }

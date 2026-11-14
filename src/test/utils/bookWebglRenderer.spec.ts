@@ -84,6 +84,7 @@ describe('bookWebglRenderer', () => {
       STATIC_DRAW: 7,
       DEPTH_TEST: 8,
       BLEND: 9,
+      ONE: 1,
       SRC_ALPHA: 10,
       ONE_MINUS_SRC_ALPHA: 11,
       COLOR_BUFFER_BIT: 12,
@@ -151,6 +152,13 @@ describe('bookWebglRenderer', () => {
       ctx.dispose();
       expect(mockGl.deleteBuffer).toHaveBeenCalledTimes(2);
       expect(mockGl.deleteProgram).toHaveBeenCalledTimes(1);
+
+      const lightCtx = BookWebglContext.create(fakeCanvas, 'light');
+      expect(lightCtx).not.toBeNull();
+      if (!lightCtx) return;
+      lightCtx.renderFrame(performance.now() + 100);
+      expect(mockGl.uniform3f).toHaveBeenCalledWith(expect.anything(), 0.85, 0.49, 0.04);
+      lightCtx.dispose();
     } finally {
       globalThis.window = originalWindow;
     }

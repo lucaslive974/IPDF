@@ -7,7 +7,7 @@ import { useAppStartup } from './hooks/useAppStartup';
 import { useSystemHandler } from './hooks/useSystemHandler';
 import { NavigationProvider, useNavigation } from './providers/NavigationContext';
 import { ServiceContainerProvider } from './providers/ServiceContainerContext';
-import { ThemeProvider } from './providers/ThemeContext';
+import { ThemeProvider, useTheme } from './providers/ThemeContext';
 
 function AppRouter() {
   const { currentView, selectedBook, openReader, closeReader } = useNavigation();
@@ -26,6 +26,7 @@ function AppRouter() {
 
 function AppShell() {
   const startup = useAppStartup();
+  const { theme } = useTheme();
 
   return (
     <>
@@ -37,7 +38,12 @@ function AppShell() {
         zIndexClass="z-50"
         testId="startup-transition-overlay"
       >
-        <StartupSplash status={startup.status} error={startup.error} onRetry={startup.retry} />
+        <StartupSplash
+          status={startup.status}
+          error={startup.error}
+          theme={theme}
+          onRetry={startup.retry}
+        />
       </TransitionOverlay>
     </>
   );

@@ -14,5 +14,5 @@ void main() {
   float spineAo = smoothstep(0.0, 0.16, vUv.x);
   float light = clamp(ambient + diffuse * 0.55, 0.0, 1.0) * (0.76 + 0.24 * spineAo);
   vec3 color = mix(uShadowColor, uBaseColor, light);
-  gl_FragColor = vec4(color, uOpacity);
+  gl_FragColor = vec4(color * uOpacity, uOpacity);
 }
