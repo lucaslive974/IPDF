@@ -111,7 +111,7 @@ describe('useReaderPagination / createReaderPaginationController', () => {
     expect(useReaderStore.getState().loadedPages.byPage.has(6)).toBe(true);
   });
 
-  it('updates page, chapter, and reading presence without touching SQLite when onPageVisible is called', () => {
+  it('updates page and chapter without touching SQLite or reading presence when onPageVisible is called', () => {
     const updatePresenceSpy = vi.spyOn(backend, 'updateReadingPresence');
     const updateProgressSpy = vi.spyOn(backend, 'updateBookProgress');
     const controller = createReaderPaginationController({
@@ -130,16 +130,11 @@ describe('useReaderPagination / createReaderPaginationController', () => {
 
     expect(useReaderStore.getState().currentPage).toBe(5);
     expect(useReaderStore.getState().chapterTitle).toBe('Chapter 5');
-    expect(updatePresenceSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        currentPage: 5,
-        chapterTitle: 'Chapter 5',
-      })
-    );
+    expect(updatePresenceSpy).not.toHaveBeenCalled();
     expect(updateProgressSpy).not.toHaveBeenCalled();
   });
 
-  it('does not repeatedly dispatch reading presence when focal page is unchanged (actual === last)', () => {
+  it('updates page offset ratio and focal page on onPageVisible without dispatching reading presence', () => {
     const updatePresenceSpy = vi.spyOn(backend, 'updateReadingPresence');
     const controller = createReaderPaginationController({
       readerService: backend,
@@ -154,11 +149,10 @@ describe('useReaderPagination / createReaderPaginationController', () => {
     );
 
     controller.onPageVisible(5);
-    expect(updatePresenceSpy).toHaveBeenCalledTimes(1);
-
-    // Call onPageVisible again on page 5 with different offset - presence should not re-trigger
     controller.onPageVisible(5, 0.4);
-    expect(updatePresenceSpy).toHaveBeenCalledTimes(1);
+    expect(useReaderStore.getState().currentPage).toBe(5);
+    expect(useReaderStore.getState().pageOffsetRatio).toBe(0.4);
+    expect(updatePresenceSpy).not.toHaveBeenCalled();
 
     // Transition to page 6
     useReaderStore.getState().setLoadedPages(
@@ -167,15 +161,14 @@ describe('useReaderPagination / createReaderPaginationController', () => {
         { pageNumber: 6, chapterTitle: 'Chapter 6', paragraphs: ['Text 6'], cfiBase: '/6/12!' },
       ])
     );
-    controller.onPageVisible(6);
-    expect(updatePresenceSpy).toHaveBeenCalledTimes(2);
-
-    // Re-call onPageVisible(6) - should remain 2 calls
     controller.onPageVisible(6, 0.8);
-    expect(updatePresenceSpy).toHaveBeenCalledTimes(2);
+    expect(useReaderStore.getState().currentPage).toBe(6);
+    expect(useReaderStore.getState().chapterTitle).toBe('Chapter 6');
+    expect(useReaderStore.getState().pageOffsetRatio).toBe(0.8);
+    expect(updatePresenceSpy).not.toHaveBeenCalled();
   });
 
-  it('updates reading presence via syncPresence only when page or book has changed', () => {
+  it('dispatches reading presence via syncPresence with current page and chapter metadata', () => {
     const updatePresenceSpy = vi.spyOn(backend, 'updateReadingPresence');
     const controller = createReaderPaginationController({
       readerService: backend,
@@ -199,9 +192,8 @@ describe('useReaderPagination / createReaderPaginationController', () => {
       })
     );
 
-    // Calling again with same page should do nothing
     controller.syncPresence(3);
-    expect(updatePresenceSpy).toHaveBeenCalledTimes(1);
+    expect(updatePresenceSpy).toHaveBeenCalledTimes(2);
   });
 
   it('proactively triggers prefetch for next pages when within 7 pages of loaded upper boundary', async () => {
