@@ -6,10 +6,17 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+    #[allow(unused_mut)]
+    let mut builder = tauri::Builder::default();
+
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             handle_single_instance(app, &args);
-        }))
+        }));
+    }
+
+    builder
         .manage(Mutex::new(BackendState::default()))
         .register_asynchronous_uri_scheme_protocol("cover", handle_cover_protocol_request)
         .invoke_handler(tauri::generate_handler![
@@ -58,6 +65,7 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn handle_single_instance(app: &tauri::AppHandle, args: &[String]) {
     use tauri::{Emitter, Manager};
 
@@ -80,6 +88,7 @@ fn handle_single_instance(app: &tauri::AppHandle, args: &[String]) {
     }
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn focus_main_window(app: &tauri::AppHandle) {
     use tauri::Manager;
     if let Some(window) = app.get_webview_window("main") {

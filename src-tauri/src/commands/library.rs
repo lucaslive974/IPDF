@@ -70,6 +70,7 @@ pub fn import_book_from_bytes(
     import_book_into_state(&mut guard, raw_bytes, title, author, format, total_pages)
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 pub async fn pick_and_import_book(
     app: tauri::AppHandle,
@@ -88,6 +89,12 @@ pub async fn pick_and_import_book(
     let mut guard = state.lock().map_err(|e| e.to_string())?;
     let metadata = process_single_book_path(&mut guard, &app, file_handle.path())?;
     Ok(Some(metadata))
+}
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
+#[tauri::command]
+pub async fn pick_and_import_book() -> Result<Option<BookMetadata>, String> {
+    Err("Native desktop file dialog is not supported on mobile".to_string())
 }
 
 // Mutations
