@@ -1,4 +1,5 @@
 import { getExpandedWordSelection } from '@utils/domSelection';
+import { capturePdfSelectionRects } from '@utils/pdfCoordinates';
 import { type RefObject, useCallback, useEffect } from 'react';
 import { useReaderUI } from './useReaderUI';
 
@@ -54,11 +55,13 @@ export function useReaderStreamContextMenu({
       if (!payload) return;
 
       e.preventDefault();
+      const pdfRects = capturePdfSelectionRects(payload.pageNumber, selection);
       setContextMenu({
         text: payload.text,
         x: e.clientX,
         y: e.clientY,
         pageNumber: payload.pageNumber,
+        pdfRects: pdfRects.length > 0 ? pdfRects : undefined,
       });
     };
 

@@ -63,25 +63,29 @@ export const ReaderOverlays = memo(function ReaderOverlays() {
               color,
               contextMenu.text,
               undefined,
-              contextMenu.pageNumber
+              contextMenu.pageNumber,
+              contextMenu.pdfRects
             );
           }}
           onOpenNoteDialog={() => {
             setActiveNoteDialog({
               text: contextMenu.text,
               pageNumber: contextMenu.pageNumber,
+              pdfRects: contextMenu.pdfRects,
             });
           }}
           onOpenExplainDialog={() => {
             setActiveExplainDialog({
               text: contextMenu.text,
               pageNumber: contextMenu.pageNumber,
+              pdfRects: contextMenu.pdfRects,
             });
           }}
           onOpenTranslateDialog={() => {
             setActiveTranslateDialog({
               text: contextMenu.text,
               pageNumber: contextMenu.pageNumber,
+              pdfRects: contextMenu.pdfRects,
             });
           }}
           onCopyText={() => {
@@ -103,7 +107,8 @@ export const ReaderOverlays = memo(function ReaderOverlays() {
               color,
               activeNoteDialog.text,
               note,
-              activeNoteDialog.pageNumber
+              activeNoteDialog.pageNumber,
+              activeNoteDialog.pdfRects
             );
             setActiveNoteDialog(null);
           }}
@@ -112,7 +117,8 @@ export const ReaderOverlays = memo(function ReaderOverlays() {
               '#d97706',
               activeNoteDialog.text,
               '',
-              activeNoteDialog.pageNumber
+              activeNoteDialog.pageNumber,
+              activeNoteDialog.pdfRects
             ).then((hl) => {
               if (hl) openExpandedStudio(hl);
             });
@@ -133,7 +139,8 @@ export const ReaderOverlays = memo(function ReaderOverlays() {
               '#7c3aed',
               activeExplainDialog.text,
               `[IA Explanation]: ${explanation}`,
-              activeExplainDialog.pageNumber
+              activeExplainDialog.pageNumber,
+              activeExplainDialog.pdfRects
             );
             setActiveExplainDialog(null);
           }}
@@ -151,7 +158,8 @@ export const ReaderOverlays = memo(function ReaderOverlays() {
               '#0284c7',
               activeTranslateDialog.text,
               `[Tradução]: ${translation}`,
-              activeTranslateDialog.pageNumber
+              activeTranslateDialog.pageNumber,
+              activeTranslateDialog.pdfRects
             );
             setActiveTranslateDialog(null);
           }}

@@ -1,10 +1,12 @@
 import type { Highlight } from '@domain/Highlight';
+import type { BoundingBox } from '@domain/types';
 import { create } from 'zustand';
 
 export interface SelectionPopoverState {
   readonly text: string;
   readonly x: number;
   readonly y: number;
+  readonly pdfRects?: readonly BoundingBox[];
 }
 
 export interface ActiveHighlightPopoverState {
@@ -18,11 +20,13 @@ export interface ContextMenuState {
   readonly y: number;
   readonly text: string;
   readonly pageNumber: number;
+  readonly pdfRects?: readonly BoundingBox[];
 }
 
 export interface TextDialogState {
   readonly text: string;
   readonly pageNumber: number;
+  readonly pdfRects?: readonly BoundingBox[];
 }
 
 export interface ReaderUIState {

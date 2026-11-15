@@ -1,4 +1,5 @@
 import type { BoundingBox } from '@domain/types';
+import { hasDocument } from './dom';
 
 export interface RectLike {
   left: number;
@@ -100,4 +101,25 @@ export function isPointInsideBox(x: number, y: number, box: BoundingBox): boolea
  */
 export function doBoxesOverlap(a: BoundingBox, b: BoundingBox): boolean {
   return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
+/**
+ * Captures and normalizes selection bounding boxes relative to the rendered PDF page container.
+ */
+export function capturePdfSelectionRects(
+  pageNumber: number,
+  selection?: Selection | null
+): BoundingBox[] {
+  if (!hasDocument() || !selection || selection.rangeCount === 0) {
+    return [];
+  }
+
+  const pageElement = document.querySelector<HTMLElement>(
+    `[data-testid="reader-page-pdf-${pageNumber}"]`
+  );
+  if (!pageElement) {
+    return [];
+  }
+
+  return normalizeSelectionRects(selection.getRangeAt(0), pageElement);
 }

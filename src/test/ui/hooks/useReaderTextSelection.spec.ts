@@ -1,3 +1,4 @@
+import { BookFormat } from '@domain/types';
 import { createReaderHighlightsController } from '@hooks/useReaderHighlights';
 import {
   createEmptyRect,
@@ -70,5 +71,29 @@ describe('useReaderTextSelection / createReaderTextSelectionController', () => {
     expect(highlight).not.toBeNull();
     expect(highlight?.text).toBe('Pure text highlight');
     expect(highlight?.note).toBe('');
+  });
+
+  it('creates a PDF highlight with pdfRects when format is PDF', async () => {
+    const highlightsController = createReaderHighlightsController(backend);
+    const controller = createReaderTextSelectionController({
+      bookHash: 'pdf-hash',
+      sampleParagraph: 'PDF Page',
+      format: BookFormat.PDF,
+      readerHighlights: highlightsController,
+    });
+
+    const rects = [{ x: 0.1, y: 0.2, width: 0.5, height: 0.04 }];
+    const highlight = await controller.createHighlight(
+      '#FFEB3B',
+      'PDF selected phrase',
+      4,
+      'Note on PDF',
+      rects
+    );
+
+    expect(highlight).not.toBeNull();
+    expect(highlight?.anchor.format).toBe(BookFormat.PDF);
+    expect(highlight?.anchor.pageNumber).toBe(4);
+    expect(highlight?.anchor.pdfRects).toEqual(rects);
   });
 });

@@ -1,9 +1,11 @@
 import type { Highlight } from '@domain/Highlight';
+import { BookFormat, type BoundingBox } from '@domain/types';
 import { useHighlightStore } from '@stores/useHighlightStore';
 import { useReaderStore } from '@stores/useReaderStore';
 import { useReaderUIStore } from '@stores/useReaderUIStore';
 import { getWindowSelection } from '@utils/dom';
 import { getExpandedWordSelection } from '@utils/domSelection';
+import { capturePdfSelectionRects } from '@utils/pdfCoordinates';
 import { useCallback, useMemo } from 'react';
 import { type ReaderHighlightsController, useReaderHighlights } from './useReaderHighlights';
 
@@ -25,7 +27,8 @@ export interface ReaderTextSelectionState {
     colorHex: string,
     overrideText?: string,
     initialNote?: string,
-    pageNumber?: number
+    pageNumber?: number,
+    pdfRects?: readonly BoundingBox[]
   ): Promise<Highlight | null>;
   createHighlightFromCurrentSelection(colorHex: string): Promise<void>;
 }
@@ -33,6 +36,7 @@ export interface ReaderTextSelectionState {
 export interface ReaderTextSelectionDependencies {
   readonly bookHash: string;
   readonly sampleParagraph: string;
+  readonly format?: BookFormat;
   readonly readerHighlights: ReaderHighlightsController;
 }
 
@@ -41,7 +45,8 @@ export interface ReaderTextSelectionController {
     colorHex: string,
     selectedText: string,
     pageNumber: number,
-    initialNote?: string
+    initialNote?: string,
+    pdfRects?: readonly BoundingBox[]
   ): Promise<Highlight | null>;
 }
 
@@ -51,26 +56,40 @@ export function createReaderTextSelectionController(
   let counter = 0;
 
   return {
-    async createHighlight(colorHex, selectedText, pageNumber, initialNote = '') {
+    async createHighlight(colorHex, selectedText, pageNumber, initialNote, pdfRects) {
       const text = selectedText.trim();
       if (!text) {
         return null;
       }
+
+      const format = deps.format ?? BookFormat.EPUB;
+      const anchor =
+        format === BookFormat.PDF
+          ? {
+              format: BookFormat.PDF,
+              pageNumber,
+              pdfRects: Array.from(
+                pdfRects && pdfRects.length > 0
+                  ? pdfRects
+                  : capturePdfSelectionRects(pageNumber, getWindowSelection())
+              ),
+            }
+          : {
+              format: BookFormat.EPUB,
+              pageNumber,
+              epubCfi: `epubcfi(/6/14!/4/2/${Date.now()}_${counter})`,
+            };
 
       const created = await deps.readerHighlights.createFromSelection(
         deps.bookHash,
         {
           text,
           surroundingContext: deps.sampleParagraph,
-          anchor: {
-            format: 'epub',
-            pageNumber,
-            epubCfi: `epubcfi(/6/14!/4/2/${Date.now()}_${counter})`,
-          },
+          anchor,
           clientRect: createEmptyRect(),
         },
         colorHex,
-        initialNote
+        initialNote ?? ''
       );
 
       counter += 1;
@@ -83,13 +102,15 @@ export function useReaderTextSelection(): ReaderTextSelectionState {
   const readerHighlights = useReaderHighlights();
   const bookHash = useReaderStore((s) => s.document.bookHash);
   const sampleParagraph = useReaderStore((s) => s.document.sampleParagraph);
+  const format = useReaderStore((s) => s.document.format);
   const selectionPopover = useReaderUIStore((s) => s.selectionPopover);
   const setSelectionPopover = useReaderUIStore((s) => s.setSelectionPopover);
   const setSelectedHighlightId = useHighlightStore((s) => s.setSelectedHighlightId);
 
   const controller = useMemo(
-    () => createReaderTextSelectionController({ bookHash, sampleParagraph, readerHighlights }),
-    [bookHash, sampleParagraph, readerHighlights]
+    () =>
+      createReaderTextSelectionController({ bookHash, sampleParagraph, format, readerHighlights }),
+    [bookHash, sampleParagraph, format, readerHighlights]
   );
 
   const createHighlightWithColor = useCallback(
@@ -97,7 +118,8 @@ export function useReaderTextSelection(): ReaderTextSelectionState {
       colorHex: string,
       overrideText?: string,
       initialNote?: string,
-      pageNumber?: number
+      pageNumber?: number,
+      pdfRects?: readonly BoundingBox[]
     ): Promise<Highlight | null> => {
       const browserSel = getExpandedWordSelection(getWindowSelection());
       const selected = overrideText?.trim() || selectionPopover?.text?.trim() || browserSel || '';
@@ -107,7 +129,8 @@ export function useReaderTextSelection(): ReaderTextSelectionState {
         colorHex,
         selected,
         targetPage,
-        initialNote ?? ''
+        initialNote ?? '',
+        pdfRects ?? selectionPopover?.pdfRects
       );
       if (!created) {
         return null;
