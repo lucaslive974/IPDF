@@ -156,3 +156,41 @@
     color: #f59e0b;
   }
 }
+
+/* Mobile Safe-Area Insets (Status Bar, Notch, Navigation / Gesture Bar) */
+@utility safe-pt-header {
+  padding-top: calc(0.75rem + env(safe-area-inset-top, 0px));
+}
+
+@utility safe-pt-header-sm {
+  padding-top: calc(0.625rem + env(safe-area-inset-top, 0px));
+}
+
+@utility safe-pt-header-md {
+  padding-top: calc(0.875rem + env(safe-area-inset-top, 0px));
+}
+
+@utility safe-px-inset {
+  padding-left: max(1.5rem, env(safe-area-inset-left, 0px));
+  padding-right: max(1.5rem, env(safe-area-inset-right, 0px));
+}
+
+@utility safe-top-3 {
+  top: calc(0.75rem + env(safe-area-inset-top, 0px));
+}
+
+@utility safe-bottom-3 {
+  bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+}
+
+@utility safe-bottom-4 {
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+@utility safe-right-4 {
+  right: calc(1rem + env(safe-area-inset-right, 0px));
+}
+
+@utility safe-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}

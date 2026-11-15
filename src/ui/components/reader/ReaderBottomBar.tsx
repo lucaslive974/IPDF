@@ -25,7 +25,7 @@ export const ReaderBottomBar = memo(function ReaderBottomBar({
   return (
     <>
       <footer
-        className={`fixed bottom-4 inset-x-0 z-40 flex justify-center px-4 transition-all duration-300 ease-in-out ${
+        className={`fixed safe-bottom-4 inset-x-0 z-40 flex justify-center px-4 transition-all duration-300 ease-in-out ${
           isChromeVisible
             ? 'translate-y-0 opacity-100'
             : 'translate-y-12 opacity-0 pointer-events-none'
@@ -73,7 +73,7 @@ export const ReaderBottomBar = memo(function ReaderBottomBar({
       </footer>
 
       {!isChromeVisible && (
-        <div className="fixed bottom-3 right-4 z-20 text-[0.65rem] font-mono text-tx-faint/60 select-none pointer-events-none transition-opacity duration-300">
+        <div className="fixed safe-bottom-3 safe-right-4 z-20 text-[0.65rem] font-mono text-tx-faint/60 select-none pointer-events-none transition-opacity duration-300">
           {currentPage} / {totalPages}
         </div>
       )}

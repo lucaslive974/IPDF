@@ -21,7 +21,7 @@ export const ReaderHeader = memo(function ReaderHeader({ onClose }: ReaderHeader
 
   return (
     <header
-      className={`fixed top-0 inset-x-0 z-40 flex items-center justify-between border-b border-line-subtle/70 bg-canvas/85 px-6 py-3 backdrop-blur-md transition-all duration-300 ease-in-out ${
+      className={`fixed top-0 inset-x-0 z-40 flex items-center justify-between border-b border-line-subtle/70 bg-canvas/85 pb-3 safe-pt-header safe-px-inset backdrop-blur-md transition-all duration-300 ease-in-out ${
         isChromeVisible
           ? 'translate-y-0 opacity-100'
           : '-translate-y-full opacity-0 pointer-events-none'

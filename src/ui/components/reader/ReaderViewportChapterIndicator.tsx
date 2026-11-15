@@ -16,7 +16,7 @@ export const ReaderViewportChapterIndicator = memo(function ReaderViewportChapte
   return (
     <aside
       data-testid="reader-viewport-chapter-indicator"
-      className="fixed top-3 right-4 z-20 max-w-[40vw] truncate text-[0.7rem] font-medium tracking-wide text-tx-muted/60 select-none pointer-events-none transition-opacity duration-300 text-right"
+      className="fixed safe-top-3 safe-right-4 z-20 max-w-[40vw] truncate text-[0.7rem] font-medium tracking-wide text-tx-muted/60 select-none pointer-events-none transition-opacity duration-300 text-right"
       title={chapterTitle}
     >
       {chapterTitle}

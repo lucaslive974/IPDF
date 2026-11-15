@@ -15,7 +15,7 @@ export function SettingsView() {
   const settings = useSettings();
 
   return (
-    <div className="min-h-screen bg-canvas text-tx-main flex flex-col font-sans">
+    <div className="min-h-screen bg-canvas text-tx-main flex flex-col font-sans safe-pb">
       <SettingsHeader onBack={navigation.closeSettings} />
 
       <main className="flex-1 mx-auto w-full max-w-3xl px-6 py-8 flex flex-col gap-6">

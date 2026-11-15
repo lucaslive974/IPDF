@@ -14,7 +14,7 @@ describe('ReaderViewportChapterIndicator', () => {
 
     expect(markup).toContain('data-testid="reader-viewport-chapter-indicator"');
     expect(markup).toContain('Chapter 4: The Golden Mean');
-    expect(markup).toContain('fixed top-3 right-4');
+    expect(markup).toContain('fixed safe-top-3 safe-right-4');
   });
 
   it('renders nothing when isVisible is false', () => {
