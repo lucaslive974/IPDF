@@ -62,9 +62,48 @@ export function denormalizeBoundingBox(box: BoundingBox, pageRect: RectLike): De
   };
 }
 
+function mergeOverlappingLineRects(boxes: readonly BoundingBox[]): BoundingBox[] {
+  if (boxes.length <= 1) {
+    return [...boxes];
+  }
+
+  const merged: BoundingBox[] = [];
+  for (const box of boxes) {
+    const last = merged[merged.length - 1];
+    if (!last) {
+      merged.push(box);
+      continue;
+    }
+
+    const verticalOverlap =
+      Math.min(last.y + last.height, box.y + box.height) - Math.max(last.y, box.y);
+    const minHeight = Math.min(last.height, box.height);
+    const sameLine = minHeight > 0 && verticalOverlap / minHeight >= 0.5;
+    const horizontalOverlapOrAdjacent =
+      box.x <= last.x + last.width + 0.002 && last.x <= box.x + box.width + 0.002;
+
+    if (sameLine && horizontalOverlapOrAdjacent) {
+      const minX = Math.min(last.x, box.x);
+      const minY = Math.min(last.y, box.y);
+      const maxX = Math.max(last.x + last.width, box.x + box.width);
+      const maxY = Math.max(last.y + last.height, box.y + box.height);
+      merged[merged.length - 1] = {
+        x: minX,
+        y: minY,
+        width: maxX - minX,
+        height: maxY - minY,
+      };
+    } else {
+      merged.push(box);
+    }
+  }
+
+  return merged;
+}
+
 /**
  * Extracts and normalizes all client bounding rects of an active text selection Range
- * relative to the containing page element.
+ * relative to the containing page element, merging overlapping same-line fragments.
  */
 export function normalizeSelectionRects(
   range: Pick<Range, 'getClientRects'>,
@@ -86,7 +125,7 @@ export function normalizeSelectionRects(
     }
   }
 
-  return result;
+  return mergeOverlappingLineRects(result);
 }
 
 /**

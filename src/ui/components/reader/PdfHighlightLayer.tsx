@@ -25,32 +25,51 @@ export const PdfHighlightLayer = memo(function PdfHighlightLayer({
     >
       {pageHighlights.map((hl) => {
         const rects = hl.anchor.pdfRects ?? [];
-        return rects.map((box, boxIdx) => (
-          <button
-            type="button"
-            key={`${hl.id}-box-${boxIdx}`}
-            data-testid={`pdf-highlight-rect-${hl.id}-${boxIdx}`}
-            aria-label={`Highlight: ${hl.text}`}
-            className="absolute cursor-pointer transition hover:brightness-110 active:opacity-80 rounded-xs pointer-events-auto"
-            style={{
-              left: `${box.x * 100}%`,
-              top: `${box.y * 100}%`,
-              width: `${box.width * 100}%`,
-              height: `${box.height * 100}%`,
-              backgroundColor: `${hl.color}40`,
-              borderBottom: `2px solid ${hl.color}cc`,
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onHighlightClick(hl, { x: e.clientX, y: e.clientY });
-            }}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onHighlightContextMenu(e, hl.text, pageNumber);
-            }}
-          />
-        ));
+        return (
+          <div key={hl.id} className="group absolute inset-0 pointer-events-none">
+            <div className="absolute inset-0 pointer-events-none opacity-25 transition-opacity group-hover:opacity-35">
+              {rects.map((box, boxIdx) => (
+                <div
+                  key={`${hl.id}-fill-${boxIdx}`}
+                  className="absolute rounded-xs"
+                  style={{
+                    left: `${box.x * 100}%`,
+                    top: `${box.y * 100}%`,
+                    width: `${box.width * 100}%`,
+                    height: `${box.height * 100}%`,
+                    backgroundColor: hl.color,
+                  }}
+                />
+              ))}
+            </div>
+
+            {rects.map((box, boxIdx) => (
+              <button
+                type="button"
+                key={`${hl.id}-box-${boxIdx}`}
+                data-testid={`pdf-highlight-rect-${hl.id}-${boxIdx}`}
+                aria-label={`Highlight: ${hl.text}`}
+                className="absolute cursor-pointer active:opacity-80 rounded-xs pointer-events-auto before:content-[''] before:absolute before:-inset-6"
+                style={{
+                  left: `${box.x * 100}%`,
+                  top: `${box.y * 100}%`,
+                  width: `${box.width * 100}%`,
+                  height: `${box.height * 100}%`,
+                  borderBottom: `2px solid ${hl.color}cc`,
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onHighlightClick(hl, { x: e.clientX, y: e.clientY });
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onHighlightContextMenu(e, hl.text, pageNumber);
+                }}
+              />
+            ))}
+          </div>
+        );
       })}
     </div>
   );

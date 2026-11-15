@@ -115,6 +115,35 @@ describe('pdfCoordinates utilities', () => {
       const rects = normalizeSelectionRects(mockRange, mockPageElement as unknown as HTMLElement);
       expect(rects).toEqual([]);
     });
+
+    it('merges overlapping same-line rects while keeping distinct lines separate', () => {
+      const mockPageElement = {
+        getBoundingClientRect: () => ({
+          left: 0,
+          top: 0,
+          width: 1000,
+          height: 1000,
+          right: 1000,
+          bottom: 1000,
+        }),
+      };
+
+      const mockRange = {
+        getClientRects: () =>
+          [
+            { left: 100, top: 100, width: 120, height: 20, right: 220, bottom: 120 },
+            { left: 210, top: 100, width: 100, height: 20, right: 310, bottom: 120 }, // overlaps horizontally on same line
+            { left: 100, top: 130, width: 150, height: 20, right: 250, bottom: 150 }, // next line
+          ] as unknown as DOMRectList,
+      };
+
+      const rects = normalizeSelectionRects(mockRange, mockPageElement as unknown as HTMLElement);
+      expect(rects).toHaveLength(2);
+      expect(rects[0].x).toBeCloseTo(0.1, 5);
+      expect(rects[0].width).toBeCloseTo(0.21, 5);
+      expect(rects[1].y).toBeCloseTo(0.13, 5);
+      expect(rects[1].width).toBeCloseTo(0.15, 5);
+    });
   });
 
   describe('isPointInsideBox', () => {
