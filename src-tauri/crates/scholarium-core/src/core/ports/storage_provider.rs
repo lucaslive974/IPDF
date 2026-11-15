@@ -17,6 +17,21 @@ pub trait StorageProvider {
 
     fn has_book_binary(&self, book_hash: &str) -> Result<bool, String>;
     fn read_book_binary(&mut self, book_hash: &str) -> Result<Vec<u8>, String>;
+    fn get_book_size(&mut self, book_hash: &str) -> Result<u64, String> {
+        self.read_book_binary(book_hash)
+            .map(|bytes| bytes.len() as u64)
+    }
+    fn read_book_range(
+        &mut self,
+        book_hash: &str,
+        offset: u64,
+        length: usize,
+    ) -> Result<Vec<u8>, String> {
+        let bytes = self.read_book_binary(book_hash)?;
+        let start = (offset as usize).min(bytes.len());
+        let end = start.saturating_add(length).min(bytes.len());
+        Ok(bytes[start..end].to_vec())
+    }
     fn write_book_binary(
         &mut self,
         book_hash: &str,

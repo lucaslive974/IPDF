@@ -10,7 +10,7 @@ export class EpubViewerAdapter implements IEpubViewer {
   private currentPageIndex = 0;
   private pageChangedListeners: Array<(pageInfo: PageInfo) => void> = [];
 
-  public async render(container: HTMLElement, fileData: ArrayBuffer | string): Promise<void> {
+  public async render(container: HTMLElement, fileData: ArrayBuffer): Promise<void> {
     this.container = container;
     this.pages = this.parsePages(fileData);
     this.currentPageIndex = 0;
@@ -110,11 +110,8 @@ export class EpubViewerAdapter implements IEpubViewer {
     this.pageChangedListeners.push(callback);
   }
 
-  private parsePages(fileData: ArrayBuffer | string): DocumentPage[] {
-    const rawText =
-      typeof fileData === 'string'
-        ? fileData.trim()
-        : new TextDecoder().decode(new Uint8Array(fileData)).trim();
+  private parsePages(fileData: ArrayBuffer): DocumentPage[] {
+    const rawText = new TextDecoder().decode(new Uint8Array(fileData)).trim();
 
     if (rawText.startsWith('{')) {
       try {

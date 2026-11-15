@@ -173,4 +173,23 @@ fn test_reader_manager_lifecycle_and_caching() {
     // 7. Error handling
     assert!(reader.read_book_binary("nonexistent").is_err());
     assert!(reader.get_book_pages("nonexistent", 1, 1).is_err());
+    assert!(reader.get_book_size("nonexistent").is_err());
+    assert!(reader.read_book_range("nonexistent", 0, 10).is_err());
+}
+
+#[test]
+fn test_reader_range_reads_through_storage_provider() {
+    let mut reader = ReaderManager::new(InMemoryStorage::new("mem"));
+
+    let payload = b"0123456789ABCDEF-PDF-RANGE".to_vec();
+    reader
+        .storage_mut()
+        .write_book_binary("range-hash", payload.clone(), BookFormat::Pdf)
+        .unwrap();
+
+    assert_eq!(reader.get_book_size("range-hash").unwrap(), payload.len() as u64);
+    assert_eq!(reader.read_book_range("range-hash", 0, 4).unwrap(), b"0123");
+    assert_eq!(reader.read_book_range("range-hash", 10, 6).unwrap(), b"ABCDEF");
+    assert_eq!(reader.read_book_range("range-hash", 21, 100).unwrap(), b"RANGE");
+    assert!(reader.read_book_range("range-hash", 100, 10).unwrap().is_empty());
 }

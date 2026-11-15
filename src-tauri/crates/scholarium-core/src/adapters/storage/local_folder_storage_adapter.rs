@@ -90,6 +90,38 @@ impl StorageProvider for LocalFolderStorageAdapter {
         fs::read(&path).map_err(to_err)
     }
 
+    fn get_book_size(&mut self, book_hash: &str) -> Result<u64, String> {
+        let path = self.resolve_book_path(book_hash);
+        if !path.exists() {
+            return Err(format!("Book binary not found for hash: {book_hash}"));
+        }
+        Ok(fs::metadata(&path).map_err(to_err)?.len())
+    }
+
+    fn read_book_range(
+        &mut self,
+        book_hash: &str,
+        offset: u64,
+        length: usize,
+    ) -> Result<Vec<u8>, String> {
+        use std::io::{Read, Seek, SeekFrom};
+        let path = self.resolve_book_path(book_hash);
+        if !path.exists() {
+            return Err(format!("Book binary not found for hash: {book_hash}"));
+        }
+        let file = fs::File::open(&path).map_err(to_err)?;
+        let file_len = file.metadata().map_err(to_err)?.len();
+        if offset >= file_len || length == 0 {
+            return Ok(Vec::new());
+        }
+        let mut reader = file;
+        reader.seek(SeekFrom::Start(offset)).map_err(to_err)?;
+        let to_read = (length as u64).min(file_len - offset);
+        let mut buf = Vec::with_capacity(to_read as usize);
+        reader.take(to_read).read_to_end(&mut buf).map_err(to_err)?;
+        Ok(buf)
+    }
+
     fn write_book_binary(
         &mut self,
         book_hash: &str,

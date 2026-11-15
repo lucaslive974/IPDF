@@ -1,6 +1,6 @@
 import { DefaultPdfEngine } from '@adapters/viewers/DefaultPdfEngine';
 import type { ILibraryService } from '@ports/ILibraryService';
-import type { IPdfEngine, PdfPageProxy } from '@ports/IPdfEngine';
+import type { IPdfEngine, PdfPageProxy, PdfRangeSource } from '@ports/IPdfEngine';
 import type { IPdfViewer } from '@ports/IPdfViewer';
 import { hasDocument } from '@utils/dom';
 
@@ -65,7 +65,7 @@ export async function renderPdfPageToDataUrl(
  * and renders it as a cover thumbnail Data URL.
  */
 export async function generatePdfPageCoverDataUrl(
-  source: ArrayBuffer | string,
+  source: PdfRangeSource,
   engine: IPdfEngine = new DefaultPdfEngine(),
   options?: RenderCoverOptions
 ): Promise<string | null> {

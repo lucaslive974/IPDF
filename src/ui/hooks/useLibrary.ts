@@ -43,33 +43,18 @@ export function useLibrary(): LibraryViewModel {
       if (book.format !== BookFormat.PDF) return;
       if (hasCachedPdfCoverUrl(book.coverImageUrl)) return;
       try {
-        let source: string | ArrayBuffer | null = null;
-        if (readerService.getBookFilePath) {
-          const path = await readerService.getBookFilePath(book.bookHash);
-          if (path) {
-            try {
-              const { convertFileSrc } = await import('@tauri-apps/api/core');
-              source = convertFileSrc(path);
-            } catch {
-              source = path;
-            }
-          }
-        }
-        if (!source) {
-          const bytes = await readerService.readBookBinary(book.bookHash);
-          if (bytes.length > 0) {
-            source = bytes.buffer as ArrayBuffer;
-          }
-        }
-        if (source) {
-          const coverUrl = await generatePdfPageCoverDataUrl(source);
-          if (coverUrl) {
-            if (libraryService.updateBookCover) {
-              const updated = await libraryService.updateBookCover(book.bookHash, coverUrl);
-              upsertBook(updated);
-            } else {
-              upsertBook({ ...book, coverImageUrl: coverUrl });
-            }
+        const totalBytes = await readerService.getBookFileSize(book.bookHash);
+        const coverUrl = await generatePdfPageCoverDataUrl({
+          totalBytes,
+          readRange: (begin: number, end: number) =>
+            readerService.readBookRange(book.bookHash, begin, end),
+        });
+        if (coverUrl) {
+          if (libraryService.updateBookCover) {
+            const updated = await libraryService.updateBookCover(book.bookHash, coverUrl);
+            upsertBook(updated);
+          } else {
+            upsertBook({ ...book, coverImageUrl: coverUrl });
           }
         }
       } catch (err) {

@@ -26,7 +26,7 @@ export interface ReaderBootstrapDependencies {
   readonly libraryService?: ILibraryService;
   readonly presenceService?: IPresenceService;
   readonly highlightService?: IHighlightService;
-  readonly getViewer?: (format: BookFormat) => IDocumentViewer;
+  readonly getViewer?: (format: BookFormat) => IEpubViewer | IPdfViewer;
   readonly epubViewer?: IEpubViewer;
   readonly pdfViewer?: IPdfViewer;
   readonly store?: typeof useReaderStore;
@@ -58,7 +58,7 @@ export function createStudyDocumentDescriptor(book?: BookMetadata | null): Study
 export function resolveDocumentViewer(
   deps: ReaderBootstrapDependencies,
   format: BookFormat
-): IDocumentViewer {
+): IEpubViewer | IPdfViewer {
   if (deps.getViewer) {
     return deps.getViewer(format);
   }
@@ -79,35 +79,21 @@ export function resolvePdfViewer(deps: ReaderBootstrapDependencies): IPdfViewer 
 }
 
 /**
- * Renders the document in the given viewer using either asset URL (Tauri) or binary array.
+ * Renders the PDF document in the given viewer using on-demand byte range reads.
  */
-export async function renderDocumentInViewer(
-  viewer: IDocumentViewer,
+export async function renderPdfInViewer(
+  viewer: IPdfViewer,
   readerService: IReaderService,
   bookHash: string
 ): Promise<void> {
   const container = globalThis.document?.createElement
     ? globalThis.document.createElement('div')
     : ({ innerHTML: '' } as unknown as HTMLElement);
-
-  const filePath = await readerService.getBookFilePath(bookHash);
-  if (filePath) {
-    let assetUrl = filePath;
-    try {
-      const { convertFileSrc } = await import('@tauri-apps/api/core');
-      assetUrl = convertFileSrc(filePath);
-    } catch {
-      assetUrl = filePath;
-    }
-    await viewer.render(container, assetUrl);
-    return;
-  }
-
-  const rawBytes = await readerService.readBookBinary(bookHash);
-  if (rawBytes.length > 0) {
-    await viewer.render(container, rawBytes.buffer as ArrayBuffer);
-    return;
-  }
+  const totalBytes = await readerService.getBookFileSize(bookHash);
+  await viewer.render(container, {
+    totalBytes,
+    readRange: (begin: number, end: number) => readerService.readBookRange(bookHash, begin, end),
+  });
 }
 
 /**
@@ -115,13 +101,13 @@ export async function renderDocumentInViewer(
  */
 export async function bootstrapPdfReaderSession(
   deps: ReaderBootstrapDependencies,
-  viewer: IDocumentViewer,
+  viewer: IPdfViewer,
   doc: StudyDocumentDescriptor,
   window: PageWindow,
   initialPage: number,
   store: typeof useReaderStore = deps.store ?? useReaderStore
 ): Promise<void> {
-  await renderDocumentInViewer(viewer, deps.readerService, doc.bookHash);
+  await renderPdfInViewer(viewer, deps.readerService, doc.bookHash);
 
   const pdfViewer = resolvePdfViewer(deps);
   const info = pdfViewer.getCurrentPage();
@@ -153,7 +139,7 @@ export async function bootstrapPdfReaderSession(
  */
 export async function bootstrapEpubReaderSession(
   deps: ReaderBootstrapDependencies,
-  viewer: IDocumentViewer,
+  viewer: IEpubViewer | IPdfViewer,
   doc: StudyDocumentDescriptor,
   window: PageWindow,
   initialPage: number,
@@ -202,13 +188,20 @@ export async function bootstrapReaderBook(
   store.getState().setTotalPages(book?.totalPages ?? 0);
 
   const format = book?.format ?? BookFormat.EPUB;
-  const viewer = resolveDocumentViewer(deps, format);
   const window = calculatePageWindow(initialPage, book?.totalPages);
 
   try {
     if (format === BookFormat.PDF) {
-      await bootstrapPdfReaderSession(deps, viewer, doc, window, initialPage, store);
+      await bootstrapPdfReaderSession(
+        deps,
+        resolvePdfViewer(deps),
+        doc,
+        window,
+        initialPage,
+        store
+      );
     } else {
+      const viewer = resolveDocumentViewer(deps, format);
       await bootstrapEpubReaderSession(deps, viewer, doc, window, initialPage, book, store);
     }
   } catch (err) {

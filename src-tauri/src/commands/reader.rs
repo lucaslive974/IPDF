@@ -51,6 +51,31 @@ pub fn read_book_binary(
 }
 
 #[tauri::command]
+pub fn get_book_file_size(
+    book_hash: String,
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<u64, String> {
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    guard.reader.get_book_size(&book_hash)
+}
+
+#[tauri::command]
+pub fn read_book_range(
+    book_hash: String,
+    begin: u64,
+    end: u64,
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<tauri::ipc::Response, String> {
+    if end <= begin {
+        return Ok(tauri::ipc::Response::new(Vec::<u8>::new()));
+    }
+    let length = (end - begin) as usize;
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    let bytes = guard.reader.read_book_range(&book_hash, begin, length)?;
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
+#[tauri::command]
 pub fn get_book_pages(
     book_hash: String,
     start_page: u32,

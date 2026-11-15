@@ -83,6 +83,15 @@ export class MockBackend
     return '';
   }
 
+  public async getBookFileSize(bookHash: string): Promise<number> {
+    return (await this.readBookBinary(bookHash)).byteLength;
+  }
+
+  public async readBookRange(bookHash: string, begin: number, end: number): Promise<Uint8Array> {
+    const full = await this.readBookBinary(bookHash);
+    return full.subarray(begin, end);
+  }
+
   public async readBookBinary(_bookHash: string): Promise<Uint8Array> {
     return new TextEncoder().encode(
       JSON.stringify({

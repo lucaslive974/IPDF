@@ -51,6 +51,8 @@ pub fn run() {
             // Reader & Content routes
             reader::get_book_file_path,
             reader::read_book_binary,
+            reader::get_book_file_size,
+            reader::read_book_range,
             reader::get_book_pages,
             reader::update_book_progress,
             // Highlights & Annotations routes

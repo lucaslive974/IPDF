@@ -26,7 +26,7 @@ export interface ServiceContainer {
   readonly readerService: IReaderService;
   readonly presenceService: IPresenceService;
   readonly settingsService: ISettingsService;
-  readonly getViewer: (format: BookFormat) => IDocumentViewer;
+  readonly getViewer: (format: BookFormat) => IEpubViewer | IPdfViewer;
   readonly epubViewer: IEpubViewer;
   readonly pdfViewer: IPdfViewer;
 }
@@ -40,7 +40,7 @@ export interface ServiceContainerOverrides {
   readonly epubViewer?: IEpubViewer;
   readonly viewer?: IDocumentViewer;
   readonly pdfViewer?: IPdfViewer;
-  readonly getViewer?: (format: BookFormat) => IDocumentViewer;
+  readonly getViewer?: (format: BookFormat) => IEpubViewer | IPdfViewer;
   readonly enablePageCache?: boolean;
   readonly pageCacheCapacity?: number;
 }

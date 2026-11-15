@@ -71,6 +71,16 @@ class MockReaderService implements IReaderService {
     return this.getBookFilePathMock(bookHash);
   }
 
+  public getBookFileSizeMock = vi.fn().mockResolvedValue(1024);
+  public async getBookFileSize(bookHash: string): Promise<number> {
+    return this.getBookFileSizeMock(bookHash);
+  }
+
+  public readBookRangeMock = vi.fn().mockResolvedValue(new Uint8Array([1, 2]));
+  public async readBookRange(bookHash: string, begin: number, end: number): Promise<Uint8Array> {
+    return this.readBookRangeMock(bookHash, begin, end);
+  }
+
   public buildTermLookupRequestMock = vi.fn().mockResolvedValue({
     systemPrompt: 'System',
     userPrompt: 'User',

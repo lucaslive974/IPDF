@@ -286,6 +286,14 @@ export class CachedReaderServiceDecorator implements IReaderService {
     return null;
   }
 
+  public getBookFileSize(bookHash: string): Promise<number> {
+    return this.inner.getBookFileSize(bookHash);
+  }
+
+  public readBookRange(bookHash: string, begin: number, end: number): Promise<Uint8Array> {
+    return this.inner.readBookRange(bookHash, begin, end);
+  }
+
   public buildTermLookupRequest(
     context: ReadingContext,
     targetLanguage?: string

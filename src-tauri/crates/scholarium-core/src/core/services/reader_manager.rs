@@ -68,6 +68,19 @@ impl<S: StorageProvider, R: BookRepository> ReaderManager<S, R> {
         Err(format!("Book binary not found for hash: {book_hash}"))
     }
 
+    pub fn get_book_size(&mut self, book_hash: &str) -> Result<u64, String> {
+        self.storage.get_book_size(book_hash)
+    }
+
+    pub fn read_book_range(
+        &mut self,
+        book_hash: &str,
+        offset: u64,
+        length: usize,
+    ) -> Result<Vec<u8>, String> {
+        self.storage.read_book_range(book_hash, offset, length)
+    }
+
     pub fn get_book_pages(
         &mut self,
         book_hash: &str,

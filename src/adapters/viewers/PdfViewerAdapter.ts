@@ -1,6 +1,12 @@
 import type { PageInfo } from '@domain/types';
 import type { DocumentPage } from '@ports/IDocumentViewer';
-import type { IPdfEngine, PdfDocumentProxy, PdfPageProxy, PdfRenderTask } from '@ports/IPdfEngine';
+import type {
+  IPdfEngine,
+  PdfDocumentProxy,
+  PdfPageProxy,
+  PdfRangeSource,
+  PdfRenderTask,
+} from '@ports/IPdfEngine';
 import type { IPdfViewer } from '@ports/IPdfViewer';
 import { getDevicePixelRatio, hasDocument, isBrowser } from '@utils/dom';
 import { DefaultPdfEngine } from './DefaultPdfEngine';
@@ -19,7 +25,7 @@ export class PdfViewerAdapter implements IPdfViewer {
     this.engine = engine ?? new DefaultPdfEngine();
   }
 
-  public async render(container: HTMLElement, fileData: ArrayBuffer | string): Promise<void> {
+  public async render(container: HTMLElement, fileData: PdfRangeSource): Promise<void> {
     this.container = container;
     this.documentProxy = await this.engine.loadDocument(fileData);
     const total = this.documentProxy.numPages;

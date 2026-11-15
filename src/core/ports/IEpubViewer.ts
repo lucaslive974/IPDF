@@ -1,4 +1,4 @@
-import type { DocumentPage, IDocumentViewer } from './IDocumentViewer';
+import type { IDocumentViewer } from './IDocumentViewer';
 
 export interface EpubChapterDescriptor {
   readonly title: string;

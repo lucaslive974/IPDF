@@ -12,15 +12,6 @@ describe('DefaultPdfEngine', () => {
     const engine = new DefaultPdfEngine();
 
     const fakeWorkerOptions = { workerSrc: '' };
-    const fakePdfjsLib = {
-      GlobalWorkerOptions: fakeWorkerOptions,
-      getDocument: vi.fn().mockReturnValue({
-        promise: Promise.resolve({
-          numPages: 1,
-          getPage: vi.fn(),
-        }),
-      }),
-    };
 
     // Simulate browser window
     const originalWindow = globalThis.window;
@@ -28,7 +19,7 @@ describe('DefaultPdfEngine', () => {
 
     try {
       // @ts-expect-error test private method invocation
-      engine.ensureWorkerConfigured(fakePdfjsLib);
+      engine.ensureWorkerConfigured(fakeWorkerOptions);
       expect(fakeWorkerOptions.workerSrc).toContain('pdf.worker.min.mjs');
     } finally {
       globalThis.window = originalWindow;
@@ -41,10 +32,10 @@ describe('DefaultPdfEngine', () => {
 
     vi.spyOn(engine, 'loadDocument').mockImplementation(async () => fakeDoc as never);
 
-    const doc = await engine.loadDocument(new ArrayBuffer(8));
+    const doc = await engine.loadDocument({
+      totalBytes: 8,
+      readRange: async () => new Uint8Array(8),
+    });
     expect(doc.numPages).toBe(2);
-
-    const docFromUrl = await engine.loadDocument('asset://localhost/books/sample.pdf');
-    expect(docFromUrl.numPages).toBe(2);
   });
 });

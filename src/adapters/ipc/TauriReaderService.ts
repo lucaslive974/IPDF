@@ -10,15 +10,7 @@ import { type SerializedBookMetadata, deserializeBookMetadata } from './TauriLib
 
 export class TauriReaderService implements IReaderService {
   public async readBookBinary(bookHash: string): Promise<Uint8Array> {
-    const raw = await invoke<ArrayBuffer | Uint8Array | number[]>('read_book_binary', {
-      bookHash,
-    });
-    if (raw instanceof ArrayBuffer) {
-      return new Uint8Array(raw);
-    }
-    if (ArrayBuffer.isView(raw)) {
-      return new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength);
-    }
+    const raw = await invoke<ArrayBuffer>('read_book_binary', { bookHash });
     return new Uint8Array(raw);
   }
 
@@ -58,6 +50,15 @@ export class TauriReaderService implements IReaderService {
     } catch {
       return null;
     }
+  }
+
+  public async getBookFileSize(bookHash: string): Promise<number> {
+    return invoke<number>('get_book_file_size', { bookHash });
+  }
+
+  public async readBookRange(bookHash: string, begin: number, end: number): Promise<Uint8Array> {
+    const raw = await invoke<ArrayBuffer>('read_book_range', { bookHash, begin, end });
+    return new Uint8Array(raw);
   }
 
   public async buildTermLookupRequest(

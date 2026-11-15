@@ -77,7 +77,7 @@ describe('PdfViewerAdapter (PDF.js Engine, Canvas & Cooperative Cancellation)', 
     const pageEvents: PageInfo[] = [];
     viewer.onPageChanged((info) => pageEvents.push(info));
 
-    await viewer.render(container, new ArrayBuffer(16));
+    await viewer.render(container, { totalBytes: 16, readRange: async () => new Uint8Array(16) });
 
     expect(viewer.getCurrentPage()).toEqual({
       currentPage: 1,
@@ -122,7 +122,7 @@ describe('PdfViewerAdapter (PDF.js Engine, Canvas & Cooperative Cancellation)', 
     const engine = createMockPdfEngine();
     const viewer = new PdfViewerAdapter(engine);
     const container = createFakeContainer();
-    await viewer.render(container, new ArrayBuffer(16));
+    await viewer.render(container, { totalBytes: 16, readRange: async () => new Uint8Array(16) });
 
     const fakeCanvas = {
       width: 0,
@@ -149,7 +149,7 @@ describe('PdfViewerAdapter (PDF.js Engine, Canvas & Cooperative Cancellation)', 
     const engine = createMockPdfEngine();
     const viewer = new PdfViewerAdapter(engine);
     const container = createFakeContainer();
-    await viewer.render(container, new ArrayBuffer(16));
+    await viewer.render(container, { totalBytes: 16, readRange: async () => new Uint8Array(16) });
 
     const styleProperties = new Map<string, string>();
     const fakeTextContainer = {
@@ -226,7 +226,7 @@ describe('PdfViewerAdapter (PDF.js Engine, Canvas & Cooperative Cancellation)', 
 
     const viewer = new PdfViewerAdapter(mockEngine);
     const container = createFakeContainer();
-    await viewer.render(container, new ArrayBuffer(16));
+    await viewer.render(container, { totalBytes: 16, readRange: async () => new Uint8Array(16) });
 
     const fakeCanvas = {
       width: 0,
@@ -272,7 +272,7 @@ describe('PdfViewerAdapter (PDF.js Engine, Canvas & Cooperative Cancellation)', 
 
     const viewer = new PdfViewerAdapter(mockEngine);
     const container = createFakeContainer();
-    await viewer.render(container, new ArrayBuffer(8));
+    await viewer.render(container, { totalBytes: 8, readRange: async () => new Uint8Array(8) });
 
     const fakeCanvas = {
       width: 0,
@@ -311,7 +311,7 @@ describe('PdfViewerAdapter (PDF.js Engine, Canvas & Cooperative Cancellation)', 
     expect(viewer.getPage(99)).toBeNull();
 
     const container = createFakeContainer();
-    await viewer.render(container, new ArrayBuffer(8));
+    await viewer.render(container, { totalBytes: 8, readRange: async () => new Uint8Array(8) });
 
     // Next page at boundary does nothing
     await viewer.nextPage();
@@ -356,7 +356,7 @@ describe('PdfViewerAdapter (PDF.js Engine, Canvas & Cooperative Cancellation)', 
 
     const viewer = new PdfViewerAdapter(mockEngine);
     const container = createFakeContainer();
-    await viewer.render(container, new ArrayBuffer(16));
+    await viewer.render(container, { totalBytes: 16, readRange: async () => new Uint8Array(16) });
 
     expect(viewer.getCurrentPage().totalPages).toBe(8);
 
@@ -371,7 +371,7 @@ describe('PdfViewerAdapter (PDF.js Engine, Canvas & Cooperative Cancellation)', 
     const engine = createMockPdfEngine();
     const viewer = new PdfViewerAdapter(engine);
     const container = createFakeContainer();
-    await viewer.render(container, new ArrayBuffer(16));
+    await viewer.render(container, { totalBytes: 16, readRange: async () => new Uint8Array(16) });
 
     viewer.destroy();
     expect(viewer.getPage(1)).toBeNull();

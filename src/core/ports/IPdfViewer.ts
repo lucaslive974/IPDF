@@ -1,12 +1,12 @@
 import type { IDocumentViewer } from '@ports/IDocumentViewer';
-import type { PdfPageProxy } from '@ports/IPdfEngine';
+import type { PdfPageProxy, PdfRangeSource } from '@ports/IPdfEngine';
 
 /**
  * Canonical PDF document viewer port.
  * Extends IDocumentViewer with fixed-layout, canvas-based rasterization
  * and cooperative cancellation capabilities.
  */
-export interface IPdfViewer extends IDocumentViewer {
+export interface IPdfViewer extends IDocumentViewer<PdfRangeSource> {
   renderPageCanvas(
     pageNumber: number,
     canvas: HTMLCanvasElement,

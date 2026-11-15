@@ -54,6 +54,26 @@ impl<L: StorageProvider, P: StorageProvider> StorageProvider for CachedStorageDe
         Ok(bytes)
     }
 
+    fn get_book_size(&mut self, book_hash: &str) -> Result<u64, String> {
+        if self.local_cache.has_book_binary(book_hash)? {
+            return self.local_cache.get_book_size(book_hash);
+        }
+        self.primary_storage.get_book_size(book_hash)
+    }
+
+    fn read_book_range(
+        &mut self,
+        book_hash: &str,
+        offset: u64,
+        length: usize,
+    ) -> Result<Vec<u8>, String> {
+        if self.local_cache.has_book_binary(book_hash)? {
+            return self.local_cache.read_book_range(book_hash, offset, length);
+        }
+        self.primary_storage
+            .read_book_range(book_hash, offset, length)
+    }
+
     fn write_book_binary(
         &mut self,
         book_hash: &str,

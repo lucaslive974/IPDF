@@ -108,13 +108,17 @@ describe('pdfCoverGenerator', () => {
   });
 
   it('generates cover from source via engine and destroys doc', async () => {
-    const dataUrl = await generatePdfPageCoverDataUrl('test.pdf', mockEngine, {
+    const rangeSource = {
+      totalBytes: 64,
+      readRange: vi.fn().mockResolvedValue(new Uint8Array(64)),
+    };
+    const dataUrl = await generatePdfPageCoverDataUrl(rangeSource, mockEngine, {
       maxWidth: 200,
       canvas: fakeCanvas,
     });
 
     expect(dataUrl).toBe('data:image/webp;base64,mockWebpData');
-    expect(mockEngine.loadDocument).toHaveBeenCalledWith('test.pdf');
+    expect(mockEngine.loadDocument).toHaveBeenCalledWith(rangeSource);
     expect(mockDoc.getPage).toHaveBeenCalledWith(1);
     expect(mockDoc.destroy).toHaveBeenCalled();
   });

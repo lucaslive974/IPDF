@@ -39,6 +39,11 @@ export interface PdfDocumentProxy {
   destroy?(): Promise<void> | void;
 }
 
+export interface PdfRangeSource {
+  readonly totalBytes: number;
+  readRange(begin: number, end: number): Promise<Uint8Array>;
+}
+
 export interface IPdfEngine {
-  loadDocument(source: ArrayBuffer | string): Promise<PdfDocumentProxy>;
+  loadDocument(source: PdfRangeSource): Promise<PdfDocumentProxy>;
 }

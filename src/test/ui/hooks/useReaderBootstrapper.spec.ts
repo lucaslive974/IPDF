@@ -154,7 +154,7 @@ describe('useReaderBootstrapper / bootstrapReaderBook', () => {
       {
         readerService: backend,
         libraryService: backend,
-        getViewer: () => mockPdfViewer as unknown as IDocumentViewer,
+        getViewer: () => mockPdfViewer as unknown as IPdfViewer,
         pdfViewer: mockPdfViewer as unknown as IPdfViewer,
       },
       pdfBook
@@ -265,7 +265,7 @@ describe('useReaderBootstrapper / bootstrapReaderBook', () => {
           readerService: backend,
           pdfViewer: mockPdfViewer as unknown as IPdfViewer,
         },
-        mockPdfViewer as unknown as IDocumentViewer,
+        mockPdfViewer as unknown as IPdfViewer,
         doc,
         { startPage: 1, count: 5 },
         1
