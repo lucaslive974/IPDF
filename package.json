@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:android": "VITE_PORT=1422 tauri android dev --config '{\"build\":{\"devUrl\":\"http://localhost:1422\",\"beforeDevCommand\":\"npm run dev\"}}'",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
