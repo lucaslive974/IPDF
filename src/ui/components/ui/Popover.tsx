@@ -56,7 +56,7 @@ export function Popover({
   return (
     <div
       ref={popoverRef}
-      className={`fixed z-50 flex ${width} -translate-x-1/2 flex-col gap-2.5 rounded-xl border border-line-subtle bg-surface/95 p-3.5 shadow-2xl backdrop-blur-md transition-all duration-200 ${className}`.trim()}
+      className={`fixed z-50 flex ${width} -translate-x-1/2 flex-col gap-2.5 p-3.5 floating-panel transition-all duration-200 ${className}`.trim()}
       style={{
         left: `${x}px`,
         top: `${Math.max(16, y - offsetY)}px`,

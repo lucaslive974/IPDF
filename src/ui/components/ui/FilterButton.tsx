@@ -82,7 +82,7 @@ export const FilterButton = memo(function FilterButton<T extends string = string
       {isOpen && (
         <div
           role="menu"
-          className="absolute left-0 mt-1 z-30 min-w-44 max-h-60 overflow-y-auto rounded-xl border border-line-subtle bg-surface/95 p-1 shadow-lg backdrop-blur-md transition-all duration-150"
+          className="absolute left-0 mt-1 z-30 min-w-44 max-h-60 overflow-y-auto p-1 floating-panel transition-all duration-150"
         >
           {options.map((opt) => {
             const isSelected = opt.value === value;

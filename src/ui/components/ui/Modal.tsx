@@ -26,7 +26,7 @@ export function Modal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4 transition-opacity duration-200">
+    <div className="modal-backdrop transition-opacity duration-200">
       <div
         className={`relative flex h-[88vh] w-full ${maxWidth} flex-col rounded-xl border border-line-subtle bg-surface shadow-2xl overflow-hidden`}
       >

@@ -97,7 +97,7 @@ export function LibraryView({
   ];
 
   return (
-    <div className="min-h-screen bg-canvas text-tx-main flex flex-col font-sans safe-pb selection:bg-tx-main selection:text-canvas">
+    <div className="app-page-shell selection:bg-tx-main selection:text-canvas">
       <LibraryHeader
         activeTab={activeTab}
         onTabChange={setActiveTab}

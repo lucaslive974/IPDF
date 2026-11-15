@@ -73,7 +73,7 @@ export const ReaderBottomBar = memo(function ReaderBottomBar({
       </footer>
 
       {!isChromeVisible && (
-        <div className="fixed safe-bottom-3 safe-right-4 z-20 text-[0.65rem] font-mono text-tx-faint/60 select-none pointer-events-none transition-opacity duration-300">
+        <div className="fixed safe-bottom-3 safe-right-4 reader-ambient-hud text-[0.65rem] font-mono text-tx-faint/60">
           {currentPage} / {totalPages}
         </div>
       )}

@@ -204,7 +204,7 @@ export const AutocompleteInput = memo(function AutocompleteInput({
       />
 
       {isOpen && (filteredSuggestions.length > 0 || showCustomOption) && (
-        <div className="absolute left-0 top-full mt-1.5 z-50 w-full max-h-52 overflow-y-auto rounded-xl border border-line-subtle bg-surface/95 p-1 shadow-xl backdrop-blur-md transition-all duration-150 flex flex-col gap-0.5">
+        <div className="absolute left-0 top-full mt-1.5 z-50 w-full max-h-52 overflow-y-auto p-1 floating-panel transition-all duration-150 flex flex-col gap-0.5">
           {filteredSuggestions.map((suggestion, index) => {
             const isHighlighted = index === highlightedIndex;
             return (

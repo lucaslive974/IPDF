@@ -157,22 +157,34 @@
   }
 }
 
-/* Mobile Safe-Area Insets (Status Bar, Notch, Navigation / Gesture Bar) */
-@utility safe-pt-header {
+/* Mobile Safe-Area Insets & Semantic Layout Groups */
+@utility app-page-shell {
+  @apply min-h-screen bg-canvas text-tx-main flex flex-col font-sans;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@utility app-header-bar {
+  @apply flex items-center justify-between border-b border-line-subtle/70 bg-canvas/85 backdrop-blur-md;
   padding-top: calc(0.75rem + env(safe-area-inset-top, 0px));
-}
-
-@utility safe-pt-header-sm {
-  padding-top: calc(0.625rem + env(safe-area-inset-top, 0px));
-}
-
-@utility safe-pt-header-md {
-  padding-top: calc(0.875rem + env(safe-area-inset-top, 0px));
-}
-
-@utility safe-px-inset {
+  padding-bottom: 0.75rem;
   padding-left: max(1.5rem, env(safe-area-inset-left, 0px));
   padding-right: max(1.5rem, env(safe-area-inset-right, 0px));
+}
+
+@utility floating-panel {
+  @apply rounded-xl border border-line-subtle bg-surface/95 backdrop-blur-md shadow-2xl;
+}
+
+@utility modal-backdrop {
+  @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs;
+}
+
+@utility cover-overlay-chip {
+  @apply bg-surface/90 backdrop-blur-xs border border-line-subtle/60;
+}
+
+@utility reader-ambient-hud {
+  @apply z-20 select-none pointer-events-none transition-opacity duration-300;
 }
 
 @utility safe-top-3 {
@@ -189,10 +201,6 @@
 
 @utility safe-right-4 {
   right: calc(1rem + env(safe-area-inset-right, 0px));
-}
-
-@utility safe-pb {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* Reveal overlay controls on hover/focus when a fine pointer is present; always visible on touch */

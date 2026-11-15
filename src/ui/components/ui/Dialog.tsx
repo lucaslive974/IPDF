@@ -45,7 +45,7 @@ export function Dialog({
   return (
     <div
       role="presentation"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 transition-opacity duration-150"
+      className="modal-backdrop transition-opacity duration-150"
       onClick={(e) => {
         if (contentRef.current && !contentRef.current.contains(e.target as Node)) {
           onClose();

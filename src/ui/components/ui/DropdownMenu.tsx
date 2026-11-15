@@ -77,7 +77,7 @@ export function DropdownMenu({
     <div
       ref={menuRef}
       role="menu"
-      className={`fixed z-50 flex ${width} flex-col rounded-xl border border-line-subtle bg-surface/95 p-1.5 shadow-2xl backdrop-blur-md transition-all duration-150 ${className}`.trim()}
+      className={`fixed z-50 flex ${width} flex-col p-1.5 floating-panel transition-all duration-150 ${className}`.trim()}
       style={{
         left: `${adjustedPos.x}px`,
         top: `${adjustedPos.y}px`,
