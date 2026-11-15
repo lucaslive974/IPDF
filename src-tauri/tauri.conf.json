@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Scholarium",
-  "version": "0.1.0",
+  "version": "0.5.0",
   "identifier": "com.scholarium.reader",
   "build": {
     "beforeDevCommand": "npm run dev",

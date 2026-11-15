@@ -3163,7 +3163,7 @@ dependencies = [
 
 [[package]]
 name = "scholarium"
-version = "0.1.0"
+version = "0.5.0"
 dependencies = [
  "base64 0.22.1",
  "rfd",
@@ -3177,7 +3177,7 @@ dependencies = [
 
 [[package]]
 name = "scholarium-core"
-version = "0.1.0"
+version = "0.5.0"
 dependencies = [
  "discord-presence",
  "rusqlite",

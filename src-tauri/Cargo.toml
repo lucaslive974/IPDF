@@ -1,6 +1,6 @@
 [package]
 name = "scholarium"
-version = "0.1.0"
+version = "0.5.0"
 description = "Scholarium — Active Study Reader (EPUB & PDF) with Hexagonal Architecture"
 authors = ["lucaslive974"]
 edition = "2021"
