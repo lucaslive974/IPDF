@@ -40,16 +40,16 @@ export const BookCard = memo(function BookCard({
             onClick={() => onOpenBook(book)}
           />
 
-          {/* Format Badge (Overlay top-left, visible on hover) */}
-          <div className="absolute top-2 left-2 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+          {/* Format Badge (Overlay top-left, always visible on touch, hover on desktop) */}
+          <div className="absolute top-2 left-2 pointer-events-none hover-reveal transition-opacity duration-150">
             <span className="inline-flex items-center px-1.5 py-0.5 rounded-sm text-[0.6rem] font-semibold tracking-wider uppercase bg-surface/90 text-tx-secondary backdrop-blur-xs border border-line-subtle/60 shadow-2xs">
               {book.format}
             </span>
           </div>
 
-          {/* Quick Actions (Overlay top-right, visible on hover) */}
+          {/* Quick Actions (Overlay top-right, always visible on touch, hover on desktop) */}
           {(onRenameBook || onDeleteBook) && (
-            <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150 bg-surface/90 backdrop-blur-xs p-0.5 rounded-md border border-line-subtle/60 shadow-xs">
+            <div className="absolute top-2 right-2 flex items-center gap-1 hover-reveal transition-opacity duration-150 bg-surface/90 backdrop-blur-xs p-0.5 rounded-md border border-line-subtle/60 shadow-xs">
               {onRenameBook && (
                 <IconButton
                   variant="ghost"

@@ -194,3 +194,30 @@
 @utility safe-pb {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+/* Reveal overlay controls on hover/focus when a fine pointer is present; always visible on touch */
+@utility hover-reveal {
+  opacity: 1;
+
+  @media (hover: hover) and (pointer: fine) {
+    opacity: 0;
+
+    .group:hover &,
+    .group:focus-within & {
+      opacity: 1;
+    }
+  }
+}
+
+/* Compact library grid & cover height for short landscape viewports (e.g. phones in landscape) */
+@utility landscape-compact-cover {
+  @media (max-height: 520px) {
+    max-height: 44dvh;
+  }
+}
+
+@utility landscape-compact-grid {
+  @media (max-height: 520px) and (min-width: 640px) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

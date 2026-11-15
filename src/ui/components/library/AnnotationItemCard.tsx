@@ -39,7 +39,7 @@ export const AnnotationItemCard = memo(function AnnotationItemCard({
           <Badge variant="faint" size="sm">
             p. {pageNumber}
           </Badge>
-          <span className="text-[0.68rem] opacity-0 group-hover:opacity-100 transition-opacity">
+          <span className="text-[0.68rem] hover-reveal transition-opacity">
             Jump to reader &rarr;
           </span>
         </button>

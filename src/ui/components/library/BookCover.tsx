@@ -48,7 +48,7 @@ export const BookCover = memo(function BookCover({
   if (coverUrl) {
     return (
       <div
-        className={`relative aspect-3/4 w-full overflow-hidden rounded-md bg-surface-subtle shadow-xs border border-line-subtle/60 flex items-center justify-center p-1.5 ${interactiveClasses} ${className}`}
+        className={`relative aspect-3/4 landscape-compact-cover w-full overflow-hidden rounded-md bg-surface-subtle shadow-xs border border-line-subtle/60 flex items-center justify-center p-1.5 ${interactiveClasses} ${className}`}
         onClick={onClick}
         onKeyDown={handleKeyDown}
         role={onClick ? 'button' : undefined}
@@ -67,7 +67,7 @@ export const BookCover = memo(function BookCover({
 
   return (
     <div
-      className={`aspect-3/4 w-full rounded-md bg-surface-subtle border border-line-subtle/50 p-4 flex flex-col justify-between shadow-2xs ${interactiveClasses} ${className}`}
+      className={`aspect-3/4 landscape-compact-cover w-full rounded-md bg-surface-subtle border border-line-subtle/50 p-4 flex flex-col justify-between shadow-2xs ${interactiveClasses} ${className}`}
       onClick={onClick}
       onKeyDown={handleKeyDown}
       role={onClick ? 'button' : undefined}
