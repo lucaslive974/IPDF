@@ -53,6 +53,10 @@ export function LibraryView({
       propOnImportNewBook();
       return;
     }
+    if (__IS_MOBILE__) {
+      fileInputRef.current?.click();
+      return;
+    }
     try {
       const book = await library.pickAndImportBook();
       if (book) {

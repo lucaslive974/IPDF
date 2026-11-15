@@ -1,4 +1,5 @@
 export * from './CachedReaderServiceDecorator';
+export * from './NoopPresenceService';
 export * from './TauriHighlightService';
 export * from './TauriLibraryService';
 export * from './TauriPresenceService';

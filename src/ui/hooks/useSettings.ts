@@ -57,6 +57,9 @@ export function useSettings(): SettingsHook {
   }, [presenceService]);
 
   useEffect(() => {
+    if (__IS_MOBILE__) {
+      return;
+    }
     let mounted = true;
     void settingsService.getPlatformInfo().then((info) => {
       if (mounted) {

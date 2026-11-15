@@ -36,7 +36,7 @@ export function SettingsView() {
           onToggleDriveConnection={settings.toggleDriveConnection}
         />
 
-        {settings.supportsDiscordPresence && (
+        {!__IS_MOBILE__ && settings.supportsDiscordPresence && (
           <SettingsIntegrationsSection
             isDiscordEnabled={settings.isDiscordEnabled}
             discordHealth={settings.discordHealth}

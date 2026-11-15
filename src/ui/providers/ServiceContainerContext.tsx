@@ -1,5 +1,6 @@
 import {
   CachedReaderServiceDecorator,
+  NoopPresenceService,
   TauriHighlightService,
   TauriLibraryService,
   TauriPresenceService,
@@ -54,7 +55,9 @@ export function createServiceContainer(
 ): ServiceContainer {
   const libraryService = overrides.libraryService ?? new TauriLibraryService();
   const highlightService = overrides.highlightService ?? new TauriHighlightService();
-  const presenceService = overrides.presenceService ?? new TauriPresenceService();
+  const presenceService =
+    overrides.presenceService ??
+    (__IS_MOBILE__ ? new NoopPresenceService() : new TauriPresenceService());
   const settingsService = overrides.settingsService ?? new TauriSettingsService();
 
   const readerService = overrides.readerService

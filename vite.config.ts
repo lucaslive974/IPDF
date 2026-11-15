@@ -4,9 +4,14 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 const host = process.env.TAURI_DEV_HOST;
+const tauriPlatform = process.env.TAURI_ENV_PLATFORM ?? 'desktop';
+const isMobile = tauriPlatform === 'android' || tauriPlatform === 'ios';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  define: {
+    __IS_MOBILE__: JSON.stringify(isMobile),
+  },
   resolve: {
     alias: {
       '@domain': path.resolve(import.meta.dirname, 'src/core/domain'),
