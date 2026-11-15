@@ -13,12 +13,6 @@ export interface LibraryViewModel {
   importBookFile(file: File): Promise<BookMetadata>;
   pickAndImportBook(): Promise<BookMetadata | null>;
   importSampleBook(): Promise<void>;
-  updateBookProgress(
-    bookHash: string,
-    currentPage: number,
-    totalPages: number,
-    pageOffsetRatio?: number
-  ): Promise<BookMetadata>;
   renameBook(bookHash: string, newTitle: string): Promise<BookMetadata>;
   updateBookMetadata(bookHash: string, input: UpdateBookMetadataInput): Promise<BookMetadata>;
   deleteBook(bookHash: string): Promise<boolean>;
@@ -28,7 +22,7 @@ export interface LibraryViewModel {
 export type LibraryContextValue = LibraryViewModel;
 
 export function useLibrary(): LibraryViewModel {
-  const { libraryService, readerService } = useServiceContainer();
+  const { libraryService } = useServiceContainer();
   const books = useLibraryStore((s) => s.books);
   const isLoading = useLibraryStore((s) => s.isLoading);
   const setBooks = useLibraryStore((s) => s.setBooks);
@@ -99,25 +93,6 @@ export function useLibrary(): LibraryViewModel {
     await loadBooks();
   }, [loadBooks]);
 
-  const updateBookProgress = useCallback(
-    async (
-      bookHash: string,
-      currentPage: number,
-      totalPages: number,
-      pageOffsetRatio = 0.0
-    ): Promise<BookMetadata> => {
-      const updated = await readerService.updateBookProgress(
-        bookHash,
-        currentPage,
-        totalPages,
-        pageOffsetRatio
-      );
-      upsertBook(updated);
-      return updated;
-    },
-    [readerService, upsertBook]
-  );
-
   const renameBook = useCallback(
     async (bookHash: string, newTitle: string): Promise<BookMetadata> => {
       setLoading(true);
@@ -174,7 +149,6 @@ export function useLibrary(): LibraryViewModel {
       importBookFile,
       pickAndImportBook,
       importSampleBook,
-      updateBookProgress,
       renameBook,
       updateBookMetadata,
       deleteBook,
@@ -186,7 +160,6 @@ export function useLibrary(): LibraryViewModel {
       importBookFile,
       pickAndImportBook,
       importSampleBook,
-      updateBookProgress,
       renameBook,
       updateBookMetadata,
       deleteBook,
