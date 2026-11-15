@@ -47,15 +47,15 @@ export class MockBackend
     return book;
   }
 
-  public async openBookFiles(filePaths: readonly string[]): Promise<BookMetadata[]> {
+  public async importBooksFromPaths(filePaths: readonly string[]): Promise<BookMetadata[]> {
     const results: BookMetadata[] = [];
     for (const filePath of filePaths) {
-      results.push(await this.openBookFile(filePath));
+      results.push(await this.importBookFromPath(filePath));
     }
     return results;
   }
 
-  public async openBookFile(filePath: string): Promise<BookMetadata> {
+  public async importBookFromPath(filePath: string): Promise<BookMetadata> {
     const cleanTitle =
       filePath
         .split('/')
@@ -77,10 +77,6 @@ export class MockBackend
     };
     this.books.set(bookHash, metadata);
     return metadata;
-  }
-
-  public async getBookFilePath(bookHash: string): Promise<string | null> {
-    return '';
   }
 
   public async getBookFileSize(bookHash: string): Promise<number> {
@@ -127,7 +123,7 @@ export class MockBackend
     return pages;
   }
 
-  public async importLibraryBook(input: ImportLibraryBookInput): Promise<BookMetadata> {
+  public async importBookFromBytes(input: ImportLibraryBookInput): Promise<BookMetadata> {
     const bookHash = `sha256-${input.title.toLowerCase().replace(/\s+/g, '-')}`;
     const now = new Date();
     const metadata: BookMetadata = {
@@ -138,7 +134,6 @@ export class MockBackend
       currentPage: 1,
       totalPages: Math.max(1, input.totalPages),
       percentage: Math.round((1 / Math.max(1, input.totalPages)) * 100),
-      coverImageUrl: input.coverImageUrl,
       tags: [],
       lastReadAt: now,
       updatedAt: now,
@@ -164,7 +159,6 @@ export class MockBackend
       totalPages,
       percentage: Math.round((currentPage / totalPages) * 100),
       pageOffsetRatio,
-      coverImageUrl: existing?.coverImageUrl,
       description: existing?.description,
       tags: existing?.tags ?? [],
       lastReadAt: now,
@@ -208,18 +202,18 @@ export class MockBackend
     return updated;
   }
 
-  public async updateBookCover(bookHash: string, coverImageUrl: string): Promise<BookMetadata> {
-    const existing = this.books.get(bookHash);
-    if (!existing) {
-      throw new Error(`Book not found: ${bookHash}`);
-    }
-    const updated: BookMetadata = {
-      ...existing,
-      coverImageUrl: coverImageUrl.trim() ? coverImageUrl : undefined,
-      updatedAt: new Date(),
-    };
-    this.books.set(bookHash, updated);
-    return updated;
+  private readonly covers = new Map<string, Uint8Array>();
+
+  public async saveBookCover(
+    bookHash: string,
+    bytes: Uint8Array,
+    _mimeType: string
+  ): Promise<void> {
+    this.covers.set(bookHash, bytes);
+  }
+
+  public async deleteBookCover(bookHash: string): Promise<void> {
+    this.covers.delete(bookHash);
   }
 
   public async listAuthors(): Promise<string[]> {

@@ -5,7 +5,7 @@ import type {
   ImportLibraryBookInput,
   UpdateBookMetadataInput,
 } from '@ports/ILibraryService';
-import { convertFileSrc, invoke } from '@tauri-apps/api/core';
+import { invoke } from '@tauri-apps/api/core';
 
 export interface SerializedBookMetadata {
   readonly bookHash: string;
@@ -16,30 +16,10 @@ export interface SerializedBookMetadata {
   readonly totalPages: number;
   readonly percentage: number;
   readonly pageOffsetRatio?: number;
-  readonly coverImageUrl?: string;
   readonly description?: string;
   readonly tags?: string[];
   readonly lastReadAtMs: number;
   readonly updatedAtMs: number;
-}
-
-export function resolveCoverUrl(url?: string | null): string | undefined {
-  if (!url) return undefined;
-  const trimmed = url.trim();
-  if (!trimmed) return undefined;
-  if (
-    trimmed.startsWith('http://') ||
-    trimmed.startsWith('https://') ||
-    trimmed.startsWith('data:') ||
-    trimmed.startsWith('asset:')
-  ) {
-    return trimmed;
-  }
-  try {
-    return convertFileSrc(trimmed);
-  } catch {
-    return trimmed;
-  }
 }
 
 export function deserializeBookMetadata(dto: SerializedBookMetadata): BookMetadata {
@@ -54,7 +34,6 @@ export function deserializeBookMetadata(dto: SerializedBookMetadata): BookMetada
     totalPages: dto.totalPages,
     percentage: dto.percentage,
     pageOffsetRatio: dto.pageOffsetRatio ?? 0.0,
-    coverImageUrl: resolveCoverUrl(dto.coverImageUrl),
     description: dto.description ?? undefined,
     tags: dto.tags ?? [],
     lastReadAt: new Date(dto.lastReadAtMs),
@@ -73,17 +52,17 @@ export class TauriLibraryService implements ILibraryService {
     return dto ? deserializeBookMetadata(dto) : null;
   }
 
-  public async openBookFiles(filePaths: readonly string[]): Promise<BookMetadata[]> {
-    const dtos = await invoke<SerializedBookMetadata[]>('open_book_files', {
+  public async importBooksFromPaths(filePaths: readonly string[]): Promise<BookMetadata[]> {
+    const dtos = await invoke<SerializedBookMetadata[]>('import_books_from_paths', {
       filePaths: Array.from(filePaths),
     });
     return dtos.map(deserializeBookMetadata);
   }
 
-  public async openBookFile(filePath: string): Promise<BookMetadata> {
-    const [book] = await this.openBookFiles([filePath]);
+  public async importBookFromPath(filePath: string): Promise<BookMetadata> {
+    const [book] = await this.importBooksFromPaths([filePath]);
     if (!book) {
-      throw new Error(`Failed to open book file: ${filePath}`);
+      throw new Error(`Failed to import book file: ${filePath}`);
     }
     return book;
   }
@@ -93,14 +72,13 @@ export class TauriLibraryService implements ILibraryService {
     return dto ? deserializeBookMetadata(dto) : null;
   }
 
-  public async importLibraryBook(input: ImportLibraryBookInput): Promise<BookMetadata> {
-    const dto = await invoke<SerializedBookMetadata>('import_library_book', {
+  public async importBookFromBytes(input: ImportLibraryBookInput): Promise<BookMetadata> {
+    const dto = await invoke<SerializedBookMetadata>('import_book_from_bytes', {
       rawBytes: Array.from(input.rawBytes),
       title: input.title,
       author: input.author,
       format: input.format,
       totalPages: input.totalPages,
-      coverImageUrl: input.coverImageUrl ?? null,
     });
     return deserializeBookMetadata(dto);
   }
@@ -139,11 +117,16 @@ export class TauriLibraryService implements ILibraryService {
     return invoke<boolean>('delete_book', { bookHash });
   }
 
-  public async updateBookCover(bookHash: string, coverImageUrl: string): Promise<BookMetadata> {
-    const dto = await invoke<SerializedBookMetadata>('update_book_cover', {
-      bookHash,
-      coverImageUrl,
+  public async saveBookCover(bookHash: string, bytes: Uint8Array, mimeType: string): Promise<void> {
+    await invoke<void>('save_book_cover', bytes, {
+      headers: {
+        'x-book-hash': bookHash,
+        'x-mime-type': mimeType,
+      },
     });
-    return deserializeBookMetadata(dto);
+  }
+
+  public async deleteBookCover(bookHash: string): Promise<void> {
+    await invoke<void>('delete_book_cover', { bookHash });
   }
 }

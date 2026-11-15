@@ -1,103 +1,12 @@
 use super::BookCoverExtractorFactory;
 use crate::core::domain::BookFormat;
-use crate::core::ports::StorageProvider;
-use base64::Engine;
+use crate::core::ports::ExtractedCover;
 
 pub struct CoverExtractorAdapter;
 
 impl CoverExtractorAdapter {
-    pub fn resolve_cover_data_url<S: StorageProvider + ?Sized>(
-        storage: &mut S,
-        book_hash: &str,
-        cover_ref: Option<&str>,
-    ) -> Option<String> {
-        if let Some(url) = cover_ref {
-            if url.starts_with("data:") || url.starts_with("http://") || url.starts_with("https://")
-            {
-                return Some(url.to_string());
-            }
-        }
-
-        if let Some(path) = cover_ref {
-            let entry_name = if let Some(idx) = path.find("covers/") {
-                &path[idx..]
-            } else {
-                path
-            };
-            if let Ok(Some(bytes)) = storage.read_entry(entry_name) {
-                let mime = if entry_name.ends_with(".png") {
-                    "image/png"
-                } else if entry_name.ends_with(".webp") {
-                    "image/webp"
-                } else {
-                    "image/jpeg"
-                };
-                let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
-                return Some(format!("data:{};base64,{}", mime, encoded));
-            }
-        }
-
-        for ext in &["webp", "png", "jpg", "jpeg"] {
-            let candidate = format!("covers/{}.{}", book_hash, ext);
-            if let Ok(Some(bytes)) = storage.read_entry(&candidate) {
-                let mime = match *ext {
-                    "png" => "image/png",
-                    "webp" => "image/webp",
-                    _ => "image/jpeg",
-                };
-                let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
-                return Some(format!("data:{};base64,{}", mime, encoded));
-            }
-        }
-
-        None
-    }
-
-    pub fn extract_and_persist_cover<S: StorageProvider + ?Sized>(
-        storage: &mut S,
-        format: BookFormat,
-        book_hash: &str,
-        raw_bytes: &[u8],
-    ) -> Option<String> {
+    pub fn extract_cover(format: BookFormat, raw_bytes: &[u8]) -> Option<ExtractedCover> {
         let extractor = BookCoverExtractorFactory::create(format);
-        if let Some(cover) = extractor.extract_cover(raw_bytes) {
-            let entry_name = format!("covers/{}.{}", book_hash, cover.extension);
-            if storage
-                .write_entry(&entry_name, &cover.data, &cover.mime_type)
-                .is_ok()
-            {
-                return Some(entry_name);
-            }
-        }
-        None
-    }
-
-    pub fn persist_cover_data_url<S: StorageProvider + ?Sized>(
-        storage: &mut S,
-        book_hash: &str,
-        data_url: &str,
-    ) -> Option<String> {
-        if let Some(rest) = data_url.strip_prefix("data:") {
-            if let Some(semi_idx) = rest.find(';') {
-                let mime = &rest[..semi_idx];
-                let remainder = &rest[semi_idx..];
-                if let Some(base64_payload) = remainder.strip_prefix(";base64,") {
-                    if let Ok(bytes) =
-                        base64::engine::general_purpose::STANDARD.decode(base64_payload)
-                    {
-                        let ext = match mime {
-                            "image/png" => "png",
-                            "image/webp" => "webp",
-                            _ => "jpg",
-                        };
-                        let entry_name = format!("covers/{}.{}", book_hash, ext);
-                        if storage.write_entry(&entry_name, &bytes, mime).is_ok() {
-                            return Some(entry_name);
-                        }
-                    }
-                }
-            }
-        }
-        None
+        extractor.extract_cover(raw_bytes)
     }
 }

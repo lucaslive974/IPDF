@@ -1,26 +1,27 @@
 import { BookIcon } from '@ui';
-import { memo, useState } from 'react';
+import { memo } from 'react';
+import { useCoverBook } from '../../hooks/useCoverBook';
 
 export interface BookThumbnailProps {
-  readonly coverImageUrl?: string;
+  readonly bookHash?: string;
   readonly title: string;
   readonly className?: string;
 }
 
 export const BookThumbnail = memo(function BookThumbnail({
-  coverImageUrl,
+  bookHash,
   title,
   className = '',
 }: BookThumbnailProps) {
-  const [hasError, setHasError] = useState(false);
+  const { coverUrl, handleCoverError } = useCoverBook(bookHash);
 
-  if (coverImageUrl && !hasError) {
+  if (coverUrl) {
     return (
       <img
-        src={coverImageUrl}
+        src={coverUrl}
         alt={title}
         loading="lazy"
-        onError={() => setHasError(true)}
+        onError={handleCoverError}
         className={`h-9 w-7 shrink-0 rounded object-cover shadow-2xs border border-line-subtle ${className}`.trim()}
       />
     );

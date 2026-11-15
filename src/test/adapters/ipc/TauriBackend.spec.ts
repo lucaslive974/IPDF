@@ -6,17 +6,18 @@ import {
   TauriPresenceService,
   TauriReaderService,
   TauriSettingsService,
-  resolveCoverUrl,
 } from '@adapters/ipc';
 import { isValidAuthor } from '@components/library/BookCover';
 import { Highlight } from '@domain/Highlight';
 import { createAssistedTextAnnotation } from '@domain/RichAnnotation';
+import { buildCoverProtocolUrl } from '@utils/protocols';
 import { describe, expect, it, vi } from 'vitest';
 import { MockBackend } from '../../mocks/MockBackend';
 
 const storedDtos = new Map<string, SerializedHighlight>();
 const storedBooks = new Map<string, SerializedBookMetadata>();
 const storedSettings = new Map<string, string>();
+const storedCovers = new Map<string, Uint8Array>();
 
 vi.mock('@tauri-apps/api/core', () => ({
   convertFileSrc: vi.fn((path: string) => `asset://localhost/${path}`),
@@ -24,7 +25,7 @@ vi.mock('@tauri-apps/api/core', () => ({
     if (cmd === 'list_library_books') {
       return Array.from(storedBooks.values()) as unknown as T;
     }
-    if (cmd === 'import_library_book') {
+    if (cmd === 'import_book_from_bytes') {
       const dto: SerializedBookMetadata = {
         bookHash: 'sha256-imported-book',
         title: String(args.title),
@@ -33,7 +34,6 @@ vi.mock('@tauri-apps/api/core', () => ({
         currentPage: 1,
         totalPages: Number(args.totalPages),
         percentage: 1,
-        coverImageUrl: args.coverImageUrl ? String(args.coverImageUrl) : undefined,
         lastReadAtMs: 1_700_000_000_000,
         updatedAtMs: 1_700_000_000_000,
       };
@@ -59,7 +59,6 @@ vi.mock('@tauri-apps/api/core', () => ({
         totalPages,
         percentage: (currentPage / totalPages) * 100,
         pageOffsetRatio,
-        coverImageUrl: existing?.coverImageUrl,
         lastReadAtMs: 1_700_000_100_000,
         updatedAtMs: 1_700_000_100_000,
       };
@@ -94,17 +93,20 @@ vi.mock('@tauri-apps/api/core', () => ({
       storedBooks.set(bookHash, updated);
       return updated as unknown as T;
     }
-    if (cmd === 'update_book_cover') {
+    if (cmd === 'get_book_cover') {
       const bookHash = String(args.bookHash);
-      const existing = storedBooks.get(bookHash);
-      if (!existing) throw new Error(`Book not found: ${bookHash}`);
-      const updated: SerializedBookMetadata = {
-        ...existing,
-        coverImageUrl: String(args.coverImageUrl),
-        updatedAtMs: 1_700_000_300_000,
-      };
-      storedBooks.set(bookHash, updated);
-      return updated as unknown as T;
+      const bytes = storedCovers.get(bookHash);
+      return (bytes ? bytes.buffer : new ArrayBuffer(0)) as unknown as T;
+    }
+    if (cmd === 'save_book_cover') {
+      const payload = args as unknown as Uint8Array;
+      const bytes = payload instanceof Uint8Array ? payload : new Uint8Array(0);
+      storedCovers.set('sha256-imported-book', bytes);
+      return undefined as unknown as T;
+    }
+    if (cmd === 'delete_book_cover') {
+      storedCovers.delete(String(args.bookHash));
+      return undefined as unknown as T;
     }
     if (cmd === 'list_authors') {
       const authors = new Set<string>();
@@ -128,7 +130,7 @@ vi.mock('@tauri-apps/api/core', () => ({
     if (cmd === 'get_startup_book') {
       return null as unknown as T;
     }
-    if (cmd === 'open_book_files') {
+    if (cmd === 'import_books_from_paths') {
       const filePaths = (args.filePaths as string[]) ?? [];
       const dtos: SerializedBookMetadata[] = filePaths.map((filePath, idx) => {
         const cleanTitle =
@@ -188,11 +190,6 @@ vi.mock('@tauri-apps/api/core', () => ({
       };
       storedBooks.set(dto.bookHash, dto);
       return dto as unknown as T;
-    }
-    if (cmd === 'get_book_file_path') {
-      const hash = String(args.bookHash);
-      if (hash === 'non-existent') throw new Error('Not found');
-      return `/home/test/books/${hash}.pdf` as unknown as T;
     }
     if (cmd === 'save_highlight') {
       const dto = args.highlight as SerializedHighlight;
@@ -292,7 +289,7 @@ describe('Modular Tauri IPC Adapters', () => {
   it('should manage library books via TauriLibraryService', async () => {
     const libraryService = new TauriLibraryService();
 
-    const imported = await libraryService.importLibraryBook({
+    const imported = await libraryService.importBookFromBytes({
       rawBytes: new Uint8Array([1, 2, 3]),
       title: 'Direct Tauri Book',
       author: 'Tester',
@@ -319,11 +316,17 @@ describe('Modular Tauri IPC Adapters', () => {
     expect(updatedMeta.tags).toEqual(['TauriTag1', 'TauriTag2']);
     expect(updatedMeta.description).toBe('A great Tauri book description.');
 
-    const updatedCover = await libraryService.updateBookCover(
+    await libraryService.saveBookCover(
       'sha256-imported-book',
-      'data:image/webp;base64,mockCoverData'
+      new Uint8Array([1, 2, 3, 4]),
+      'image/webp'
     );
-    expect(updatedCover.coverImageUrl).toBe('data:image/webp;base64,mockCoverData');
+    expect(storedCovers.get('sha256-imported-book')).toEqual(new Uint8Array([1, 2, 3, 4]));
+    expect(buildCoverProtocolUrl('sha256-imported-book', 42)).toBe(
+      'cover://localhost/sha256-imported-book?v=42'
+    );
+    await libraryService.deleteBookCover('sha256-imported-book');
+    expect(storedCovers.has('sha256-imported-book')).toBe(false);
 
     const authors = await libraryService.listAuthors();
     expect(authors).toContain('Tauri Author');
@@ -334,7 +337,7 @@ describe('Modular Tauri IPC Adapters', () => {
 
     expect(await libraryService.getStartupBook()).toBeNull();
 
-    const opened = await libraryService.openBookFile('/path/to/my_book.pdf');
+    const opened = await libraryService.importBookFromPath('/path/to/my_book.pdf');
     expect(opened.title).toBe('my_book');
     expect(opened.format).toBe('pdf');
 
@@ -350,9 +353,9 @@ describe('Modular Tauri IPC Adapters', () => {
     expect(booksAfterDelete[0]?.bookHash).toBe('sha256-opened-file');
   });
 
-  it('should open multiple files in batch via openBookFiles', async () => {
+  it('should import multiple files in batch via importBooksFromPaths', async () => {
     const libraryService = new TauriLibraryService();
-    const batchOpened = await libraryService.openBookFiles([
+    const batchOpened = await libraryService.importBooksFromPaths([
       '/path/to/book_a.epub',
       '/path/to/book_b.pdf',
     ]);
@@ -380,11 +383,6 @@ describe('Modular Tauri IPC Adapters', () => {
 
     const bytes = await readerService.readBookBinary('sha256-imported-book');
     expect(bytes).toEqual(new Uint8Array([1, 2, 3, 4]));
-
-    const path = await readerService.getBookFilePath('sha256-imported-book');
-    expect(path).toBe('/home/test/books/sha256-imported-book.pdf');
-    const notFoundPath = await readerService.getBookFilePath('non-existent');
-    expect(notFoundPath).toBeNull();
 
     const pages = await readerService.getBookPages('sha256-imported-book', 1, 1);
     expect(pages).toHaveLength(1);
@@ -483,7 +481,7 @@ describe('Modular Tauri IPC Adapters', () => {
 describe('MockBackend (In-Memory Modular Double)', () => {
   it('should implement all modular service operations in-memory without IPC', async () => {
     const mock = new MockBackend();
-    const imported = await mock.importLibraryBook({
+    const imported = await mock.importBookFromBytes({
       rawBytes: new Uint8Array([10, 20]),
       title: 'Mocked Republic',
       author: 'Plato',
@@ -521,7 +519,7 @@ describe('MockBackend (In-Memory Modular Double)', () => {
     const mockStartup = await mock.getStartupBook();
     expect(mockStartup).toBeNull();
 
-    const mockOpened = await mock.openBookFile('/home/user/books/stoic_philosophy.epub');
+    const mockOpened = await mock.importBookFromPath('/home/user/books/stoic_philosophy.epub');
     expect(mockOpened.title).toBe('stoic_philosophy');
     expect(mockOpened.format).toBe('epub');
 
@@ -582,19 +580,5 @@ describe('MockBackend (In-Memory Modular Double)', () => {
 
     const mockPlatform = await mock.getPlatformInfo();
     expect(mockPlatform.supportsDiscordPresence).toBe(true);
-  });
-
-  it('correctly resolves cover image URLs according to protocol and scheme', () => {
-    expect(resolveCoverUrl(undefined)).toBeUndefined();
-    expect(resolveCoverUrl(null)).toBeUndefined();
-    expect(resolveCoverUrl('')).toBeUndefined();
-    expect(resolveCoverUrl('   ')).toBeUndefined();
-    expect(resolveCoverUrl('http://example.com/cover.jpg')).toBe('http://example.com/cover.jpg');
-    expect(resolveCoverUrl('https://example.com/cover.jpg')).toBe('https://example.com/cover.jpg');
-    expect(resolveCoverUrl('data:image/jpeg;base64,123')).toBe('data:image/jpeg;base64,123');
-    expect(resolveCoverUrl('asset://localhost/test.jpg')).toBe('asset://localhost/test.jpg');
-    expect(resolveCoverUrl('/home/user/covers/book.jpg')).toBe(
-      'asset://localhost//home/user/covers/book.jpg'
-    );
   });
 });

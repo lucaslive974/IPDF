@@ -97,21 +97,21 @@ pub const LOAD_TAGS_FOR_BOOK: &str = "
 pub const UPSERT_BOOK: &str = "
     INSERT OR REPLACE INTO books (
         hash, title, author, format, current_page, total_pages,
-        percentage, cover_image_url, description, page_offset_ratio,
+        percentage, description, page_offset_ratio,
         last_read_at_ms, updated_at_ms
-    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12);
+    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11);
 ";
 
 pub const FIND_BOOK_BY_HASH: &str = "
     SELECT hash, title, author, format, current_page, total_pages,
-           percentage, cover_image_url, description, page_offset_ratio,
+           percentage, description, page_offset_ratio,
            last_read_at_ms, updated_at_ms
     FROM books WHERE hash = ?1;
 ";
 
 pub const LIST_BOOKS: &str = "
     SELECT hash, title, author, format, current_page, total_pages,
-           percentage, cover_image_url, description, page_offset_ratio,
+           percentage, description, page_offset_ratio,
            last_read_at_ms, updated_at_ms
     FROM books ORDER BY last_read_at_ms DESC;
 ";

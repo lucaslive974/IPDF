@@ -25,7 +25,7 @@ export const BookAnnotationGroupCard = memo(function BookAnnotationGroupCard({
       {/* Book header */}
       <div className="flex items-center justify-between gap-3 border-b border-line-subtle pb-3">
         <div className="flex items-center gap-3 min-w-0">
-          <BookThumbnail coverImageUrl={group.coverImageUrl} title={group.bookTitle} />
+          <BookThumbnail bookHash={group.bookHash} title={group.bookTitle} />
 
           <div className="min-w-0">
             <h4 className="text-sm font-semibold text-tx-main truncate">{group.bookTitle}</h4>

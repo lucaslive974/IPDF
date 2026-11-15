@@ -221,6 +221,15 @@ impl StorageProvider for LocalFolderStorageAdapter {
         })
     }
 
+    fn delete_entry(&mut self, name: &str) -> Result<bool, String> {
+        let path = self.root_dir.join(name);
+        if !path.exists() {
+            return Ok(false);
+        }
+        fs::remove_file(&path).map_err(to_err)?;
+        Ok(true)
+    }
+
     fn rename_entry(&mut self, old_name: &str, new_name: &str) -> Result<(), String> {
         let old_path = self.root_dir.join(old_name);
         if !old_path.exists() {

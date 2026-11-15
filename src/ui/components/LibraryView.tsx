@@ -128,11 +128,8 @@ export function LibraryView({
         isOpen={Boolean(bookToRename)}
         book={bookToRename}
         onClose={() => setBookToRename(null)}
-        onSave={async (hash, input, coverImageUrl) => {
+        onSave={async (hash, input) => {
           await library.updateBookMetadata(hash, input);
-          if (coverImageUrl !== undefined) {
-            await library.updateBookCover(hash, coverImageUrl);
-          }
         }}
       />
 

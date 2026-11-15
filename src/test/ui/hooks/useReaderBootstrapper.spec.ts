@@ -161,7 +161,7 @@ describe('useReaderBootstrapper / bootstrapReaderBook', () => {
     );
     expect(doc.bookHash).toBe('hash-pdf-book');
     expect(mockPdfViewer.render).toHaveBeenCalled();
-    expect(mockPdfViewer.getPageProxy).toHaveBeenCalledWith(1);
+    expect(mockPdfViewer.getPagesChunk).toHaveBeenCalled();
   });
 
   describe('pure readerBootstrapper helpers', () => {

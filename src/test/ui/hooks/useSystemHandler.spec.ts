@@ -89,7 +89,7 @@ describe('useSystemHandler / setupSystemEventListeners', () => {
     });
 
     it('handles window drag and drop for valid epub/pdf files', async () => {
-      vi.spyOn(backend, 'openBookFile').mockResolvedValue(mockBook);
+      vi.spyOn(backend, 'importBookFromPath').mockResolvedValue(mockBook);
       const onOpenBook = vi.fn();
       const upsertBook = vi.fn();
 
@@ -134,7 +134,7 @@ describe('useSystemHandler / setupSystemEventListeners', () => {
         if (dropHandler) {
           await (dropHandler as (e: DragEvent) => Promise<void>)(ignoreDropEvent);
         }
-        expect(backend.openBookFile).not.toHaveBeenCalled();
+        expect(backend.importBookFromPath).not.toHaveBeenCalled();
 
         // 3. Drop valid epub
         const validDropEvent = {
@@ -146,7 +146,7 @@ describe('useSystemHandler / setupSystemEventListeners', () => {
         if (dropHandler) {
           await (dropHandler as (e: DragEvent) => Promise<void>)(validDropEvent);
         }
-        expect(backend.openBookFile).toHaveBeenCalledWith('/path/to/book.epub');
+        expect(backend.importBookFromPath).toHaveBeenCalledWith('/path/to/book.epub');
         expect(upsertBook).toHaveBeenCalledWith(mockBook);
         expect(onOpenBook).toHaveBeenCalledWith(mockBook);
 

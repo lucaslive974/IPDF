@@ -20,9 +20,9 @@ export const PAGE_RENDERERS: Record<BookFormat, PageRendererComponent> = {
 export interface ReaderPageItemProps {
   readonly page: DocumentPage;
   readonly totalPages: number;
+  readonly bookHash?: string;
   readonly bookTitle: string;
   readonly bookAuthor?: string;
-  readonly coverImageUrl?: string;
   readonly bookFormat?: BookFormat;
   readonly highlights: readonly Highlight[];
   readonly showChapterHeader?: boolean;
@@ -33,9 +33,9 @@ export interface ReaderPageItemProps {
 export const ReaderPageItem = memo(function ReaderPageItem({
   page,
   totalPages,
+  bookHash,
   bookTitle,
   bookAuthor,
-  coverImageUrl,
   bookFormat = BookFormat.EPUB,
   highlights,
   showChapterHeader = true,
@@ -60,11 +60,7 @@ export const ReaderPageItem = memo(function ReaderPageItem({
       }
     >
       {!isPdf && page.pageNumber === 1 && (
-        <ReaderPageCover
-          bookTitle={bookTitle}
-          bookAuthor={bookAuthor}
-          coverImageUrl={coverImageUrl}
-        />
+        <ReaderPageCover bookHash={bookHash} bookTitle={bookTitle} bookAuthor={bookAuthor} />
       )}
 
       {!isPdf && showChapterHeader && (

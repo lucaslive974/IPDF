@@ -143,46 +143,24 @@ fn test_pdf_cover_extractor_and_factory() {
 }
 
 #[test]
-fn test_cover_extractor_adapter_resolve_and_persist() {
+fn test_cover_extractor_adapter_and_storage_cover_lifecycle() {
     let mut storage = InMemoryStorage::new("test_store");
 
-    // 1. Pass-through for existing data: and http(s) URLs
-    let data_url = "data:image/jpeg;base64,1234";
-    assert_eq!(
-        CoverExtractorAdapter::resolve_cover_data_url(&mut storage, "hash1", Some(data_url)),
-        Some(data_url.to_string())
-    );
-    let http_url = "https://example.com/cover.jpg";
-    assert_eq!(
-        CoverExtractorAdapter::resolve_cover_data_url(&mut storage, "hash1", Some(http_url)),
-        Some(http_url.to_string())
-    );
+    // 1. Missing cover returns None
+    assert!(storage.read_book_cover("nonexistent").unwrap().is_none());
 
-    // 2. Resolve from cover_ref entry in storage
+    // 2. Write & read cover directly via StorageProvider
     let fake_img_bytes = b"fake-jpg-content";
-    storage
-        .write_entry("covers/hash1.jpg", fake_img_bytes, "image/jpeg")
+    let entry = storage
+        .write_book_cover("hash1", fake_img_bytes, "image/jpeg")
         .unwrap();
+    assert_eq!(entry, "covers/hash1.jpg");
 
-    let resolved_from_ref = CoverExtractorAdapter::resolve_cover_data_url(
-        &mut storage,
-        "hash1",
-        Some("/var/data/covers/hash1.jpg"),
-    )
-    .unwrap();
-    assert!(resolved_from_ref.starts_with("data:image/jpeg;base64,"));
+    let (read_bytes, read_mime) = storage.read_book_cover("hash1").unwrap().unwrap();
+    assert_eq!(read_bytes, fake_img_bytes);
+    assert_eq!(read_mime, "image/jpeg");
 
-    // 3. Fallback scan without cover_ref
-    let resolved_from_scan =
-        CoverExtractorAdapter::resolve_cover_data_url(&mut storage, "hash1", None).unwrap();
-    assert_eq!(resolved_from_scan, resolved_from_ref);
-
-    // 4. Missing cover returns None
-    assert!(
-        CoverExtractorAdapter::resolve_cover_data_url(&mut storage, "nonexistent", None).is_none()
-    );
-
-    // 5. Extract and persist for EPUB
+    // 3. Extract cover for EPUB and persist via StorageProvider
     let mut with_cover_zip = Vec::new();
     let fake_jpeg = vec![
         0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0xFF, 0xD9,
@@ -197,33 +175,18 @@ fn test_cover_extractor_adapter_resolve_and_persist() {
         zip.finish().unwrap();
     }
 
-    let persisted = CoverExtractorAdapter::extract_and_persist_cover(
-        &mut storage,
-        BookFormat::Epub,
-        "hash_epub",
-        &with_cover_zip,
-    );
-    assert_eq!(persisted, Some("covers/hash_epub.jpg".to_string()));
+    let extracted =
+        CoverExtractorAdapter::extract_cover(BookFormat::Epub, &with_cover_zip).unwrap();
+    let persisted = storage
+        .write_book_cover("hash_epub", &extracted.data, &extracted.mime_type)
+        .unwrap();
+    assert_eq!(persisted, "covers/hash_epub.jpg".to_string());
 
-    let resolved_epub =
-        CoverExtractorAdapter::resolve_cover_data_url(&mut storage, "hash_epub", None).unwrap();
-    assert!(resolved_epub.starts_with("data:image/jpeg;base64,"));
+    let (epub_bytes, epub_mime) = storage.read_book_cover("hash_epub").unwrap().unwrap();
+    assert_eq!(epub_bytes, fake_jpeg);
+    assert_eq!(epub_mime, "image/jpeg");
 
-    // 6. Persist cover data url directly (e.g. from frontend off-screen canvas page 1)
-    let webp_data_url = "data:image/webp;base64,UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==";
-    let saved_entry =
-        CoverExtractorAdapter::persist_cover_data_url(&mut storage, "hash_pdf", webp_data_url);
-    assert_eq!(saved_entry, Some("covers/hash_pdf.webp".to_string()));
-
-    let resolved_pdf =
-        CoverExtractorAdapter::resolve_cover_data_url(&mut storage, "hash_pdf", None).unwrap();
-    assert!(resolved_pdf.starts_with("data:image/webp;base64,"));
-
-    // Invalid data url returns None
-    assert!(CoverExtractorAdapter::persist_cover_data_url(
-        &mut storage,
-        "hash_pdf",
-        "not-a-data-url"
-    )
-    .is_none());
+    // 4. Delete cover clears it from StorageProvider
+    storage.delete_book_cover("hash_epub").unwrap();
+    assert!(storage.read_book_cover("hash_epub").unwrap().is_none());
 }

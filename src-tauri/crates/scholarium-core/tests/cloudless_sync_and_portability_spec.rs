@@ -66,7 +66,6 @@ fn test_highlight_manager_and_cloudless_sync_lww() {
             current_page: 45,
             total_pages: 100,
             percentage: 45.0,
-            cover_image_url: None,
             description: None,
             tags: Vec::new(),
             page_offset_ratio: 0.0,

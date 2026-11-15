@@ -4,7 +4,6 @@ import type { UpdateBookMetadataInput } from '@ports/ILibraryService';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useHighlightStore } from '@stores/useHighlightStore';
 import { useLibraryStore } from '@stores/useLibraryStore';
-import { generatePdfPageCoverDataUrl, hasCachedPdfCoverUrl } from '@utils/pdfCoverGenerator';
 import { useCallback, useEffect, useMemo } from 'react';
 
 export interface LibraryViewModel {
@@ -22,7 +21,6 @@ export interface LibraryViewModel {
   ): Promise<BookMetadata>;
   renameBook(bookHash: string, newTitle: string): Promise<BookMetadata>;
   updateBookMetadata(bookHash: string, input: UpdateBookMetadataInput): Promise<BookMetadata>;
-  updateBookCover(bookHash: string, coverImageUrl: string): Promise<BookMetadata>;
   deleteBook(bookHash: string): Promise<boolean>;
 }
 
@@ -38,47 +36,16 @@ export function useLibrary(): LibraryViewModel {
   const upsertBook = useLibraryStore((s) => s.upsertBook);
   const removeBook = useLibraryStore((s) => s.removeBook);
 
-  const ensurePdfCover = useCallback(
-    async (book: BookMetadata): Promise<void> => {
-      if (book.format !== BookFormat.PDF) return;
-      if (hasCachedPdfCoverUrl(book.coverImageUrl)) return;
-      try {
-        const totalBytes = await readerService.getBookFileSize(book.bookHash);
-        const coverUrl = await generatePdfPageCoverDataUrl({
-          totalBytes,
-          readRange: (begin: number, end: number) =>
-            readerService.readBookRange(book.bookHash, begin, end),
-        });
-        if (coverUrl) {
-          if (libraryService.updateBookCover) {
-            const updated = await libraryService.updateBookCover(book.bookHash, coverUrl);
-            upsertBook(updated);
-          } else {
-            upsertBook({ ...book, coverImageUrl: coverUrl });
-          }
-        }
-      } catch (err) {
-        console.warn('Could not generate PDF cover:', err);
-      }
-    },
-    [libraryService, readerService, upsertBook]
-  );
-
   const loadBooks = useCallback(async (): Promise<BookMetadata[]> => {
     setLoading(true);
     try {
       const result = await libraryService.listLibraryBooks();
       setBooks(result);
-      for (const b of result) {
-        if (b.format === BookFormat.PDF && !hasCachedPdfCoverUrl(b.coverImageUrl)) {
-          void ensurePdfCover(b);
-        }
-      }
       return result;
     } finally {
       setLoading(false);
     }
-  }, [ensurePdfCover, libraryService, setBooks, setLoading]);
+  }, [libraryService, setBooks, setLoading]);
 
   const importBookFile = useCallback(
     async (file: File): Promise<BookMetadata> => {
@@ -86,11 +53,8 @@ export function useLibrary(): LibraryViewModel {
       try {
         const filePath = (file as unknown as { path?: string }).path;
         if (filePath && filePath.trim().length > 0) {
-          const book = await libraryService.openBookFile(filePath);
+          const book = await libraryService.importBookFromPath(filePath);
           upsertBook(book);
-          if (book.format === BookFormat.PDF) {
-            void ensurePdfCover(book);
-          }
           return book;
         }
 
@@ -101,7 +65,7 @@ export function useLibrary(): LibraryViewModel {
         const cleanTitle =
           file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ') || 'Untitled Document';
 
-        const book = await libraryService.importLibraryBook({
+        const book = await libraryService.importBookFromBytes({
           rawBytes,
           title: cleanTitle,
           author: '',
@@ -109,15 +73,12 @@ export function useLibrary(): LibraryViewModel {
           totalPages: 0,
         });
         upsertBook(book);
-        if (book.format === BookFormat.PDF) {
-          void ensurePdfCover(book);
-        }
         return book;
       } finally {
         setLoading(false);
       }
     },
-    [ensurePdfCover, libraryService, setLoading, upsertBook]
+    [libraryService, setLoading, upsertBook]
   );
 
   const pickAndImportBook = useCallback(async (): Promise<BookMetadata | null> => {
@@ -127,15 +88,12 @@ export function useLibrary(): LibraryViewModel {
       const book = await libraryService.pickAndImportBook();
       if (book) {
         upsertBook(book);
-        if (book.format === BookFormat.PDF) {
-          void ensurePdfCover(book);
-        }
       }
       return book;
     } finally {
       setLoading(false);
     }
-  }, [ensurePdfCover, libraryService, setLoading, upsertBook]);
+  }, [libraryService, setLoading, upsertBook]);
 
   const importSampleBook = useCallback(async (): Promise<void> => {
     await loadBooks();
@@ -188,23 +146,6 @@ export function useLibrary(): LibraryViewModel {
     [libraryService, setLoading, upsertBook]
   );
 
-  const updateBookCover = useCallback(
-    async (bookHash: string, coverImageUrl: string): Promise<BookMetadata> => {
-      setLoading(true);
-      try {
-        if (!libraryService.updateBookCover) {
-          throw new Error('updateBookCover is not supported');
-        }
-        const updated = await libraryService.updateBookCover(bookHash, coverImageUrl);
-        upsertBook(updated);
-        return updated;
-      } finally {
-        setLoading(false);
-      }
-    },
-    [libraryService, setLoading, upsertBook]
-  );
-
   const deleteBook = useCallback(
     async (bookHash: string): Promise<boolean> => {
       setLoading(true);
@@ -242,7 +183,6 @@ export function useLibrary(): LibraryViewModel {
       updateBookProgress,
       renameBook,
       updateBookMetadata,
-      updateBookCover,
       deleteBook,
     }),
     [
@@ -255,7 +195,6 @@ export function useLibrary(): LibraryViewModel {
       updateBookProgress,
       renameBook,
       updateBookMetadata,
-      updateBookCover,
       deleteBook,
     ]
   );

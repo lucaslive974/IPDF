@@ -8,7 +8,6 @@ export interface StudyDocumentDescriptor {
   readonly bookAuthor: string;
   readonly chapterTitle: string;
   readonly sampleParagraph: string;
-  readonly coverImageUrl?: string;
   readonly format?: BookFormat;
 }
 

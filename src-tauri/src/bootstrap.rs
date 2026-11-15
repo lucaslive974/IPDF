@@ -1,29 +1,17 @@
 use crate::commands::{ai, highlights, library, reader, settings, system};
 use crate::state::BackendState;
-use crate::utils::find_file_argument;
+use scholarium_core::core::ports::StorageProvider;
 use std::sync::Mutex;
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-            use tauri::{Emitter, Manager};
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.set_focus();
-            }
-
-            if let Some(path) = find_file_argument(&args) {
-                if let Some(state) = app.try_state::<Mutex<BackendState>>() {
-                    if let Ok(mut guard) = state.lock() {
-                        if let Ok((metadata, _bytes)) = guard.library.open_book_from_path(&path) {
-                            let _ = app.emit("open-book-from-system", &metadata);
-                        }
-                    }
-                }
-            }
+            handle_single_instance(app, &args);
         }))
         .manage(Mutex::new(BackendState::default()))
+        .register_asynchronous_uri_scheme_protocol("cover", handle_cover_protocol_request)
         .invoke_handler(tauri::generate_handler![
             // System routes
             system::healthcheck,
@@ -36,20 +24,19 @@ pub fn run() {
             system::update_reading_presence,
             system::get_discord_presence_health,
             // Library & Book routes
-            library::compute_book_sha256,
             library::list_library_books,
-            library::open_book_file,
-            library::open_book_files,
-            library::pick_and_import_book,
-            library::import_library_book,
-            library::rename_book,
-            library::update_book_metadata,
-            library::update_book_cover,
             library::list_authors,
             library::list_tags,
+            library::compute_book_sha256,
+            library::import_books_from_paths,
+            library::import_book_from_bytes,
+            library::pick_and_import_book,
+            library::rename_book,
+            library::update_book_metadata,
             library::delete_book,
+            library::save_book_cover,
+            library::delete_book_cover,
             // Reader & Content routes
-            reader::get_book_file_path,
             reader::read_book_binary,
             reader::get_book_file_size,
             reader::read_book_range,
@@ -69,4 +56,104 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+fn handle_single_instance(app: &tauri::AppHandle, args: &[String]) {
+    use tauri::{Emitter, Manager};
+
+    focus_main_window(app);
+
+    let Some(state) = app.try_state::<Mutex<BackendState>>() else {
+        return;
+    };
+    let Ok(mut guard) = state.lock() else {
+        return;
+    };
+
+    let BackendState {
+        ref mut library,
+        ref epub_content,
+        ..
+    } = *guard;
+    if let Some(metadata) = BackendState::import_book_from_cli_args(library, epub_content, args) {
+        let _ = app.emit("open-book-from-system", &metadata);
+    }
+}
+
+fn focus_main_window(app: &tauri::AppHandle) {
+    use tauri::Manager;
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+fn handle_cover_protocol_request(
+    ctx: tauri::UriSchemeContext<'_, tauri::Wry>,
+    request: tauri::http::Request<Vec<u8>>,
+    responder: tauri::UriSchemeResponder,
+) {
+    let Some(book_hash) = extract_cover_hash(request.uri().path()) else {
+        responder.respond(build_cover_response(
+            400,
+            "text/plain",
+            "no-store",
+            Vec::new(),
+        ));
+        return;
+    };
+
+    let app_handle = ctx.app_handle().clone();
+    tauri::async_runtime::spawn(async move {
+        let response = cover_result_to_response(read_cover_from_state(&app_handle, &book_hash));
+        responder.respond(response);
+    });
+}
+
+fn read_cover_from_state(
+    app_handle: &tauri::AppHandle,
+    book_hash: &str,
+) -> Result<Option<(Vec<u8>, String)>, String> {
+    let state = app_handle.state::<Mutex<BackendState>>();
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    guard.storage.read_book_cover(book_hash)
+}
+
+fn cover_result_to_response(
+    result: Result<Option<(Vec<u8>, String)>, String>,
+) -> tauri::http::Response<Vec<u8>> {
+    match result {
+        Ok(Some((bytes, mime_type))) => build_cover_response(
+            200,
+            &mime_type,
+            "public, max-age=31536000, immutable",
+            bytes,
+        ),
+        Ok(None) => build_cover_response(404, "text/plain", "no-store", Vec::new()),
+        Err(_) => build_cover_response(500, "text/plain", "no-store", Vec::new()),
+    }
+}
+
+fn extract_cover_hash(uri_path: &str) -> Option<String> {
+    let trimmed = uri_path.trim_start_matches('/').trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+fn build_cover_response(
+    status: u16,
+    content_type: &str,
+    cache_control: &str,
+    body: Vec<u8>,
+) -> tauri::http::Response<Vec<u8>> {
+    tauri::http::Response::builder()
+        .status(status)
+        .header("Content-Type", content_type)
+        .header("Cache-Control", cache_control)
+        .header("Access-Control-Allow-Origin", "*")
+        .body(body)
+        .unwrap_or_else(|_| tauri::http::Response::new(Vec::new()))
 }

@@ -32,9 +32,11 @@ export const BookCard = memo(function BookCard({
         {/* Cover Container with Floating Badge & Quick Actions */}
         <div className="relative w-full">
           <BookCover
+            bookHash={book.bookHash}
+            format={book.format}
+            coverVersion={book.updatedAt.getTime()}
             title={book.title}
             author={book.author}
-            coverImageUrl={book.coverImageUrl}
             onClick={() => onOpenBook(book)}
           />
 

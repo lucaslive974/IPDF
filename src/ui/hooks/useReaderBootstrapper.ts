@@ -17,7 +17,6 @@ import {
   createLoadedPagesInfo,
   useReaderStore,
 } from '@stores/useReaderStore';
-import { extractAndSyncPdfCover } from '@utils/pdfCoverGenerator';
 import { useEffect } from 'react';
 import { loadAndSyncBookHighlights } from './useReaderHighlights';
 
@@ -47,7 +46,6 @@ export function createStudyDocumentDescriptor(book?: BookMetadata | null): Study
     sampleParagraph: isValidAuthor(book.author)
       ? `Reading "${book.title}" by ${book.author}. Select any passage in the text to create persistent highlights, add margin notes, or consult AI explanations.`
       : `Reading "${book.title}". Select any passage in the text to create persistent highlights, add margin notes, or consult AI explanations.`,
-    coverImageUrl: book.coverImageUrl,
     format: book.format,
   };
 }
@@ -113,25 +111,13 @@ export async function bootstrapPdfReaderSession(
   const info = pdfViewer.getCurrentPage();
   store.getState().setTotalPages(info.totalPages);
 
-  let chunk = pdfViewer.getPagesChunk(window.startPage, window.count);
-  if (chunk.length === 0) {
-    chunk = await deps.readerService.getBookPages(doc.bookHash, window.startPage, window.count);
-  }
+  const chunk = pdfViewer.getPagesChunk(window.startPage, window.count);
 
   store.getState().setLoadedPages(createLoadedPagesInfo(chunk));
   const active = chunk.find((p) => p.pageNumber === initialPage) ?? chunk[0];
   if (active?.chapterTitle) {
     store.getState().setChapterTitle(active.chapterTitle);
   }
-
-  void extractAndSyncPdfCover(pdfViewer, doc, deps.libraryService).then((coverUrl) => {
-    if (coverUrl && coverUrl !== doc.coverImageUrl) {
-      const currentDoc = store.getState().document;
-      if (currentDoc.bookHash === doc.bookHash) {
-        store.getState().setDocument({ ...currentDoc, coverImageUrl: coverUrl });
-      }
-    }
-  });
 }
 
 /**

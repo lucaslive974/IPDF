@@ -9,9 +9,6 @@ export interface BookMetadata {
   totalPages: number;
   percentage: number;
   pageOffsetRatio?: number;
-  coverImageBuffer?: Uint8Array;
-  coverMimeType?: 'image/webp' | 'image/png' | 'image/jpeg';
-  coverImageUrl?: string;
   description?: string;
   tags: string[];
   lastReadAt: Date;

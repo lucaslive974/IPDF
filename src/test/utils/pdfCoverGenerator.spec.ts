@@ -1,10 +1,15 @@
 import type { IPdfEngine, PdfDocumentProxy, PdfPageProxy } from '@ports/IPdfEngine';
-import {
-  extractAndSyncPdfCover,
-  generatePdfPageCoverDataUrl,
-  renderPdfPageToDataUrl,
-} from '@utils/pdfCoverGenerator';
+import { generatePdfPageCoverPayload, renderPdfPageToCoverPayload } from '@utils/pdfCoverGenerator';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+function createMockBlob(bytes: number[], type: string): Blob {
+  const buffer = new Uint8Array(bytes).buffer;
+  return {
+    size: bytes.length,
+    type,
+    arrayBuffer: async () => buffer,
+  } as unknown as Blob;
+}
 
 describe('pdfCoverGenerator', () => {
   let mockPage: PdfPageProxy;
@@ -20,11 +25,12 @@ describe('pdfCoverGenerator', () => {
         drawImage: vi.fn(),
         fillRect: vi.fn(),
       }),
-      toDataURL: vi.fn((type?: string) => {
+      toBlob: vi.fn((cb: (blob: Blob | null) => void, type?: string) => {
         if (type === 'image/webp') {
-          return 'data:image/webp;base64,mockWebpData';
+          cb(createMockBlob([1, 2, 3], 'image/webp'));
+          return;
         }
-        return 'data:image/png;base64,mockPngData';
+        cb(createMockBlob([4, 5, 6], 'image/png'));
       }),
     } as unknown as HTMLCanvasElement;
 
@@ -52,15 +58,17 @@ describe('pdfCoverGenerator', () => {
     };
   });
 
-  it('renders page 1 to WebP data url with proper scaling', async () => {
-    const dataUrl = await renderPdfPageToDataUrl(mockPage, {
+  it('renders page 1 to WebP binary payload with proper scaling', async () => {
+    const payload = await renderPdfPageToCoverPayload(mockPage, {
       maxWidth: 300,
       canvas: fakeCanvas,
     });
 
-    expect(dataUrl).toBe('data:image/webp;base64,mockWebpData');
+    expect(payload).toEqual({
+      bytes: new Uint8Array([1, 2, 3]),
+      mimeType: 'image/webp',
+    });
     expect(mockPage.getViewport).toHaveBeenCalledWith({ scale: 1.0 });
-    // base width is 600, maxWidth 300 -> scale 0.5
     expect(mockPage.getViewport).toHaveBeenCalledWith({ scale: 0.5 });
     expect(mockPage.render).toHaveBeenCalled();
   });
@@ -70,20 +78,23 @@ describe('pdfCoverGenerator', () => {
       width: 0,
       height: 0,
       getContext: vi.fn().mockReturnValue({}),
-      toDataURL: vi.fn((type?: string) => {
+      toBlob: vi.fn((cb: (blob: Blob | null) => void, type?: string) => {
         if (type === 'image/webp') {
           throw new Error('Unsupported format');
         }
-        return 'data:image/png;base64,mockFallbackPng';
+        cb(createMockBlob([7, 8, 9], 'image/png'));
       }),
     } as unknown as HTMLCanvasElement;
 
-    const dataUrl = await renderPdfPageToDataUrl(mockPage, { canvas: canvasWithFallback });
-    expect(dataUrl).toBe('data:image/png;base64,mockFallbackPng');
+    const payload = await renderPdfPageToCoverPayload(mockPage, { canvas: canvasWithFallback });
+    expect(payload).toEqual({
+      bytes: new Uint8Array([7, 8, 9]),
+      mimeType: 'image/png',
+    });
   });
 
   it('returns null when document is undefined and no canvas is supplied', async () => {
-    const result = await renderPdfPageToDataUrl(mockPage);
+    const result = await renderPdfPageToCoverPayload(mockPage);
     expect(result).toBeNull();
   });
 
@@ -94,7 +105,7 @@ describe('pdfCoverGenerator', () => {
       getTextContent: vi.fn().mockResolvedValue({ items: [] }),
     };
 
-    const result = await renderPdfPageToDataUrl(pageWithoutRender, { canvas: fakeCanvas });
+    const result = await renderPdfPageToCoverPayload(pageWithoutRender, { canvas: fakeCanvas });
     expect(result).toBeNull();
 
     const canvasWithoutCtx = {
@@ -103,7 +114,7 @@ describe('pdfCoverGenerator', () => {
       getContext: vi.fn().mockReturnValue(null),
     } as unknown as HTMLCanvasElement;
 
-    const result2 = await renderPdfPageToDataUrl(mockPage, { canvas: canvasWithoutCtx });
+    const result2 = await renderPdfPageToCoverPayload(mockPage, { canvas: canvasWithoutCtx });
     expect(result2).toBeNull();
   });
 
@@ -112,70 +123,17 @@ describe('pdfCoverGenerator', () => {
       totalBytes: 64,
       readRange: vi.fn().mockResolvedValue(new Uint8Array(64)),
     };
-    const dataUrl = await generatePdfPageCoverDataUrl(rangeSource, mockEngine, {
+    const payload = await generatePdfPageCoverPayload(rangeSource, mockEngine, {
       maxWidth: 200,
       canvas: fakeCanvas,
     });
 
-    expect(dataUrl).toBe('data:image/webp;base64,mockWebpData');
+    expect(payload).toEqual({
+      bytes: new Uint8Array([1, 2, 3]),
+      mimeType: 'image/webp',
+    });
     expect(mockEngine.loadDocument).toHaveBeenCalledWith(rangeSource);
     expect(mockDoc.getPage).toHaveBeenCalledWith(1);
     expect(mockDoc.destroy).toHaveBeenCalled();
-  });
-
-  describe('extractAndSyncPdfCover', () => {
-    it('returns existing cover without extracting when already webp or png data url', async () => {
-      const mockViewer = { getPageProxy: vi.fn() };
-      const webpCover = await extractAndSyncPdfCover(mockViewer, {
-        bookHash: 'pdf-hash-1',
-        coverImageUrl: 'data:image/webp;base64,alreadyExtracted',
-      });
-      const pngCover = await extractAndSyncPdfCover(mockViewer, {
-        bookHash: 'pdf-hash-1b',
-        coverImageUrl: 'data:image/png;base64,alreadyExtractedPng',
-      });
-
-      expect(webpCover).toBe('data:image/webp;base64,alreadyExtracted');
-      expect(pngCover).toBe('data:image/png;base64,alreadyExtractedPng');
-      expect(mockViewer.getPageProxy).not.toHaveBeenCalled();
-    });
-
-    it('extracts page 1 and syncs with libraryService when cover is missing', async () => {
-      // Mock global document for renderPdfPageToDataUrl canvas creation
-      const originalDoc = globalThis.document;
-      // @ts-expect-error Mock document
-      globalThis.document = {
-        createElement: vi.fn().mockReturnValue(fakeCanvas),
-      };
-
-      const mockViewer = { getPageProxy: vi.fn().mockResolvedValue(mockPage) };
-      const mockLibraryService = { updateBookCover: vi.fn().mockResolvedValue({}) };
-
-      try {
-        const cover = await extractAndSyncPdfCover(
-          mockViewer,
-          { bookHash: 'pdf-hash-2' },
-          mockLibraryService
-        );
-
-        expect(cover).toBe('data:image/webp;base64,mockWebpData');
-        expect(mockViewer.getPageProxy).toHaveBeenCalledWith(1);
-        expect(mockLibraryService.updateBookCover).toHaveBeenCalledWith(
-          'pdf-hash-2',
-          'data:image/webp;base64,mockWebpData'
-        );
-      } finally {
-        globalThis.document = originalDoc;
-      }
-    });
-
-    it('handles viewer error gracefully and returns null', async () => {
-      const mockViewer = {
-        getPageProxy: vi.fn().mockRejectedValue(new Error('Corrupt page')),
-      };
-
-      const cover = await extractAndSyncPdfCover(mockViewer, { bookHash: 'pdf-corrupt' });
-      expect(cover).toBeNull();
-    });
   });
 });

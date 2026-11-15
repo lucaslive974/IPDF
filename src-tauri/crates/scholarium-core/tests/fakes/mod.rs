@@ -258,6 +258,9 @@ impl StorageProvider for InMemoryStorage {
             .insert(name.to_string(), (entry.clone(), data.to_vec()));
         Ok(entry)
     }
+    fn delete_entry(&mut self, name: &str) -> Result<bool, String> {
+        Ok(self.entries.remove(name).is_some())
+    }
     fn rename_entry(&mut self, old_name: &str, new_name: &str) -> Result<(), String> {
         let (mut entry, data) = self
             .entries

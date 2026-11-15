@@ -1,5 +1,7 @@
+import type { BookFormat } from '@domain/types';
 import { BookIcon } from '@ui';
-import { memo, useState } from 'react';
+import { memo } from 'react';
+import { useCoverBook } from '../../hooks/useCoverBook';
 
 export function isValidAuthor(author?: string | null): boolean {
   if (!author) return false;
@@ -10,22 +12,25 @@ export function isValidAuthor(author?: string | null): boolean {
 }
 
 export interface BookCoverProps {
+  readonly bookHash?: string;
+  readonly format?: BookFormat;
+  readonly coverVersion?: number;
   readonly title: string;
   readonly author?: string;
-  readonly coverImageUrl?: string;
   readonly className?: string;
   readonly onClick?: () => void;
 }
 
 export const BookCover = memo(function BookCover({
+  bookHash,
+  format,
+  coverVersion,
   title,
   author,
-  coverImageUrl,
   className = '',
   onClick,
 }: BookCoverProps) {
-  const [failedUrls, setFailedUrls] = useState<Set<string>>(() => new Set());
-  const hasError = coverImageUrl ? failedUrls.has(coverImageUrl) : false;
+  const { coverUrl, handleCoverError } = useCoverBook(bookHash, format, coverVersion);
 
   const interactiveClasses = onClick
     ? 'cursor-pointer hover:opacity-95 active:scale-[0.99] transition duration-150'
@@ -40,7 +45,7 @@ export const BookCover = memo(function BookCover({
       }
     : undefined;
 
-  if (coverImageUrl && !hasError) {
+  if (coverUrl) {
     return (
       <div
         className={`relative aspect-3/4 w-full overflow-hidden rounded-md bg-surface-subtle shadow-xs border border-line-subtle/60 flex items-center justify-center p-1.5 ${interactiveClasses} ${className}`}
@@ -50,15 +55,11 @@ export const BookCover = memo(function BookCover({
         tabIndex={onClick ? 0 : undefined}
       >
         <img
-          src={coverImageUrl}
+          src={coverUrl}
           alt={`Cover of ${title}`}
           className="h-full w-full object-contain rounded-xs transition-transform duration-300 group-hover:scale-[1.02]"
           loading="lazy"
-          onError={() => {
-            if (coverImageUrl) {
-              setFailedUrls((prev) => new Set(prev).add(coverImageUrl));
-            }
-          }}
+          onError={handleCoverError}
         />
       </div>
     );

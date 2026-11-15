@@ -1,6 +1,7 @@
 use crate::seed::seed_bundled_assets_if_needed;
 use crate::utils::find_file_argument;
 use scholarium_core::adapters::configuration::SqliteConfigurationStore;
+use scholarium_core::adapters::pagination::EpubBookPaginator;
 use scholarium_core::adapters::persistence::{SqliteBookRepository, SqliteHighlightRepository};
 #[allow(unused_imports)]
 use scholarium_core::adapters::platform::{
@@ -10,11 +11,12 @@ use scholarium_core::adapters::presence::NativeDiscordPresenceAdapter;
 use scholarium_core::adapters::storage::LocalFolderStorageAdapter;
 use scholarium_core::core::domain::BookMetadata;
 use scholarium_core::core::ports::{ConfigurationStore, PlatformEnvironment};
-use scholarium_core::core::services::{LibraryManager, ReaderManager, RichPresenceManager};
+use scholarium_core::core::services::{EpubContentService, LibraryManager, RichPresenceManager};
 
 pub struct BackendState {
+    pub storage: LocalFolderStorageAdapter,
     pub library: LibraryManager<LocalFolderStorageAdapter>,
-    pub reader: ReaderManager<LocalFolderStorageAdapter>,
+    pub epub_content: EpubContentService<LocalFolderStorageAdapter, EpubBookPaginator>,
     pub highlight_repo: SqliteHighlightRepository,
     pub config_store: SqliteConfigurationStore,
     pub platform_env: Box<dyn PlatformEnvironment + Send>,
@@ -33,18 +35,16 @@ impl Default for BackendState {
         #[cfg(not(any(target_os = "windows", target_os = "ios", target_os = "android")))]
         let platform: Box<dyn PlatformEnvironment + Send> = Box::new(LinuxEnvironment::default());
 
-        let storage = LocalFolderStorageAdapter::for_platform("local-folder", &*platform)
+        let mut storage = LocalFolderStorageAdapter::for_platform("local-folder", &*platform)
             .expect("Failed to init storage for platform");
 
         let highlight_repo = SqliteHighlightRepository::open_for_platform(&*platform)
             .unwrap_or_else(|_| SqliteHighlightRepository::new_in_memory().unwrap());
         let book_repo = SqliteBookRepository::open_for_platform(&*platform)
             .unwrap_or_else(|_| SqliteBookRepository::new_in_memory().unwrap());
-        let reader_book_repo = SqliteBookRepository::open_for_platform(&*platform)
-            .unwrap_or_else(|_| SqliteBookRepository::new_in_memory().unwrap());
         let mut library = LibraryManager::new_with_repo(storage.clone(), book_repo);
         let _ = library.initialize();
-        let reader = ReaderManager::new_with_repo(storage, reader_book_repo);
+        let epub_content = EpubContentService::new(storage.clone(), EpubBookPaginator::new());
 
         let mut config_store = SqliteConfigurationStore::for_platform(&*platform)
             .unwrap_or_else(|_| SqliteConfigurationStore::new_in_memory().unwrap());
@@ -53,7 +53,7 @@ impl Default for BackendState {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as i64)
             .unwrap_or(0);
-        seed_bundled_assets_if_needed(&mut library, &mut config_store, now_ms);
+        seed_bundled_assets_if_needed(&mut library, &mut storage, &mut config_store, now_ms);
 
         let discord_enabled = config_store
             .get("discord_presence_enabled")
@@ -79,22 +79,44 @@ impl Default for BackendState {
             presence_manager.register_provider(discord_adapter);
         }
 
-        let mut startup_book = None;
         let args: Vec<String> = std::env::args().collect();
-        if let Some(path) = find_file_argument(&args) {
-            if let Ok((metadata, _bytes)) = library.open_book_from_path(&path) {
-                startup_book = Some(metadata);
-            }
-        }
+        let startup_book = Self::import_book_from_cli_args(&mut library, &epub_content, &args);
 
         Self {
+            storage,
             library,
-            reader,
+            epub_content,
             highlight_repo,
             config_store,
             platform_env: platform,
             startup_book,
             presence_manager,
         }
+    }
+}
+
+impl BackendState {
+    pub(crate) fn import_book_from_cli_args(
+        library: &mut LibraryManager<LocalFolderStorageAdapter>,
+        epub_content: &EpubContentService<LocalFolderStorageAdapter, EpubBookPaginator>,
+        args: &[String],
+    ) -> Option<BookMetadata> {
+        let path = find_file_argument(args)?;
+        let file = crate::utils::read_local_book_file(&path).ok()?;
+        let total_pages = if file.format == scholarium_core::core::domain::BookFormat::Pdf {
+            1
+        } else {
+            epub_content.count_pages_from_bytes(&file.raw_bytes)
+        };
+        library
+            .import_book(scholarium_core::core::services::ImportBookInput {
+                raw_bytes: file.raw_bytes,
+                title: file.title,
+                author: "Unknown".to_string(),
+                format: file.format,
+                total_pages,
+                now_ms: crate::utils::current_epoch_ms(),
+            })
+            .ok()
     }
 }

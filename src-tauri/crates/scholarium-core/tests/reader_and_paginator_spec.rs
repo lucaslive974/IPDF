@@ -1,19 +1,14 @@
 mod fakes;
 
-use fakes::{InMemoryBookRepo, InMemoryStorage};
-use scholarium_core::adapters::pagination::{
-    BookPaginatorFactory, EpubBookPaginator, PdfBookPaginator,
-};
-use scholarium_core::core::domain::{BookFormat, BookMetadata, BookStorageLocation};
-use scholarium_core::core::ports::{BookPaginator, BookRepository, StorageProvider};
-use scholarium_core::core::services::ReaderManager;
-use std::env;
-use std::fs;
+use fakes::InMemoryStorage;
+use scholarium_core::adapters::pagination::EpubBookPaginator;
+use scholarium_core::core::domain::BookFormat;
+use scholarium_core::core::ports::{BookPaginator, StorageProvider};
+use scholarium_core::core::services::EpubContentService;
 use std::io::Write;
 
 #[test]
-fn test_epub_and_pdf_paginators() {
-    // 1. EPUB Paginator with minimal ZIP containing XHTML chapter
+fn test_epub_paginator() {
     let epub_paginator = EpubBookPaginator::new();
     let mut zip_bytes = Vec::new();
     {
@@ -43,153 +38,70 @@ fn test_epub_and_pdf_paginators() {
     let empty_pages = epub_paginator.paginate(b"", 1).unwrap();
     assert_eq!(empty_pages.len(), 1);
     assert_eq!(empty_pages[0].paragraphs[0], "Empty document");
-
-    // 2. PDF Paginator
-    let pdf_paginator = PdfBookPaginator::new();
-    let pdf_text = b"Line 1\nLine 2\nLine 3\nLine 4";
-    let pdf_pages = pdf_paginator.paginate(pdf_text, 2).unwrap();
-    assert_eq!(pdf_pages.len(), 2);
-    assert_eq!(pdf_pages[0].cfi_base, "pdf(page=1)");
-    assert_eq!(pdf_pages[1].cfi_base, "pdf(page=2)");
-
-    // Binary PDF format with /Type /Page
-    let pdf_binary = b"%PDF-1.4\n1 0 obj\n<< /Type /Pages /Count 2 >>\nendobj\n2 0 obj\n<< /Type /Page >>\nendobj\n3 0 obj\n<< /Type /Page >>\nendobj\n%%EOF";
-    let binary_pages = pdf_paginator.paginate(pdf_binary, 0).unwrap();
-    assert_eq!(binary_pages.len(), 2);
-    assert_eq!(binary_pages[0].page_number, 1);
-    assert_eq!(binary_pages[1].page_number, 2);
-
-    // 3. Factory
-    let from_factory_epub = BookPaginatorFactory::create(BookFormat::Epub);
-    assert_eq!(from_factory_epub.paginate(b"test", 1).unwrap().len(), 1);
-
-    let from_factory_pdf = BookPaginatorFactory::create(BookFormat::Pdf);
-    assert_eq!(from_factory_pdf.paginate(b"test", 1).unwrap().len(), 1);
 }
 
 #[test]
-fn test_reader_manager_lifecycle_and_caching() {
-    let mut storage = InMemoryStorage::new("reader-storage");
-    let mut book_repo = InMemoryBookRepo::default();
-
-    let book_hash = "hash-reader-test-1";
+fn test_epub_content_service_lifecycle_and_caching() {
+    let mut storage = InMemoryStorage::new("epub-storage");
+    let book_hash = "hash-epub-test-1";
     let raw_content = b"<html><head><title>Reader Test</title></head><body><p>Sample paragraph 1</p><p>Sample paragraph 2</p></body></html>".to_vec();
 
     storage
-        .write_book_binary(book_hash, raw_content.clone(), BookFormat::Epub)
+        .write_book_binary(book_hash, raw_content, BookFormat::Epub)
         .unwrap();
 
-    let meta = BookMetadata {
-        book_hash: book_hash.to_string(),
-        title: "Reader Test".to_string(),
-        author: "Tester".to_string(),
-        format: BookFormat::Epub,
-        current_page: 1,
-        total_pages: 5,
-        percentage: 20.0,
-        cover_image_url: None,
-        description: None,
-        tags: Vec::new(),
-        page_offset_ratio: 0.0,
-        last_read_at_ms: 1000,
-        updated_at_ms: 1000,
-    };
-    book_repo.save_book(meta).unwrap();
-
-    let mut reader = ReaderManager::new_with_repo(storage, book_repo);
-
-    let _ = reader.storage();
-    let _ = reader.storage_mut();
-    let _ = reader.book_repo();
-    let _ = reader.book_repo_mut();
-
-    // Default constructor with in-memory sqlite
-    let default_reader = ReaderManager::new(InMemoryStorage::new("mem"));
-    assert_eq!(default_reader.storage().provider_id(), "mem");
+    let mut epub_content = EpubContentService::new(storage, EpubBookPaginator::new());
+    assert_eq!(epub_content.storage().provider_id(), "epub-storage");
+    let _ = epub_content.storage_mut();
 
     // 1. First retrieval parses and caches
-    let pages = reader.get_book_pages(book_hash, 1, 3).unwrap();
+    let pages = epub_content.get_pages(book_hash, 5, 1, 3).unwrap();
     assert_eq!(pages.len(), 3);
     assert_eq!(pages[0].page_number, 1);
     assert_eq!(pages[2].page_number, 3);
 
     // 2. Second retrieval serves from cache
-    let cached_pages = reader.get_book_pages(book_hash, 4, 2).unwrap();
+    let cached_pages = epub_content.get_pages(book_hash, 5, 4, 2).unwrap();
     assert_eq!(cached_pages.len(), 2);
     assert_eq!(cached_pages[0].page_number, 4);
 
     // 3. Out of range returns empty
-    let oob_pages = reader.get_book_pages(book_hash, 10, 5).unwrap();
+    let oob_pages = epub_content.get_pages(book_hash, 5, 10, 5).unwrap();
     assert!(oob_pages.is_empty());
 
-    // 4. Update reading progress
-    let updated = reader
-        .update_reading_progress(book_hash, 4, 5, 5000)
-        .unwrap();
-    assert_eq!(updated.current_page, 4);
-    assert!((updated.percentage - 80.0).abs() < f64::EPSILON);
-    assert_eq!(updated.last_read_at_ms, 5000);
-
-    // 5. Clear cache
-    reader.clear_cache(book_hash);
-
-    // 6. Direct filesystem fallback for binary
-    let temp_file = env::temp_dir().join(format!("reader_fs_test_{}.pdf", std::process::id()));
-    fs::write(&temp_file, b"direct-fs-pdf-payload").unwrap();
-    let fs_hash = "hash-fs-pdf";
-    reader
-        .book_repo_mut()
-        .save_book(BookMetadata {
-            book_hash: fs_hash.to_string(),
-            title: "FS PDF".to_string(),
-            author: "Author".to_string(),
-            format: BookFormat::Pdf,
-            current_page: 1,
-            total_pages: 2,
-            percentage: 50.0,
-            cover_image_url: None,
-            description: None,
-            tags: Vec::new(),
-            page_offset_ratio: 0.0,
-            last_read_at_ms: 2000,
-            updated_at_ms: 2000,
-        })
-        .unwrap();
-    reader
-        .book_repo_mut()
-        .add_storage_location(BookStorageLocation::new(
-            fs_hash,
-            "fs-provider",
-            temp_file.to_string_lossy().to_string(),
-            true,
-            Some(2000),
-        ))
-        .unwrap();
-
-    let fs_bytes = reader.read_book_binary(fs_hash).unwrap();
-    assert_eq!(fs_bytes, b"direct-fs-pdf-payload");
-    let _ = fs::remove_file(&temp_file);
-
-    // 7. Error handling
-    assert!(reader.read_book_binary("nonexistent").is_err());
-    assert!(reader.get_book_pages("nonexistent", 1, 1).is_err());
-    assert!(reader.get_book_size("nonexistent").is_err());
-    assert!(reader.read_book_range("nonexistent", 0, 10).is_err());
+    // 4. Clear cache and verify error on nonexistent
+    epub_content.clear_cache(book_hash);
+    assert!(epub_content.get_pages("nonexistent", 1, 1, 1).is_err());
 }
 
 #[test]
-fn test_reader_range_reads_through_storage_provider() {
-    let mut reader = ReaderManager::new(InMemoryStorage::new("mem"));
-
+fn test_storage_provider_range_reads() {
+    let mut storage = InMemoryStorage::new("mem");
     let payload = b"0123456789ABCDEF-PDF-RANGE".to_vec();
-    reader
-        .storage_mut()
+    storage
         .write_book_binary("range-hash", payload.clone(), BookFormat::Pdf)
         .unwrap();
 
-    assert_eq!(reader.get_book_size("range-hash").unwrap(), payload.len() as u64);
-    assert_eq!(reader.read_book_range("range-hash", 0, 4).unwrap(), b"0123");
-    assert_eq!(reader.read_book_range("range-hash", 10, 6).unwrap(), b"ABCDEF");
-    assert_eq!(reader.read_book_range("range-hash", 21, 100).unwrap(), b"RANGE");
-    assert!(reader.read_book_range("range-hash", 100, 10).unwrap().is_empty());
+    assert_eq!(
+        storage.get_book_size("range-hash").unwrap(),
+        payload.len() as u64
+    );
+    assert_eq!(
+        storage.read_book_range("range-hash", 0, 4).unwrap(),
+        b"0123"
+    );
+    assert_eq!(
+        storage.read_book_range("range-hash", 10, 6).unwrap(),
+        b"ABCDEF"
+    );
+    assert_eq!(
+        storage.read_book_range("range-hash", 21, 100).unwrap(),
+        b"RANGE"
+    );
+    assert!(storage
+        .read_book_range("range-hash", 100, 10)
+        .unwrap()
+        .is_empty());
+    assert!(storage.get_book_size("nonexistent").is_err());
+    assert!(storage.read_book_range("nonexistent", 0, 10).is_err());
 }

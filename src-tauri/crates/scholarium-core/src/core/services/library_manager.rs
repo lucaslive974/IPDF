@@ -1,11 +1,6 @@
-use crate::adapters::extractor::CoverExtractorAdapter;
-use crate::adapters::pagination::BookPaginatorFactory;
 use crate::core::domain::{BookFormat, BookMetadata, BookStorageLocation};
 use crate::core::ports::{BookRepository, StorageProvider};
 use crate::core::services::Sha256BookHasher;
-use std::collections::BTreeMap;
-use std::fs;
-use std::path::Path;
 
 pub struct ImportBookInput {
     pub raw_bytes: Vec<u8>,
@@ -13,7 +8,6 @@ pub struct ImportBookInput {
     pub author: String,
     pub format: BookFormat,
     pub total_pages: u32,
-    pub cover_image_url: Option<String>,
     pub now_ms: i64,
 }
 
@@ -23,28 +17,19 @@ pub struct LibraryManager<
 > {
     storage: S,
     book_repo: R,
-    in_memory_books: BTreeMap<String, Vec<u8>>,
 }
 
 impl<S: StorageProvider> LibraryManager<S, crate::adapters::persistence::SqliteBookRepository> {
     pub fn new(storage: S) -> Self {
         let book_repo = crate::adapters::persistence::SqliteBookRepository::new_in_memory()
             .expect("Failed to initialize in-memory SQLite book repository");
-        Self {
-            storage,
-            book_repo,
-            in_memory_books: BTreeMap::new(),
-        }
+        Self { storage, book_repo }
     }
 }
 
 impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
     pub fn new_with_repo(storage: S, book_repo: R) -> Self {
-        Self {
-            storage,
-            book_repo,
-            in_memory_books: BTreeMap::new(),
-        }
+        Self { storage, book_repo }
     }
 
     pub fn book_repo(&self) -> &R {
@@ -70,16 +55,7 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
     pub fn import_book(&mut self, input: ImportBookInput) -> Result<BookMetadata, String> {
         let book_hash = Sha256BookHasher::hash_bytes(&input.raw_bytes)?;
 
-        let total_pages = if input.total_pages > 0 {
-            input.total_pages
-        } else {
-            let paginator = BookPaginatorFactory::create(input.format);
-            paginator
-                .paginate(&input.raw_bytes, 0)
-                .map(|pages| pages.len() as u32)
-                .unwrap_or(1)
-        }
-        .max(1);
+        let total_pages = input.total_pages.max(1);
 
         let existing = self.book_repo.find_book_by_hash(&book_hash)?;
         let (current_page, percentage, page_offset_ratio) = match existing {
@@ -103,7 +79,6 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
             current_page,
             total_pages,
             percentage,
-            cover_image_url: input.cover_image_url,
             description: None,
             tags: Vec::new(),
             page_offset_ratio,
@@ -111,11 +86,8 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
             updated_at_ms: input.now_ms,
         };
 
-        let _ = self
-            .storage
-            .write_book_binary(&book_hash, input.raw_bytes.clone(), input.format);
-        self.in_memory_books
-            .insert(book_hash.clone(), input.raw_bytes);
+        self.storage
+            .write_book_binary(&book_hash, input.raw_bytes, input.format)?;
 
         self.book_repo.save_book(metadata.clone())?;
 
@@ -144,115 +116,6 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
 
     pub fn get_book(&mut self, book_hash: &str) -> Result<Option<BookMetadata>, String> {
         self.book_repo.find_book_by_hash(book_hash)
-    }
-
-    pub fn open_book_binary(&mut self, book_hash: &str) -> Result<Vec<u8>, String> {
-        if let Some(bytes) = self.in_memory_books.get(book_hash) {
-            return Ok(bytes.clone());
-        }
-
-        if self.storage.has_book_binary(book_hash)? {
-            return self.storage.read_book_binary(book_hash);
-        }
-
-        if let Ok(locations) = self.book_repo.get_storage_locations(book_hash) {
-            for loc in locations {
-                let path = Path::new(&loc.storage_path);
-                if path.exists() {
-                    return fs::read(path).map_err(|e| e.to_string());
-                }
-            }
-        }
-
-        Err(format!("Book binary not found for hash: {book_hash}"))
-    }
-
-    pub fn open_book_from_path(&mut self, path: &Path) -> Result<(BookMetadata, Vec<u8>), String> {
-        if !path.exists() {
-            return Err(format!("Book file does not exist: {}", path.display()));
-        }
-
-        let bytes = fs::read(path).map_err(|e| e.to_string())?;
-        let book_hash = Sha256BookHasher::hash_bytes(&bytes)?;
-
-        let filename = path
-            .file_name()
-            .map(|f| f.to_string_lossy().to_string())
-            .unwrap_or_else(|| "document".to_string());
-
-        let format = if filename.ends_with(".pdf") {
-            BookFormat::Pdf
-        } else {
-            BookFormat::Epub
-        };
-
-        let stem = path
-            .file_stem()
-            .map(|f| f.to_string_lossy().to_string())
-            .unwrap_or_else(|| "Book".to_string());
-
-        let paginator = BookPaginatorFactory::create(format);
-        let total_pages = paginator
-            .paginate(&bytes, 0)
-            .map(|p| p.len() as u32)
-            .unwrap_or(1)
-            .max(1);
-
-        let existing = self.book_repo.find_book_by_hash(&book_hash)?;
-        let (current_page, percentage, page_offset_ratio) = match existing {
-            Some(ref b) => (
-                b.current_page.clamp(1, total_pages),
-                b.percentage,
-                b.page_offset_ratio,
-            ),
-            None => (
-                1,
-                ((1.0 / total_pages as f64) * 100.0).clamp(0.0, 100.0),
-                0.0,
-            ),
-        };
-
-        let now_ms = 0;
-        let metadata = BookMetadata {
-            book_hash: book_hash.clone(),
-            title: stem,
-            author: "Unknown".to_string(),
-            format,
-            current_page,
-            total_pages,
-            percentage,
-            cover_image_url: None,
-            description: None,
-            tags: Vec::new(),
-            page_offset_ratio,
-            last_read_at_ms: now_ms,
-            updated_at_ms: now_ms,
-        };
-
-        let _ = self
-            .storage
-            .write_book_binary(&book_hash, bytes.clone(), format);
-        self.in_memory_books
-            .insert(book_hash.clone(), bytes.clone());
-        self.book_repo.save_book(metadata.clone())?;
-
-        let loc = BookStorageLocation::new(
-            &book_hash,
-            self.storage.provider_id(),
-            path.to_string_lossy().to_string(),
-            true,
-            Some(now_ms),
-        );
-        let _ = self.book_repo.add_storage_location(loc);
-
-        Ok((metadata, bytes))
-    }
-
-    pub fn open_books_from_paths(
-        &mut self,
-        paths: &[&Path],
-    ) -> Vec<Result<(BookMetadata, Vec<u8>), String>> {
-        paths.iter().map(|p| self.open_book_from_path(p)).collect()
     }
 
     pub fn update_reading_progress(
@@ -334,34 +197,6 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
         )
     }
 
-    pub fn update_book_cover(
-        &mut self,
-        book_hash: &str,
-        cover_image_url: &str,
-        now_ms: i64,
-    ) -> Result<BookMetadata, String> {
-        let entry = CoverExtractorAdapter::persist_cover_data_url(
-            &mut self.storage,
-            book_hash,
-            cover_image_url,
-        );
-        let mut book = self
-            .book_repo
-            .find_book_by_hash(book_hash)?
-            .ok_or_else(|| format!("Book not found: {book_hash}"))?;
-
-        if let Some(entry_name) = entry {
-            book.cover_image_url = Some(entry_name);
-        } else if cover_image_url.trim().is_empty() {
-            book.cover_image_url = None;
-        } else {
-            book.cover_image_url = Some(cover_image_url.to_string());
-        }
-        book.updated_at_ms = now_ms;
-        self.book_repo.save_book(book.clone())?;
-        Ok(book)
-    }
-
     pub fn list_authors(&self) -> Result<Vec<String>, String> {
         self.book_repo.list_authors()
     }
@@ -371,7 +206,6 @@ impl<S: StorageProvider, R: BookRepository> LibraryManager<S, R> {
     }
 
     pub fn delete_book(&mut self, book_hash: &str) -> Result<bool, String> {
-        self.in_memory_books.remove(book_hash);
         let _ = self.storage.delete_book_binary(book_hash);
         self.book_repo.delete_book(book_hash)
     }

@@ -2,9 +2,9 @@ import { isValidAuthor } from '@components/library/BookCover';
 import type { BookMetadata } from '@domain/BookMetadata';
 import type { UpdateBookMetadataInput } from '@ports/ILibraryService';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
-import { readFileAsDataUrl } from '@utils/fileReader';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useCoverBook } from './useCoverBook';
 
 export interface BookMetadataFormValues {
   title: string;
@@ -45,11 +45,7 @@ export function buildUpdateBookMetadataPayload(
 export interface UseEditBookMetadataModalProps {
   readonly book: BookMetadata | null;
   readonly isOpen: boolean;
-  readonly onSave: (
-    bookHash: string,
-    input: UpdateBookMetadataInput,
-    coverImageUrl?: string
-  ) => Promise<void> | void;
+  readonly onSave: (bookHash: string, input: UpdateBookMetadataInput) => Promise<void> | void;
   readonly onClose: () => void;
 }
 
@@ -71,6 +67,18 @@ export interface EditBookMetadataModalViewModel {
   readonly onSubmit: () => Promise<void>;
 }
 
+interface PendingCoverUpload {
+  readonly bytes: Uint8Array;
+  readonly mimeType: string;
+  readonly previewUrl: string;
+}
+
+function revokePreviewUrl(url?: string | null): void {
+  if (url && typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
+    URL.revokeObjectURL(url);
+  }
+}
+
 export function useEditBookMetadataModal({
   book,
   isOpen,
@@ -82,8 +90,18 @@ export function useEditBookMetadataModal({
   const [tags, setTags] = useState<string[]>([]);
   const [availableAuthors, setAvailableAuthors] = useState<string[]>([]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
-  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
-  const [isCoverDirty, setIsCoverDirty] = useState(false);
+  const [pendingCover, setPendingCover] = useState<PendingCoverUpload | null | undefined>(
+    undefined
+  );
+  const pendingPreviewRef = useRef<string | null>(null);
+  const { coverUrl: initialCoverUrl } = useCoverBook(
+    isOpen && book ? book.bookHash : undefined,
+    book?.format,
+    book?.updatedAt.getTime()
+  );
+  const isCoverDirty = pendingCover !== undefined;
+  const coverImageUrl =
+    pendingCover === undefined ? initialCoverUrl : (pendingCover?.previewUrl ?? null);
 
   const {
     register,
@@ -108,9 +126,14 @@ export function useEditBookMetadataModal({
         description: book.description ?? '',
       });
       setTags(book.tags ?? []);
-      setCoverImageUrl(book.coverImageUrl ?? null);
-      setIsCoverDirty(false);
+      revokePreviewUrl(pendingPreviewRef.current);
+      pendingPreviewRef.current = null;
+      setPendingCover(undefined);
     }
+    return () => {
+      revokePreviewUrl(pendingPreviewRef.current);
+      pendingPreviewRef.current = null;
+    };
   }, [book, isOpen, reset]);
 
   useEffect(() => {
@@ -138,14 +161,24 @@ export function useEditBookMetadataModal({
     if (!file.type.startsWith('image/')) {
       return;
     }
-    const dataUrl = await readFileAsDataUrl(file);
-    setCoverImageUrl(dataUrl);
-    setIsCoverDirty(true);
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const previewUrl =
+      typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function'
+        ? URL.createObjectURL(file)
+        : '';
+    revokePreviewUrl(pendingPreviewRef.current);
+    pendingPreviewRef.current = previewUrl || null;
+    setPendingCover({
+      bytes,
+      mimeType: file.type,
+      previewUrl,
+    });
   }, []);
 
   const handleRemoveCover = useCallback(() => {
-    setCoverImageUrl(null);
-    setIsCoverDirty(true);
+    revokePreviewUrl(pendingPreviewRef.current);
+    pendingPreviewRef.current = null;
+    setPendingCover(null);
   }, []);
 
   const handleValidSubmit = useCallback(
@@ -154,11 +187,20 @@ export function useEditBookMetadataModal({
       const payload = buildUpdateBookMetadataPayload(values, tags);
       if (!payload) return;
 
-      const coverToSave = isCoverDirty ? (coverImageUrl ?? '') : undefined;
-      await onSave(book.bookHash, payload, coverToSave);
+      if (pendingCover) {
+        await libraryService.saveBookCover(
+          book.bookHash,
+          pendingCover.bytes,
+          pendingCover.mimeType
+        );
+      } else if (pendingCover === null) {
+        await libraryService.deleteBookCover(book.bookHash);
+      }
+
+      await onSave(book.bookHash, payload);
       onClose();
     },
-    [book, onSave, onClose, tags, isCoverDirty, coverImageUrl]
+    [book, onSave, onClose, tags, pendingCover, libraryService]
   );
 
   const onSubmit = useCallback(

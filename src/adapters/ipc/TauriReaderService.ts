@@ -43,15 +43,6 @@ export class TauriReaderService implements IReaderService {
     return deserializeBookMetadata(dto);
   }
 
-  public async getBookFilePath(bookHash: string): Promise<string | null> {
-    try {
-      const path = await invoke<string>('get_book_file_path', { bookHash });
-      return path && path.trim().length > 0 ? path : null;
-    } catch {
-      return null;
-    }
-  }
-
   public async getBookFileSize(bookHash: string): Promise<number> {
     return invoke<number>('get_book_file_size', { bookHash });
   }

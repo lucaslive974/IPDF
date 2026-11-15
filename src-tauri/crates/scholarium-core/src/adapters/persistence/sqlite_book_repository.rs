@@ -140,12 +140,11 @@ impl SqliteBookRepository {
             current_page: row.get(4)?,
             total_pages: row.get(5)?,
             percentage: row.get(6)?,
-            cover_image_url: row.get(7)?,
-            description: row.get(8)?,
-            page_offset_ratio: row.get::<_, Option<f64>>(9)?.unwrap_or(0.0),
+            description: row.get(7)?,
+            page_offset_ratio: row.get::<_, Option<f64>>(8)?.unwrap_or(0.0),
             tags: Vec::new(),
-            last_read_at_ms: row.get(10)?,
-            updated_at_ms: row.get(11)?,
+            last_read_at_ms: row.get(9)?,
+            updated_at_ms: row.get(10)?,
         })
     }
 
@@ -185,7 +184,6 @@ impl BookRepository for SqliteBookRepository {
                     book.current_page,
                     book.total_pages,
                     book.percentage,
-                    book.cover_image_url,
                     book.description,
                     book.page_offset_ratio,
                     book.last_read_at_ms,

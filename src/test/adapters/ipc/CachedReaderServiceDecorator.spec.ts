@@ -66,11 +66,6 @@ class MockReaderService implements IReaderService {
     return this.updateBookProgressMock(bookHash, currentPage, totalPages, pageOffsetRatio);
   }
 
-  public getBookFilePathMock = vi.fn().mockResolvedValue('/path/to/book.epub');
-  public async getBookFilePath(bookHash: string): Promise<string | null> {
-    return this.getBookFilePathMock(bookHash);
-  }
-
   public getBookFileSizeMock = vi.fn().mockResolvedValue(1024);
   public async getBookFileSize(bookHash: string): Promise<number> {
     return this.getBookFileSizeMock(bookHash);
@@ -291,10 +286,6 @@ describe('CachedReaderServiceDecorator (Intelligent Sliding Window & Async Edge 
     const progress = await decorator.updateBookProgress('book-1', 10, 100);
     expect(progress.currentPage).toBe(10);
     expect(mockInner.updateBookProgressMock).toHaveBeenCalledWith('book-1', 10, 100, 0);
-
-    const path = await decorator.getBookFilePath('book-1');
-    expect(path).toBe('/path/to/book.epub');
-    expect(mockInner.getBookFilePathMock).toHaveBeenCalledWith('book-1');
 
     const llmReq = await decorator.buildTermLookupRequest(
       {

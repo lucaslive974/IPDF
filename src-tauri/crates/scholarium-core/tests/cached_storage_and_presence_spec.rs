@@ -97,3 +97,43 @@ fn test_cached_storage_decorator_and_presence_debounce() {
     let translation_prompt = PromptBuilder::build_translation_request(&ctx, "pt-BR");
     assert!(translation_prompt.user_prompt.contains("pt-BR"));
 }
+
+#[test]
+fn test_cached_storage_delete_and_cover_operations() {
+    use scholarium_core::adapters::storage::LocalFolderStorageAdapter;
+
+    let temp_dir =
+        std::env::temp_dir().join(format!("scholarium_cached_cov_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&temp_dir);
+
+    let local_cache = LocalFolderStorageAdapter::new("local-cache", &temp_dir);
+    let mut remote = InMemoryStorage::new("remote");
+    remote
+        .write_book_binary("hash-cov", vec![10, 20, 30, 40], BookFormat::Epub)
+        .unwrap();
+
+    let mut decorated = CachedStorageDecorator::new(local_cache, remote, BookFormat::Epub);
+    assert_eq!(decorated.get_book_size("hash-cov").unwrap(), 4);
+    assert_eq!(
+        decorated.read_book_range("hash-cov", 1, 2).unwrap(),
+        vec![20, 30]
+    );
+    assert!(decorated.resolve_entry_path("index.json").is_some());
+
+    decorated
+        .write_book_cover("hash-cov", &[1, 2, 3], "image/webp")
+        .unwrap();
+    assert_eq!(
+        decorated.read_book_cover("hash-cov").unwrap(),
+        Some((vec![1, 2, 3], "image/webp".to_string()))
+    );
+
+    decorated.delete_book_cover("hash-cov").unwrap();
+    assert_eq!(decorated.read_book_cover("hash-cov").unwrap(), None);
+
+    assert!(!decorated.delete_entry("covers/missing.webp").unwrap());
+    assert!(decorated.delete_book_binary("hash-cov").unwrap());
+    assert!(!decorated.has_book_binary("hash-cov").unwrap());
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}

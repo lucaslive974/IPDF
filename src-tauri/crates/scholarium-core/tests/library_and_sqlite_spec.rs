@@ -6,7 +6,7 @@ use scholarium_core::adapters::storage::LocalFolderStorageAdapter;
 use scholarium_core::core::domain::{
     BookFormat, BoundingBox, Highlight, HighlightAnchor, RichAnnotation,
 };
-use scholarium_core::core::ports::{BookRepository, HighlightRepository, StorageProvider};
+use scholarium_core::core::ports::{HighlightRepository, StorageProvider};
 use scholarium_core::core::services::{ImportBookInput, LibraryManager, Sha256BookHasher};
 use std::env;
 use std::fs;
@@ -31,7 +31,6 @@ fn test_library_manager_import_progress_and_sorting() {
             author: "Plato".to_string(),
             format: BookFormat::Epub,
             total_pages: 320,
-            cover_image_url: Some("cover://republic.webp".to_string()),
             now_ms: 1000,
         })
         .unwrap();
@@ -40,7 +39,10 @@ fn test_library_manager_import_progress_and_sorting() {
     assert_eq!(imported.current_page, 1);
     assert_eq!(imported.total_pages, 320);
 
-    let binary = library.open_book_binary(&expected_hash).unwrap();
+    let binary = library
+        .storage_mut()
+        .read_book_binary(&expected_hash)
+        .unwrap();
     assert_eq!(binary, raw_epub_bytes);
     assert!(library.storage().has_book_binary(&expected_hash).unwrap());
 
@@ -60,7 +62,6 @@ fn test_library_manager_import_progress_and_sorting() {
             author: "Plato".to_string(),
             format: BookFormat::Epub,
             total_pages: 320,
-            cover_image_url: Some("cover://republic.webp".to_string()),
             now_ms: 3000,
         })
         .unwrap();
@@ -75,7 +76,6 @@ fn test_library_manager_import_progress_and_sorting() {
             author: "Immanuel Kant".to_string(),
             format: BookFormat::Epub,
             total_pages: 500,
-            cover_image_url: None,
             now_ms: 5000,
         })
         .unwrap();
@@ -83,43 +83,20 @@ fn test_library_manager_import_progress_and_sorting() {
     let all_books = library.list_books().unwrap();
     assert_eq!(all_books.len(), 2);
     assert_eq!(all_books[0].book_hash, second_book.book_hash);
-    assert_eq!(all_books[0].cover_image_url, None);
-    assert_eq!(
-        all_books[1].cover_image_url,
-        Some("cover://republic.webp".to_string())
-    );
 
-    // Direct filesystem opening (System handler / Open with / Default app)
-    let temp_file = env::temp_dir().join(format!("external_book_{}.epub", std::process::id()));
-    fs::write(&temp_file, b"PK\x03\x04external-standalone-file").unwrap();
-
-    let (opened_meta, opened_bytes) = library.open_book_from_path(&temp_file).unwrap();
-    assert_eq!(opened_bytes, b"PK\x03\x04external-standalone-file");
-    assert_eq!(opened_meta.format, BookFormat::Epub);
-
-    let _ = fs::remove_file(&temp_file);
-    assert!(library
-        .open_book_from_path(&std::path::PathBuf::from("/nonexistent/file.epub"))
-        .is_err());
-
-    // Batch filesystem opening (multiple files)
-    let temp_file_1 = env::temp_dir().join(format!("batch_book_1_{}.epub", std::process::id()));
-    let temp_file_2 = env::temp_dir().join(format!("batch_book_2_{}.pdf", std::process::id()));
-    fs::write(&temp_file_1, b"PK\x03\x04batch-epub").unwrap();
-    fs::write(&temp_file_2, b"%PDF-1.4 batch-pdf").unwrap();
-
-    let batch_results = library.open_books_from_paths(&[&temp_file_1, &temp_file_2]);
-    assert_eq!(batch_results.len(), 2);
-    assert!(batch_results[0].is_ok());
-    assert!(batch_results[1].is_ok());
-    assert_eq!(
-        batch_results[0].as_ref().unwrap().0.format,
-        BookFormat::Epub
-    );
-    assert_eq!(batch_results[1].as_ref().unwrap().0.format, BookFormat::Pdf);
-
-    let _ = fs::remove_file(&temp_file_1);
-    let _ = fs::remove_file(&temp_file_2);
+    // Direct PDF import via ImportBookInput
+    let pdf_meta = library
+        .import_book(ImportBookInput {
+            raw_bytes: b"%PDF-1.4 standalone-pdf".to_vec(),
+            title: "Standalone PDF".to_string(),
+            author: "Unknown".to_string(),
+            format: BookFormat::Pdf,
+            total_pages: 1,
+            now_ms: 6000,
+        })
+        .unwrap();
+    assert_eq!(pdf_meta.format, BookFormat::Pdf);
+    assert_eq!(pdf_meta.total_pages, 1);
 }
 
 #[test]
@@ -251,9 +228,10 @@ fn test_local_folder_storage_adapter() {
 }
 
 #[test]
-fn test_library_manager_and_reader_get_book_pages_on_demand() {
+fn test_library_manager_and_epub_content_get_pages_on_demand() {
     use fakes::InMemoryBookRepo;
-    use scholarium_core::core::services::ReaderManager;
+    use scholarium_core::adapters::pagination::EpubBookPaginator;
+    use scholarium_core::core::services::EpubContentService;
 
     let storage = InMemoryStorage::new("local-memory");
     let book_repo = InMemoryBookRepo::default();
@@ -268,27 +246,32 @@ fn test_library_manager_and_reader_get_book_pages_on_demand() {
             author: "Author".to_string(),
             format: BookFormat::Epub,
             total_pages: 10,
-            cover_image_url: None,
             now_ms: 1000,
         })
         .unwrap();
 
-    let mut reader =
-        ReaderManager::new_with_repo(library.storage().clone(), library.book_repo().clone());
+    let mut epub_content =
+        EpubContentService::new(library.storage().clone(), EpubBookPaginator::new());
 
-    let pages = reader.get_book_pages(&imported.book_hash, 1, 5).unwrap();
+    let pages = epub_content
+        .get_pages(&imported.book_hash, imported.total_pages, 1, 5)
+        .unwrap();
     assert_eq!(pages.len(), 5);
     assert_eq!(pages[0].page_number, 1);
     assert_eq!(pages[4].page_number, 5);
     assert!(!pages[0].paragraphs.is_empty());
     assert_eq!(pages[0].chapter_title, "Chapter 1");
 
-    let last_pages = reader.get_book_pages(&imported.book_hash, 9, 5).unwrap();
+    let last_pages = epub_content
+        .get_pages(&imported.book_hash, imported.total_pages, 9, 5)
+        .unwrap();
     assert_eq!(last_pages.len(), 2);
     assert_eq!(last_pages[1].page_number, 10);
 
     // Out of range
-    let empty = reader.get_book_pages(&imported.book_hash, 50, 5).unwrap();
+    let empty = epub_content
+        .get_pages(&imported.book_hash, imported.total_pages, 50, 5)
+        .unwrap();
     assert!(empty.is_empty());
 }
 
@@ -308,7 +291,6 @@ fn test_library_manager_rename_book_preserves_highlights() {
             author: "Robert C. Martin".to_string(),
             format: BookFormat::Epub,
             total_pages: 450,
-            cover_image_url: None,
             now_ms: 10_000,
         })
         .unwrap();
@@ -405,7 +387,6 @@ fn test_library_manager_and_sqlite_delete_book_cascades() {
             author: "Anonymous".to_string(),
             format: BookFormat::Epub,
             total_pages: 50,
-            cover_image_url: None,
             now_ms: 1000,
         })
         .unwrap();
@@ -486,7 +467,6 @@ fn test_library_manager_with_sqlite_book_repo_integration() {
             author: "Plato".to_string(),
             format: BookFormat::Epub,
             total_pages: 180,
-            cover_image_url: None,
             now_ms: 5000,
         })
         .unwrap();
@@ -581,24 +561,11 @@ fn test_library_manager_with_sqlite_book_repo_integration() {
         .find_book_by_hash(&hash)
         .unwrap()
         .is_none());
-
-    // 6. Test open_book_from_path with repo
-    let temp_book_path =
-        std::env::temp_dir().join(format!("test_repo_book_{}.epub", std::process::id()));
-    std::fs::write(&temp_book_path, b"dummy epub content").unwrap();
-    let (opened_meta, _bytes) = library.open_book_from_path(&temp_book_path).unwrap();
-    assert_eq!(
-        opened_meta.title,
-        temp_book_path.file_stem().unwrap().to_str().unwrap()
-    );
-    let _ = std::fs::remove_file(&temp_book_path);
 }
 
 #[test]
-fn test_library_manager_zip_epub_and_open_binary_fallbacks() {
+fn test_library_manager_zip_epub_and_storage_persistence() {
     use fakes::InMemoryBookRepo;
-    use scholarium_core::core::domain::{BookMetadata, BookStorageLocation};
-    use scholarium_core::core::ports::BookRepository;
     use std::io::Write;
 
     let storage = InMemoryStorage::new("local-memory");
@@ -629,104 +596,18 @@ fn test_library_manager_zip_epub_and_open_binary_fallbacks() {
             author: "Zip Author".to_string(),
             format: BookFormat::Epub,
             total_pages: 5,
-            cover_image_url: None,
             now_ms: 1000,
         })
         .unwrap();
 
-    // Test open_book_binary fallbacks:
-    // 1. Reading from storage when in-memory cache is purged
-    let mut library2 =
-        LibraryManager::new_with_repo(library.storage().clone(), library.book_repo().clone());
-    let bytes = library2.open_book_binary(&imported.book_hash).unwrap();
+    // Verify binary was persisted directly to StorageProvider
+    let bytes = library
+        .storage_mut()
+        .read_book_binary(&imported.book_hash)
+        .unwrap();
     assert_eq!(bytes, zip_bytes);
-
-    // 2. Reading from storage location on filesystem
-    let temp_file = env::temp_dir().join(format!("loc_test_{}.epub", std::process::id()));
-    fs::write(&temp_file, b"direct-fs-bytes").unwrap();
-    let loc_book_hash = "hash-direct-loc";
-    library2
-        .book_repo_mut()
-        .save_book(BookMetadata {
-            book_hash: loc_book_hash.to_string(),
-            title: "Direct Loc".to_string(),
-            author: "Author".to_string(),
-            format: BookFormat::Epub,
-            current_page: 1,
-            total_pages: 10,
-            percentage: 10.0,
-            cover_image_url: None,
-            description: None,
-            tags: Vec::new(),
-            page_offset_ratio: 0.0,
-            last_read_at_ms: 1000,
-            updated_at_ms: 1000,
-        })
-        .unwrap();
-    library2
-        .book_repo_mut()
-        .add_storage_location(BookStorageLocation::new(
-            loc_book_hash,
-            "local-fs",
-            temp_file.to_string_lossy().to_string(),
-            true,
-            Some(1000),
-        ))
-        .unwrap();
-
-    let loc_bytes = library2.open_book_binary(loc_book_hash).unwrap();
-    assert_eq!(loc_bytes, b"direct-fs-bytes");
-    let _ = fs::remove_file(&temp_file);
-
-    // 3. Error on completely nonexistent hash
-    assert!(library2.open_book_binary("nonexistent-hash-xyz").is_err());
-}
-
-#[test]
-fn test_library_manager_update_book_cover() {
-    let storage = InMemoryStorage::new("local-memory");
-    let mut library = LibraryManager::new(storage);
-    library.initialize().unwrap();
-
-    let raw_bytes = b"%PDF-1.4-dummy-pdf-content".to_vec();
-    let imported = library
-        .import_book(ImportBookInput {
-            raw_bytes,
-            title: "PDF Without Cover".to_string(),
-            author: "Author".to_string(),
-            format: BookFormat::Pdf,
-            total_pages: 50,
-            cover_image_url: None,
-            now_ms: 1000,
-        })
-        .unwrap();
-
-    assert!(imported.cover_image_url.is_none());
-
-    let webp_data_url = "data:image/webp;base64,UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==";
-    let updated = library
-        .update_book_cover(&imported.book_hash, webp_data_url, 2000)
-        .unwrap();
-
-    assert_eq!(
-        updated.cover_image_url,
-        Some("covers/".to_string() + &imported.book_hash + ".webp")
-    );
-    assert_eq!(updated.updated_at_ms, 2000);
-
-    // Verify retrieval from repo
-    let fetched = library
-        .book_repo()
-        .find_book_by_hash(&imported.book_hash)
-        .unwrap()
-        .unwrap();
-    assert_eq!(
-        fetched.cover_image_url,
-        Some("covers/".to_string() + &imported.book_hash + ".webp")
-    );
-
-    // Verify non-existent book returns Err
     assert!(library
-        .update_book_cover("unknown-hash", webp_data_url, 3000)
+        .storage_mut()
+        .read_book_binary("nonexistent-hash-xyz")
         .is_err());
 }

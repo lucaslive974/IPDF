@@ -11,7 +11,6 @@ pub struct BookMetadata {
     pub current_page: u32,
     pub total_pages: u32,
     pub percentage: f64,
-    pub cover_image_url: Option<String>,
     #[serde(default)]
     pub description: Option<String>,
     #[serde(default)]

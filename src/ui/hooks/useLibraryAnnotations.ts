@@ -11,7 +11,6 @@ export interface BookAnnotationGroup {
   readonly bookHash: string;
   readonly bookTitle: string;
   readonly bookAuthor: string;
-  readonly coverImageUrl?: string;
   readonly format: 'pdf' | 'epub';
   readonly highlights: readonly Highlight[];
 }
@@ -144,7 +143,6 @@ export function createLibraryAnnotationsController(
           bookHash,
           bookTitle: book?.title ?? 'Unknown Book',
           bookAuthor: book?.author ?? 'Unknown Author',
-          coverImageUrl: book?.coverImageUrl,
           format: book?.format ?? 'epub',
           highlights: hls.sort((a, b) => a.anchor.pageNumber - b.anchor.pageNumber),
         });
@@ -168,7 +166,6 @@ export function createLibraryAnnotationsController(
         bookAuthor: book.author,
         chapterTitle: `Page ${highlight.anchor.pageNumber}`,
         sampleParagraph: highlight.text,
-        coverImageUrl: book.coverImageUrl,
       });
       useReaderStore.getState().setCurrentPage(highlight.anchor.pageNumber);
 
@@ -279,7 +276,6 @@ export function useLibraryAnnotations({
         bookHash,
         bookTitle: book?.title ?? 'Unknown Book',
         bookAuthor: book?.author ?? 'Unknown Author',
-        coverImageUrl: book?.coverImageUrl,
         format: book?.format ?? 'epub',
         highlights: hls.sort((a, b) => a.anchor.pageNumber - b.anchor.pageNumber),
       });

@@ -130,6 +130,16 @@ impl<L: StorageProvider, P: StorageProvider> StorageProvider for CachedStorageDe
         Ok(local_res)
     }
 
+    fn delete_entry(&mut self, name: &str) -> Result<bool, String> {
+        let cache_deleted = self.local_cache.delete_entry(name)?;
+        let primary_deleted = if self.primary_storage.is_available() {
+            self.primary_storage.delete_entry(name)?
+        } else {
+            false
+        };
+        Ok(cache_deleted || primary_deleted)
+    }
+
     fn rename_entry(&mut self, old_name: &str, new_name: &str) -> Result<(), String> {
         let cache_res = self.local_cache.rename_entry(old_name, new_name);
         if self.primary_storage.is_available() {

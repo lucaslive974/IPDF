@@ -75,7 +75,7 @@ export function setupSystemEventListeners(deps: SystemHandlerDependencies): () =
     const filePath = (file as unknown as { path?: string }).path;
     if (filePath) {
       try {
-        const book = await deps.libraryService.openBookFile(filePath);
+        const book = await deps.libraryService.importBookFromPath(filePath);
         deps.upsertBook(book);
         deps.onOpenBook?.(book);
       } catch (err) {

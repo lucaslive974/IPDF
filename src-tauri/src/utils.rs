@@ -1,5 +1,39 @@
-use std::path::PathBuf;
+use scholarium_core::core::domain::BookFormat;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+pub struct LocalBookFile {
+    pub raw_bytes: Vec<u8>,
+    pub title: String,
+    pub format: BookFormat,
+}
+
+pub fn read_local_book_file(path: &Path) -> Result<LocalBookFile, String> {
+    if !path.exists() {
+        return Err(format!("Book file does not exist: {}", path.display()));
+    }
+
+    let raw_bytes = std::fs::read(path).map_err(|e| e.to_string())?;
+    let filename = path
+        .file_name()
+        .map(|f| f.to_string_lossy().to_string())
+        .unwrap_or_else(|| "document".to_string());
+    let format = if filename.ends_with(".pdf") {
+        BookFormat::Pdf
+    } else {
+        BookFormat::Epub
+    };
+    let title = path
+        .file_stem()
+        .map(|f| f.to_string_lossy().to_string())
+        .unwrap_or_else(|| "Book".to_string());
+
+    Ok(LocalBookFile {
+        raw_bytes,
+        title,
+        format,
+    })
+}
 
 pub fn current_epoch_ms() -> i64 {
     SystemTime::now()
@@ -45,10 +79,12 @@ mod tests {
         assert!(find_file_argument(&["scholarium".to_string()]).is_none());
 
         // 2. Flags are ignored
-        assert!(
-            find_file_argument(&["scholarium".to_string(), "--help".to_string(), "-v".to_string()])
-                .is_none()
-        );
+        assert!(find_file_argument(&[
+            "scholarium".to_string(),
+            "--help".to_string(),
+            "-v".to_string()
+        ])
+        .is_none());
 
         // 3. EPUB file is found
         let args_epub = vec![
@@ -59,11 +95,17 @@ mod tests {
         assert_eq!(find_file_argument(&args_epub), Some(epub_path.clone()));
 
         // 4. PDF file is found
-        let args_pdf = vec!["scholarium".to_string(), pdf_path.to_string_lossy().to_string()];
+        let args_pdf = vec![
+            "scholarium".to_string(),
+            pdf_path.to_string_lossy().to_string(),
+        ];
         assert_eq!(find_file_argument(&args_pdf), Some(pdf_path.clone()));
 
         // 5. TXT file is ignored
-        let args_txt = vec!["scholarium".to_string(), txt_path.to_string_lossy().to_string()];
+        let args_txt = vec![
+            "scholarium".to_string(),
+            txt_path.to_string_lossy().to_string(),
+        ];
         assert!(find_file_argument(&args_txt).is_none());
 
         let _ = std::fs::remove_file(&epub_path);

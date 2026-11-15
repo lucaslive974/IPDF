@@ -18,11 +18,7 @@ export interface EditBookMetadataModalProps {
   readonly isOpen: boolean;
   readonly book: BookMetadata | null;
   readonly onClose: () => void;
-  readonly onSave: (
-    bookHash: string,
-    input: UpdateBookMetadataInput,
-    coverImageUrl?: string
-  ) => Promise<void> | void;
+  readonly onSave: (bookHash: string, input: UpdateBookMetadataInput) => Promise<void> | void;
 }
 
 export const EditBookMetadataModal = memo(function EditBookMetadataModal({

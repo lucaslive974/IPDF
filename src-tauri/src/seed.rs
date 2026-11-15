@@ -6,8 +6,13 @@ use scholarium_core::core::services::{ImportBookInput, LibraryManager, Sha256Boo
 pub const BUNDLED_REPUBLIC_EPUB: &[u8] = include_bytes!("../../assets/republic-plato.epub");
 pub const INITIAL_SEED_KEY: &str = "initial_seed_completed_v1";
 
-pub fn seed_bundled_assets_if_needed<S: StorageProvider, R: BookRepository, C: ConfigurationStore>(
+pub fn seed_bundled_assets_if_needed<
+    S: StorageProvider,
+    R: BookRepository,
+    C: ConfigurationStore,
+>(
     library: &mut LibraryManager<S, R>,
+    storage: &mut S,
     config_store: &mut C,
     now_ms: i64,
 ) {
@@ -19,16 +24,7 @@ pub fn seed_bundled_assets_if_needed<S: StorageProvider, R: BookRepository, C: C
 
     if let Ok(books) = library.list_books() {
         if books.is_empty() {
-            let cover_url = if let Ok(book_hash) = Sha256BookHasher::hash_bytes(BUNDLED_REPUBLIC_EPUB) {
-                CoverExtractorAdapter::extract_and_persist_cover(
-                    library.storage_mut(),
-                    BookFormat::Epub,
-                    &book_hash,
-                    BUNDLED_REPUBLIC_EPUB,
-                )
-            } else {
-                None
-            };
+            let _ = extract_and_store_bundled_cover(storage, BUNDLED_REPUBLIC_EPUB);
 
             let input = ImportBookInput {
                 raw_bytes: BUNDLED_REPUBLIC_EPUB.to_vec(),
@@ -36,7 +32,6 @@ pub fn seed_bundled_assets_if_needed<S: StorageProvider, R: BookRepository, C: C
                 author: "Plato".to_string(),
                 format: BookFormat::Epub,
                 total_pages: 320,
-                cover_image_url: cover_url,
                 now_ms,
             };
             let _ = library.import_book(input);
@@ -44,6 +39,17 @@ pub fn seed_bundled_assets_if_needed<S: StorageProvider, R: BookRepository, C: C
     }
 
     let _ = config_store.set(INITIAL_SEED_KEY, "true");
+}
+
+fn extract_and_store_bundled_cover<S: StorageProvider>(
+    storage: &mut S,
+    raw_bytes: &[u8],
+) -> Option<String> {
+    let book_hash = Sha256BookHasher::hash_bytes(raw_bytes).ok()?;
+    let cover = CoverExtractorAdapter::extract_cover(BookFormat::Epub, raw_bytes)?;
+    storage
+        .write_book_cover(&book_hash, &cover.data, &cover.mime_type)
+        .ok()
 }
 
 #[cfg(test)]
@@ -59,14 +65,14 @@ mod tests {
     fn test_seed_bundled_assets_first_run_and_subsequent_runs() {
         let temp_dir = env::temp_dir().join(format!("scholarium_seed_test_{}", std::process::id()));
         let _ = fs::remove_dir_all(&temp_dir);
-        let storage = LocalFolderStorageAdapter::new("local-folder", &temp_dir);
+        let mut storage = LocalFolderStorageAdapter::new("local-folder", &temp_dir);
         let book_repo = SqliteBookRepository::new_in_memory().unwrap();
-        let mut library = LibraryManager::new_with_repo(storage, book_repo);
+        let mut library = LibraryManager::new_with_repo(storage.clone(), book_repo);
         let mut config_store = SqliteConfigurationStore::new_in_memory().unwrap();
 
         // 1. First run seeds "The Republic"
         assert_eq!(library.list_books().unwrap().len(), 0);
-        seed_bundled_assets_if_needed(&mut library, &mut config_store, 1000);
+        seed_bundled_assets_if_needed(&mut library, &mut storage, &mut config_store, 1000);
 
         let books = library.list_books().unwrap();
         assert_eq!(books.len(), 1);
@@ -83,7 +89,7 @@ mod tests {
         assert_eq!(library.list_books().unwrap().len(), 0);
 
         // 3. Second run should NOT re-seed because INITIAL_SEED_KEY is already true
-        seed_bundled_assets_if_needed(&mut library, &mut config_store, 2000);
+        seed_bundled_assets_if_needed(&mut library, &mut storage, &mut config_store, 2000);
         assert_eq!(library.list_books().unwrap().len(), 0);
 
         let _ = fs::remove_dir_all(&temp_dir);

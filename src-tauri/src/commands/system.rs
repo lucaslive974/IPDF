@@ -48,10 +48,13 @@ pub fn set_discord_presence_enabled(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<(), String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
+    guard.config_store.set(
+        "discord_presence_enabled",
+        if enabled { "true" } else { "false" },
+    )?;
     guard
-        .config_store
-        .set("discord_presence_enabled", if enabled { "true" } else { "false" })?;
-    guard.presence_manager.set_provider_enabled("discord", enabled);
+        .presence_manager
+        .set_provider_enabled("discord", enabled);
     Ok(())
 }
 
@@ -123,7 +126,10 @@ pub fn get_discord_presence_health(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<PresenceHealth, String> {
     let guard = state.lock().map_err(|e| e.to_string())?;
-    if !guard.platform_env.platform_kind().supports_discord_presence()
+    if !guard
+        .platform_env
+        .platform_kind()
+        .supports_discord_presence()
         || cfg!(any(target_os = "android", target_os = "ios"))
     {
         return Ok(PresenceHealth {

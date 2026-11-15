@@ -1,7 +1,7 @@
 import { DefaultPdfEngine } from '@adapters/viewers/DefaultPdfEngine';
 import type { ILibraryService } from '@ports/ILibraryService';
 import type { IPdfEngine, PdfPageProxy, PdfRangeSource } from '@ports/IPdfEngine';
-import type { IPdfViewer } from '@ports/IPdfViewer';
+import type { IReaderService } from '@ports/IReaderService';
 import { hasDocument } from '@utils/dom';
 
 export interface RenderCoverOptions {
@@ -10,14 +10,37 @@ export interface RenderCoverOptions {
   readonly canvas?: HTMLCanvasElement;
 }
 
+export interface CoverBinaryPayload {
+  readonly bytes: Uint8Array;
+  readonly mimeType: string;
+}
+
+async function canvasToCoverPayload(
+  canvas: HTMLCanvasElement,
+  mimeType: string,
+  quality?: number
+): Promise<CoverBinaryPayload | null> {
+  if (typeof canvas.toBlob !== 'function') {
+    return null;
+  }
+  const blob = await new Promise<Blob | null>((resolve) => {
+    canvas.toBlob((result) => resolve(result), mimeType, quality);
+  });
+  if (!blob || blob.size === 0 || (mimeType === 'image/webp' && blob.type !== 'image/webp')) {
+    return null;
+  }
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  return bytes.length > 0 ? { bytes, mimeType: blob.type || mimeType } : null;
+}
+
 /**
- * Renders page 1 of a PDF proxy onto an off-screen canvas and returns an image Data URL.
+ * Renders page 1 of a PDF proxy onto an off-screen canvas and returns binary image bytes + MIME type.
  * Defaults to WebP format with fallback to PNG.
  */
-export async function renderPdfPageToDataUrl(
+export async function renderPdfPageToCoverPayload(
   page: PdfPageProxy,
   options?: RenderCoverOptions
-): Promise<string | null> {
+): Promise<CoverBinaryPayload | null> {
   let canvas = options?.canvas;
   if (!canvas) {
     if (!hasDocument()) {
@@ -49,30 +72,30 @@ export async function renderPdfPageToDataUrl(
   await renderTask.promise;
 
   try {
-    const webpUrl = canvas.toDataURL('image/webp', quality);
-    if (webpUrl?.startsWith('data:image/webp')) {
-      return webpUrl;
+    const webp = await canvasToCoverPayload(canvas, 'image/webp', quality);
+    if (webp) {
+      return webp;
     }
   } catch {
     // Fallback if image/webp export is not supported in environment
   }
 
-  return canvas.toDataURL('image/png');
+  return canvasToCoverPayload(canvas, 'image/png');
 }
 
 /**
  * Loads a PDF document from binary or URL source, extracts page 1,
- * and renders it as a cover thumbnail Data URL.
+ * and renders it as a binary cover thumbnail payload.
  */
-export async function generatePdfPageCoverDataUrl(
+export async function generatePdfPageCoverPayload(
   source: PdfRangeSource,
   engine: IPdfEngine = new DefaultPdfEngine(),
   options?: RenderCoverOptions
-): Promise<string | null> {
+): Promise<CoverBinaryPayload | null> {
   const doc = await engine.loadDocument(source);
   try {
     const page = await doc.getPage(1);
-    return await renderPdfPageToDataUrl(page, options);
+    return await renderPdfPageToCoverPayload(page, options);
   } finally {
     if (doc.destroy) {
       await doc.destroy();
@@ -80,45 +103,37 @@ export async function generatePdfPageCoverDataUrl(
   }
 }
 
-export interface PdfCoverSyncTarget {
-  readonly bookHash: string;
-  readonly coverImageUrl?: string;
+function waitForIdleFrame(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      (
+        window as Window & {
+          requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => number;
+        }
+      ).requestIdleCallback(() => resolve(), { timeout: 200 });
+    } else {
+      setTimeout(resolve, 0);
+    }
+  });
 }
 
 /**
- * Returns true if the cover URL is already an extracted WebP or PNG Data URL.
+ * Generates page-1 thumbnail bytes for a PDF book on idle and persists them via ILibraryService.
  */
-export function hasCachedPdfCoverUrl(coverImageUrl?: string): boolean {
-  return Boolean(
-    coverImageUrl &&
-      (coverImageUrl.startsWith('data:image/webp') || coverImageUrl.startsWith('data:image/png'))
-  );
-}
-
-/**
- * Extracts page 1 cover for a PDF document if missing, and syncs it to the library service.
- */
-export async function extractAndSyncPdfCover(
-  pdfViewer: Pick<IPdfViewer, 'getPageProxy'>,
-  target: PdfCoverSyncTarget,
-  libraryService?: Pick<ILibraryService, 'updateBookCover'>
-): Promise<string | null> {
-  if (hasCachedPdfCoverUrl(target.coverImageUrl)) {
-    return target.coverImageUrl ?? null;
-  }
-
-  try {
-    const pageProxy = await pdfViewer.getPageProxy(1);
-    if (!pageProxy) {
-      return null;
-    }
-    const coverUrl = await renderPdfPageToDataUrl(pageProxy);
-    if (coverUrl && libraryService?.updateBookCover) {
-      void libraryService.updateBookCover(target.bookHash, coverUrl);
-    }
-    return coverUrl;
-  } catch (coverErr) {
-    console.warn('Failed to extract PDF cover from page 1:', coverErr);
+export async function generateAndSavePdfCover(
+  bookHash: string,
+  libraryService: ILibraryService,
+  readerService: IReaderService
+): Promise<CoverBinaryPayload | null> {
+  await waitForIdleFrame();
+  const totalBytes = await readerService.getBookFileSize(bookHash);
+  const payload = await generatePdfPageCoverPayload({
+    totalBytes,
+    readRange: (begin: number, end: number) => readerService.readBookRange(bookHash, begin, end),
+  });
+  if (!payload) {
     return null;
   }
+  await libraryService.saveBookCover(bookHash, payload.bytes, payload.mimeType);
+  return payload;
 }
