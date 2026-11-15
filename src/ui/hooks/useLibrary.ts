@@ -4,7 +4,7 @@ import type { UpdateBookMetadataInput } from '@ports/ILibraryService';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useHighlightStore } from '@stores/useHighlightStore';
 import { useLibraryStore } from '@stores/useLibraryStore';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 
 export interface LibraryViewModel {
   readonly books: readonly BookMetadata[];
@@ -165,12 +165,6 @@ export function useLibrary(): LibraryViewModel {
     },
     [libraryService, removeBook, setLoading]
   );
-
-  useEffect(() => {
-    if (books.length === 0) {
-      void loadBooks();
-    }
-  }, [books.length, loadBooks]);
 
   return useMemo(
     () => ({
