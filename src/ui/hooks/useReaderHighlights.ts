@@ -123,29 +123,17 @@ export function createReaderHighlightsController(
   };
 }
 
-const EMPTY_PAGE_HIGHLIGHTS: Highlight[] = [];
+const EMPTY_PAGE_HIGHLIGHTS: readonly Highlight[] = [];
 
 /**
- * Subscribes to the highlight store and returns a stable lookup of highlights per page.
+ * Subscribes to the indexed highlights map and returns an O(1) lookup of highlights per page.
+ * Untouched pages keep referential equality across updates.
  */
-export function useHighlightsByPage(): (pageNumber: number) => Highlight[] {
-  const highlights = useHighlightStore((s) => s.highlights);
-
-  const pageHighlightsMap = useMemo(() => {
-    const map = new Map<number, Highlight[]>();
-    for (const h of highlights) {
-      const list = map.get(h.anchor.pageNumber);
-      if (list) {
-        list.push(h);
-      } else {
-        map.set(h.anchor.pageNumber, [h]);
-      }
-    }
-    return map;
-  }, [highlights]);
+export function useHighlightsByPage(): (pageNumber: number) => readonly Highlight[] {
+  const highlightsByPage = useHighlightStore((s) => s.highlightsByPage);
 
   return useCallback(
-    (pageNumber: number) => pageHighlightsMap.get(pageNumber) ?? EMPTY_PAGE_HIGHLIGHTS,
-    [pageHighlightsMap]
+    (pageNumber: number) => highlightsByPage.get(pageNumber) ?? EMPTY_PAGE_HIGHLIGHTS,
+    [highlightsByPage]
   );
 }
