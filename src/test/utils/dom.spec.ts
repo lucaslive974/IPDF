@@ -9,6 +9,7 @@ import {
   hasWindow,
   isBrowser,
   safeRequestAnimationFrame,
+  safeScrollBy,
   safeScrollTo,
   selectElement,
   selectElements,
@@ -175,6 +176,24 @@ describe('DOM utility helpers', () => {
       // @ts-expect-error simulating non-browser
       globalThis.window = undefined;
       expect(() => safeScrollTo({ top: 0 })).not.toThrow();
+    });
+  });
+
+  describe('safeScrollBy', () => {
+    it('calls window.scrollBy when window and scrollBy exist', () => {
+      const scrollBySpy = vi.fn();
+      globalThis.window = {
+        scrollBy: scrollBySpy,
+      } as unknown as Window & typeof globalThis;
+
+      safeScrollBy(10, -25);
+      expect(scrollBySpy).toHaveBeenCalledWith(10, -25);
+    });
+
+    it('does not throw when window or scrollBy is missing', () => {
+      // @ts-expect-error simulating non-browser
+      globalThis.window = undefined;
+      expect(() => safeScrollBy(0, 10)).not.toThrow();
     });
   });
 

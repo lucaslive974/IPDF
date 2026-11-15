@@ -111,16 +111,12 @@ const initialFontSize =
   initialSaved.fontSize <= MAX_FONT_SIZE
     ? initialSaved.fontSize
     : getDefaultFontSize();
-const initialZoom =
-  initialSaved.zoomLevel && initialSaved.zoomLevel >= MIN_ZOOM && initialSaved.zoomLevel <= MAX_ZOOM
-    ? initialSaved.zoomLevel
-    : 1.0;
 const initialFont: FontFamilyChoice = initialSaved.fontFamily ?? 'serif';
 const initialSpacing = initialSaved.lineSpacing ?? 1.85;
 
 export const useTypographyStore = create<TypographyState>((set, get) => ({
   fontSize: initialFontSize,
-  zoomLevel: initialZoom,
+  zoomLevel: 1.0,
   fontFamily: initialFont,
   lineSpacing: initialSpacing,
   isAppearancePopoverOpen: false,
@@ -147,12 +143,6 @@ export const useTypographyStore = create<TypographyState>((set, get) => ({
   setZoomLevel: (zoomLevel) => {
     const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Number(zoomLevel.toFixed(2))));
     set({ zoomLevel: clamped });
-    persistSettings({
-      fontSize: get().fontSize,
-      zoomLevel: clamped,
-      fontFamily: get().fontFamily,
-      lineSpacing: get().lineSpacing,
-    });
   },
 
   increaseZoom: (step = 0.05) => {

@@ -75,6 +75,15 @@ export function safeScrollTo(options: ScrollToOptions): void {
 }
 
 /**
+ * Safely triggers window.scrollBy if window and scrollBy are defined.
+ */
+export function safeScrollBy(x: number, y: number): void {
+  if (hasWindow() && typeof window.scrollBy === 'function') {
+    window.scrollBy(x, y);
+  }
+}
+
+/**
  * Safely invokes window.requestAnimationFrame if available.
  */
 export function safeRequestAnimationFrame(callback: FrameRequestCallback): number | null {
