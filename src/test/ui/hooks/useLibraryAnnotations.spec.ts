@@ -3,7 +3,6 @@ import { Highlight } from '@domain/Highlight';
 import {
   createLibraryAnnotationsController,
   formatQuoteForClipboard,
-  type LibraryAnnotationsController,
 } from '@hooks/useLibraryAnnotations';
 import { useReaderStore } from '@stores/useReaderStore';
 import { beforeEach, describe, expect, it, vi } from 'vitest';

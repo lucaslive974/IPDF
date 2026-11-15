@@ -2,7 +2,6 @@ import { isValidAuthor } from '@components/library/BookCover';
 import type { BookMetadata } from '@domain/BookMetadata';
 import { calculatePageWindow, type PageWindow } from '@domain/PageWindow';
 import { BookFormat } from '@domain/types';
-import type { IDocumentViewer } from '@ports/IDocumentViewer';
 import type { IEpubViewer } from '@ports/IEpubViewer';
 import type { IHighlightService } from '@ports/IHighlightService';
 import type { ILibraryService } from '@ports/ILibraryService';

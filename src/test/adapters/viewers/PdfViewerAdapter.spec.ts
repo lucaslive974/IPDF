@@ -377,4 +377,42 @@ describe('PdfViewerAdapter (PDF.js Engine, Canvas & Cooperative Cancellation)', 
     expect(viewer.getPage(1)).toBeNull();
     expect(viewer.getCurrentPage().totalPages).toBe(1);
   });
+
+  it('returns zero dimensions on RenderingCancelledException and rethrows other render errors', async () => {
+    const cancelledErr = new Error('cancelled');
+    cancelledErr.name = 'RenderingCancelledException';
+    const fatalErr = new Error('gpu failure');
+
+    const mockPageProxy: PdfPageProxy = {
+      pageNumber: 1,
+      getViewport: ({ scale }) => ({ width: 600 * scale, height: 800 * scale, scale }),
+      getTextContent: async () => ({ items: [] }),
+      render: vi
+        .fn()
+        .mockReturnValueOnce({ promise: Promise.reject(cancelledErr), cancel: vi.fn() })
+        .mockReturnValueOnce({ promise: Promise.reject(fatalErr), cancel: vi.fn() }),
+    };
+
+    const viewer = new PdfViewerAdapter({
+      loadDocument: async () => ({
+        numPages: 1,
+        getPage: async () => mockPageProxy,
+      }),
+    });
+    await viewer.render(createFakeContainer(), {
+      totalBytes: 16,
+      readRange: async () => new Uint8Array(16),
+    });
+
+    const fakeCanvas = {
+      width: 0,
+      height: 0,
+      getContext: () => ({}) as CanvasRenderingContext2D,
+    } as unknown as HTMLCanvasElement;
+
+    const cancelledSize = await viewer.renderPageCanvas(1, fakeCanvas, 1.0);
+    expect(cancelledSize).toEqual({ width: 0, height: 0 });
+
+    await expect(viewer.renderPageCanvas(1, fakeCanvas, 1.0)).rejects.toThrow('gpu failure');
+  });
 });

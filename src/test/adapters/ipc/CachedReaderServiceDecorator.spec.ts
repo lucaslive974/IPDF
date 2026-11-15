@@ -297,5 +297,32 @@ describe('CachedReaderServiceDecorator (Intelligent Sliding Window & Async Edge 
     );
     expect(llmReq.systemPrompt).toBe('System');
     expect(mockInner.buildTermLookupRequestMock).toHaveBeenCalled();
+
+    const size = await decorator.getBookFileSize('book-1');
+    expect(size).toBe(1024);
+
+    const rangeBytes = await decorator.readBookRange('book-1', 0, 10);
+    expect(rangeBytes).toEqual(new Uint8Array([1, 2]));
+  });
+
+  it('clears cache and resets window bounds on clearCache', async () => {
+    await decorator.getBookPages('book-1', 10, 1);
+    expect(decorator.cacheSize).toBeGreaterThan(0);
+
+    decorator.clearCache();
+    expect(decorator.cacheSize).toBe(0);
+    expect(decorator.getWindowBounds()).toEqual({ start: null, end: null });
+  });
+
+  it('logs a warning gracefully when background prefetch fails without aborting', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await decorator.getBookPages('book-1', 20, 1);
+
+    mockInner.getBookPagesMock.mockRejectedValueOnce(new Error('IPC timeout'));
+    await decorator.getBookPages('book-1', 42, 1);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 });

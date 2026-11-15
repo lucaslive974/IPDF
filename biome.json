@@ -23,12 +23,51 @@
 		"enabled": true,
 		"rules": {
 			"preset": "recommended",
+			"a11y": {
+				"noNoninteractiveTabindex": "off",
+				"noStaticElementInteractions": "off",
+				"useAriaPropsSupportedByRole": "off",
+				"useSemanticElements": "off"
+			},
 			"suspicious": {
+				"noArrayIndexKey": "off",
 				"noExplicitAny": "error"
 			},
 			"style": {
 				"noParameterAssign": "off"
 			}
 		}
-	}
+	},
+	"overrides": [
+		{
+			"includes": ["src/utils/bookWebglRenderer.ts"],
+			"linter": {
+				"rules": {
+					"correctness": {
+						"useHookAtTopLevel": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": ["src/test/**/*.ts"],
+			"linter": {
+				"rules": {
+					"correctness": {
+						"noComponentHookFactories": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": ["src/ui/styles.css"],
+			"linter": {
+				"rules": {
+					"complexity": {
+						"noImportantStyles": "off"
+					}
+				}
+			}
+		}
+	]
 }

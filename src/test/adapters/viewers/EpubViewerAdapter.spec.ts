@@ -161,4 +161,14 @@ describe('EpubViewerAdapter (EPUB CFI & Virtual Pagination)', () => {
     await viewer.goToPage(-1);
     await viewer.goToPage('epubcfi(invalid-cfi-target)');
   });
+
+  it('handles goToPage and setPages safely when pages are empty', async () => {
+    const viewer = new EpubViewerAdapter();
+    const container = { innerHTML: 'initial' } as unknown as HTMLElement;
+
+    await viewer.goToPage(1);
+    await viewer.render(container, encodeUtf8(JSON.stringify({ chapters: [] })));
+    viewer.setPages([]);
+    expect(container.innerHTML).toBe('');
+  });
 });

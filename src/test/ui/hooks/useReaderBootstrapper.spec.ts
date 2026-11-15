@@ -9,7 +9,6 @@ import {
   resolveDocumentViewer,
   useReaderBootstrapper,
 } from '@hooks/useReaderBootstrapper';
-import type { IDocumentViewer } from '@ports/IDocumentViewer';
 import type { IPdfViewer } from '@ports/IPdfViewer';
 import { ServiceContainerProvider } from '@providers/ServiceContainerContext';
 import { EMPTY_DOCUMENT, useReaderStore } from '@stores/useReaderStore';

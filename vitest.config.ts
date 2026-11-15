@@ -4,17 +4,17 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   resolve: {
     alias: {
-      '@domain': path.resolve(__dirname, 'src/core/domain'),
-      '@ports': path.resolve(__dirname, 'src/core/ports'),
-      '@core': path.resolve(__dirname, 'src/core'),
-      '@adapters': path.resolve(__dirname, 'src/adapters'),
-      '@hooks': path.resolve(__dirname, 'src/ui/hooks'),
-      '@providers': path.resolve(__dirname, 'src/ui/providers'),
-      '@stores': path.resolve(__dirname, 'src/ui/stores'),
-      '@utils': path.resolve(__dirname, 'src/utils'),
-      '@components': path.resolve(__dirname, 'src/ui/components'),
-      '@ui': path.resolve(__dirname, 'src/ui/components/ui'),
-      '@assets': path.resolve(__dirname, 'assets'),
+      '@domain': path.resolve(import.meta.dirname, 'src/core/domain'),
+      '@ports': path.resolve(import.meta.dirname, 'src/core/ports'),
+      '@core': path.resolve(import.meta.dirname, 'src/core'),
+      '@adapters': path.resolve(import.meta.dirname, 'src/adapters'),
+      '@hooks': path.resolve(import.meta.dirname, 'src/ui/hooks'),
+      '@providers': path.resolve(import.meta.dirname, 'src/ui/providers'),
+      '@stores': path.resolve(import.meta.dirname, 'src/ui/stores'),
+      '@utils': path.resolve(import.meta.dirname, 'src/utils'),
+      '@components': path.resolve(import.meta.dirname, 'src/ui/components'),
+      '@ui': path.resolve(import.meta.dirname, 'src/ui/components/ui'),
+      '@assets': path.resolve(import.meta.dirname, 'assets'),
     },
   },
   test: {

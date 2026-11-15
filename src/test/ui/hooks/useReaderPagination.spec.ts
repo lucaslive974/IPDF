@@ -73,7 +73,7 @@ describe('useReaderPagination / createReaderPaginationController', () => {
 
   it('loads pages from pdfViewer when book format is PDF', async () => {
     const mockPdfViewer = {
-      getPagesChunk: vi.fn((startPage: number, count: number) => [
+      getPagesChunk: vi.fn((startPage: number, _count: number) => [
         {
           pageNumber: startPage,
           chapterTitle: `PDF Page ${startPage}`,
