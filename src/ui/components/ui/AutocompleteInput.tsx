@@ -1,8 +1,8 @@
 import {
   type FocusEvent,
   type KeyboardEvent,
-  type MouseEvent as ReactMouseEvent,
   memo,
+  type MouseEvent as ReactMouseEvent,
   useCallback,
   useEffect,
   useRef,

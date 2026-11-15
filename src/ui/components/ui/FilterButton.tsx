@@ -1,4 +1,4 @@
-import { type ReactNode, memo, useEffect, useRef, useState } from 'react';
+import { memo, type ReactNode, useEffect, useRef, useState } from 'react';
 import { ChevronDownIcon } from './icons';
 
 export interface FilterOption<T extends string = string> {

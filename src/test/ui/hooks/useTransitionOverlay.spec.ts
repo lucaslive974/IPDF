@@ -1,7 +1,7 @@
 import {
-  DEFAULT_TRANSITION_DURATION_MS,
   computeRemainingDelay,
   computeTransitionStyle,
+  DEFAULT_TRANSITION_DURATION_MS,
 } from '@hooks/useTransitionOverlay';
 import { describe, expect, it } from 'vitest';
 

@@ -6,7 +6,7 @@ import type {
   ReadingContext,
 } from '@ports/IReaderService';
 import { invoke } from '@tauri-apps/api/core';
-import { type SerializedBookMetadata, deserializeBookMetadata } from './TauriLibraryService';
+import { deserializeBookMetadata, type SerializedBookMetadata } from './TauriLibraryService';
 
 export class TauriReaderService implements IReaderService {
   public async readBookBinary(bookHash: string): Promise<Uint8Array> {

@@ -29,21 +29,21 @@
     "pdfjs-dist": "^6.5.438",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-hook-form": "^7.91.0",
-    "zustand": "^5.0.16"
+    "react-hook-form": "^7.92.0",
+    "zustand": "^5.1.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "1.9.4",
-    "@tailwindcss/vite": "^4.3.3",
+    "@biomejs/biome": "^2.6.8",
+    "@tailwindcss/vite": "^4.3.5",
     "@tauri-apps/cli": "^2.2.0",
     "@types/node": "^26.6.6",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "@vitejs/plugin-react": "^4.3.4",
-    "@vitest/coverage-v8": "^3.2.7",
-    "tailwindcss": "^4.3.3",
-    "typescript": "^5.7.3",
-    "vite": "^6.1.0",
-    "vitest": "^3.0.5"
+    "@vitejs/plugin-react": "^6.3.0",
+    "@vitest/coverage-v8": "^5.1.0",
+    "tailwindcss": "^4.3.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
   }
 }

@@ -1,8 +1,8 @@
 import {
+  calculatePageWindow,
   INITIAL_ACTIVE_PAGES,
   INITIAL_BACKWARD_PAGES,
   INITIAL_FORWARD_PAGES,
-  calculatePageWindow,
 } from '@domain/PageWindow';
 import { describe, expect, it } from 'vitest';
 

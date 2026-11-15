@@ -1,6 +1,6 @@
 import type { IPdfEngine, PdfDocumentProxy, PdfRangeSource } from '@ports/IPdfEngine';
 import { hasWindow } from '@utils/dom';
-import { GlobalWorkerOptions, PDFDataRangeTransport, getDocument } from 'pdfjs-dist';
+import { GlobalWorkerOptions, getDocument, PDFDataRangeTransport } from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 const RANGE_CHUNK_SIZE_BYTES = 65536;

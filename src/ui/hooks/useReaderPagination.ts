@@ -1,4 +1,4 @@
-import { type PageWindow, calculatePageWindow } from '@domain/PageWindow';
+import { calculatePageWindow, type PageWindow } from '@domain/PageWindow';
 import { BookFormat } from '@domain/types';
 import type { DocumentPage, IPdfViewer, IPresenceService, IReaderService } from '@ports';
 import { useServiceContainer } from '@providers/ServiceContainerContext';

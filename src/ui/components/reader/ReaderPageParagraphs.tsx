@@ -3,18 +3,18 @@ import { useReaderStore } from '@stores/useReaderStore';
 import { hasIntersectionObserver } from '@utils/dom';
 import { getExpandedWordSelection } from '@utils/domSelection';
 import {
-  type TextChunk,
   findHighlightMatchesInParagraph,
+  type TextChunk,
   tokenizeTextWithHighlights,
 } from '@utils/readerTokenizer';
 import { memo, useEffect, useRef, useState } from 'react';
 import { ReaderParagraphItem } from './ReaderParagraphItem';
 
 export {
-  getExpandedWordSelection,
   findHighlightMatchesInParagraph,
-  tokenizeTextWithHighlights,
+  getExpandedWordSelection,
   type TextChunk,
+  tokenizeTextWithHighlights,
 };
 
 export interface ReaderPageParagraphsProps {

@@ -8,7 +8,7 @@ import { ReaderPageHeader } from './ReaderPageHeader';
 import { ReaderPageParagraphs, type ReaderPageParagraphsProps } from './ReaderPageParagraphs';
 import { ReaderPagePdf } from './ReaderPagePdf';
 
-export { tokenizeTextWithHighlights, type TextChunk } from './ReaderPageParagraphs';
+export { type TextChunk, tokenizeTextWithHighlights } from './ReaderPageParagraphs';
 
 export type PageRendererComponent = React.ComponentType<ReaderPageParagraphsProps>;
 

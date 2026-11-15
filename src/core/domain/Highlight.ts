@@ -1,7 +1,7 @@
 import {
   type AnnotationFormatterMap,
-  type IRichAnnotation,
   formatRichAnnotation,
+  type IRichAnnotation,
 } from './RichAnnotation';
 import { BookFormat, type HighlightAnchor, type RichAnnotationType } from './types';
 

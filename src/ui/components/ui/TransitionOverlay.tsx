@@ -2,7 +2,7 @@ import {
   type UseTransitionOverlayOptions,
   useTransitionOverlay,
 } from '@hooks/useTransitionOverlay';
-import { type ReactNode, memo } from 'react';
+import { memo, type ReactNode } from 'react';
 
 export interface TransitionOverlayProps extends UseTransitionOverlayOptions {
   readonly children?: ReactNode;

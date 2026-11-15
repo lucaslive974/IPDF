@@ -4,9 +4,9 @@ import { PdfViewerAdapter } from '@adapters/viewers/PdfViewerAdapter';
 import { BookFormat } from '@domain/types';
 import type { ILibraryService, IReaderService } from '@ports';
 import {
+  createServiceContainer,
   type ServiceContainer,
   ServiceContainerProvider,
-  createServiceContainer,
   useOptionalServiceContainer,
   useServiceContainer,
 } from '@providers/ServiceContainerContext';

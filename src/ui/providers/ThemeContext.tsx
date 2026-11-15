@@ -1,5 +1,5 @@
 import { isBrowser, useIsomorphicLayoutEffect } from '@utils/dom';
-import { type ReactNode, createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from 'react';
 
 export type ThemeMode = 'light' | 'dark';
 

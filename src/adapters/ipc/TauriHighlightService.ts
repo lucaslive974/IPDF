@@ -1,5 +1,5 @@
 import { Highlight } from '@domain/Highlight';
-import { type IRichAnnotation, createAssistedTextAnnotation } from '@domain/RichAnnotation';
+import { createAssistedTextAnnotation, type IRichAnnotation } from '@domain/RichAnnotation';
 import type { HighlightAnchor, RichAnnotationType } from '@domain/types';
 import type { IHighlightService } from '@ports/IHighlightService';
 import { invoke } from '@tauri-apps/api/core';

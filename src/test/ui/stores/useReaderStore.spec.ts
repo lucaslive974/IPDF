@@ -1,8 +1,8 @@
 import type { DocumentPage } from '@ports/IReaderService';
 import {
+  createLoadedPagesInfo,
   EMPTY_DOCUMENT,
   EMPTY_LOADED_PAGES,
-  createLoadedPagesInfo,
   useReaderStore,
 } from '@stores/useReaderStore';
 import { beforeEach, describe, expect, it } from 'vitest';

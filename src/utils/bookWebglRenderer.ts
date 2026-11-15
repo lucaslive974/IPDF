@@ -11,15 +11,15 @@ import {
 } from './bookWebglGeometry';
 
 export {
-  type FanningPageTransform,
-  type PageGridGeometry,
-  type PageShadowProjection,
   computeFanningPageTransform,
   computePageProgress,
   computePageShadowProjection,
   createBookViewMatrix,
   createPageGridGeometry,
   createPerspectiveMatrix,
+  type FanningPageTransform,
+  type PageGridGeometry,
+  type PageShadowProjection,
 } from './bookWebglGeometry';
 
 type RgbColor = readonly [number, number, number];

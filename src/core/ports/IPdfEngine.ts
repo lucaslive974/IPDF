@@ -27,10 +27,7 @@ export interface PdfPageProxy {
   readonly pageNumber: number;
   getViewport(options: { scale: number }): PdfViewport;
   getTextContent(): Promise<PdfTextContent>;
-  render?(options: {
-    canvasContext: unknown;
-    viewport: unknown;
-  }): PdfRenderTask;
+  render?(options: { canvasContext: unknown; viewport: unknown }): PdfRenderTask;
 }
 
 export interface PdfDocumentProxy {

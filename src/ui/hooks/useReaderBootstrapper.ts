@@ -1,6 +1,6 @@
 import { isValidAuthor } from '@components/library/BookCover';
 import type { BookMetadata } from '@domain/BookMetadata';
-import { type PageWindow, calculatePageWindow } from '@domain/PageWindow';
+import { calculatePageWindow, type PageWindow } from '@domain/PageWindow';
 import { BookFormat } from '@domain/types';
 import type { IDocumentViewer } from '@ports/IDocumentViewer';
 import type { IEpubViewer } from '@ports/IEpubViewer';
@@ -11,10 +11,10 @@ import type { IPresenceService } from '@ports/IPresenceService';
 import type { IReaderService } from '@ports/IReaderService';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import {
+  createLoadedPagesInfo,
   EMPTY_DOCUMENT,
   EMPTY_LOADED_PAGES,
   type StudyDocumentDescriptor,
-  createLoadedPagesInfo,
   useReaderStore,
 } from '@stores/useReaderStore';
 import { useEffect } from 'react';

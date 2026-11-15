@@ -1,6 +1,6 @@
 import {
-  type SerializedBookMetadata,
   deserializeBookMetadata,
+  type SerializedBookMetadata,
 } from '@adapters/ipc/TauriLibraryService';
 import type { BookMetadata } from '@domain/BookMetadata';
 import type { ILibraryService } from '@ports/ILibraryService';

@@ -15,7 +15,7 @@ import {
 } from '@hooks/useReaderPagination';
 import type { IPdfViewer } from '@ports/IPdfViewer';
 import { ServiceContainerProvider } from '@providers/ServiceContainerContext';
-import { EMPTY_LOADED_PAGES, createLoadedPagesInfo, useReaderStore } from '@stores/useReaderStore';
+import { createLoadedPagesInfo, EMPTY_LOADED_PAGES, useReaderStore } from '@stores/useReaderStore';
 import { clamp } from '@utils/math';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
