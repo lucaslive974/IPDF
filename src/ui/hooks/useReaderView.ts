@@ -1,8 +1,9 @@
 import { useNavigation } from '@providers/NavigationContext';
+import { useServiceContainer } from '@providers/ServiceContainerContext';
+import { useLibraryStore } from '@stores/useLibraryStore';
 import { useReaderStore } from '@stores/useReaderStore';
+import { useReaderUIStore } from '@stores/useReaderUIStore';
 import { useCallback, useEffect, useRef } from 'react';
-import { useLibrary } from './useLibrary';
-import { useReaderUI } from './useReaderUI';
 
 /**
  * Determines whether a click event in the reader viewport should toggle the chrome bars.
@@ -32,27 +33,26 @@ export interface UseReaderViewOptions {
 
 export function useReaderView(options?: UseReaderViewOptions): UseReaderViewReturn {
   const navigation = useNavigation();
-  const { updateBookProgress } = useLibrary();
-  const {
-    toggleChrome,
-    contextMenu,
-    activeNoteDialog,
-    activeExplainDialog,
-    activeTranslateDialog,
-    activeHighlightPopover,
-    expandedHighlight,
-    closeAllOverlays,
-  } = useReaderUI();
+  const { readerService } = useServiceContainer();
+  const upsertBook = useLibraryStore((s) => s.upsertBook);
+  const toggleChrome = useReaderUIStore((s) => s.toggleChrome);
+  const closeAllOverlays = useReaderUIStore((s) => s.closeAllOverlays);
 
   const saveProgress = useCallback(
     async (bookHash: string, currentPage: number, totalPages: number, pageOffsetRatio: number) => {
       try {
-        await updateBookProgress(bookHash, currentPage, totalPages, pageOffsetRatio);
+        const updated = await readerService.updateBookProgress(
+          bookHash,
+          currentPage,
+          totalPages,
+          pageOffsetRatio
+        );
+        upsertBook(updated);
       } catch (err) {
         console.warn('Failed to notify library of book progress:', err);
       }
     },
-    [updateBookProgress]
+    [readerService, upsertBook]
   );
 
   const persistCurrentProgress = useCallback(async () => {
@@ -89,13 +89,14 @@ export function useReaderView(options?: UseReaderViewOptions): UseReaderViewRetu
 
   const handleViewportClick = useCallback(
     (e: React.MouseEvent<HTMLElement>) => {
+      const uiState = useReaderUIStore.getState();
       const hasOpenOverlays = Boolean(
-        contextMenu ||
-          activeNoteDialog ||
-          activeExplainDialog ||
-          activeTranslateDialog ||
-          activeHighlightPopover ||
-          expandedHighlight
+        uiState.contextMenu ||
+          uiState.activeNoteDialog ||
+          uiState.activeExplainDialog ||
+          uiState.activeTranslateDialog ||
+          uiState.activeHighlightPopover ||
+          uiState.expandedHighlight
       );
 
       const selection = window.getSelection();
@@ -107,15 +108,7 @@ export function useReaderView(options?: UseReaderViewOptions): UseReaderViewRetu
         toggleChrome();
       }
     },
-    [
-      activeExplainDialog,
-      activeNoteDialog,
-      activeTranslateDialog,
-      contextMenu,
-      activeHighlightPopover,
-      expandedHighlight,
-      toggleChrome,
-    ]
+    [toggleChrome]
   );
 
   return {

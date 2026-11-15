@@ -1,7 +1,7 @@
+import { useReaderUIStore } from '@stores/useReaderUIStore';
 import { getExpandedWordSelection } from '@utils/domSelection';
 import { capturePdfSelectionRects } from '@utils/pdfCoordinates';
 import { type RefObject, useCallback, useEffect } from 'react';
-import { useReaderUI } from './useReaderUI';
 
 export function resolveContextMenuPayload(
   rawText: string,
@@ -37,7 +37,7 @@ export function useReaderStreamContextMenu({
   contentAreaRef,
   currentPage,
 }: UseReaderStreamContextMenuOptions): UseReaderStreamContextMenuReturn {
-  const { setContextMenu } = useReaderUI();
+  const setContextMenu = useReaderUIStore((s) => s.setContextMenu);
 
   // Handle right-click text selection within the stream container
   useEffect(() => {

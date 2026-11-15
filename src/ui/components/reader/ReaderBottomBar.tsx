@@ -1,5 +1,5 @@
-import { useReaderUI } from '@hooks/useReaderUI';
 import { useReaderStore } from '@stores/useReaderStore';
+import { useReaderUIStore } from '@stores/useReaderUIStore';
 import { memo, useEffect, useRef, useState } from 'react';
 
 export interface ReaderBottomBarProps {
@@ -11,7 +11,7 @@ export const ReaderBottomBar = memo(function ReaderBottomBar({
 }: ReaderBottomBarProps) {
   const currentPage = useReaderStore((s) => s.currentPage);
   const totalPages = useReaderStore((s) => s.totalPages);
-  const { isChromeVisible } = useReaderUI();
+  const isChromeVisible = useReaderUIStore((s) => s.isChromeVisible);
 
   const [pageInputValue, setPageInputValue] = useState<string>(String(currentPage));
   const isPageInputFocusedRef = useRef(false);

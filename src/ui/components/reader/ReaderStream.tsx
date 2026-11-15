@@ -2,10 +2,11 @@ import type { Highlight } from '@domain/Highlight';
 import { BookFormat } from '@domain/types';
 import { useHighlightsByPage } from '@hooks/useReaderHighlights';
 import { useReaderStreamContextMenu } from '@hooks/useReaderStreamContextMenu';
-import { useReaderUI } from '@hooks/useReaderUI';
 import { useReaderZoom } from '@hooks/useReaderZoom';
 import type { DocumentPage } from '@ports/IReaderService';
+import { useHighlightStore } from '@stores/useHighlightStore';
 import { type LoadedPagesInfo, useReaderStore } from '@stores/useReaderStore';
+import { useReaderUIStore } from '@stores/useReaderUIStore';
 import { memo, useCallback, useMemo, useRef } from 'react';
 import { ReaderPageItem } from './ReaderPageItem';
 
@@ -35,7 +36,8 @@ export const ReaderStream = memo(function ReaderStream() {
   const totalPages = useReaderStore((s) => s.totalPages);
   const loadedPages = useReaderStore((s) => s.loadedPages);
   const getHighlightsForPage = useHighlightsByPage();
-  const { openHighlightPopover } = useReaderUI();
+  const setSelectedHighlightId = useHighlightStore((s) => s.setSelectedHighlightId);
+  const openHighlightPopover = useReaderUIStore((s) => s.openHighlightPopover);
 
   const contentAreaRef = useRef<HTMLDivElement>(null);
   const isPdf = document.format === BookFormat.PDF;
@@ -58,9 +60,10 @@ export const ReaderStream = memo(function ReaderStream() {
 
   const handleHighlightClick = useCallback(
     (highlight: Highlight, coords: { x: number; y: number }) => {
+      setSelectedHighlightId(highlight.id);
       openHighlightPopover(highlight, coords);
     },
-    [openHighlightPopover]
+    [openHighlightPopover, setSelectedHighlightId]
   );
 
   return (

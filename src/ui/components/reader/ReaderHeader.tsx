@@ -1,6 +1,6 @@
-import { useReaderUI } from '@hooks/useReaderUI';
 import { useNavigation } from '@providers/NavigationContext';
 import { useReaderStore } from '@stores/useReaderStore';
+import { useReaderUIStore } from '@stores/useReaderUIStore';
 import { useTypographyStore } from '@stores/useTypographyStore';
 import { ArrowLeftIcon, Button, IconButton, SettingsIcon } from '@ui';
 import { memo } from 'react';
@@ -16,7 +16,7 @@ export const ReaderHeader = memo(function ReaderHeader({ onClose }: ReaderHeader
   const currentPage = useReaderStore((s) => s.currentPage);
   const totalPages = useReaderStore((s) => s.totalPages);
   const navigation = useNavigation();
-  const { isChromeVisible } = useReaderUI();
+  const isChromeVisible = useReaderUIStore((s) => s.isChromeVisible);
   const toggleAppearancePopover = useTypographyStore((s) => s.toggleAppearancePopover);
 
   return (
