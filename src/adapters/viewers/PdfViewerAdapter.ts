@@ -8,6 +8,7 @@ import type {
   PdfRenderTask,
 } from '@ports/IPdfEngine';
 import type { IPdfViewer } from '@ports/IPdfViewer';
+import { appLogger } from '@utils/logger';
 import { getDevicePixelRatio, hasDocument, isBrowser } from '@utils/dom';
 import { DefaultPdfEngine } from './DefaultPdfEngine';
 
@@ -209,8 +210,11 @@ export class PdfViewerAdapter implements IPdfViewer {
         }
         return;
       }
-    } catch {
-      // In non-browser environments or when native TextLayer fails, gracefully fallback
+    } catch (err: unknown) {
+      appLogger.warn(
+        `Native PDF TextLayer failed; falling back to plain spans: ${String(err)}`,
+        'pdf-viewer'
+      );
     }
 
     if (container && hasDocument()) {

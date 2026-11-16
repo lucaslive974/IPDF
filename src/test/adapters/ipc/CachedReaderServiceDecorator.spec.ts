@@ -7,6 +7,7 @@ import type {
   LLMRequest,
   ReadingContext,
 } from '@ports/IReaderService';
+import { appLogger } from '@utils/logger';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 class MockReaderService implements IReaderService {
@@ -315,7 +316,7 @@ describe('CachedReaderServiceDecorator (Intelligent Sliding Window & Async Edge 
   });
 
   it('logs a warning gracefully when background prefetch fails without aborting', async () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const warnSpy = vi.spyOn(appLogger, 'warn').mockImplementation(() => {});
     await decorator.getBookPages('book-1', 20, 1);
 
     mockInner.getBookPagesMock.mockRejectedValueOnce(new Error('IPC timeout'));

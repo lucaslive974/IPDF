@@ -1,5 +1,6 @@
 import { BookFormat } from '@domain/types';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
+import { appLogger } from '@utils/logger';
 import { generateAndSavePdfCover } from '@utils/pdfCoverGenerator';
 import { buildCoverProtocolUrl } from '@utils/protocols';
 import { useCallback, useEffect, useState } from 'react';
@@ -48,8 +49,11 @@ export function useCoverBook(
           setHasError(false);
         }
       })
-      .catch(() => {
-        // Keep placeholder fallback on error
+      .catch((err: unknown) => {
+        appLogger.warn(
+          `PDF cover generation failed for ${bookHash}; keeping placeholder: ${String(err)}`,
+          'cover'
+        );
       });
   }, [bookHash, format, hasAttemptedPdf, libraryService, readerService]);
 

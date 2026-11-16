@@ -3,6 +3,7 @@ import type { ILibraryService } from '@ports/ILibraryService';
 import type { IPdfEngine, PdfPageProxy, PdfRangeSource } from '@ports/IPdfEngine';
 import type { IReaderService } from '@ports/IReaderService';
 import { hasDocument } from '@utils/dom';
+import { appLogger } from '@utils/logger';
 
 export interface RenderCoverOptions {
   readonly maxWidth?: number;
@@ -76,8 +77,11 @@ export async function renderPdfPageToCoverPayload(
     if (webp) {
       return webp;
     }
-  } catch {
-    // Fallback if image/webp export is not supported in environment
+  } catch (err) {
+    appLogger.warn(
+      `WebP cover encoding unsupported or failed; falling back to PNG: ${String(err)}`,
+      'cover'
+    );
   }
 
   return canvasToCoverPayload(canvas, 'image/png');

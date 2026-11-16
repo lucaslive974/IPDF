@@ -2,6 +2,7 @@ import { isValidAuthor } from '@components/library/BookCover';
 import type { BookMetadata } from '@domain/BookMetadata';
 import type { UpdateBookMetadataInput } from '@ports/ILibraryService';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
+import { appLogger } from '@utils/logger';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useCoverBook } from './useCoverBook';
@@ -141,11 +142,15 @@ export function useEditBookMetadataModal({
       void libraryService
         .listAuthors()
         .then((authors) => setAvailableAuthors(authors.filter(isValidAuthor)))
-        .catch(() => {});
+        .catch((err: unknown) => {
+          appLogger.warn(`Failed to load author suggestions: ${String(err)}`, 'library');
+        });
       void libraryService
         .listTags()
         .then(setAvailableTags)
-        .catch(() => {});
+        .catch((err: unknown) => {
+          appLogger.warn(`Failed to load tag suggestions: ${String(err)}`, 'library');
+        });
     }
   }, [isOpen, libraryService]);
 

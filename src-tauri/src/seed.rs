@@ -24,7 +24,9 @@ pub fn seed_bundled_assets_if_needed<
 
     if let Ok(books) = library.list_books() {
         if books.is_empty() {
-            let _ = extract_and_store_bundled_cover(storage, BUNDLED_REPUBLIC_EPUB);
+            if extract_and_store_bundled_cover(storage, BUNDLED_REPUBLIC_EPUB).is_none() {
+                tracing::warn!(source = "seed", "Failed to extract cover for bundled book");
+            }
 
             let input = ImportBookInput {
                 raw_bytes: BUNDLED_REPUBLIC_EPUB.to_vec(),
@@ -34,11 +36,18 @@ pub fn seed_bundled_assets_if_needed<
                 total_pages: 320,
                 now_ms,
             };
-            let _ = library.import_book(input);
+            match library.import_book(input) {
+                Ok(_) => tracing::info!(source = "seed", "Seeded bundled book: The Republic"),
+                Err(err) => {
+                    tracing::error!(source = "seed", "Failed to seed bundled book: {err}")
+                }
+            }
         }
     }
 
-    let _ = config_store.set(INITIAL_SEED_KEY, "true");
+    if let Err(err) = config_store.set(INITIAL_SEED_KEY, "true") {
+        tracing::warn!(source = "seed", "Failed to persist initial seed flag: {err}");
+    }
 }
 
 fn extract_and_store_bundled_cover<S: StorageProvider>(

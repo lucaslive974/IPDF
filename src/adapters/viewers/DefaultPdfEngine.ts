@@ -1,5 +1,6 @@
 import type { IPdfEngine, PdfDocumentProxy, PdfRangeSource } from '@ports/IPdfEngine';
 import { hasWindow } from '@utils/dom';
+import { appLogger } from '@utils/logger';
 import { GlobalWorkerOptions, getDocument, PDFDataRangeTransport } from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
@@ -22,8 +23,10 @@ class OnDemandPdfRangeTransport extends PDFDataRangeTransport {
           this.onDataRange(begin, chunk);
         }
       })
-      .catch(() => {
-        // Range read failures are handled by PDF.js loadingTask.promise rejection
+      .catch((err: unknown) => {
+        if (!this.aborted) {
+          appLogger.error(`PDF range read failed [${begin}-${end}]: ${String(err)}`, 'pdf-engine');
+        }
       });
   }
 

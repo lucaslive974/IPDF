@@ -85,7 +85,12 @@ fn handle_single_instance(app: &tauri::AppHandle, args: &[String]) {
         ..
     } = *guard;
     if let Some(metadata) = BackendState::import_book_from_cli_args(library, epub_content, args) {
-        let _ = app.emit("open-book-from-system", &metadata);
+        if let Err(err) = app.emit("open-book-from-system", &metadata) {
+            tracing::warn!(
+                source = "bootstrap",
+                "Failed to emit open-book-from-system event: {err}"
+            );
+        }
     }
 }
 

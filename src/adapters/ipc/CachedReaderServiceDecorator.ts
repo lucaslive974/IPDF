@@ -1,5 +1,6 @@
 import { LruCache } from '@core/utils/lruCache';
 import type { BookMetadata } from '@domain/BookMetadata';
+import { appLogger } from '@utils/logger';
 import type {
   DocumentPage,
   IReaderService,
@@ -174,7 +175,7 @@ export class CachedReaderServiceDecorator implements IReaderService {
       }
     } catch (err) {
       if (!signal.aborted) {
-        console.warn('Background edge prefetch failed gracefully:', err);
+        appLogger.warn(`Background edge prefetch failed gracefully: ${String(err)}`, 'reader-cache');
       }
     } finally {
       if (this.inFlightPrefetchDirection === direction) {
