@@ -97,28 +97,35 @@ export function useAppStartup(options: UseAppStartupOptions = {}): UseAppStartup
     let isCancelled = false;
     void attempt;
 
-    executeAppStartup({
-      settingsService,
-      libraryService,
-      setBooks,
-    })
-      .then((result) => {
+    const startup = async () => {
+      try {
+        const result = await executeAppStartup({
+          settingsService,
+          libraryService,
+          setBooks,
+        });
+
         if (isCancelled) return;
+
         logService.status(
           `Startup ready (${result.books.length} books, platform=${result.platformInfo.platform})`,
           'startup'
         );
+
         setPlatformInfo(result.platformInfo);
         setStatus('ready');
-      })
-      .catch((err: unknown) => {
+      } catch (err: unknown) {
         if (isCancelled) return;
+
         const message = formatStartupError(err);
         logService.error(`Startup failed: ${message}`, 'startup');
+
         setError(message);
         setStatus('error');
-      });
+      }
+    };
 
+    startup();
     return () => {
       isCancelled = true;
     };
