@@ -3,6 +3,7 @@ import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useLibraryStore } from '@stores/useLibraryStore';
 import { useReaderStore } from '@stores/useReaderStore';
 import { useReaderUIStore } from '@stores/useReaderUIStore';
+import { appLogger } from '@utils/logger';
 import { useCallback, useEffect, useRef } from 'react';
 
 /**
@@ -49,7 +50,7 @@ export function useReaderView(options?: UseReaderViewOptions): UseReaderViewRetu
         );
         upsertBook(updated);
       } catch (err) {
-        console.warn('Failed to notify library of book progress:', err);
+        appLogger.warn(`Failed to notify library of book progress: ${String(err)}`, 'reader');
       }
     },
     [readerService, upsertBook]

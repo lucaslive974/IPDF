@@ -21,6 +21,8 @@ import type {
   IReaderService,
   ISettingsService,
 } from '@ports';
+import { useIsomorphicLayoutEffect } from '@utils/dom';
+import { setAppLogger } from '@utils/logger';
 import { createContext, type ReactNode, useContext, useMemo } from 'react';
 
 export interface ServiceContainer {
@@ -161,6 +163,10 @@ export function ServiceContainerProvider({
     enablePageCache,
     pageCacheCapacity,
   ]);
+
+  useIsomorphicLayoutEffect(() => {
+    setAppLogger(container.logService);
+  }, [container.logService]);
 
   return (
     <ServiceContainerContext.Provider value={container}>

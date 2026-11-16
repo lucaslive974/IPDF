@@ -57,6 +57,12 @@ impl AsyncFileLogger {
         })
     }
 
+    /// Installs this logger's `Dispatch` as the process-wide global `tracing` default.
+    /// Safe to call multiple times; subsequent calls are ignored if a global default is already set.
+    pub fn install_global(&self) {
+        let _ = tracing::dispatcher::set_global_default(self.dispatch.clone());
+    }
+
     /// Drops the non-blocking `WorkerGuard`, flushing all queued log events to disk.
     pub fn shutdown(&mut self) {
         self.guard.take();

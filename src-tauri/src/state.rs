@@ -11,7 +11,9 @@ use scholarium_core::adapters::platform::{
 use scholarium_core::adapters::presence::NativeDiscordPresenceAdapter;
 use scholarium_core::adapters::storage::LocalFolderStorageAdapter;
 use scholarium_core::core::domain::BookMetadata;
-use scholarium_core::core::ports::{ConfigurationStore, PlatformEnvironment};
+use scholarium_core::core::ports::{
+    ConfigurationStore, LogEntry, LogLevel, LogService, PlatformEnvironment,
+};
 use scholarium_core::core::services::{EpubContentService, LibraryManager, RichPresenceManager};
 
 pub struct BackendState {
@@ -37,19 +39,55 @@ impl Default for BackendState {
         #[cfg(not(any(target_os = "windows", target_os = "ios", target_os = "android")))]
         let platform: Box<dyn PlatformEnvironment + Send> = Box::new(LinuxEnvironment::default());
 
+        let logger = AsyncFileLogger::for_platform(&*platform, true).unwrap_or_else(|_| {
+            AsyncFileLogger::new(std::env::temp_dir().join("scholarium-logs"), true)
+                .expect("Failed to initialize fallback logger")
+        });
+        logger.install_global();
+
         let mut storage = LocalFolderStorageAdapter::for_platform("local-folder", &*platform)
             .expect("Failed to init storage for platform");
 
         let highlight_repo = SqliteHighlightRepository::open_for_platform(&*platform)
-            .unwrap_or_else(|_| SqliteHighlightRepository::new_in_memory().unwrap());
-        let book_repo = SqliteBookRepository::open_for_platform(&*platform)
-            .unwrap_or_else(|_| SqliteBookRepository::new_in_memory().unwrap());
+            .unwrap_or_else(|err| {
+                let _ = logger.log(LogEntry::new(
+                    crate::utils::current_epoch_ms(),
+                    LogLevel::Error,
+                    "sqlite",
+                    format!("Highlight repo fallback to in-memory: {err}"),
+                ));
+                SqliteHighlightRepository::new_in_memory().unwrap()
+            });
+        let book_repo = SqliteBookRepository::open_for_platform(&*platform).unwrap_or_else(|err| {
+            let _ = logger.log(LogEntry::new(
+                crate::utils::current_epoch_ms(),
+                LogLevel::Error,
+                "sqlite",
+                format!("Book repo fallback to in-memory: {err}"),
+            ));
+            SqliteBookRepository::new_in_memory().unwrap()
+        });
         let mut library = LibraryManager::new_with_repo(storage.clone(), book_repo);
-        let _ = library.initialize();
+        if let Err(err) = library.initialize() {
+            let _ = logger.log(LogEntry::new(
+                crate::utils::current_epoch_ms(),
+                LogLevel::Error,
+                "library",
+                format!("Library initialization failed: {err}"),
+            ));
+        }
         let epub_content = EpubContentService::new(storage.clone(), EpubBookPaginator::new());
 
-        let mut config_store = SqliteConfigurationStore::for_platform(&*platform)
-            .unwrap_or_else(|_| SqliteConfigurationStore::new_in_memory().unwrap());
+        let mut config_store =
+            SqliteConfigurationStore::for_platform(&*platform).unwrap_or_else(|err| {
+                let _ = logger.log(LogEntry::new(
+                    crate::utils::current_epoch_ms(),
+                    LogLevel::Error,
+                    "sqlite",
+                    format!("Config store fallback to in-memory: {err}"),
+                ));
+                SqliteConfigurationStore::new_in_memory().unwrap()
+            });
 
         let now_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -83,11 +121,6 @@ impl Default for BackendState {
 
         let args: Vec<String> = std::env::args().collect();
         let startup_book = Self::import_book_from_cli_args(&mut library, &epub_content, &args);
-
-        let logger = AsyncFileLogger::for_platform(&*platform, true).unwrap_or_else(|_| {
-            AsyncFileLogger::new(std::env::temp_dir().join("scholarium-logs"), true)
-                .expect("Failed to initialize fallback logger")
-        });
 
         Self {
             storage,

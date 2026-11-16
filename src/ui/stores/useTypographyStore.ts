@@ -1,4 +1,5 @@
 import { getViewportWidth } from '@utils/dom';
+import { appLogger } from '@utils/logger';
 import { create } from 'zustand';
 
 export type FontFamilyChoice = 'serif' | 'sans' | 'editorial' | 'accessible' | 'mono';
@@ -80,7 +81,7 @@ function persistSettings(settings: StoredTypographySettings): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
   } catch (err) {
-    console.warn('Failed to persist typography settings:', err);
+    appLogger.warn(`Failed to persist typography settings: ${String(err)}`, 'settings');
   }
 }
 

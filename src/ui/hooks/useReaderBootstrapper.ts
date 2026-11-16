@@ -16,6 +16,7 @@ import {
   type StudyDocumentDescriptor,
   useReaderStore,
 } from '@stores/useReaderStore';
+import { appLogger } from '@utils/logger';
 import { useEffect } from 'react';
 import { loadAndSyncBookHighlights } from './useReaderHighlights';
 
@@ -190,7 +191,7 @@ export async function bootstrapReaderBook(
       await bootstrapEpubReaderSession(deps, viewer, doc, window, initialPage, book, store);
     }
   } catch (err) {
-    console.warn('Failed to load book pages in reader:', err);
+    appLogger.warn(`Failed to load book pages in reader: ${String(err)}`, 'reader');
     store.getState().setStreamReady(true);
   } finally {
     store.getState().setLoadingPages(false);

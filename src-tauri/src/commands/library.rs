@@ -2,7 +2,9 @@ use crate::state::BackendState;
 use crate::utils::current_epoch_ms;
 use scholarium_core::adapters::extractor::CoverExtractorAdapter;
 use scholarium_core::core::domain::{BookFormat, BookMetadata};
-use scholarium_core::core::ports::{HighlightRepository, StorageProvider};
+use scholarium_core::core::ports::{
+    HighlightRepository, LogEntry, LogLevel, LogService, StorageProvider,
+};
 use scholarium_core::core::services::{ImportBookInput, Sha256BookHasher};
 use std::io::Cursor;
 use std::path::Path;
@@ -50,7 +52,14 @@ pub fn import_books_from_paths(
     for file_path in &file_paths {
         match process_single_book_path(&mut guard, &app, Path::new(file_path)) {
             Ok(metadata) => results.push(metadata),
-            Err(err) => eprintln!("Failed to import book from path {}: {}", file_path, err),
+            Err(err) => {
+                let _ = guard.logger.log(LogEntry::new(
+                    current_epoch_ms(),
+                    LogLevel::Error,
+                    "library",
+                    format!("Failed to import book from path {file_path}: {err}"),
+                ));
+            }
         }
     }
 

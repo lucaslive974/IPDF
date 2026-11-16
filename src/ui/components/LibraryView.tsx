@@ -3,6 +3,7 @@ import { useLibrary } from '@hooks/useLibrary';
 import { useNavigation } from '@providers/NavigationContext';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useTheme } from '@providers/ThemeContext';
+import { appLogger } from '@utils/logger';
 import { type ChangeEvent, useEffect, useRef, useState } from 'react';
 import { BooksGrid } from './library/BooksGrid';
 import { DeleteBookDialog } from './library/DeleteBookDialog';
@@ -76,7 +77,7 @@ export function LibraryView({
       const imported = await library.importBookFile(file);
       onOpenBook(imported);
     } catch (err) {
-      console.error('Failed to import book:', err);
+      appLogger.error(`Failed to import book: ${String(err)}`, 'library');
     } finally {
       e.target.value = '';
     }

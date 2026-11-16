@@ -7,6 +7,7 @@ import type { ILibraryService } from '@ports/ILibraryService';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useLibraryStore } from '@stores/useLibraryStore';
 import { isBrowser } from '@utils/dom';
+import { appLogger } from '@utils/logger';
 import { useEffect } from 'react';
 
 export interface SystemHandlerDependencies {
@@ -36,7 +37,7 @@ export function setupSystemEventListeners(deps: SystemHandlerDependencies): () =
       }
     })
     .catch((err) => {
-      console.error('Failed to retrieve startup book:', err);
+      appLogger.error(`Failed to retrieve startup book: ${String(err)}`, 'system');
     });
 
   // 2. Warm Start: Listen for single-instance launch events when app is already open
@@ -79,7 +80,7 @@ export function setupSystemEventListeners(deps: SystemHandlerDependencies): () =
         deps.upsertBook(book);
         deps.onOpenBook?.(book);
       } catch (err) {
-        console.error('Failed to open dropped file by path:', err);
+        appLogger.error(`Failed to open dropped file by path: ${String(err)}`, 'system');
       }
     }
   };
