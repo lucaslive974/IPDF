@@ -181,4 +181,9 @@ impl HighlightRepository for SqliteHighlightRepository {
         }
         Ok(list)
     }
+
+    fn clear(&mut self) -> Result<(), String> {
+        self.conn.execute(queries::CLEAR_ALL, []).map_err(to_err)?;
+        Ok(())
+    }
 }

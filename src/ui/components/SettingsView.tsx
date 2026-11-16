@@ -51,6 +51,8 @@ export function SettingsView() {
 
         <SettingsDangerSection
           showResetConfirm={settings.showResetConfirm}
+          isResetting={settings.isResettingDatabase}
+          resetError={settings.resetError}
           onShowResetConfirm={settings.setShowResetConfirm}
           onResetDatabase={() => void settings.resetDatabase()}
         />

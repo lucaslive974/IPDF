@@ -23,4 +23,5 @@ pub trait BookRepository {
         book_hash: &str,
         provider_id: &str,
     ) -> Result<bool, String>;
+    fn clear(&mut self) -> Result<(), String>;
 }

@@ -255,4 +255,17 @@ impl StorageProvider for LocalFolderStorageAdapter {
     fn resolve_entry_path(&self, name: &str) -> Option<PathBuf> {
         Some(self.root_dir.join(name))
     }
+
+    fn clear(&mut self) -> Result<(), String> {
+        let books_dir = self.books_dir();
+        if books_dir.exists() {
+            fs::remove_dir_all(&books_dir).map_err(to_err)?;
+        }
+        let covers_dir = self.root_dir.join(".covers");
+        if covers_dir.exists() {
+            fs::remove_dir_all(&covers_dir).map_err(to_err)?;
+        }
+        fs::create_dir_all(&books_dir).map_err(to_err)?;
+        Ok(())
+    }
 }

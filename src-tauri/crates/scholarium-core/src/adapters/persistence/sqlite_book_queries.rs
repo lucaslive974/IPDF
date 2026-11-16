@@ -149,3 +149,11 @@ pub const GET_LOCATIONS: &str = "
 pub const DELETE_LOCATION: &str = "
     DELETE FROM book_storage_locations WHERE book_hash = ?1 AND provider_id = ?2;
 ";
+
+pub const CLEAR_ALL: &str = "
+    DELETE FROM book_tags;
+    DELETE FROM book_storage_locations;
+    DELETE FROM books;
+    DELETE FROM tags;
+    DELETE FROM authors;
+";

@@ -21,4 +21,8 @@ export class TauriSettingsService implements ISettingsService {
   public async getPlatformInfo(): Promise<PlatformInfo> {
     return invoke<PlatformInfo>('get_platform_info');
   }
+
+  public async resetApplicationData(): Promise<void> {
+    await invoke<void>('reset_application_data');
+  }
 }

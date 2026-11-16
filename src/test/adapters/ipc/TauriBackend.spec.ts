@@ -234,6 +234,12 @@ vi.mock('@tauri-apps/api/core', () => ({
     if (cmd === 'write_log') {
       return undefined as unknown as T;
     }
+    if (cmd === 'reset_application_data') {
+      storedBooks.clear();
+      storedDtos.clear();
+      storedSettings.clear();
+      return undefined as unknown as T;
+    }
     if (cmd === 'sync_book_workspace') {
       return `synced:${String(args.bookHash)}` as unknown as T;
     }
@@ -485,6 +491,9 @@ describe('Modular Tauri IPC Adapters', () => {
     logService.warn('Slow page', 'reader');
     logService.error('Disk full', 'storage');
     await Promise.resolve();
+
+    await settingsService.resetApplicationData();
+    expect(await settingsService.getAppSetting('theme')).toBeNull();
   });
 });
 
@@ -597,5 +606,9 @@ describe('MockBackend (In-Memory Modular Double)', () => {
     expect(mock.logs).toHaveLength(3);
     expect(mock.logs[0]).toEqual({ level: 'status', message: 'Initialized', source: 'startup' });
     expect(mock.logs[2]).toEqual({ level: 'error', message: 'Read failure', source: 'io' });
+
+    await mock.resetApplicationData();
+    expect(await mock.listLibraryBooks()).toHaveLength(0);
+    expect(await mock.getAppSetting('key1')).toBeNull();
   });
 });

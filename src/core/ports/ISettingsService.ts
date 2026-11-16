@@ -13,4 +13,5 @@ export interface ISettingsService {
   setAppSetting(key: string, value: string): Promise<void>;
   syncBookWorkspace(bookHash: string): Promise<string>;
   getPlatformInfo(): Promise<PlatformInfo>;
+  resetApplicationData(): Promise<void>;
 }

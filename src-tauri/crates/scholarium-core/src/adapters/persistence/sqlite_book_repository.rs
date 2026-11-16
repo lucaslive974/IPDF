@@ -364,4 +364,8 @@ impl BookRepository for SqliteBookRepository {
             .map_err(to_err)?;
         Ok(count > 0)
     }
+
+    fn clear(&mut self) -> Result<(), String> {
+        self.conn.execute_batch(queries::CLEAR_ALL).map_err(to_err)
+    }
 }

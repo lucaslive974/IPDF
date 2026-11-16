@@ -3,8 +3,8 @@ use crate::state::BackendState;
 use crate::utils::current_epoch_ms;
 use scholarium_core::core::domain::BookMetadata;
 use scholarium_core::core::ports::{
-    ConfigurationStore, LogEntry, LogLevel, LogService, PresenceActivity, PresenceHealth,
-    ReadingActivity,
+    BookRepository, ConfigurationStore, HighlightRepository, LogEntry, LogLevel, LogService,
+    PresenceActivity, PresenceHealth, ReadingActivity, StorageProvider,
 };
 use std::sync::Mutex;
 use tauri::State;
@@ -29,6 +29,31 @@ pub fn write_log(
         message,
     );
     guard.logger.log(entry)
+}
+
+#[tauri::command]
+pub fn reset_application_data(state: State<'_, Mutex<BackendState>>) -> Result<(), String> {
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    guard.presence_manager.clear_all_presence();
+    guard.highlight_repo.clear()?;
+    guard.library.book_repo_mut().clear()?;
+    guard.storage.clear()?;
+    guard.config_store.clear()?;
+
+    if let Ok(cache_dir) = guard.platform_env.cache_dir() {
+        if cache_dir.exists() {
+            let _ = std::fs::remove_dir_all(&cache_dir);
+        }
+    }
+
+    let _ = guard.logger.log(LogEntry::new(
+        current_epoch_ms(),
+        LogLevel::Status,
+        "maintenance",
+        "Application data cleared",
+    ));
+
+    Ok(())
 }
 
 #[tauri::command]

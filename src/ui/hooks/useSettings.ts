@@ -1,5 +1,10 @@
 import type { PresenceHealthStatus } from '@ports/IPresenceService';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
+import { useHighlightStore } from '@stores/useHighlightStore';
+import { useLibraryStore } from '@stores/useLibraryStore';
+import { useReaderStore } from '@stores/useReaderStore';
+import { useTypographyStore } from '@stores/useTypographyStore';
+import { appLogger } from '@utils/logger';
 import { useCallback, useEffect, useState } from 'react';
 
 export interface SettingsHook {
@@ -13,6 +18,8 @@ export interface SettingsHook {
   readonly syncStatusMessage: string | null;
   readonly syncExportPreview: string;
   readonly showResetConfirm: boolean;
+  readonly isResettingDatabase: boolean;
+  readonly resetError: string | null;
   setNewFolderInput(value: string): void;
   setShowResetConfirm(value: boolean): void;
   addFolder(): void;
@@ -40,6 +47,8 @@ export function useSettings(): SettingsHook {
   const [syncStatusMessage, setSyncStatusMessage] = useState<string | null>(null);
   const [syncExportPreview, setSyncExportPreview] = useState<string>('');
   const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false);
+  const [isResettingDatabase, setIsResettingDatabase] = useState<boolean>(false);
+  const [resetError, setResetError] = useState<string | null>(null);
 
   const checkDiscordHealth = useCallback(async () => {
     setIsCheckingDiscordHealth(true);
@@ -122,8 +131,23 @@ export function useSettings(): SettingsHook {
   );
 
   const resetDatabase = useCallback(async () => {
-    setShowResetConfirm(false);
-  }, []);
+    setIsResettingDatabase(true);
+    setResetError(null);
+    try {
+      await settingsService.resetApplicationData();
+      useLibraryStore.getState().reset();
+      useHighlightStore.getState().reset();
+      useReaderStore.getState().reset();
+      useTypographyStore.getState().reset();
+      setShowResetConfirm(false);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      appLogger.error(`Failed to reset application data: ${message}`, 'maintenance');
+      setResetError(message);
+    } finally {
+      setIsResettingDatabase(false);
+    }
+  }, [settingsService]);
 
   return {
     monitoredFolders,
@@ -136,6 +160,8 @@ export function useSettings(): SettingsHook {
     syncStatusMessage,
     syncExportPreview,
     showResetConfirm,
+    isResettingDatabase,
+    resetError,
     setNewFolderInput,
     setShowResetConfirm,
     addFolder,

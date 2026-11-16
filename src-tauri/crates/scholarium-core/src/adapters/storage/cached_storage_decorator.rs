@@ -151,4 +151,12 @@ impl<L: StorageProvider, P: StorageProvider> StorageProvider for CachedStorageDe
     fn resolve_entry_path(&self, name: &str) -> Option<std::path::PathBuf> {
         self.local_cache.resolve_entry_path(name)
     }
+
+    fn clear(&mut self) -> Result<(), String> {
+        self.local_cache.clear()?;
+        if self.primary_storage.is_available() {
+            self.primary_storage.clear()?;
+        }
+        Ok(())
+    }
 }

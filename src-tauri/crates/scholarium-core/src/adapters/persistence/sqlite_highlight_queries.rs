@@ -33,3 +33,5 @@ pub const FIND_BY_BOOK: &str = "SELECT id, book_hash, text, color, anchor_json, 
 pub const FIND_BY_BOOK_AND_PAGE: &str = "SELECT id, book_hash, text, color, anchor_json, note, created_at_ms, updated_at_ms, annotations_json FROM highlights WHERE book_hash = ?1 AND page_number = ?2 ORDER BY created_at_ms ASC";
 
 pub const FIND_ALL: &str = "SELECT id, book_hash, text, color, anchor_json, note, created_at_ms, updated_at_ms, annotations_json FROM highlights ORDER BY updated_at_ms DESC";
+
+pub const CLEAR_ALL: &str = "DELETE FROM highlights;";

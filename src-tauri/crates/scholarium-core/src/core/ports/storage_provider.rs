@@ -92,4 +92,5 @@ pub trait StorageProvider {
     fn resolve_entry_path(&self, _name: &str) -> Option<std::path::PathBuf> {
         None
     }
+    fn clear(&mut self) -> Result<(), String>;
 }

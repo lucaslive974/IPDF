@@ -23,6 +23,7 @@ pub fn run() {
             // System routes
             system::healthcheck,
             system::write_log,
+            system::reset_application_data,
             system::get_platform_info,
             system::get_startup_book,
             system::set_discord_presence_enabled,

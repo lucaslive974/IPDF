@@ -13,4 +13,5 @@ pub trait HighlightRepository {
         page_number: u32,
     ) -> Result<Vec<Highlight>, String>;
     fn find_all(&self) -> Result<Vec<Highlight>, String>;
+    fn clear(&mut self) -> Result<(), String>;
 }

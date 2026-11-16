@@ -373,8 +373,16 @@ export class MockBackend
       configDir: '/mock/config',
       dataDir: '/mock/data',
       cacheDir: '/mock/cache',
-      databasePath: '/mock/data/scholarium.db',
+      databasePath: '/mock/data/.config/scholarium.db',
       supportsDiscordPresence: isDesktop,
     };
+  }
+
+  public async resetApplicationData(): Promise<void> {
+    this.books.clear();
+    this.highlights.clear();
+    this.settings.clear();
+    this.syncedBooks = [];
+    this.startupBook = null;
   }
 }

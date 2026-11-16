@@ -3,12 +3,16 @@ import { memo } from 'react';
 
 export interface SettingsDangerSectionProps {
   readonly showResetConfirm: boolean;
+  readonly isResetting?: boolean;
+  readonly resetError?: string | null;
   readonly onShowResetConfirm: (show: boolean) => void;
   readonly onResetDatabase: () => void;
 }
 
 export const SettingsDangerSection = memo(function SettingsDangerSection({
   showResetConfirm,
+  isResetting = false,
+  resetError = null,
   onShowResetConfirm,
   onResetDatabase,
 }: SettingsDangerSectionProps) {
@@ -30,23 +34,24 @@ export const SettingsDangerSection = memo(function SettingsDangerSection({
           </Button>
         </div>
       ) : (
-        <div className="flex items-center gap-3 rounded-lg border border-line-strong bg-surface p-3.5">
-          <span className="text-xs text-tx-main font-medium flex-1">
-            Are you sure? This action will reset your local database.
-          </span>
-          <Button
-            variant="danger"
-            size="sm"
-            onClick={() => {
-              onResetDatabase();
-              alert('Database reset completed.');
-            }}
-          >
-            Confirm Reset
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => onShowResetConfirm(false)}>
-            Cancel
-          </Button>
+        <div className="flex flex-col gap-2 rounded-lg border border-line-strong bg-surface p-3.5">
+          <div className="flex items-center gap-3">
+            <span className="flex-1 text-xs font-medium text-tx-main">
+              Are you sure? This will permanently delete all local books, covers, and highlights.
+            </span>
+            <Button variant="danger" size="sm" disabled={isResetting} onClick={onResetDatabase}>
+              {isResetting ? 'Resetting…' : 'Confirm Reset'}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isResetting}
+              onClick={() => onShowResetConfirm(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+          {resetError && <p className="text-xs text-red-500">{resetError}</p>}
         </div>
       )}
     </Card>

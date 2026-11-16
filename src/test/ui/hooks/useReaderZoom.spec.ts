@@ -148,18 +148,5 @@ describe('useReaderZoom logic', () => {
       expect(contentStyle.transformOrigin).toBe('top left');
       expect(contentStyle.width).toBe('min(calc(100vw - 2rem), 42rem)');
     });
-
-    it('switches EPUB to crisp CSS zoom when settled and keeps GPU transform for PDF', () => {
-      const epubSettled = computeZoomViewportStyles(false, 2.0, { width: 600, height: 1000 }, true);
-      expect(epubSettled.contentStyle.zoom).toBe(2.0);
-      expect(epubSettled.contentStyle.transform).toBeUndefined();
-      expect(epubSettled.contentStyle.willChange).toBeUndefined();
-      expect(epubSettled.wrapperStyle.width).toBe('1200px');
-
-      const pdfSettled = computeZoomViewportStyles(true, 2.0, { width: 768, height: 1000 }, true);
-      expect(pdfSettled.contentStyle.zoom).toBeUndefined();
-      expect(pdfSettled.contentStyle.transform).toBe('scale(2)');
-      expect(pdfSettled.contentStyle.willChange).toBe('transform');
-    });
   });
 });

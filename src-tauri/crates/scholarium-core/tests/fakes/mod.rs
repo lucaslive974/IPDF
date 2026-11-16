@@ -112,6 +112,12 @@ impl BookRepository for InMemoryBookRepo {
             .remove(&(book_hash.to_string(), provider_id.to_string()))
             .is_some())
     }
+
+    fn clear(&mut self) -> Result<(), String> {
+        self.books.clear();
+        self.locations.clear();
+        Ok(())
+    }
 }
 
 #[derive(Default)]
@@ -164,6 +170,11 @@ impl HighlightRepository for InMemoryHighlightRepo {
         let mut list: Vec<Highlight> = self.store.values().cloned().collect();
         list.sort_by_key(|a| std::cmp::Reverse(a.updated_at_ms));
         Ok(list)
+    }
+
+    fn clear(&mut self) -> Result<(), String> {
+        self.store.clear();
+        Ok(())
     }
 }
 
@@ -268,6 +279,12 @@ impl StorageProvider for InMemoryStorage {
             .ok_or_else(|| format!("Entry not found: {old_name}"))?;
         entry.name = new_name.to_string();
         self.entries.insert(new_name.to_string(), (entry, data));
+        Ok(())
+    }
+
+    fn clear(&mut self) -> Result<(), String> {
+        self.binaries.clear();
+        self.entries.clear();
         Ok(())
     }
 }
