@@ -21,7 +21,7 @@ fn test_platform_environment_resolves_log_dir() {
     let env = LinuxEnvironment::new(Some(root.clone()));
 
     let log_dir = env.log_dir().expect("log_dir should resolve");
-    assert_eq!(log_dir, root.join("data").join("logs"));
+    assert_eq!(log_dir, root.join("data").join(".logs"));
 
     let _ = fs::remove_dir_all(&root);
 }

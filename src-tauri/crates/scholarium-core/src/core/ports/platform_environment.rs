@@ -7,19 +7,26 @@ pub trait PlatformEnvironment {
     fn data_dir(&self) -> Result<PathBuf, String>;
     fn cache_dir(&self) -> Result<PathBuf, String>;
 
+    fn books_dir(&self) -> Result<PathBuf, String> {
+        Ok(self.data_dir()?.join(".books"))
+    }
+
+    fn covers_dir(&self) -> Result<PathBuf, String> {
+        Ok(self.data_dir()?.join(".covers"))
+    }
+
     fn log_dir(&self) -> Result<PathBuf, String> {
-        let data = self.data_dir()?;
-        Ok(data.join("logs"))
+        Ok(self.data_dir()?.join(".logs"))
     }
 
     fn resolve_database_path(&self, db_name: &str) -> Result<PathBuf, String> {
-        let data = self.data_dir()?;
-        Ok(data.join(db_name))
+        Ok(self.data_dir()?.join(".config").join(db_name))
     }
 
     fn resolve_highlights_path(&self, book_hash: &str) -> Result<PathBuf, String> {
-        let data = self.data_dir()?;
-        Ok(data
+        Ok(self
+            .data_dir()?
+            .join(".config")
             .join("highlights")
             .join(format!("{book_hash}.highlights.json")))
     }

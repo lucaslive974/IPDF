@@ -154,7 +154,7 @@ fn test_cover_extractor_adapter_and_storage_cover_lifecycle() {
     let entry = storage
         .write_book_cover("hash1", fake_img_bytes, "image/jpeg")
         .unwrap();
-    assert_eq!(entry, "covers/hash1.jpg");
+    assert_eq!(entry, ".covers/hash1.jpg");
 
     let (read_bytes, read_mime) = storage.read_book_cover("hash1").unwrap().unwrap();
     assert_eq!(read_bytes, fake_img_bytes);
@@ -180,7 +180,7 @@ fn test_cover_extractor_adapter_and_storage_cover_lifecycle() {
     let persisted = storage
         .write_book_cover("hash_epub", &extracted.data, &extracted.mime_type)
         .unwrap();
-    assert_eq!(persisted, "covers/hash_epub.jpg".to_string());
+    assert_eq!(persisted, ".covers/hash_epub.jpg".to_string());
 
     let (epub_bytes, epub_mime) = storage.read_book_cover("hash_epub").unwrap().unwrap();
     assert_eq!(epub_bytes, fake_jpeg);

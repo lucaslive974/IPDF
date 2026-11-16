@@ -36,12 +36,15 @@ fn test_platform_environments_path_resolution() {
     assert!(linux
         .resolve_database_path("scholarium.db")
         .unwrap()
-        .ends_with("scholarium.db"));
+        .ends_with(".config/scholarium.db"));
     assert!(linux
         .resolve_highlights_path("sha256-book1")
         .unwrap()
         .to_string_lossy()
-        .ends_with("sha256-book1.highlights.json"));
+        .ends_with(".config/highlights/sha256-book1.highlights.json"));
+    assert!(linux.books_dir().unwrap().ends_with(".books"));
+    assert!(linux.covers_dir().unwrap().ends_with(".covers"));
+    assert!(linux.log_dir().unwrap().ends_with(".logs"));
 
     let linux_default = LinuxEnvironment::default();
     assert_eq!(linux_default.platform_kind(), PlatformKind::Linux);

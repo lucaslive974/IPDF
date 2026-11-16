@@ -44,12 +44,17 @@ impl LocalFolderStorageAdapter {
         Ok(Self::new(provider_id, data_dir))
     }
 
+    pub fn books_dir(&self) -> PathBuf {
+        self.root_dir.join(".books")
+    }
+
     fn resolve_book_path(&self, book_hash: &str) -> PathBuf {
-        let epub_path = self.root_dir.join(format!("{book_hash}.epub"));
+        let books_dir = self.books_dir();
+        let epub_path = books_dir.join(format!("{book_hash}.epub"));
         if epub_path.exists() {
             return epub_path;
         }
-        let pdf_path = self.root_dir.join(format!("{book_hash}.pdf"));
+        let pdf_path = books_dir.join(format!("{book_hash}.pdf"));
         if pdf_path.exists() {
             return pdf_path;
         }
@@ -68,6 +73,7 @@ impl StorageProvider for LocalFolderStorageAdapter {
 
     fn initialize(&mut self) -> Result<bool, String> {
         fs::create_dir_all(&self.root_dir).map_err(to_err)?;
+        fs::create_dir_all(self.books_dir()).map_err(to_err)?;
         self.initialized = true;
         Ok(true)
     }
@@ -77,8 +83,9 @@ impl StorageProvider for LocalFolderStorageAdapter {
     }
 
     fn has_book_binary(&self, book_hash: &str) -> Result<bool, String> {
-        let epub_exists = self.root_dir.join(format!("{book_hash}.epub")).exists();
-        let pdf_exists = self.root_dir.join(format!("{book_hash}.pdf")).exists();
+        let books_dir = self.books_dir();
+        let epub_exists = books_dir.join(format!("{book_hash}.epub")).exists();
+        let pdf_exists = books_dir.join(format!("{book_hash}.pdf")).exists();
         Ok(epub_exists || pdf_exists)
     }
 
@@ -128,14 +135,15 @@ impl StorageProvider for LocalFolderStorageAdapter {
         data: Vec<u8>,
         format: BookFormat,
     ) -> Result<(), String> {
-        if !self.root_dir.exists() {
-            fs::create_dir_all(&self.root_dir).map_err(to_err)?;
+        let books_dir = self.books_dir();
+        if !books_dir.exists() {
+            fs::create_dir_all(&books_dir).map_err(to_err)?;
         }
         let ext = match format {
             BookFormat::Epub => "epub",
             BookFormat::Pdf => "pdf",
         };
-        let path = self.root_dir.join(format!("{book_hash}.{ext}"));
+        let path = books_dir.join(format!("{book_hash}.{ext}"));
         fs::write(&path, data).map_err(to_err)
     }
 
