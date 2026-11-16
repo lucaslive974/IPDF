@@ -88,6 +88,7 @@ function persistSettings(settings: StoredTypographySettings): void {
 export interface TypographyState {
   readonly fontSize: number;
   readonly zoomLevel: number;
+  readonly settledZoomLevel: number;
   readonly fontFamily: FontFamilyChoice;
   readonly lineSpacing: number;
   readonly isAppearancePopoverOpen: boolean;
@@ -96,6 +97,7 @@ export interface TypographyState {
   increaseFontSize(step?: number): void;
   decreaseFontSize(step?: number): void;
   setZoomLevel(zoomLevel: number): void;
+  setSettledZoomLevel(zoomLevel: number): void;
   increaseZoom(step?: number): void;
   decreaseZoom(step?: number): void;
   setFontFamily(fontFamily: FontFamilyChoice): void;
@@ -118,6 +120,7 @@ const initialSpacing = initialSaved.lineSpacing ?? 1.85;
 export const useTypographyStore = create<TypographyState>((set, get) => ({
   fontSize: initialFontSize,
   zoomLevel: 1.0,
+  settledZoomLevel: 1.0,
   fontFamily: initialFont,
   lineSpacing: initialSpacing,
   isAppearancePopoverOpen: false,
@@ -144,6 +147,11 @@ export const useTypographyStore = create<TypographyState>((set, get) => ({
   setZoomLevel: (zoomLevel) => {
     const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Number(zoomLevel.toFixed(2))));
     set({ zoomLevel: clamped });
+  },
+
+  setSettledZoomLevel: (zoomLevel) => {
+    const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Number(zoomLevel.toFixed(2))));
+    set({ settledZoomLevel: clamped });
   },
 
   increaseZoom: (step = 0.05) => {
@@ -184,6 +192,7 @@ export const useTypographyStore = create<TypographyState>((set, get) => ({
     set({
       fontSize: defaultSize,
       zoomLevel: 1.0,
+      settledZoomLevel: 1.0,
       fontFamily: 'serif',
       lineSpacing: 1.85,
       isAppearancePopoverOpen: false,

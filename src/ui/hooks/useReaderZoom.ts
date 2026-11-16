@@ -138,9 +138,11 @@ export function useReaderZoom({
 }: UseReaderZoomOptions): UseReaderZoomReturn {
   const bookHash = useReaderStore((s) => s.document.bookHash);
   const zoomLevel = useTypographyStore((s) => s.zoomLevel);
+  const settledZoomLevel = useTypographyStore((s) => s.settledZoomLevel);
   const increaseZoom = useTypographyStore((s) => s.increaseZoom);
   const decreaseZoom = useTypographyStore((s) => s.decreaseZoom);
   const setZoomLevel = useTypographyStore((s) => s.setZoomLevel);
+  const setSettledZoomLevel = useTypographyStore((s) => s.setSettledZoomLevel);
 
   const mainRef = useRef<HTMLElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -148,6 +150,12 @@ export function useReaderZoom({
     width: 0,
     height: 0,
   });
+
+  useEffect(() => {
+    if (zoomLevel === settledZoomLevel) return;
+    const timer = setTimeout(() => setSettledZoomLevel(zoomLevel), 150);
+    return () => clearTimeout(timer);
+  }, [zoomLevel, settledZoomLevel, setSettledZoomLevel]);
 
   const prevZoomRef = useRef(zoomLevel);
   const pendingFocalRef = useRef<ZoomFocalPoint | null>(null);
@@ -157,8 +165,9 @@ export function useReaderZoom({
   useEffect(() => {
     if (bookHash) {
       setZoomLevel(1.0);
+      setSettledZoomLevel(1.0);
     }
-  }, [bookHash, setZoomLevel]);
+  }, [bookHash, setZoomLevel, setSettledZoomLevel]);
 
   // Track unscaled content dimensions so outer wrapper can size scrollbars without inner reflow
   useEffect(() => {

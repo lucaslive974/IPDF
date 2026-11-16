@@ -1,6 +1,7 @@
 import type { Highlight } from '@domain/Highlight';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useReaderStore } from '@stores/useReaderStore';
+import { useTypographyStore } from '@stores/useTypographyStore';
 import { hasIntersectionObserver, hasResizeObserver, useIsomorphicLayoutEffect } from '@utils/dom';
 import { type RefObject, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -43,6 +44,7 @@ export function usePdfPageRenderer({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const textLayerRef = useRef<HTMLDivElement | null>(null);
   const { pdfViewer } = useServiceContainer();
+  const settledZoom = useTypographyStore((s) => s.settledZoomLevel);
 
   // Only the target page and immediate neighbor start near viewport to avoid rendering avalanche
   const [isNearViewport, setIsNearViewport] = useState<boolean>(() => {
@@ -118,7 +120,7 @@ export function usePdfPageRenderer({
       );
 
       if (canvasRef.current) {
-        await pdfViewer.renderPageCanvas(pageNumber, canvasRef.current, scale);
+        await pdfViewer.renderPageCanvas(pageNumber, canvasRef.current, scale, settledZoom);
       }
       if (cancelled) return;
 
@@ -155,7 +157,7 @@ export function usePdfPageRenderer({
       if (resizeObserver) resizeObserver.disconnect();
       pdfViewer.cancelPageRender?.(canvasRef.current, textLayerRef.current);
     };
-  }, [pdfViewer, pageNumber, isNearViewport]);
+  }, [pdfViewer, pageNumber, isNearViewport, settledZoom]);
 
   const pageNotes = useMemo(
     () => filterPageNotes(highlights, pageNumber),

@@ -10,7 +10,8 @@ export interface IPdfViewer extends IDocumentViewer<PdfRangeSource> {
   renderPageCanvas(
     pageNumber: number,
     canvas: HTMLCanvasElement,
-    scale?: number
+    scale?: number,
+    rasterZoom?: number
   ): Promise<{ width: number; height: number }>;
 
   renderPageTextLayer(pageNumber: number, container: HTMLElement, scale?: number): Promise<void>;

@@ -1,4 +1,4 @@
-import { PdfViewerAdapter } from '@adapters/viewers/PdfViewerAdapter';
+import { computeCappedRasterScale, PdfViewerAdapter } from '@adapters/viewers/PdfViewerAdapter';
 import type { PageInfo } from '@domain/types';
 import type { IPdfEngine, PdfDocumentProxy, PdfPageProxy } from '@ports/IPdfEngine';
 import { describe, expect, it, vi } from 'vitest';
@@ -414,5 +414,40 @@ describe('PdfViewerAdapter (PDF.js Engine, Canvas & Cooperative Cancellation)', 
     expect(cancelledSize).toEqual({ width: 0, height: 0 });
 
     await expect(viewer.renderPageCanvas(1, fakeCanvas, 1.0)).rejects.toThrow('gpu failure');
+  });
+
+  it('re-rasterizes canvas at higher pixel density for rasterZoom while capping extreme pixel counts', async () => {
+    expect(computeCappedRasterScale(600, 800, 2.0)).toBe(2.0);
+    // 600*20 * 800*20 = 192M pixels > 16.77M cap -> scaled down safely
+    expect(computeCappedRasterScale(600, 800, 20.0)).toBeLessThan(6.0);
+
+    const mockPageProxy: PdfPageProxy = {
+      pageNumber: 1,
+      getViewport: ({ scale }) => ({ width: 600 * scale, height: 800 * scale, scale }),
+      getTextContent: async () => ({ items: [] }),
+      render: vi.fn(() => ({ promise: Promise.resolve(), cancel: vi.fn() })),
+    };
+
+    const viewer = new PdfViewerAdapter({
+      loadDocument: async () => ({
+        numPages: 1,
+        getPage: async () => mockPageProxy,
+      }),
+    });
+    await viewer.render(createFakeContainer(), {
+      totalBytes: 16,
+      readRange: async () => new Uint8Array(16),
+    });
+
+    const fakeCanvas = {
+      width: 0,
+      height: 0,
+      style: { width: '', height: '' },
+      getContext: () => ({}) as CanvasRenderingContext2D,
+    } as unknown as HTMLCanvasElement;
+
+    const size = await viewer.renderPageCanvas(1, fakeCanvas, 1.0, 2.0);
+    expect(size).toEqual({ width: 1200, height: 1600 });
+    expect(fakeCanvas.style.height).toBe('800px');
   });
 });

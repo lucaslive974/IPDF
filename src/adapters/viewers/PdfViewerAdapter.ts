@@ -12,6 +12,24 @@ import { getDevicePixelRatio, hasDocument, isBrowser } from '@utils/dom';
 import { appLogger } from '@utils/logger';
 import { DefaultPdfEngine } from './DefaultPdfEngine';
 
+const MAX_RASTER_CANVAS_PIXELS = 16_777_216; // 4096 * 4096 safety cap against GPU OOM at extreme zoom
+
+export function computeCappedRasterScale(
+  baseWidth: number,
+  baseHeight: number,
+  desiredScale: number
+): number {
+  if (baseWidth <= 0 || baseHeight <= 0 || desiredScale <= 0) {
+    return desiredScale;
+  }
+  const desiredPixels = baseWidth * desiredScale * (baseHeight * desiredScale);
+  if (desiredPixels <= MAX_RASTER_CANVAS_PIXELS) {
+    return desiredScale;
+  }
+  const factor = Math.sqrt(MAX_RASTER_CANVAS_PIXELS / desiredPixels);
+  return desiredScale * factor;
+}
+
 export class PdfViewerAdapter implements IPdfViewer {
   private container: HTMLElement | null = null;
   private readonly engine: IPdfEngine;
@@ -96,7 +114,8 @@ export class PdfViewerAdapter implements IPdfViewer {
   public async renderPageCanvas(
     pageNumber: number,
     canvas: HTMLCanvasElement,
-    targetScale = 1.5
+    targetScale = 1.5,
+    rasterZoom = 1.0
   ): Promise<{ width: number; height: number }> {
     const pageProxy = await this.getPageProxy(pageNumber);
     if (!pageProxy) {
@@ -108,7 +127,13 @@ export class PdfViewerAdapter implements IPdfViewer {
     }
 
     const dpr = getDevicePixelRatio();
-    const scale = targetScale * dpr;
+    const unscaledViewport = pageProxy.getViewport({ scale: 1.0 });
+    const desiredScale = targetScale * dpr * Math.max(1, rasterZoom);
+    const scale = computeCappedRasterScale(
+      unscaledViewport.width,
+      unscaledViewport.height,
+      desiredScale
+    );
     const viewport = pageProxy.getViewport({ scale });
 
     canvas.width = viewport.width;
