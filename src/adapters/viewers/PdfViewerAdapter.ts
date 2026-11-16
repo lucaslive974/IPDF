@@ -8,8 +8,8 @@ import type {
   PdfRenderTask,
 } from '@ports/IPdfEngine';
 import type { IPdfViewer } from '@ports/IPdfViewer';
-import { appLogger } from '@utils/logger';
 import { getDevicePixelRatio, hasDocument, isBrowser } from '@utils/dom';
+import { appLogger } from '@utils/logger';
 import { DefaultPdfEngine } from './DefaultPdfEngine';
 
 export class PdfViewerAdapter implements IPdfViewer {

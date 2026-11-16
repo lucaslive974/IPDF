@@ -1,12 +1,12 @@
 import { LruCache } from '@core/utils/lruCache';
 import type { BookMetadata } from '@domain/BookMetadata';
-import { appLogger } from '@utils/logger';
 import type {
   DocumentPage,
   IReaderService,
   LLMRequest,
   ReadingContext,
 } from '@ports/IReaderService';
+import { appLogger } from '@utils/logger';
 
 export interface CacheWindowBounds {
   readonly start: number | null;
@@ -175,7 +175,10 @@ export class CachedReaderServiceDecorator implements IReaderService {
       }
     } catch (err) {
       if (!signal.aborted) {
-        appLogger.warn(`Background edge prefetch failed gracefully: ${String(err)}`, 'reader-cache');
+        appLogger.warn(
+          `Background edge prefetch failed gracefully: ${String(err)}`,
+          'reader-cache'
+        );
       }
     } finally {
       if (this.inFlightPrefetchDirection === direction) {
