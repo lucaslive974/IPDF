@@ -1,6 +1,7 @@
 use crate::seed::seed_bundled_assets_if_needed;
 use crate::utils::find_file_argument;
 use scholarium_core::adapters::configuration::SqliteConfigurationStore;
+use scholarium_core::adapters::logging::AsyncFileLogger;
 use scholarium_core::adapters::pagination::EpubBookPaginator;
 use scholarium_core::adapters::persistence::{SqliteBookRepository, SqliteHighlightRepository};
 #[allow(unused_imports)]
@@ -22,6 +23,7 @@ pub struct BackendState {
     pub platform_env: Box<dyn PlatformEnvironment + Send>,
     pub startup_book: Option<BookMetadata>,
     pub presence_manager: RichPresenceManager,
+    pub logger: AsyncFileLogger,
 }
 
 impl Default for BackendState {
@@ -82,6 +84,11 @@ impl Default for BackendState {
         let args: Vec<String> = std::env::args().collect();
         let startup_book = Self::import_book_from_cli_args(&mut library, &epub_content, &args);
 
+        let logger = AsyncFileLogger::for_platform(&*platform, true).unwrap_or_else(|_| {
+            AsyncFileLogger::new(std::env::temp_dir().join("scholarium-logs"), true)
+                .expect("Failed to initialize fallback logger")
+        });
+
         Self {
             storage,
             library,
@@ -91,6 +98,7 @@ impl Default for BackendState {
             platform_env: platform,
             startup_book,
             presence_manager,
+            logger,
         }
     }
 }

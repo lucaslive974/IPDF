@@ -3,6 +3,7 @@ import {
   NoopPresenceService,
   TauriHighlightService,
   TauriLibraryService,
+  TauriLogService,
   TauriPresenceService,
   TauriReaderService,
   TauriSettingsService,
@@ -14,6 +15,7 @@ import type {
   IEpubViewer,
   IHighlightService,
   ILibraryService,
+  ILogService,
   IPdfViewer,
   IPresenceService,
   IReaderService,
@@ -27,6 +29,7 @@ export interface ServiceContainer {
   readonly readerService: IReaderService;
   readonly presenceService: IPresenceService;
   readonly settingsService: ISettingsService;
+  readonly logService: ILogService;
   readonly getViewer: (format: BookFormat) => IEpubViewer | IPdfViewer;
   readonly epubViewer: IEpubViewer;
   readonly pdfViewer: IPdfViewer;
@@ -38,6 +41,7 @@ export interface ServiceContainerOverrides {
   readonly readerService?: IReaderService;
   readonly presenceService?: IPresenceService;
   readonly settingsService?: ISettingsService;
+  readonly logService?: ILogService;
   readonly epubViewer?: IEpubViewer;
   readonly viewer?: IDocumentViewer;
   readonly pdfViewer?: IPdfViewer;
@@ -59,6 +63,7 @@ export function createServiceContainer(
     overrides.presenceService ??
     (__IS_MOBILE__ ? new NoopPresenceService() : new TauriPresenceService());
   const settingsService = overrides.settingsService ?? new TauriSettingsService();
+  const logService = overrides.logService ?? new TauriLogService();
 
   const readerService = overrides.readerService
     ? overrides.enablePageCache === true &&
@@ -93,6 +98,7 @@ export function createServiceContainer(
     readerService,
     presenceService,
     settingsService,
+    logService,
     getViewer,
     epubViewer,
     pdfViewer,
@@ -114,6 +120,7 @@ export function ServiceContainerProvider({
   readerService,
   presenceService,
   settingsService,
+  logService,
   epubViewer,
   viewer,
   pdfViewer,
@@ -131,6 +138,7 @@ export function ServiceContainerProvider({
       readerService,
       presenceService,
       settingsService,
+      logService,
       epubViewer,
       viewer,
       pdfViewer,
@@ -145,6 +153,7 @@ export function ServiceContainerProvider({
     readerService,
     presenceService,
     settingsService,
+    logService,
     epubViewer,
     viewer,
     pdfViewer,

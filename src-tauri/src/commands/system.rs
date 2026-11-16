@@ -3,7 +3,8 @@ use crate::state::BackendState;
 use crate::utils::current_epoch_ms;
 use scholarium_core::core::domain::BookMetadata;
 use scholarium_core::core::ports::{
-    ConfigurationStore, PresenceActivity, PresenceHealth, ReadingActivity,
+    ConfigurationStore, LogEntry, LogLevel, LogService, PresenceActivity, PresenceHealth,
+    ReadingActivity,
 };
 use std::sync::Mutex;
 use tauri::State;
@@ -11,6 +12,23 @@ use tauri::State;
 #[tauri::command]
 pub fn healthcheck() -> &'static str {
     "Scholarium Tauri v2 Native Backend Active"
+}
+
+#[tauri::command]
+pub fn write_log(
+    level: LogLevel,
+    message: String,
+    source: Option<String>,
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<(), String> {
+    let guard = state.lock().map_err(|e| e.to_string())?;
+    let entry = LogEntry::new(
+        current_epoch_ms(),
+        level,
+        source.unwrap_or_else(|| "frontend".to_string()),
+        message,
+    );
+    guard.logger.log(entry)
 }
 
 #[tauri::command]

@@ -3,6 +3,7 @@ import {
   type SerializedHighlight,
   TauriHighlightService,
   TauriLibraryService,
+  TauriLogService,
   TauriPresenceService,
   TauriReaderService,
   TauriSettingsService,
@@ -229,6 +230,9 @@ vi.mock('@tauri-apps/api/core', () => ({
     }
     if (cmd === 'healthcheck') {
       return 'Scholarium Tauri v2 Native Backend Active' as unknown as T;
+    }
+    if (cmd === 'write_log') {
+      return undefined as unknown as T;
     }
     if (cmd === 'sync_book_workspace') {
       return `synced:${String(args.bookHash)}` as unknown as T;
@@ -475,6 +479,12 @@ describe('Modular Tauri IPC Adapters', () => {
     const platformInfo = await settingsService.getPlatformInfo();
     expect(platformInfo.platform).toBe('Linux');
     expect(platformInfo.supportsDiscordPresence).toBe(true);
+
+    const logService = new TauriLogService();
+    logService.status('Ready', 'startup');
+    logService.warn('Slow page', 'reader');
+    logService.error('Disk full', 'storage');
+    await Promise.resolve();
   });
 });
 
@@ -580,5 +590,12 @@ describe('MockBackend (In-Memory Modular Double)', () => {
 
     const mockPlatform = await mock.getPlatformInfo();
     expect(mockPlatform.supportsDiscordPresence).toBe(true);
+
+    mock.status('Initialized', 'startup');
+    mock.warn('Cache miss', 'reader');
+    mock.error('Read failure', 'io');
+    expect(mock.logs).toHaveLength(3);
+    expect(mock.logs[0]).toEqual({ level: 'status', message: 'Initialized', source: 'startup' });
+    expect(mock.logs[2]).toEqual({ level: 'error', message: 'Read failure', source: 'io' });
   });
 });

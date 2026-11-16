@@ -79,7 +79,7 @@ export async function executeAppStartup(deps: AppStartupDependencies): Promise<A
  */
 export function useAppStartup(options: UseAppStartupOptions = {}): UseAppStartupReturn {
   const { minDisplayMs = DEFAULT_STARTUP_MIN_DISPLAY_MS } = options;
-  const { settingsService, libraryService } = useServiceContainer();
+  const { settingsService, libraryService, logService } = useServiceContainer();
   const setBooks = useLibraryStore((s) => s.setBooks);
 
   const [status, setStatus] = useState<AppStartupStatus>('loading');
@@ -104,19 +104,25 @@ export function useAppStartup(options: UseAppStartupOptions = {}): UseAppStartup
     })
       .then((result) => {
         if (isCancelled) return;
+        logService.status(
+          `Startup ready (${result.books.length} books, platform=${result.platformInfo.platform})`,
+          'startup'
+        );
         setPlatformInfo(result.platformInfo);
         setStatus('ready');
       })
       .catch((err: unknown) => {
         if (isCancelled) return;
-        setError(formatStartupError(err));
+        const message = formatStartupError(err);
+        logService.error(`Startup failed: ${message}`, 'startup');
+        setError(message);
         setStatus('error');
       });
 
     return () => {
       isCancelled = true;
     };
-  }, [attempt, libraryService, setBooks, settingsService]);
+  }, [attempt, libraryService, logService, setBooks, settingsService]);
 
   return {
     status,

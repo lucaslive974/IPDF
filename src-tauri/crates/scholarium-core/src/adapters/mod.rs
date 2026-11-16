@@ -1,5 +1,6 @@
 pub mod configuration;
 pub mod extractor;
+pub mod logging;
 pub mod pagination;
 pub mod persistence;
 pub mod platform;

@@ -7,6 +7,11 @@ pub trait PlatformEnvironment {
     fn data_dir(&self) -> Result<PathBuf, String>;
     fn cache_dir(&self) -> Result<PathBuf, String>;
 
+    fn log_dir(&self) -> Result<PathBuf, String> {
+        let data = self.data_dir()?;
+        Ok(data.join("logs"))
+    }
+
     fn resolve_database_path(&self, db_name: &str) -> Result<PathBuf, String> {
         let data = self.data_dir()?;
         Ok(data.join(db_name))

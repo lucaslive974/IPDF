@@ -3,6 +3,7 @@ export * from './IDocumentViewerFactory';
 export * from './IEpubViewer';
 export * from './IHighlightService';
 export * from './ILibraryService';
+export * from './ILogService';
 export * from './IPdfEngine';
 export * from './IPdfViewer';
 export * from './IPresenceService';

@@ -22,6 +22,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             // System routes
             system::healthcheck,
+            system::write_log,
             system::get_platform_info,
             system::get_startup_book,
             system::set_discord_presence_enabled,

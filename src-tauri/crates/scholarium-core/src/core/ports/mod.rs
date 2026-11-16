@@ -4,6 +4,7 @@ pub mod book_repository;
 pub mod configuration_store;
 pub mod export_strategy;
 pub mod llm_provider;
+pub mod logging;
 pub mod platform_environment;
 pub mod presence_provider;
 pub mod repository;
@@ -19,6 +20,7 @@ pub use export_strategy::{
     ConflictResolution, ExportOptions, ExportStrategy, ImportReport, SyncPayload,
 };
 pub use llm_provider::{LlmRequest, ReadingContext};
+pub use logging::{LogEntry, LogLevel, LogService};
 pub use platform_environment::PlatformEnvironment;
 pub use presence_provider::{PresenceActivity, PresenceHealth, PresenceProvider, ReadingActivity};
 pub use repository::HighlightRepository;

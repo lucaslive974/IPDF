@@ -5,11 +5,13 @@ import type {
   DocumentPage,
   IHighlightService,
   ILibraryService,
+  ILogService,
   ImportLibraryBookInput,
   IPresenceService,
   IReaderService,
   ISettingsService,
   LLMRequest,
+  LogLevel,
   PlatformInfo,
   PresenceHealthStatus,
   ReadingContext,
@@ -18,11 +20,22 @@ import type {
 } from '@ports';
 
 export class MockBackend
-  implements ILibraryService, IHighlightService, IReaderService, IPresenceService, ISettingsService
+  implements
+    ILibraryService,
+    IHighlightService,
+    IReaderService,
+    IPresenceService,
+    ISettingsService,
+    ILogService
 {
   private readonly books = new Map<string, BookMetadata>();
   private readonly highlights = new Map<string, Highlight>();
   private readonly settings = new Map<string, string>();
+  public readonly logs: Array<{
+    readonly level: LogLevel;
+    readonly message: string;
+    readonly source?: string;
+  }> = [];
   public syncedBooks: string[] = [];
   public startupBook: BookMetadata | null = null;
 
@@ -294,6 +307,22 @@ export class MockBackend
 
   public async healthcheck(): Promise<string> {
     return 'Scholarium Mock Backend Active';
+  }
+
+  public log(level: LogLevel, message: string, source?: string): void {
+    this.logs.push({ level, message, source });
+  }
+
+  public error(message: string, source?: string): void {
+    this.log('error', message, source);
+  }
+
+  public warn(message: string, source?: string): void {
+    this.log('warn', message, source);
+  }
+
+  public status(message: string, source?: string): void {
+    this.log('status', message, source);
   }
 
   public async getAppSetting(key: string): Promise<string | null> {
