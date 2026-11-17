@@ -5,6 +5,7 @@ import {
   type UseBackupReturn,
   useBackup,
 } from '@hooks/useBackup';
+import type { BackupArtifact } from '@ports/IBackupService';
 import { Badge, Button, Card } from '@ui';
 import { memo } from 'react';
 
@@ -15,6 +16,125 @@ export interface SettingsBackupSectionProps {
 function formatBackupDate(createdAtMs: number): string {
   if (!createdAtMs) return 'Unknown date';
   return new Date(createdAtMs).toLocaleString();
+}
+
+interface BackupStatusBannersProps {
+  readonly statusMessage: string | null;
+  readonly error: string | null;
+}
+
+function BackupStatusBanners({ statusMessage, error }: BackupStatusBannersProps) {
+  return (
+    <>
+      {statusMessage && (
+        <div className="rounded-lg border border-line-subtle bg-surface-subtle p-3 text-xs text-tx-secondary">
+          {statusMessage}
+        </div>
+      )}
+      {error && (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-500">
+          {error}
+        </div>
+      )}
+    </>
+  );
+}
+
+interface BackupRestoreConfirmationProps {
+  readonly isRestoring: boolean;
+  readonly onConfirm: () => void;
+  readonly onCancel: () => void;
+}
+
+function BackupRestoreConfirmation({
+  isRestoring,
+  onConfirm,
+  onCancel,
+}: BackupRestoreConfirmationProps) {
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-md border border-line-strong bg-surface p-2.5">
+      <span className="text-xs text-tx-secondary">
+        Restore this snapshot? Current local books and highlights will be replaced.
+      </span>
+      <div className="flex items-center gap-2">
+        <Button variant="danger" size="xs" disabled={isRestoring} onClick={onConfirm}>
+          {isRestoring ? 'Restoring…' : 'Confirm Restore'}
+        </Button>
+        <Button variant="outline" size="xs" disabled={isRestoring} onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+interface BackupArtifactRowProps {
+  readonly backup: BackupArtifact;
+  readonly isConfirming: boolean;
+  readonly isBusy: boolean;
+  readonly isRestoring: boolean;
+  readonly onRequestRestore: (backupId: string) => void;
+  readonly onConfirmRestore: (backupId: string) => void;
+  readonly onCancelRestore: () => void;
+  readonly onDelete: (backupId: string) => void;
+}
+
+function BackupArtifactRow({
+  backup,
+  isConfirming,
+  isBusy,
+  isRestoring,
+  onRequestRestore,
+  onConfirmRestore,
+  onCancelRestore,
+  onDelete,
+}: BackupArtifactRowProps) {
+  return (
+    <Card variant="subtle" padding="sm" rounded="lg" className="flex flex-col gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <span className="truncate text-sm font-medium leading-none text-tx-main">
+              {formatBackupDeviceLabel(backup.deviceLabel)}
+            </span>
+            <Badge variant="brand" size="xs">
+              {formatBackupPlatform(backup.platform)}
+            </Badge>
+          </div>
+          <span className="truncate text-xs text-tx-muted" title={backup.name}>
+            {formatBackupDate(backup.createdAtMs)} · {formatBackupSize(backup.sizeBytes)}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="xs"
+            disabled={isBusy}
+            onClick={() => onRequestRestore(backup.id)}
+          >
+            Restore
+          </Button>
+          <Button
+            variant="danger-subtle"
+            size="xs"
+            disabled={isBusy}
+            onClick={() => onDelete(backup.id)}
+          >
+            Delete
+          </Button>
+        </div>
+      </div>
+
+      {isConfirming && (
+        <BackupRestoreConfirmation
+          isRestoring={isRestoring}
+          onConfirm={() => onConfirmRestore(backup.id)}
+          onCancel={onCancelRestore}
+        />
+      )}
+    </Card>
+  );
 }
 
 export const SettingsBackupSection = memo(function SettingsBackupSection({
@@ -36,6 +156,8 @@ export const SettingsBackupSection = memo(function SettingsBackupSection({
     deleteBackup,
   } = injectedState ?? hookState;
 
+  const isBusy = isCreating || isRestoring;
+
   return (
     <Card variant="surface" padding="md" className="flex flex-col gap-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -45,27 +167,12 @@ export const SettingsBackupSection = memo(function SettingsBackupSection({
             Create and restore full local snapshots of your books, covers, database, and highlights:
           </p>
         </div>
-        <Button
-          variant="primary"
-          size="sm"
-          disabled={isCreating || isRestoring}
-          onClick={() => void createBackup()}
-        >
+        <Button variant="primary" size="sm" disabled={isBusy} onClick={() => void createBackup()}>
           {isCreating ? 'Creating…' : 'Create Backup'}
         </Button>
       </div>
 
-      {statusMessage && (
-        <div className="rounded-lg border border-line-subtle bg-surface-subtle p-3 text-xs text-tx-secondary">
-          {statusMessage}
-        </div>
-      )}
-
-      {error && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-500">
-          {error}
-        </div>
-      )}
+      <BackupStatusBanners statusMessage={statusMessage} error={error} />
 
       {isLoading && backups.length === 0 ? (
         <p className="text-xs text-tx-muted">Loading local backups…</p>
@@ -75,79 +182,19 @@ export const SettingsBackupSection = memo(function SettingsBackupSection({
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          {backups.map((backup) => {
-            const isConfirming = pendingRestoreId === backup.id;
-            return (
-              <Card
-                key={backup.id}
-                variant="subtle"
-                padding="sm"
-                rounded="lg"
-                className="flex flex-col gap-3"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1 flex flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate text-sm font-medium leading-none text-tx-main">
-                        {formatBackupDeviceLabel(backup.deviceLabel)}
-                      </span>
-                      <Badge variant="brand" size="xs">
-                        {formatBackupPlatform(backup.platform)}
-                      </Badge>
-                    </div>
-                    <span className="truncate text-xs text-tx-muted" title={backup.name}>
-                      {formatBackupDate(backup.createdAtMs)} · {formatBackupSize(backup.sizeBytes)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      disabled={isRestoring || isCreating}
-                      onClick={() => requestRestore(backup.id)}
-                    >
-                      Restore
-                    </Button>
-                    <Button
-                      variant="danger-subtle"
-                      size="xs"
-                      disabled={isRestoring || isCreating}
-                      onClick={() => void deleteBackup(backup.id)}
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                </div>
-
-                {isConfirming && (
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-md border border-line-strong bg-surface p-2.5">
-                    <span className="text-xs text-tx-secondary">
-                      Restore this snapshot? Current local books and highlights will be replaced.
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="danger"
-                        size="xs"
-                        disabled={isRestoring}
-                        onClick={() => void confirmRestore(backup.id)}
-                      >
-                        {isRestoring ? 'Restoring…' : 'Confirm Restore'}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="xs"
-                        disabled={isRestoring}
-                        onClick={cancelRestore}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </Card>
-            );
-          })}
+          {backups.map((backup) => (
+            <BackupArtifactRow
+              key={backup.id}
+              backup={backup}
+              isConfirming={pendingRestoreId === backup.id}
+              isBusy={isBusy}
+              isRestoring={isRestoring}
+              onRequestRestore={requestRestore}
+              onConfirmRestore={(id) => void confirmRestore(id)}
+              onCancelRestore={cancelRestore}
+              onDelete={(id) => void deleteBackup(id)}
+            />
+          ))}
         </div>
       )}
     </Card>
