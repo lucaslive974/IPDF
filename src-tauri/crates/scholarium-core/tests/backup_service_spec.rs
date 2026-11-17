@@ -1,8 +1,11 @@
 use scholarium_core::adapters::backup::LocalBackupDestination;
-use scholarium_core::adapters::platform::LinuxEnvironment;
+use scholarium_core::adapters::platform::{AndroidEnvironment, IosEnvironment, LinuxEnvironment};
 use scholarium_core::adapters::storage::LocalFolderStorageAdapter;
 use scholarium_core::core::domain::BookFormat;
-use scholarium_core::core::ports::{BackupDestination, PlatformEnvironment, StorageProvider};
+use scholarium_core::core::ports::{
+    parse_backup_filename, sanitize_device_label, BackupDestination, PlatformEnvironment,
+    StorageProvider,
+};
 use scholarium_core::core::services::BackupService;
 use std::fs;
 use std::path::PathBuf;
@@ -48,7 +51,16 @@ fn test_backup_service_creates_lists_and_restores_local_zip_snapshot() {
     assert_eq!(create_report.covers_count, 1);
     assert!(create_report.includes_database);
     assert!(artifact.size_bytes > 0);
-    assert!(artifact.name.ends_with(".zip"));
+    assert!(artifact.name.starts_with("scholarium-backup-"));
+    assert!(artifact.name.ends_with("-linux-1700000000000.zip"));
+    assert_eq!(artifact.platform, "linux");
+    assert!(!artifact.device_label.is_empty());
+    assert_eq!(artifact.created_at_ms, 1_700_000_000_000);
+
+    let parsed = parse_backup_filename(&artifact.name).expect("parse backup filename");
+    assert_eq!(parsed.0, artifact.device_label);
+    assert_eq!(parsed.1, "linux");
+    assert_eq!(parsed.2, 1_700_000_000_000);
 
     let listed = destination.list_backups().expect("list backups");
     assert_eq!(listed.len(), 1);
@@ -80,4 +92,19 @@ fn test_backup_service_creates_lists_and_restores_local_zip_snapshot() {
     assert!(destination.list_backups().unwrap().is_empty());
 
     let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn test_device_label_sanitization_and_mobile_fallbacks() {
+    assert_eq!(
+        sanitize_device_label("Lucas-Notebook Pro!", "desktop"),
+        "lucas_notebook_pro"
+    );
+    assert_eq!(sanitize_device_label("   ---   ", "desktop"), "desktop");
+
+    let android = AndroidEnvironment::default();
+    assert_eq!(android.device_label(), "android_device");
+
+    let ios = IosEnvironment::default();
+    assert_eq!(ios.device_label(), "ios_device");
 }

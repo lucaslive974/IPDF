@@ -59,6 +59,15 @@ pub enum PlatformKind {
 }
 
 impl PlatformKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            PlatformKind::Linux => "linux",
+            PlatformKind::Android => "android",
+            PlatformKind::Windows => "windows",
+            PlatformKind::Ios => "ios",
+        }
+    }
+
     pub fn is_desktop(&self) -> bool {
         matches!(self, PlatformKind::Linux | PlatformKind::Windows)
     }

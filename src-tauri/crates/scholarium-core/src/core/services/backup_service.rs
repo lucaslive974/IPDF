@@ -1,5 +1,7 @@
 use crate::core::domain::AppStoragePaths;
-use crate::core::ports::{BackupArtifact, BackupDestination, BackupReport, PlatformEnvironment};
+use crate::core::ports::{
+    format_backup_filename, BackupArtifact, BackupDestination, BackupReport, PlatformEnvironment,
+};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::{Cursor, Read, Seek, Write};
@@ -34,7 +36,8 @@ impl BackupService {
         now_ms: i64,
     ) -> Result<(BackupArtifact, BackupReport), String> {
         let (bytes, report) = self.export_to_bytes(env, now_ms)?;
-        let file_name = format!("scholarium-backup-{now_ms}.zip");
+        let file_name =
+            format_backup_filename(&env.device_label(), env.platform_kind().as_str(), now_ms);
         let artifact = destination.save_backup(&file_name, &bytes)?;
         Ok((artifact, report))
     }

@@ -13,7 +13,9 @@ pub mod storage_provider;
 pub mod system_bridge;
 pub mod tts_provider;
 
-pub use backup_destination::{BackupArtifact, BackupDestination, BackupReport};
+pub use backup_destination::{
+    format_backup_filename, parse_backup_filename, BackupArtifact, BackupDestination, BackupReport,
+};
 pub use book_cover_extractor::{BookCoverExtractor, ExtractedCover};
 pub use book_paginator::BookPaginator;
 pub use book_repository::BookRepository;
@@ -23,7 +25,7 @@ pub use export_strategy::{
 };
 pub use llm_provider::{LlmRequest, ReadingContext};
 pub use logging::{LogEntry, LogLevel, LogService};
-pub use platform_environment::PlatformEnvironment;
+pub use platform_environment::{sanitize_device_label, PlatformEnvironment};
 pub use presence_provider::{PresenceActivity, PresenceHealth, PresenceProvider, ReadingActivity};
 pub use repository::HighlightRepository;
 pub use storage_provider::{StorageEntry, StorageProvider};

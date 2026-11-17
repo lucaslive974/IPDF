@@ -1,4 +1,4 @@
-use crate::core::ports::{BackupArtifact, BackupDestination};
+use crate::core::ports::{parse_backup_filename, BackupArtifact, BackupDestination};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
@@ -23,6 +23,20 @@ impl LocalBackupDestination {
         }
         Ok(self.backup_dir.join(id))
     }
+
+    fn build_artifact(&self, name: String, size_bytes: u64, fallback_ms: i64) -> BackupArtifact {
+        let (device_label, platform, created_at_ms) = parse_backup_filename(&name)
+            .unwrap_or_else(|| ("unknown".to_string(), "unknown".to_string(), fallback_ms));
+
+        BackupArtifact {
+            id: name.clone(),
+            name,
+            device_label,
+            platform,
+            size_bytes,
+            created_at_ms,
+        }
+    }
 }
 
 impl BackupDestination for LocalBackupDestination {
@@ -31,19 +45,14 @@ impl BackupDestination for LocalBackupDestination {
         let safe_path = self.resolve_safe_path(name)?;
         fs::write(&safe_path, data).map_err(|e| e.to_string())?;
 
-        let created_at_ms = fs::metadata(&safe_path)
+        let fallback_ms = fs::metadata(&safe_path)
             .ok()
             .and_then(|m| m.modified().ok())
             .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
             .map(|d| d.as_millis() as i64)
             .unwrap_or(0);
 
-        Ok(BackupArtifact {
-            id: name.to_string(),
-            name: name.to_string(),
-            size_bytes: data.len() as u64,
-            created_at_ms,
-        })
+        Ok(self.build_artifact(name.to_string(), data.len() as u64, fallback_ms))
     }
 
     fn list_backups(&self) -> Result<Vec<BackupArtifact>, String> {
@@ -63,19 +72,14 @@ impl BackupDestination for LocalBackupDestination {
                 continue;
             }
             let meta = entry.metadata().map_err(|e| e.to_string())?;
-            let created_at_ms = meta
+            let fallback_ms = meta
                 .modified()
                 .ok()
                 .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
                 .map(|d| d.as_millis() as i64)
                 .unwrap_or(0);
 
-            artifacts.push(BackupArtifact {
-                id: name.clone(),
-                name,
-                size_bytes: meta.len(),
-                created_at_ms,
-            });
+            artifacts.push(self.build_artifact(name, meta.len(), fallback_ms));
         }
 
         artifacts.sort_by_key(|a| std::cmp::Reverse(a.created_at_ms));
