@@ -1,4 +1,4 @@
-use crate::commands::{ai, highlights, library, reader, settings, system};
+use crate::commands::{ai, backup, highlights, library, reader, settings, system};
 use crate::state::BackendState;
 use scholarium_core::core::ports::StorageProvider;
 use std::sync::Mutex;
@@ -62,6 +62,11 @@ pub fn run() {
             settings::set_app_setting,
             // AI / LLM routes
             ai::build_term_lookup_prompt,
+            // Backup routes
+            backup::create_local_backup,
+            backup::list_local_backups,
+            backup::restore_local_backup,
+            backup::delete_local_backup,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

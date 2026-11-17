@@ -1,3 +1,4 @@
+pub mod backup;
 pub mod configuration;
 pub mod extractor;
 pub mod logging;
