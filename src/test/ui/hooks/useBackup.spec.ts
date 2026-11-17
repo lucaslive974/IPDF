@@ -4,6 +4,8 @@ import { BookFormat } from '@domain/types';
 import {
   executeCreateBackup,
   executeRestoreBackup,
+  formatBackupDeviceLabel,
+  formatBackupPlatform,
   formatBackupReportSummary,
   formatBackupSize,
 } from '@hooks/useBackup';
@@ -56,6 +58,11 @@ describe('useBackup helpers & controllers', () => {
         totalBytes: 2048,
       })
     ).toBe('Backup created: 2 books, 1 cover (2.0 KB)');
+
+    expect(formatBackupDeviceLabel('lucas_notebook')).toBe('Lucas Notebook');
+    expect(formatBackupDeviceLabel('')).toBe('Unknown Device');
+    expect(formatBackupPlatform('linux')).toBe('Linux');
+    expect(formatBackupPlatform('ios')).toBe('iOS');
   });
 
   it('creates a backup and refreshes artifact list', async () => {

@@ -51,17 +51,21 @@ describe('SettingsBackupSection component', () => {
     const markup = renderBackupSection({
       backups: [
         {
-          id: 'scholarium-backup-1700000000000.zip',
-          name: 'scholarium-backup-1700000000000.zip',
+          id: 'scholarium-backup-lucas_notebook-linux-1700000000000.zip',
+          name: 'scholarium-backup-lucas_notebook-linux-1700000000000.zip',
+          deviceLabel: 'lucas_notebook',
+          platform: 'linux',
           sizeBytes: 1_572_864,
           createdAtMs: 1_700_000_000_000,
         },
       ],
-      pendingRestoreId: 'scholarium-backup-1700000000000.zip',
+      pendingRestoreId: 'scholarium-backup-lucas_notebook-linux-1700000000000.zip',
       statusMessage: 'Backup created: 1 book, 1 cover (1.5 MB)',
     });
 
-    expect(markup).toContain('scholarium-backup-1700000000000.zip');
+    expect(markup).toContain('Lucas Notebook');
+    expect(markup).toContain('Linux');
+    expect(markup).toContain('scholarium-backup-lucas_notebook-linux-1700000000000.zip');
     expect(markup).toContain('1.5 MB');
     expect(markup).toContain('Backup created: 1 book, 1 cover (1.5 MB)');
     expect(markup).toContain('Confirm Restore');

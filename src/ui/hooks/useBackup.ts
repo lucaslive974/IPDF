@@ -32,6 +32,27 @@ export function formatBackupReportSummary(prefix: string, report: BackupReport):
   return `${prefix}: ${report.booksCount} ${bookLabel}, ${report.coversCount} ${coverLabel} (${formatBackupSize(report.totalBytes)})`;
 }
 
+const PLATFORM_DISPLAY_NAMES: Record<string, string> = {
+  linux: 'Linux',
+  windows: 'Windows',
+  android: 'Android',
+  ios: 'iOS',
+};
+
+export function formatBackupPlatform(platform: string): string {
+  const key = platform.trim().toLowerCase();
+  return PLATFORM_DISPLAY_NAMES[key] ?? (key ? key[0].toUpperCase() + key.slice(1) : 'Unknown');
+}
+
+export function formatBackupDeviceLabel(deviceLabel: string): string {
+  const cleaned = deviceLabel.trim().replace(/_/g, ' ');
+  if (!cleaned) return 'Unknown Device';
+  return cleaned
+    .split(/\s+/)
+    .map((word) => (word ? word[0].toUpperCase() + word.slice(1) : ''))
+    .join(' ');
+}
+
 export async function executeCreateBackup(
   backupService: Pick<IBackupService, 'createLocalBackup'>
 ): Promise<CreateBackupResult> {

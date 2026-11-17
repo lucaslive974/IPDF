@@ -1,4 +1,10 @@
-import { formatBackupSize, type UseBackupReturn, useBackup } from '@hooks/useBackup';
+import {
+  formatBackupDeviceLabel,
+  formatBackupPlatform,
+  formatBackupSize,
+  type UseBackupReturn,
+  useBackup,
+} from '@hooks/useBackup';
 import { Badge, Button, Card } from '@ui';
 import { memo } from 'react';
 
@@ -80,17 +86,17 @@ export const SettingsBackupSection = memo(function SettingsBackupSection({
                 className="flex flex-col gap-3"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1 flex flex-col gap-1">
                     <div className="flex items-center gap-2">
-                      <span className="truncate text-xs font-medium text-tx-main">
-                        {backup.name}
+                      <span className="truncate text-sm font-medium leading-none text-tx-main">
+                        {formatBackupDeviceLabel(backup.deviceLabel)}
                       </span>
-                      <Badge variant="neutral" size="xs">
-                        {formatBackupSize(backup.sizeBytes)}
+                      <Badge variant="brand" size="xs">
+                        {formatBackupPlatform(backup.platform)}
                       </Badge>
                     </div>
-                    <span className="text-xs text-tx-muted">
-                      {formatBackupDate(backup.createdAtMs)}
+                    <span className="truncate text-xs text-tx-muted" title={backup.name}>
+                      {formatBackupDate(backup.createdAtMs)} · {formatBackupSize(backup.sizeBytes)}
                     </span>
                   </div>
 

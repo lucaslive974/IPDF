@@ -403,7 +403,9 @@ export class MockBackend
 
   public async createLocalBackup(): Promise<CreateBackupResult> {
     const nowMs = Date.now();
-    const id = `scholarium-backup-${nowMs}-${this.backups.size}.zip`;
+    const deviceLabel = 'mock_desktop';
+    const platform = 'linux';
+    const id = `scholarium-backup-${deviceLabel}-${platform}-${nowMs}.zip`;
     const books = Array.from(this.books.values());
     const highlights = Array.from(this.highlights.values());
     const settings = Array.from(this.settings.entries());
@@ -416,6 +418,8 @@ export class MockBackend
     const artifact: BackupArtifact = {
       id,
       name: id,
+      deviceLabel,
+      platform,
       sizeBytes: report.totalBytes,
       createdAtMs: nowMs,
     };

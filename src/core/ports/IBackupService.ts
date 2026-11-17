@@ -1,6 +1,8 @@
 export interface BackupArtifact {
   readonly id: string;
   readonly name: string;
+  readonly deviceLabel: string;
+  readonly platform: string;
   readonly sizeBytes: number;
   readonly createdAtMs: number;
 }

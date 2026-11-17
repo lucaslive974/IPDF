@@ -244,8 +244,10 @@ vi.mock('@tauri-apps/api/core', () => ({
     if (cmd === 'create_local_backup') {
       return {
         artifact: {
-          id: 'scholarium-backup-1.zip',
-          name: 'scholarium-backup-1.zip',
+          id: 'scholarium-backup-desktop-linux-1.zip',
+          name: 'scholarium-backup-desktop-linux-1.zip',
+          deviceLabel: 'desktop',
+          platform: 'linux',
           sizeBytes: 1024,
           createdAtMs: 1_700_000_000_000,
         },
@@ -260,8 +262,10 @@ vi.mock('@tauri-apps/api/core', () => ({
     if (cmd === 'list_local_backups') {
       return [
         {
-          id: 'scholarium-backup-1.zip',
-          name: 'scholarium-backup-1.zip',
+          id: 'scholarium-backup-desktop-linux-1.zip',
+          name: 'scholarium-backup-desktop-linux-1.zip',
+          deviceLabel: 'desktop',
+          platform: 'linux',
           sizeBytes: 1024,
           createdAtMs: 1_700_000_000_000,
         },
@@ -535,11 +539,16 @@ describe('Modular Tauri IPC Adapters', () => {
 
     const backupService = new TauriBackupService();
     const createdBackup = await backupService.createLocalBackup();
-    expect(createdBackup.artifact.id).toBe('scholarium-backup-1.zip');
+    expect(createdBackup.artifact.id).toBe('scholarium-backup-desktop-linux-1.zip');
+    expect(createdBackup.artifact.platform).toBe('linux');
     expect(await backupService.listLocalBackups()).toHaveLength(1);
-    const restored = await backupService.restoreLocalBackup('scholarium-backup-1.zip');
+    const restored = await backupService.restoreLocalBackup(
+      'scholarium-backup-desktop-linux-1.zip'
+    );
     expect(restored.includesDatabase).toBe(true);
-    expect(await backupService.deleteLocalBackup('scholarium-backup-1.zip')).toBe(true);
+    expect(await backupService.deleteLocalBackup('scholarium-backup-desktop-linux-1.zip')).toBe(
+      true
+    );
   });
 });
 
