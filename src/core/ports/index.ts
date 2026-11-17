@@ -1,3 +1,4 @@
+export * from './IBackupService';
 export * from './IDocumentViewer';
 export * from './IDocumentViewerFactory';
 export * from './IEpubViewer';

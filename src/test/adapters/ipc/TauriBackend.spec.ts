@@ -1,6 +1,7 @@
 import {
   type SerializedBookMetadata,
   type SerializedHighlight,
+  TauriBackupService,
   TauriHighlightService,
   TauriLibraryService,
   TauriLogService,
@@ -239,6 +240,43 @@ vi.mock('@tauri-apps/api/core', () => ({
       storedDtos.clear();
       storedSettings.clear();
       return undefined as unknown as T;
+    }
+    if (cmd === 'create_local_backup') {
+      return {
+        artifact: {
+          id: 'scholarium-backup-1.zip',
+          name: 'scholarium-backup-1.zip',
+          sizeBytes: 1024,
+          createdAtMs: 1_700_000_000_000,
+        },
+        report: {
+          booksCount: 1,
+          coversCount: 1,
+          includesDatabase: true,
+          totalBytes: 1024,
+        },
+      } as unknown as T;
+    }
+    if (cmd === 'list_local_backups') {
+      return [
+        {
+          id: 'scholarium-backup-1.zip',
+          name: 'scholarium-backup-1.zip',
+          sizeBytes: 1024,
+          createdAtMs: 1_700_000_000_000,
+        },
+      ] as unknown as T;
+    }
+    if (cmd === 'restore_local_backup') {
+      return {
+        booksCount: 1,
+        coversCount: 1,
+        includesDatabase: true,
+        totalBytes: 1024,
+      } as unknown as T;
+    }
+    if (cmd === 'delete_local_backup') {
+      return true as unknown as T;
     }
     if (cmd === 'sync_book_workspace') {
       return `synced:${String(args.bookHash)}` as unknown as T;
@@ -494,6 +532,14 @@ describe('Modular Tauri IPC Adapters', () => {
 
     await settingsService.resetApplicationData();
     expect(await settingsService.getAppSetting('theme')).toBeNull();
+
+    const backupService = new TauriBackupService();
+    const createdBackup = await backupService.createLocalBackup();
+    expect(createdBackup.artifact.id).toBe('scholarium-backup-1.zip');
+    expect(await backupService.listLocalBackups()).toHaveLength(1);
+    const restored = await backupService.restoreLocalBackup('scholarium-backup-1.zip');
+    expect(restored.includesDatabase).toBe(true);
+    expect(await backupService.deleteLocalBackup('scholarium-backup-1.zip')).toBe(true);
   });
 });
 

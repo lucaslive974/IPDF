@@ -2,11 +2,11 @@ import { useSettings } from '@hooks/useSettings';
 import { useNavigation } from '@providers/NavigationContext';
 import { useTheme } from '@providers/ThemeContext';
 import { SettingsAppearanceSection } from './settings/SettingsAppearanceSection';
+import { SettingsBackupSection } from './settings/SettingsBackupSection';
 import { SettingsDangerSection } from './settings/SettingsDangerSection';
 import { SettingsFoldersSection } from './settings/SettingsFoldersSection';
 import { SettingsHeader } from './settings/SettingsHeader';
 import { SettingsIntegrationsSection } from './settings/SettingsIntegrationsSection';
-import { SettingsPortabilitySection } from './settings/SettingsPortabilitySection';
 import { SettingsSyncSection } from './settings/SettingsSyncSection';
 
 export function SettingsView() {
@@ -44,10 +44,7 @@ export function SettingsView() {
           />
         )}
 
-        <SettingsPortabilitySection
-          onExportAnnotations={() => void settings.triggerSync()}
-          onImportBackup={() => void settings.triggerSync()}
-        />
+        <SettingsBackupSection />
 
         <SettingsDangerSection
           showResetConfirm={settings.showResetConfirm}

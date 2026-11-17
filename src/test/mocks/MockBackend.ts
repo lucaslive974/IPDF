@@ -2,7 +2,11 @@ import { isValidAuthor } from '@components/library/BookCover';
 import type { BookMetadata } from '@domain/BookMetadata';
 import type { Highlight } from '@domain/Highlight';
 import type {
+  BackupArtifact,
+  BackupReport,
+  CreateBackupResult,
   DocumentPage,
+  IBackupService,
   IHighlightService,
   ILibraryService,
   ILogService,
@@ -26,11 +30,22 @@ export class MockBackend
     IReaderService,
     IPresenceService,
     ISettingsService,
-    ILogService
+    ILogService,
+    IBackupService
 {
   private readonly books = new Map<string, BookMetadata>();
   private readonly highlights = new Map<string, Highlight>();
   private readonly settings = new Map<string, string>();
+  private readonly backups = new Map<
+    string,
+    {
+      readonly artifact: BackupArtifact;
+      readonly report: BackupReport;
+      readonly books: BookMetadata[];
+      readonly highlights: Highlight[];
+      readonly settings: Array<[string, string]>;
+    }
+  >();
   public readonly logs: Array<{
     readonly level: LogLevel;
     readonly message: string;
@@ -384,5 +399,55 @@ export class MockBackend
     this.settings.clear();
     this.syncedBooks = [];
     this.startupBook = null;
+  }
+
+  public async createLocalBackup(): Promise<CreateBackupResult> {
+    const nowMs = Date.now();
+    const id = `scholarium-backup-${nowMs}-${this.backups.size}.zip`;
+    const books = Array.from(this.books.values());
+    const highlights = Array.from(this.highlights.values());
+    const settings = Array.from(this.settings.entries());
+    const report: BackupReport = {
+      booksCount: books.length,
+      coversCount: books.length,
+      includesDatabase: true,
+      totalBytes: Math.max(256, books.length * 1024 + highlights.length * 256),
+    };
+    const artifact: BackupArtifact = {
+      id,
+      name: id,
+      sizeBytes: report.totalBytes,
+      createdAtMs: nowMs,
+    };
+    this.backups.set(id, { artifact, report, books, highlights, settings });
+    return { artifact, report };
+  }
+
+  public async listLocalBackups(): Promise<BackupArtifact[]> {
+    return Array.from(this.backups.values())
+      .map((b) => b.artifact)
+      .sort((a, b) => b.createdAtMs - a.createdAtMs);
+  }
+
+  public async restoreLocalBackup(backupId: string): Promise<BackupReport> {
+    const snapshot = this.backups.get(backupId);
+    if (!snapshot) {
+      throw new Error(`Backup not found: ${backupId}`);
+    }
+    await this.resetApplicationData();
+    for (const book of snapshot.books) {
+      this.books.set(book.bookHash, book);
+    }
+    for (const hl of snapshot.highlights) {
+      this.highlights.set(hl.id, hl);
+    }
+    for (const [key, val] of snapshot.settings) {
+      this.settings.set(key, val);
+    }
+    return snapshot.report;
+  }
+
+  public async deleteLocalBackup(backupId: string): Promise<boolean> {
+    return this.backups.delete(backupId);
   }
 }
