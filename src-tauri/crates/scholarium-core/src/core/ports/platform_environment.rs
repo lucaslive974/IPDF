@@ -1,4 +1,4 @@
-use crate::core::domain::PlatformKind;
+use crate::core::domain::{AppStoragePaths, PlatformKind};
 use std::path::PathBuf;
 
 pub trait PlatformEnvironment {
@@ -8,26 +8,42 @@ pub trait PlatformEnvironment {
     fn cache_dir(&self) -> Result<PathBuf, String>;
 
     fn books_dir(&self) -> Result<PathBuf, String> {
-        Ok(self.data_dir()?.join(".books"))
+        Ok(self.data_dir()?.join(AppStoragePaths::BOOKS_DIR))
     }
 
     fn covers_dir(&self) -> Result<PathBuf, String> {
-        Ok(self.data_dir()?.join(".covers"))
+        Ok(self.data_dir()?.join(AppStoragePaths::COVERS_DIR))
     }
 
     fn log_dir(&self) -> Result<PathBuf, String> {
-        Ok(self.data_dir()?.join(".logs"))
+        Ok(self.data_dir()?.join(AppStoragePaths::LOGS_DIR))
+    }
+
+    fn backups_dir(&self) -> Result<PathBuf, String> {
+        Ok(self.data_dir()?.join(AppStoragePaths::BACKUPS_DIR))
+    }
+
+    fn highlights_dir(&self) -> Result<PathBuf, String> {
+        Ok(self
+            .data_dir()?
+            .join(AppStoragePaths::CONFIG_DIR)
+            .join(AppStoragePaths::HIGHLIGHTS_SUBDIR))
     }
 
     fn resolve_database_path(&self, db_name: &str) -> Result<PathBuf, String> {
-        Ok(self.data_dir()?.join(".config").join(db_name))
+        Ok(self
+            .data_dir()?
+            .join(AppStoragePaths::CONFIG_DIR)
+            .join(db_name))
+    }
+
+    fn default_database_path(&self) -> Result<PathBuf, String> {
+        self.resolve_database_path(AppStoragePaths::DATABASE_FILENAME)
     }
 
     fn resolve_highlights_path(&self, book_hash: &str) -> Result<PathBuf, String> {
         Ok(self
-            .data_dir()?
-            .join(".config")
-            .join("highlights")
+            .highlights_dir()?
             .join(format!("{book_hash}.highlights.json")))
     }
 

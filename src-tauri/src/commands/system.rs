@@ -69,10 +69,7 @@ pub fn get_platform_info(
         config_dir: env.config_dir()?.to_string_lossy().to_string(),
         data_dir: env.data_dir()?.to_string_lossy().to_string(),
         cache_dir: env.cache_dir()?.to_string_lossy().to_string(),
-        database_path: env
-            .resolve_database_path("scholarium.db")?
-            .to_string_lossy()
-            .to_string(),
+        database_path: env.default_database_path()?.to_string_lossy().to_string(),
         supports_discord_presence: supports_discord,
     })
 }

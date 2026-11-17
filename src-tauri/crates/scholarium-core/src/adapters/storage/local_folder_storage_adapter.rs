@@ -1,4 +1,4 @@
-use crate::core::domain::BookFormat;
+use crate::core::domain::{AppStoragePaths, BookFormat};
 use crate::core::ports::{PlatformEnvironment, StorageEntry, StorageProvider};
 use std::fmt::Display;
 use std::fs;
@@ -45,7 +45,7 @@ impl LocalFolderStorageAdapter {
     }
 
     pub fn books_dir(&self) -> PathBuf {
-        self.root_dir.join(".books")
+        self.root_dir.join(AppStoragePaths::BOOKS_DIR)
     }
 
     fn resolve_book_path(&self, book_hash: &str) -> PathBuf {
@@ -261,7 +261,7 @@ impl StorageProvider for LocalFolderStorageAdapter {
         if books_dir.exists() {
             fs::remove_dir_all(&books_dir).map_err(to_err)?;
         }
-        let covers_dir = self.root_dir.join(".covers");
+        let covers_dir = self.root_dir.join(AppStoragePaths::COVERS_DIR);
         if covers_dir.exists() {
             fs::remove_dir_all(&covers_dir).map_err(to_err)?;
         }

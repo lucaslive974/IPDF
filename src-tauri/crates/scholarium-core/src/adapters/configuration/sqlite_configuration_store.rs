@@ -36,7 +36,7 @@ impl SqliteConfigurationStore {
     }
 
     pub fn for_platform<E: PlatformEnvironment + ?Sized>(env: &E) -> Result<Self, String> {
-        let path = env.resolve_database_path("scholarium.db")?;
+        let path = env.default_database_path()?;
         Self::open_file(path)
     }
 

@@ -1,4 +1,4 @@
-use crate::core::domain::BookFormat;
+use crate::core::domain::{AppStoragePaths, BookFormat};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -44,7 +44,7 @@ pub trait StorageProvider {
     fn read_entry(&mut self, name: &str) -> Result<Option<Vec<u8>>, String>;
     fn read_book_cover(&mut self, book_hash: &str) -> Result<Option<(Vec<u8>, String)>, String> {
         for ext in &["webp", "png", "jpg", "jpeg"] {
-            let candidate = format!(".covers/{book_hash}.{ext}");
+            let candidate = AppStoragePaths::cover_entry_name(book_hash, ext);
             if let Some(bytes) = self.read_entry(&candidate)? {
                 if !bytes.is_empty() {
                     let mime = match *ext {
@@ -76,14 +76,14 @@ pub trait StorageProvider {
             "image/webp" => "webp",
             _ => "jpg",
         };
-        let entry_name = format!(".covers/{book_hash}.{ext}");
+        let entry_name = AppStoragePaths::cover_entry_name(book_hash, ext);
         self.write_entry(&entry_name, data, mime_type)?;
         Ok(entry_name)
     }
     fn delete_entry(&mut self, name: &str) -> Result<bool, String>;
     fn delete_book_cover(&mut self, book_hash: &str) -> Result<(), String> {
         for ext in &["webp", "png", "jpg", "jpeg"] {
-            let candidate = format!(".covers/{book_hash}.{ext}");
+            let candidate = AppStoragePaths::cover_entry_name(book_hash, ext);
             self.delete_entry(&candidate)?;
         }
         Ok(())

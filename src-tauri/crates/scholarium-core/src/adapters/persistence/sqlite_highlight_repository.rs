@@ -37,7 +37,7 @@ impl SqliteHighlightRepository {
     }
 
     pub fn open_for_platform<E: PlatformEnvironment + ?Sized>(env: &E) -> Result<Self, String> {
-        let db_path = env.resolve_database_path("scholarium.db")?;
+        let db_path = env.default_database_path()?;
         Self::open_file(db_path)
     }
 

@@ -1,3 +1,4 @@
+use crate::core::domain::AppStoragePaths;
 use crate::core::ports::{LogEntry, LogLevel, LogService, PlatformEnvironment};
 use std::fs;
 use std::path::PathBuf;
@@ -5,8 +6,6 @@ use tracing::Dispatch;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::fmt;
 use tracing_subscriber::layer::SubscriberExt;
-
-const LOG_FILE_PREFIX: &str = "scholarium.log";
 
 /// Non-blocking logger backed by `tracing`, `tracing-subscriber`, and `tracing-appender`.
 /// Dispatches structured log events over a non-blocking background worker to daily-rotated
@@ -29,7 +28,8 @@ impl AsyncFileLogger {
         fs::create_dir_all(&log_dir)
             .map_err(|e| format!("Failed to create log directory {}: {e}", log_dir.display()))?;
 
-        let file_appender = tracing_appender::rolling::daily(&log_dir, LOG_FILE_PREFIX);
+        let file_appender =
+            tracing_appender::rolling::daily(&log_dir, AppStoragePaths::LOG_FILE_PREFIX);
         let (non_blocking_file, guard) = tracing_appender::non_blocking(file_appender);
 
         let file_layer = fmt::layer()
