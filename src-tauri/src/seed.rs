@@ -46,7 +46,10 @@ pub fn seed_bundled_assets_if_needed<
     }
 
     if let Err(err) = config_store.set(INITIAL_SEED_KEY, "true") {
-        tracing::warn!(source = "seed", "Failed to persist initial seed flag: {err}");
+        tracing::warn!(
+            source = "seed",
+            "Failed to persist initial seed flag: {err}"
+        );
     }
 }
 

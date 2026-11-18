@@ -110,9 +110,9 @@ pub fn delete_local_backup(
     destination.delete_backup(&backup_id)
 }
 
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 pub async fn export_local_backup(
+    app: tauri::AppHandle,
     backup_id: String,
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<Option<String>, String> {
@@ -122,20 +122,20 @@ pub async fn export_local_backup(
         destination.load_backup(&backup_id)?
     };
 
-    let handle = rfd::AsyncFileDialog::new()
-        .add_filter("Scholarium Backup (*.zip)", &["zip"])
-        .set_file_name(&backup_id)
-        .set_title("Export Backup")
-        .save_file()
-        .await;
-
-    let Some(file_handle) = handle else {
+    let Some(file_path) = crate::utils::save_file_dialog(
+        &app,
+        "Export Backup",
+        "Scholarium Backup (*.zip)",
+        &["zip"],
+        &backup_id,
+    )
+    .await?
+    else {
         return Ok(None);
     };
 
-    let target_path = file_handle.path().to_path_buf();
-    std::fs::write(&target_path, &bytes).map_err(|e| e.to_string())?;
-    let path_str = target_path.to_string_lossy().to_string();
+    let path_str = file_path.to_string();
+    crate::utils::write_dialog_file_bytes(&app, file_path, bytes).await?;
 
     if let Ok(guard) = state.lock() {
         let _ = guard.logger.log(LogEntry::new(
@@ -149,28 +149,25 @@ pub async fn export_local_backup(
     Ok(Some(path_str))
 }
 
-#[cfg(any(target_os = "android", target_os = "ios"))]
-#[tauri::command]
-pub async fn export_local_backup() -> Result<Option<String>, String> {
-    Err("Native desktop file dialog is not supported on mobile".to_string())
-}
-
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 pub async fn import_and_restore_backup(
+    app: tauri::AppHandle,
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<Option<BackupReport>, String> {
-    let handle = rfd::AsyncFileDialog::new()
-        .add_filter("Scholarium Backup (*.zip)", &["zip"])
-        .set_title("Import & Restore Backup")
-        .pick_file()
-        .await;
-
-    let Some(file_handle) = handle else {
+    let Some(file_path) = crate::utils::pick_file_dialog(
+        &app,
+        "Import & Restore Backup",
+        "Scholarium Backup (*.zip)",
+        &["zip"],
+    )
+    .await?
+    else {
         return Ok(None);
     };
 
-    let zip_bytes = std::fs::read(file_handle.path()).map_err(|e| e.to_string())?;
+    let path_str = file_path.to_string();
+    let zip_bytes = crate::utils::read_dialog_file_bytes(&app, file_path).await?;
+
     let mut guard = state.lock().map_err(|e| e.to_string())?;
 
     clear_state_for_restore(&mut guard)?;
@@ -183,18 +180,10 @@ pub async fn import_and_restore_backup(
         LogLevel::Status,
         "backup",
         format!(
-            "Imported and restored backup from {} ({} books, {} covers)",
-            file_handle.path().display(),
-            report.books_count,
-            report.covers_count
+            "Imported and restored backup from {path_str} ({} books, {} covers)",
+            report.books_count, report.covers_count
         ),
     ));
 
     Ok(Some(report))
-}
-
-#[cfg(any(target_os = "android", target_os = "ios"))]
-#[tauri::command]
-pub async fn import_and_restore_backup() -> Result<Option<BackupReport>, String> {
-    Err("Native desktop file dialog is not supported on mobile".to_string())
 }

@@ -60,6 +60,98 @@ pub fn find_file_argument(args: &[String]) -> Option<PathBuf> {
     None
 }
 
+pub async fn pick_file_dialog(
+    app: &tauri::AppHandle,
+    title: &str,
+    filter_name: &str,
+    extensions: &[&str],
+) -> Result<Option<tauri_plugin_dialog::FilePath>, String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let app = app.clone();
+    let title = title.to_string();
+    let filter_name = filter_name.to_string();
+    let extensions: Vec<String> = extensions.iter().map(|s| (*s).to_string()).collect();
+
+    tauri::async_runtime::spawn_blocking(move || {
+        let ext_refs: Vec<&str> = extensions.iter().map(String::as_str).collect();
+        app.dialog()
+            .file()
+            .add_filter(&filter_name, &ext_refs)
+            .set_title(&title)
+            .blocking_pick_file()
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+pub async fn save_file_dialog(
+    app: &tauri::AppHandle,
+    title: &str,
+    filter_name: &str,
+    extensions: &[&str],
+    file_name: &str,
+) -> Result<Option<tauri_plugin_dialog::FilePath>, String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let app = app.clone();
+    let title = title.to_string();
+    let filter_name = filter_name.to_string();
+    let file_name = file_name.to_string();
+    let extensions: Vec<String> = extensions.iter().map(|s| (*s).to_string()).collect();
+
+    tauri::async_runtime::spawn_blocking(move || {
+        let ext_refs: Vec<&str> = extensions.iter().map(String::as_str).collect();
+        app.dialog()
+            .file()
+            .add_filter(&filter_name, &ext_refs)
+            .set_file_name(&file_name)
+            .set_title(&title)
+            .blocking_save_file()
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+pub async fn read_dialog_file_bytes(
+    app: &tauri::AppHandle,
+    file_path: tauri_plugin_dialog::FilePath,
+) -> Result<Vec<u8>, String> {
+    use std::io::Read;
+    use tauri_plugin_fs::{FsExt, OpenOptions};
+
+    let app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || -> Result<Vec<u8>, String> {
+        let mut opts = OpenOptions::new();
+        opts.read(true);
+        let mut file = app.fs().open(file_path, opts).map_err(|e| e.to_string())?;
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer).map_err(|e| e.to_string())?;
+        Ok(buffer)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+pub async fn write_dialog_file_bytes(
+    app: &tauri::AppHandle,
+    file_path: tauri_plugin_dialog::FilePath,
+    bytes: Vec<u8>,
+) -> Result<(), String> {
+    use std::io::Write;
+    use tauri_plugin_fs::{FsExt, OpenOptions};
+
+    let app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || -> Result<(), String> {
+        let mut opts = OpenOptions::new();
+        opts.write(true).create(true).truncate(true);
+        let mut file = app.fs().open(file_path, opts).map_err(|e| e.to_string())?;
+        file.write_all(&bytes).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

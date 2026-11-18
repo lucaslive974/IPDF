@@ -76,6 +76,7 @@ interface BackupArtifactRowProps {
   readonly onRequestRestore: (backupId: string) => void;
   readonly onConfirmRestore: (backupId: string) => void;
   readonly onCancelRestore: () => void;
+  readonly onExport: (backupId: string) => void;
   readonly onDelete: (backupId: string) => void;
 }
 
@@ -87,6 +88,7 @@ function BackupArtifactRow({
   onRequestRestore,
   onConfirmRestore,
   onCancelRestore,
+  onExport,
   onDelete,
 }: BackupArtifactRowProps) {
   return (
@@ -106,7 +108,10 @@ function BackupArtifactRow({
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
+          <Button variant="outline" size="xs" disabled={isBusy} onClick={() => onExport(backup.id)}>
+            Save As…
+          </Button>
           <Button
             variant="outline"
             size="xs"
@@ -169,9 +174,26 @@ export const SettingsBackupSection = memo(function SettingsBackupSection({
             Create and restore full local snapshots of your books, covers, database, and highlights:
           </p>
         </div>
-        <Button variant="primary" size="sm" disabled={isBusy} onClick={() => void createBackup()}>
-          {isCreating ? 'Creating…' : 'Create Backup'}
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="whitespace-nowrap"
+            disabled={isBusy}
+            onClick={() => void importBackup()}
+          >
+            Import Backup…
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            className="whitespace-nowrap"
+            disabled={isBusy}
+            onClick={() => void createBackup()}
+          >
+            {isCreating ? 'Creating…' : 'Create Backup'}
+          </Button>
+        </div>
       </div>
 
       <BackupStatusBanners statusMessage={statusMessage} error={error} />
@@ -194,6 +216,7 @@ export const SettingsBackupSection = memo(function SettingsBackupSection({
               onRequestRestore={requestRestore}
               onConfirmRestore={(id) => void confirmRestore(id)}
               onCancelRestore={cancelRestore}
+              onExport={(id) => void exportBackup(id)}
               onDelete={(id) => void deleteBackup(id)}
             />
           ))}

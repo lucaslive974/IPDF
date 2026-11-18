@@ -79,31 +79,56 @@ pub fn import_book_from_bytes(
     import_book_into_state(&mut guard, raw_bytes, title, author, format, total_pages)
 }
 
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 pub async fn pick_and_import_book(
     app: tauri::AppHandle,
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<Option<BookMetadata>, String> {
-    let handle = rfd::AsyncFileDialog::new()
-        .add_filter("Books (*.epub, *.pdf)", &["epub", "pdf"])
-        .set_title("Import Book")
-        .pick_file()
-        .await;
+    use tauri_plugin_dialog::FilePath;
 
-    let Some(file_handle) = handle else {
+    let Some(file_path) = crate::utils::pick_file_dialog(
+        &app,
+        "Import Book",
+        "Books (*.epub, *.pdf)",
+        &["epub", "pdf"],
+    )
+    .await?
+    else {
         return Ok(None);
     };
 
-    let mut guard = state.lock().map_err(|e| e.to_string())?;
-    let metadata = process_single_book_path(&mut guard, &app, file_handle.path())?;
-    Ok(Some(metadata))
-}
+    if let FilePath::Path(ref path) = file_path {
+        let mut guard = state.lock().map_err(|e| e.to_string())?;
+        let metadata = process_single_book_path(&mut guard, &app, path)?;
+        return Ok(Some(metadata));
+    }
 
-#[cfg(any(target_os = "android", target_os = "ios"))]
-#[tauri::command]
-pub async fn pick_and_import_book() -> Result<Option<BookMetadata>, String> {
-    Err("Native desktop file dialog is not supported on mobile".to_string())
+    let path_str = file_path.to_string();
+    let raw_bytes = crate::utils::read_dialog_file_bytes(&app, file_path).await?;
+
+    let format = if raw_bytes.starts_with(b"%PDF") || path_str.to_lowercase().ends_with(".pdf") {
+        BookFormat::Pdf
+    } else {
+        BookFormat::Epub
+    };
+    let title = path_str
+        .rsplit('/')
+        .next()
+        .and_then(|segment| segment.split('.').next())
+        .filter(|s| !s.is_empty())
+        .unwrap_or("Book")
+        .to_string();
+
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    let metadata = import_book_into_state(
+        &mut guard,
+        raw_bytes,
+        title,
+        "Unknown".to_string(),
+        format,
+        0,
+    )?;
+    Ok(Some(metadata))
 }
 
 // Mutations
