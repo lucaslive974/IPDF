@@ -24,4 +24,6 @@ export interface IBackupService {
   listLocalBackups(): Promise<BackupArtifact[]>;
   restoreLocalBackup(backupId: string): Promise<BackupReport>;
   deleteLocalBackup(backupId: string): Promise<boolean>;
+  exportLocalBackup(backupId: string): Promise<string | null>;
+  importAndRestoreBackup(): Promise<BackupReport | null>;
 }

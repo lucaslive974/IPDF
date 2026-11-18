@@ -150,6 +150,8 @@ export const SettingsBackupSection = memo(function SettingsBackupSection({
     statusMessage,
     error,
     createBackup,
+    exportBackup,
+    importBackup,
     requestRestore,
     cancelRestore,
     confirmRestore,
@@ -160,8 +162,8 @@ export const SettingsBackupSection = memo(function SettingsBackupSection({
 
   return (
     <Card variant="surface" padding="md" className="flex flex-col gap-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="min-w-0 flex-1">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-tx-muted">Backups</h2>
           <p className="mt-1 text-xs text-tx-secondary">
             Create and restore full local snapshots of your books, covers, database, and highlights:

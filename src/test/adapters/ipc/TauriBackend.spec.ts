@@ -282,6 +282,17 @@ vi.mock('@tauri-apps/api/core', () => ({
     if (cmd === 'delete_local_backup') {
       return true as unknown as T;
     }
+    if (cmd === 'export_local_backup') {
+      return `/tmp/${String(args.backupId)}` as unknown as T;
+    }
+    if (cmd === 'import_and_restore_backup') {
+      return {
+        booksCount: 1,
+        coversCount: 1,
+        includesDatabase: true,
+        totalBytes: 1024,
+      } as unknown as T;
+    }
     if (cmd === 'sync_book_workspace') {
       return `synced:${String(args.bookHash)}` as unknown as T;
     }
@@ -546,6 +557,11 @@ describe('Modular Tauri IPC Adapters', () => {
       'scholarium-backup-desktop-linux-1.zip'
     );
     expect(restored.includesDatabase).toBe(true);
+    expect(await backupService.exportLocalBackup('scholarium-backup-desktop-linux-1.zip')).toBe(
+      '/tmp/scholarium-backup-desktop-linux-1.zip'
+    );
+    const imported = await backupService.importAndRestoreBackup();
+    expect(imported?.includesDatabase).toBe(true);
     expect(await backupService.deleteLocalBackup('scholarium-backup-desktop-linux-1.zip')).toBe(
       true
     );

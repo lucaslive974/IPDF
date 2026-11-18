@@ -22,6 +22,8 @@ function renderBackupSection(state: Partial<UseBackupReturn> = {}): string {
     cancelRestore: vi.fn(),
     confirmRestore: vi.fn(),
     deleteBackup: vi.fn(),
+    exportBackup: vi.fn(),
+    importBackup: vi.fn(),
     ...state,
   };
 
@@ -44,6 +46,7 @@ describe('SettingsBackupSection component', () => {
 
     expect(markup).toContain('Backups');
     expect(markup).toContain('Create Backup');
+    expect(markup).toContain('Import Backup…');
     expect(markup).toContain('No local backups yet');
   });
 
@@ -68,6 +71,7 @@ describe('SettingsBackupSection component', () => {
     expect(markup).toContain('scholarium-backup-lucas_notebook-linux-1700000000000.zip');
     expect(markup).toContain('1.5 MB');
     expect(markup).toContain('Backup created: 1 book, 1 cover (1.5 MB)');
+    expect(markup).toContain('Save As…');
     expect(markup).toContain('Confirm Restore');
     expect(markup).toContain('Cancel');
   });

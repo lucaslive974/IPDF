@@ -454,4 +454,19 @@ export class MockBackend
   public async deleteLocalBackup(backupId: string): Promise<boolean> {
     return this.backups.delete(backupId);
   }
+
+  public async exportLocalBackup(backupId: string): Promise<string | null> {
+    if (!this.backups.has(backupId)) {
+      throw new Error(`Backup not found: ${backupId}`);
+    }
+    return `/mock/exports/${backupId}`;
+  }
+
+  public async importAndRestoreBackup(): Promise<BackupReport | null> {
+    const latest = (await this.listLocalBackups())[0];
+    if (!latest) {
+      return null;
+    }
+    return this.restoreLocalBackup(latest.id);
+  }
 }

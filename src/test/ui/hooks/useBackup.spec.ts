@@ -3,6 +3,7 @@ import { Highlight } from '@domain/Highlight';
 import { BookFormat } from '@domain/types';
 import {
   executeCreateBackup,
+  executeImportBackup,
   executeRestoreBackup,
   formatBackupDeviceLabel,
   formatBackupPlatform,
@@ -95,6 +96,28 @@ describe('useBackup helpers & controllers', () => {
     });
 
     expect(report.booksCount).toBe(1);
+    expect(useLibraryStore.getState().books).toHaveLength(1);
+    expect(useHighlightStore.getState().highlights).toHaveLength(1);
+  });
+
+  it('exports and imports backups via file dialog port and rehydrates stores', async () => {
+    const { artifact } = await executeCreateBackup(backend);
+    const exportedPath = await backend.exportLocalBackup(artifact.id);
+    expect(exportedPath).toContain(artifact.id);
+
+    await backend.resetApplicationData();
+    useLibraryStore.getState().reset();
+    useHighlightStore.getState().reset();
+
+    const imported = await executeImportBackup({
+      backupService: backend,
+      libraryService: backend,
+      highlightService: backend,
+      setBooks: useLibraryStore.getState().setBooks,
+      setHighlights: useHighlightStore.getState().setHighlights,
+    });
+
+    expect(imported?.booksCount).toBe(1);
     expect(useLibraryStore.getState().books).toHaveLength(1);
     expect(useHighlightStore.getState().highlights).toHaveLength(1);
   });

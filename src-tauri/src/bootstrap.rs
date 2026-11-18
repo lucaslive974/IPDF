@@ -67,6 +67,8 @@ pub fn run() {
             backup::list_local_backups,
             backup::restore_local_backup,
             backup::delete_local_backup,
+            backup::export_local_backup,
+            backup::import_and_restore_backup,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

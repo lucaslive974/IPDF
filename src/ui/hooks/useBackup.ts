@@ -79,6 +79,30 @@ export async function executeRestoreBackup(deps: RestoreBackupDependencies): Pro
   return report;
 }
 
+export interface ImportBackupDependencies {
+  readonly backupService: Pick<IBackupService, 'importAndRestoreBackup'>;
+  readonly libraryService: Pick<ILibraryService, 'listLibraryBooks'>;
+  readonly highlightService: Pick<IHighlightService, 'loadAllHighlights'>;
+  readonly setBooks: (books: readonly BookMetadata[]) => void;
+  readonly setHighlights: (highlights: readonly Highlight[]) => void;
+}
+
+export async function executeImportBackup(
+  deps: ImportBackupDependencies
+): Promise<BackupReport | null> {
+  const report = await deps.backupService.importAndRestoreBackup();
+  if (!report) {
+    return null;
+  }
+  const [books, highlights] = await Promise.all([
+    deps.libraryService.listLibraryBooks(),
+    deps.highlightService.loadAllHighlights(),
+  ]);
+  deps.setBooks(books);
+  deps.setHighlights(highlights);
+  return report;
+}
+
 export interface UseBackupReturn {
   readonly backups: readonly BackupArtifact[];
   readonly isLoading: boolean;
@@ -93,6 +117,8 @@ export interface UseBackupReturn {
   cancelRestore(): void;
   confirmRestore(backupId: string): Promise<void>;
   deleteBackup(backupId: string): Promise<void>;
+  exportBackup(backupId: string): Promise<void>;
+  importBackup(): Promise<void>;
 }
 
 export function useBackup(): UseBackupReturn {
@@ -197,6 +223,48 @@ export function useBackup(): UseBackupReturn {
     [backupService, pendingRestoreId, refreshBackups]
   );
 
+  const exportBackup = useCallback(
+    async (backupId: string) => {
+      setError(null);
+      try {
+        const exportedPath = await backupService.exportLocalBackup(backupId);
+        if (exportedPath) {
+          setStatusMessage(`Backup exported to ${exportedPath}`);
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        appLogger.error(`Failed to export backup ${backupId}: ${msg}`, 'backup');
+        setError(msg);
+      }
+    },
+    [backupService]
+  );
+
+  const importBackup = useCallback(async () => {
+    setIsRestoring(true);
+    setError(null);
+    setStatusMessage(null);
+    try {
+      const report = await executeImportBackup({
+        backupService,
+        libraryService,
+        highlightService,
+        setBooks,
+        setHighlights,
+      });
+      if (report) {
+        setPendingRestoreId(null);
+        setStatusMessage(formatBackupReportSummary('Backup imported', report));
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      appLogger.error(`Failed to import backup: ${msg}`, 'backup');
+      setError(msg);
+    } finally {
+      setIsRestoring(false);
+    }
+  }, [backupService, highlightService, libraryService, setBooks, setHighlights]);
+
   return {
     backups,
     isLoading,
@@ -211,5 +279,7 @@ export function useBackup(): UseBackupReturn {
     cancelRestore,
     confirmRestore,
     deleteBackup,
+    exportBackup,
+    importBackup,
   };
 }

@@ -22,4 +22,12 @@ export class TauriBackupService implements IBackupService {
   public async deleteLocalBackup(backupId: string): Promise<boolean> {
     return invoke<boolean>('delete_local_backup', { backupId });
   }
+
+  public async exportLocalBackup(backupId: string): Promise<string | null> {
+    return invoke<string | null>('export_local_backup', { backupId });
+  }
+
+  public async importAndRestoreBackup(): Promise<BackupReport | null> {
+    return invoke<BackupReport | null>('import_and_restore_backup');
+  }
 }
