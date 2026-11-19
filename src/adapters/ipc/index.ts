@@ -7,3 +7,4 @@ export * from './TauriLogService';
 export * from './TauriPresenceService';
 export * from './TauriReaderService';
 export * from './TauriSettingsService';
+export * from './TauriSyncService';

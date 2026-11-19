@@ -10,3 +10,4 @@ export * from './IPdfViewer';
 export * from './IPresenceService';
 export * from './IReaderService';
 export * from './ISettingsService';
+export * from './ISyncService';
