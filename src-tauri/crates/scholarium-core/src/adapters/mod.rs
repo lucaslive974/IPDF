@@ -1,4 +1,5 @@
 pub mod backup;
+pub mod cloud;
 pub mod configuration;
 pub mod extractor;
 pub mod logging;
