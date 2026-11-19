@@ -1,4 +1,5 @@
 pub mod backup_service;
+pub mod cloud_sync_engine;
 pub mod cloudless_sync_engine;
 pub mod data_portability_service;
 pub mod epub_content_service;
@@ -10,6 +11,7 @@ pub mod sha256_book_hasher;
 pub mod tts_session_manager;
 
 pub use backup_service::BackupService;
+pub use cloud_sync_engine::{merge_book_states, CloudSyncEngine, CloudSyncPaths, LocalSyncCursor};
 pub use cloudless_sync_engine::CloudlessSyncEngine;
 pub use data_portability_service::DataPortabilityService;
 pub use epub_content_service::EpubContentService;
