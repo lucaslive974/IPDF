@@ -2,6 +2,9 @@ pub mod backup_destination;
 pub mod book_cover_extractor;
 pub mod book_paginator;
 pub mod book_repository;
+pub mod cloud_auth_provider;
+pub mod cloud_credential_store;
+pub mod cloud_storage_provider;
 pub mod configuration_store;
 pub mod export_strategy;
 pub mod llm_provider;
@@ -19,6 +22,11 @@ pub use backup_destination::{
 pub use book_cover_extractor::{BookCoverExtractor, ExtractedCover};
 pub use book_paginator::BookPaginator;
 pub use book_repository::BookRepository;
+pub use cloud_auth_provider::{
+    AuthToken, CloudAuthKind, CloudAuthProvider, CloudProviderDescriptor, CloudSession,
+};
+pub use cloud_credential_store::CloudCredentialStore;
+pub use cloud_storage_provider::{CloudObjectMeta, CloudStorageError, CloudStorageProvider};
 pub use configuration_store::ConfigurationStore;
 pub use export_strategy::{
     ConflictResolution, ExportOptions, ExportStrategy, ImportReport, SyncPayload,
