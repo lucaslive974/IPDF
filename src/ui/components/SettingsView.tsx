@@ -4,7 +4,6 @@ import { useTheme } from '@providers/ThemeContext';
 import { SettingsAppearanceSection } from './settings/SettingsAppearanceSection';
 import { SettingsBackupSection } from './settings/SettingsBackupSection';
 import { SettingsDangerSection } from './settings/SettingsDangerSection';
-import { SettingsFoldersSection } from './settings/SettingsFoldersSection';
 import { SettingsHeader } from './settings/SettingsHeader';
 import { SettingsIntegrationsSection } from './settings/SettingsIntegrationsSection';
 import { SettingsSyncSection } from './settings/SettingsSyncSection';
@@ -20,14 +19,6 @@ export function SettingsView() {
 
       <main className="flex-1 mx-auto w-full max-w-3xl px-6 py-8 flex flex-col gap-6">
         <SettingsAppearanceSection theme={theme} onSetTheme={setTheme} />
-
-        <SettingsFoldersSection
-          monitoredFolders={settings.monitoredFolders}
-          newFolderInput={settings.newFolderInput}
-          onNewFolderInputChange={settings.setNewFolderInput}
-          onAddFolder={settings.addFolder}
-          onRemoveFolder={settings.removeFolder}
-        />
 
         <SettingsSyncSection
           isDriveConnected={settings.isDriveConnected}

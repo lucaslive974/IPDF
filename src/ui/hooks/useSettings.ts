@@ -8,8 +8,6 @@ import { appLogger } from '@utils/logger';
 import { useCallback, useEffect, useState } from 'react';
 
 export interface SettingsHook {
-  readonly monitoredFolders: string[];
-  readonly newFolderInput: string;
   readonly isDriveConnected: boolean;
   readonly isDiscordEnabled: boolean;
   readonly supportsDiscordPresence: boolean;
@@ -20,10 +18,7 @@ export interface SettingsHook {
   readonly showResetConfirm: boolean;
   readonly isResettingDatabase: boolean;
   readonly resetError: string | null;
-  setNewFolderInput(value: string): void;
   setShowResetConfirm(value: boolean): void;
-  addFolder(): void;
-  removeFolder(index: number): void;
   toggleDriveConnection(): void;
   toggleDiscordPresence(): Promise<void>;
   checkDiscordHealth(): Promise<void>;
@@ -34,11 +29,6 @@ export interface SettingsHook {
 export function useSettings(): SettingsHook {
   const { settingsService, presenceService } = useServiceContainer();
 
-  const [monitoredFolders, setMonitoredFolders] = useState<string[]>([
-    '~/Documents/PhilosophyBooks',
-    '~/.var/app/com.scholarium.reader/data/books',
-  ]);
-  const [newFolderInput, setNewFolderInput] = useState<string>('');
   const [isDriveConnected, setIsDriveConnected] = useState<boolean>(true);
   const [isDiscordEnabled, setIsDiscordEnabled] = useState<boolean>(true);
   const [supportsDiscordPresence, setSupportsDiscordPresence] = useState<boolean>(true);
@@ -105,17 +95,6 @@ export function useSettings(): SettingsHook {
     }
   }, [isDiscordEnabled, presenceService, checkDiscordHealth]);
 
-  const addFolder = useCallback(() => {
-    if (newFolderInput.trim().length > 0) {
-      setMonitoredFolders((prev) => [...prev, newFolderInput.trim()]);
-      setNewFolderInput('');
-    }
-  }, [newFolderInput]);
-
-  const removeFolder = useCallback((index: number) => {
-    setMonitoredFolders((prev) => prev.filter((_, idx) => idx !== index));
-  }, []);
-
   const toggleDriveConnection = useCallback(() => {
     setIsDriveConnected((prev) => !prev);
   }, []);
@@ -150,8 +129,6 @@ export function useSettings(): SettingsHook {
   }, [settingsService]);
 
   return {
-    monitoredFolders,
-    newFolderInput,
     isDriveConnected,
     isDiscordEnabled,
     supportsDiscordPresence,
@@ -162,10 +139,7 @@ export function useSettings(): SettingsHook {
     showResetConfirm,
     isResettingDatabase,
     resetError,
-    setNewFolderInput,
     setShowResetConfirm,
-    addFolder,
-    removeFolder,
     toggleDriveConnection,
     toggleDiscordPresence,
     checkDiscordHealth,
