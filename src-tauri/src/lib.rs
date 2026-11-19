@@ -3,6 +3,7 @@ pub mod commands;
 pub mod dtos;
 pub mod seed;
 pub mod state;
+pub mod sync_scheduler;
 pub mod utils;
 
 pub use bootstrap::run;

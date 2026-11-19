@@ -1,5 +1,6 @@
-use crate::commands::{ai, backup, highlights, library, reader, settings, system};
+use crate::commands::{ai, backup, highlights, library, reader, settings, sync, system};
 use crate::state::BackendState;
+use crate::sync_scheduler::{empty_status, load_configured_interval_secs, SyncSchedulerHandle};
 use scholarium_core::core::ports::StorageProvider;
 use std::sync::Mutex;
 use tauri::Manager;
@@ -18,8 +19,19 @@ pub fn run() {
         }));
     }
 
+    let backend_state = BackendState::default();
+    let initial_interval = load_configured_interval_secs(&backend_state.config_store);
+    let initial_status = empty_status(initial_interval, &backend_state);
+    let sync_scheduler = SyncSchedulerHandle::new(initial_interval, initial_status);
+    let bg_scheduler = sync_scheduler.clone();
+
     builder
-        .manage(Mutex::new(BackendState::default()))
+        .manage(Mutex::new(backend_state))
+        .manage(sync_scheduler)
+        .setup(move |app| {
+            bg_scheduler.spawn_background_loop(app.handle().clone());
+            Ok(())
+        })
         .register_asynchronous_uri_scheme_protocol("cover", handle_cover_protocol_request)
         .invoke_handler(tauri::generate_handler![
             // System routes
@@ -71,6 +83,20 @@ pub fn run() {
             backup::delete_local_backup,
             backup::export_local_backup,
             backup::import_and_restore_backup,
+            // Cloud Sync & On-Demand Storage routes
+            sync::list_cloud_providers,
+            sync::get_cloud_sync_status,
+            sync::begin_google_oauth,
+            sync::complete_google_oauth,
+            sync::connect_google_drive,
+            sync::disconnect_cloud_provider,
+            sync::trigger_cloud_sync,
+            sync::notify_app_resumed,
+            sync::set_cloud_sync_interval,
+            sync::list_book_availabilities,
+            sync::download_remote_book,
+            sync::evict_local_book,
+            sync::clear_cloud_sync_data,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

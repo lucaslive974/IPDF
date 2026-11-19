@@ -1,5 +1,9 @@
 use crate::seed::seed_bundled_assets_if_needed;
 use crate::utils::find_file_argument;
+use scholarium_core::adapters::cloud::{
+    FileCloudCredentialStore, GoogleDriveAppDataAdapter, GoogleOAuthConfig, GoogleOAuthPkceAdapter,
+    PkceChallenge, UreqHttpTransport,
+};
 use scholarium_core::adapters::configuration::SqliteConfigurationStore;
 use scholarium_core::adapters::logging::AsyncFileLogger;
 use scholarium_core::adapters::pagination::EpubBookPaginator;
@@ -9,23 +13,35 @@ use scholarium_core::adapters::platform::{
     AndroidEnvironment, IosEnvironment, LinuxEnvironment, WindowsEnvironment,
 };
 use scholarium_core::adapters::presence::NativeDiscordPresenceAdapter;
-use scholarium_core::adapters::storage::LocalFolderStorageAdapter;
+use scholarium_core::adapters::storage::{LocalFolderStorageAdapter, StorageManagerDecorator};
 use scholarium_core::core::domain::BookMetadata;
 use scholarium_core::core::ports::{
-    ConfigurationStore, LogEntry, LogLevel, LogService, PlatformEnvironment,
+    CloudAuthProvider, CloudStorageProvider, ConfigurationStore, LogEntry, LogLevel, LogService,
+    PlatformEnvironment,
 };
 use scholarium_core::core::services::{EpubContentService, LibraryManager, RichPresenceManager};
+use std::sync::Arc;
+
+pub type AppStorage = StorageManagerDecorator<LocalFolderStorageAdapter>;
+
+pub struct PendingGoogleOAuth {
+    pub pkce: PkceChallenge,
+    pub adapter: Arc<GoogleOAuthPkceAdapter>,
+}
 
 pub struct BackendState {
-    pub storage: LocalFolderStorageAdapter,
-    pub library: LibraryManager<LocalFolderStorageAdapter>,
-    pub epub_content: EpubContentService<LocalFolderStorageAdapter, EpubBookPaginator>,
+    pub storage: AppStorage,
+    pub library: LibraryManager<AppStorage>,
+    pub epub_content: EpubContentService<AppStorage, EpubBookPaginator>,
     pub highlight_repo: SqliteHighlightRepository,
     pub config_store: SqliteConfigurationStore,
     pub platform_env: Box<dyn PlatformEnvironment + Send>,
     pub startup_book: Option<BookMetadata>,
     pub presence_manager: RichPresenceManager,
     pub logger: AsyncFileLogger,
+    pub credential_store: Arc<FileCloudCredentialStore>,
+    pub cloud_auth: Option<Arc<GoogleOAuthPkceAdapter>>,
+    pub pending_oauth: Option<PendingGoogleOAuth>,
 }
 
 impl Default for BackendState {
@@ -45,8 +61,9 @@ impl Default for BackendState {
         });
         logger.install_global();
 
-        let mut storage = LocalFolderStorageAdapter::for_platform("local-folder", &*platform)
+        let local_storage = LocalFolderStorageAdapter::for_platform("local-folder", &*platform)
             .expect("Failed to init storage for platform");
+        let mut storage = StorageManagerDecorator::new_local_only(local_storage);
 
         let highlight_repo = SqliteHighlightRepository::open_for_platform(&*platform)
             .unwrap_or_else(|err| {
@@ -119,6 +136,23 @@ impl Default for BackendState {
             presence_manager.register_provider(discord_adapter);
         }
 
+        let credential_store = Arc::new(
+            FileCloudCredentialStore::for_platform(&*platform).unwrap_or_else(|_| {
+                FileCloudCredentialStore::new(
+                    std::env::temp_dir().join(FileCloudCredentialStore::CREDENTIALS_FILENAME),
+                )
+            }),
+        );
+        let client_id_override = config_store.get("google_oauth_client_id").ok().flatten();
+        let cloud_auth = restore_google_session(&credential_store, client_id_override);
+        if let Some(ref auth) = cloud_auth {
+            let remote: Arc<dyn CloudStorageProvider> = Arc::new(GoogleDriveAppDataAdapter::new(
+                auth.clone(),
+                Arc::new(UreqHttpTransport::new()),
+            ));
+            storage.set_remote(Some(remote));
+        }
+
         let args: Vec<String> = std::env::args().collect();
         let startup_book = Self::import_book_from_cli_args(&mut library, &epub_content, &args);
 
@@ -132,14 +166,39 @@ impl Default for BackendState {
             startup_book,
             presence_manager,
             logger,
+            credential_store,
+            cloud_auth,
+            pending_oauth: None,
         }
+    }
+}
+
+fn restore_google_session(
+    credential_store: &Arc<FileCloudCredentialStore>,
+    client_id_override: Option<String>,
+) -> Option<Arc<GoogleOAuthPkceAdapter>> {
+    let cfg = GoogleOAuthConfig::resolve(
+        client_id_override,
+        None,
+        "http://127.0.0.1:42813/oauth/callback",
+    )
+    .ok()?;
+    let adapter = Arc::new(GoogleOAuthPkceAdapter::new(
+        cfg,
+        credential_store.clone(),
+        Arc::new(UreqHttpTransport::new()),
+    ));
+    if adapter.session().ok()?.connected {
+        Some(adapter)
+    } else {
+        None
     }
 }
 
 impl BackendState {
     pub(crate) fn import_book_from_cli_args(
-        library: &mut LibraryManager<LocalFolderStorageAdapter>,
-        epub_content: &EpubContentService<LocalFolderStorageAdapter, EpubBookPaginator>,
+        library: &mut LibraryManager<AppStorage>,
+        epub_content: &EpubContentService<AppStorage, EpubBookPaginator>,
         args: &[String],
     ) -> Option<BookMetadata> {
         let path = find_file_argument(args)?;
