@@ -17,6 +17,8 @@ function renderBackupSection(
     isCreating: false,
     isRestoring: false,
     uploadingBackupId: null,
+    exportingBackupId: null,
+    deletingBackupId: null,
     uploadToCloud: false,
     pendingRestoreId: null,
     statusMessage: null,

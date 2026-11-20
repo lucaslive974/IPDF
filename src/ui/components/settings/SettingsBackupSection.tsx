@@ -90,6 +90,8 @@ interface BackupArtifactRowProps {
   readonly isBusy: boolean;
   readonly isRestoring: boolean;
   readonly isUploading: boolean;
+  readonly isExporting: boolean;
+  readonly isDeleting: boolean;
   readonly onRequestRestore: (backupId: string) => void;
   readonly onConfirmRestore: (backupId: string) => void;
   readonly onCancelRestore: () => void;
@@ -106,6 +108,8 @@ function BackupArtifactRow({
   isBusy,
   isRestoring,
   isUploading,
+  isExporting,
+  isDeleting,
   onRequestRestore,
   onConfirmRestore,
   onCancelRestore,
@@ -154,19 +158,24 @@ function BackupArtifactRow({
             <Button
               variant="outline"
               size="xs"
-              disabled={isBusy || isUploading}
+              disabled={isBusy || isUploading || isDeleting}
               onClick={() => onDeleteRemote(backup.id)}
             >
-              Remove from Cloud
+              {isDeleting ? 'Removing…' : 'Remove from Cloud'}
             </Button>
           )}
-          <Button variant="outline" size="xs" disabled={isBusy} onClick={() => onExport(backup.id)}>
-            Save As…
+          <Button
+            variant="outline"
+            size="xs"
+            disabled={isBusy || isExporting || isDeleting}
+            onClick={() => onExport(backup.id)}
+          >
+            {isExporting ? 'Exporting…' : 'Save As…'}
           </Button>
           <Button
             variant="outline"
             size="xs"
-            disabled={isBusy}
+            disabled={isBusy || isExporting || isDeleting}
             onClick={() => onRequestRestore(backup.id)}
           >
             Restore
@@ -174,12 +183,12 @@ function BackupArtifactRow({
           <Button
             variant="danger-subtle"
             size="xs"
-            disabled={isBusy}
+            disabled={isBusy || isDeleting}
             onClick={() =>
               location === 'remote' ? onDeleteRemote(backup.id) : onDelete(backup.id)
             }
           >
-            Delete
+            {isDeleting ? 'Deleting…' : 'Delete'}
           </Button>
         </div>
       </div>
@@ -211,6 +220,8 @@ export const SettingsBackupSection = memo(function SettingsBackupSection({
     isCreating,
     isRestoring,
     uploadingBackupId,
+    exportingBackupId,
+    deletingBackupId,
     uploadToCloud,
     pendingRestoreId,
     statusMessage,
@@ -233,7 +244,14 @@ export const SettingsBackupSection = memo(function SettingsBackupSection({
     <Card variant="surface" padding="md" className="flex flex-col gap-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-tx-muted">Backups</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-tx-muted">
+              Backups
+            </h2>
+            {isLoading && backups.length > 0 && (
+              <span className="text-[0.68rem] text-tx-muted animate-pulse">Refreshing…</span>
+            )}
+          </div>
           <p className="mt-1 text-xs text-tx-secondary">
             Create and restore full snapshots of your books, covers, database, and highlights:
           </p>
@@ -291,6 +309,8 @@ export const SettingsBackupSection = memo(function SettingsBackupSection({
               isBusy={isBusy}
               isRestoring={isRestoring}
               isUploading={uploadingBackupId === backup.id}
+              isExporting={exportingBackupId === backup.id}
+              isDeleting={deletingBackupId === backup.id}
               onRequestRestore={requestRestore}
               onConfirmRestore={(id) => void confirmRestore(id)}
               onCancelRestore={cancelRestore}

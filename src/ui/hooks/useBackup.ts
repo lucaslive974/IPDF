@@ -111,6 +111,8 @@ export interface UseBackupReturn {
   readonly isCreating: boolean;
   readonly isRestoring: boolean;
   readonly uploadingBackupId: string | null;
+  readonly exportingBackupId: string | null;
+  readonly deletingBackupId: string | null;
   readonly uploadToCloud: boolean;
   readonly pendingRestoreId: string | null;
   readonly statusMessage: string | null;
@@ -138,6 +140,8 @@ export function useBackup(): UseBackupReturn {
   const [isCreating, setIsCreating] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [uploadingBackupId, setUploadingBackupId] = useState<string | null>(null);
+  const [exportingBackupId, setExportingBackupId] = useState<string | null>(null);
+  const [deletingBackupId, setDeletingBackupId] = useState<string | null>(null);
   const [uploadToCloud, setUploadToCloud] = useState(false);
   const [pendingRestoreId, setPendingRestoreId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -216,6 +220,7 @@ export function useBackup(): UseBackupReturn {
 
   const deleteBackup = useCallback(
     async (backupId: string) => {
+      setDeletingBackupId(backupId);
       setError(null);
       try {
         await backupService.deleteLocalBackup(backupId);
@@ -227,6 +232,8 @@ export function useBackup(): UseBackupReturn {
         const msg = err instanceof Error ? err.message : String(err);
         appLogger.error(`Failed to delete backup ${backupId}: ${msg}`, 'backup');
         setError(msg);
+      } finally {
+        setDeletingBackupId(null);
       }
     },
     [backupService, pendingRestoreId, refreshBackups]
@@ -254,6 +261,7 @@ export function useBackup(): UseBackupReturn {
 
   const deleteRemoteBackup = useCallback(
     async (backupId: string) => {
+      setDeletingBackupId(backupId);
       setError(null);
       try {
         await backupService.deleteRemoteBackup(backupId);
@@ -265,6 +273,8 @@ export function useBackup(): UseBackupReturn {
         const msg = err instanceof Error ? err.message : String(err);
         appLogger.error(`Failed to delete remote backup ${backupId}: ${msg}`, 'backup');
         setError(msg);
+      } finally {
+        setDeletingBackupId(null);
       }
     },
     [backupService, pendingRestoreId, refreshBackups]
@@ -272,6 +282,7 @@ export function useBackup(): UseBackupReturn {
 
   const exportBackup = useCallback(
     async (backupId: string) => {
+      setExportingBackupId(backupId);
       setError(null);
       try {
         const exportedPath = await backupService.exportLocalBackup(backupId);
@@ -282,6 +293,8 @@ export function useBackup(): UseBackupReturn {
         const msg = err instanceof Error ? err.message : String(err);
         appLogger.error(`Failed to export backup ${backupId}: ${msg}`, 'backup');
         setError(msg);
+      } finally {
+        setExportingBackupId(null);
       }
     },
     [backupService]
@@ -328,6 +341,8 @@ export function useBackup(): UseBackupReturn {
     isCreating,
     isRestoring,
     uploadingBackupId,
+    exportingBackupId,
+    deletingBackupId,
     uploadToCloud,
     pendingRestoreId,
     statusMessage,
