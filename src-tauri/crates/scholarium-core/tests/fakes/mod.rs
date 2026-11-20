@@ -2,9 +2,9 @@
 
 use scholarium_core::core::domain::{BookFormat, BookMetadata, BookStorageLocation, Highlight};
 use scholarium_core::core::ports::{
-    BookRepository, ExportStrategy, HighlightRepository, MediaControlService, MediaMetadata,
-    PlaybackState, PowerSaveBlocker, PresenceActivity, PresenceHealth, PresenceProvider,
-    SpeakOptions, StorageEntry, StorageProvider, SyncPayload, TtsProvider,
+    BookRepository, HighlightRepository, MediaControlService, MediaMetadata, PlaybackState,
+    PowerSaveBlocker, PresenceActivity, PresenceHealth, PresenceProvider, SpeakOptions,
+    StorageEntry, StorageProvider, TtsProvider,
 };
 use std::collections::BTreeMap;
 
@@ -288,19 +288,6 @@ impl StorageProvider for InMemoryStorage {
         Ok(())
     }
 }
-
-pub struct JsonExport;
-
-impl ExportStrategy for ExportStrategyImpl {
-    fn serialize(&self, payload: &SyncPayload) -> Result<Vec<u8>, String> {
-        serde_json::to_vec(payload).map_err(|e| e.to_string())
-    }
-    fn deserialize(&self, raw: &[u8]) -> Result<SyncPayload, String> {
-        serde_json::from_slice(raw).map_err(|e| e.to_string())
-    }
-}
-
-pub type ExportStrategyImpl = JsonExport;
 
 pub struct SpyPresence {
     pub id: String,

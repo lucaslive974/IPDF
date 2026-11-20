@@ -6,7 +6,6 @@ pub mod cloud_auth_provider;
 pub mod cloud_credential_store;
 pub mod cloud_storage_provider;
 pub mod configuration_store;
-pub mod export_strategy;
 pub mod llm_provider;
 pub mod logging;
 pub mod platform_environment;
@@ -28,9 +27,6 @@ pub use cloud_auth_provider::{
 pub use cloud_credential_store::CloudCredentialStore;
 pub use cloud_storage_provider::{CloudObjectMeta, CloudStorageError, CloudStorageProvider};
 pub use configuration_store::ConfigurationStore;
-pub use export_strategy::{
-    ConflictResolution, ExportOptions, ExportStrategy, ImportReport, SyncPayload,
-};
 pub use llm_provider::{LlmRequest, ReadingContext};
 pub use logging::{LogEntry, LogLevel, LogService};
 pub use platform_environment::{sanitize_device_label, PlatformEnvironment};

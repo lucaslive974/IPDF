@@ -1,9 +1,6 @@
 pub mod backup_service;
 pub mod cloud_sync_engine;
-pub mod cloudless_sync_engine;
-pub mod data_portability_service;
 pub mod epub_content_service;
-pub mod highlight_manager;
 pub mod library_manager;
 pub mod prompt_builder;
 pub mod rich_presence_manager;
@@ -12,10 +9,7 @@ pub mod tts_session_manager;
 
 pub use backup_service::BackupService;
 pub use cloud_sync_engine::{merge_book_states, CloudSyncEngine, CloudSyncPaths, LocalSyncCursor};
-pub use cloudless_sync_engine::CloudlessSyncEngine;
-pub use data_portability_service::DataPortabilityService;
 pub use epub_content_service::EpubContentService;
-pub use highlight_manager::{CreateHighlightInput, HighlightManager};
 pub use library_manager::{ImportBookInput, LibraryManager};
 pub use prompt_builder::PromptBuilder;
 pub use rich_presence_manager::RichPresenceManager;
