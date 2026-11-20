@@ -3,18 +3,24 @@ use scholarium_core::adapters::cloud::{
     FileCloudCredentialStore, GoogleOAuthConfig, GoogleOAuthPkceAdapter, PkceChallenge,
     UreqHttpTransport,
 };
-use std::io::{Read, Write};
-use std::net::{TcpListener, TcpStream};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tauri_plugin_opener::OpenerExt;
+use tiny_http::{Header, Request, Response, Server};
+use url::Url;
+
+const CALLBACK_HTML_TEMPLATE: &str = include_str!("../../assets/oauth_callback.html");
 
 pub fn run_desktop_oauth_loopback(
     app: &tauri::AppHandle,
     credential_store: Arc<FileCloudCredentialStore>,
 ) -> Result<Arc<GoogleOAuthPkceAdapter>, String> {
-    let listener = TcpListener::bind("127.0.0.1:0").map_err(|e| e.to_string())?;
-    let port = listener.local_addr().map_err(|e| e.to_string())?.port();
+    let server = Server::http("127.0.0.1:0").map_err(|e| e.to_string())?;
+    let port = server
+        .server_addr()
+        .to_ip()
+        .map(|addr| addr.port())
+        .ok_or_else(|| "Failed to resolve loopback server port".to_string())?;
     let redirect_uri = format!("http://127.0.0.1:{port}/oauth/callback");
 
     let cfg = GoogleOAuthConfig::resolve(None, None, &redirect_uri)?;
@@ -34,32 +40,14 @@ pub fn run_desktop_oauth_loopback(
         .open_url(&auth_url, None::<&str>)
         .map_err(|e| format!("Failed to open system browser: {e}"))?;
 
-    listener.set_nonblocking(true).map_err(|e| e.to_string())?;
     let deadline = Instant::now() + Duration::from_secs(180);
+    let request = wait_for_callback_request(&server, deadline)?;
 
-    let mut stream = loop {
-        match listener.accept() {
-            Ok((stream, _)) => break stream,
-            Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {
-                if Instant::now() >= deadline {
-                    return Err("Timed out waiting for Google OAuth sign-in".to_string());
-                }
-                std::thread::sleep(Duration::from_millis(100));
-            }
-            Err(err) => return Err(err.to_string()),
-        }
-    };
-
-    let _ = stream.set_read_timeout(Some(Duration::from_secs(10)));
-    let mut buf = [0u8; 4096];
-    let n = stream.read(&mut buf).map_err(|e| e.to_string())?;
-    let request = String::from_utf8_lossy(&buf[..n]);
-
-    let (code, returned_state, oauth_error) = parse_oauth_callback_request(&request);
+    let (code, returned_state, oauth_error) = parse_callback_query(request.url());
     if let Some(err) = oauth_error {
-        let _ = write_callback_html(
-            &mut stream,
-            "400 Bad Request",
+        respond_html(
+            request,
+            400,
             "Sign-in cancelled",
             "Google sign-in was cancelled or denied. You can close this tab.",
         );
@@ -67,9 +55,9 @@ pub fn run_desktop_oauth_loopback(
     }
 
     if returned_state.as_deref() != Some(pkce.state.as_str()) {
-        let _ = write_callback_html(
-            &mut stream,
-            "400 Bad Request",
+        respond_html(
+            request,
+            400,
             "Invalid OAuth state",
             "OAuth state verification failed. Please try connecting again from Scholarium.",
         );
@@ -77,9 +65,9 @@ pub fn run_desktop_oauth_loopback(
     }
 
     let Some(auth_code) = code else {
-        let _ = write_callback_html(
-            &mut stream,
-            "400 Bad Request",
+        respond_html(
+            request,
+            400,
             "Missing authorization code",
             "No authorization code was received. Please try connecting again.",
         );
@@ -87,9 +75,9 @@ pub fn run_desktop_oauth_loopback(
     };
 
     adapter.exchange_code(&auth_code, &pkce.code_verifier, None, current_epoch_ms())?;
-    let _ = write_callback_html(
-        &mut stream,
-        "200 OK",
+    respond_html(
+        request,
+        200,
         "Google Drive Connected",
         "Scholarium is now connected to your Google Drive. You can close this tab and return to the app.",
     );
@@ -97,65 +85,53 @@ pub fn run_desktop_oauth_loopback(
     Ok(adapter)
 }
 
-fn parse_oauth_callback_request(request: &str) -> (Option<String>, Option<String>, Option<String>) {
-    let first_line = request.lines().next().unwrap_or("");
-    let target = first_line.split_whitespace().nth(1).unwrap_or("");
-    let query = target.split('?').nth(1).unwrap_or("");
+fn wait_for_callback_request(server: &Server, deadline: Instant) -> Result<Request, String> {
+    loop {
+        let Some(remaining) = deadline.checked_duration_since(Instant::now()) else {
+            return Err("Timed out waiting for Google OAuth sign-in".to_string());
+        };
+        let req = server
+            .recv_timeout(remaining)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "Timed out waiting for Google OAuth sign-in".to_string())?;
+
+        if req.url().starts_with("/oauth/callback") {
+            return Ok(req);
+        }
+        let _ = req.respond(Response::empty(404));
+    }
+}
+
+fn parse_callback_query(raw_url: &str) -> (Option<String>, Option<String>, Option<String>) {
+    let Ok(parsed) = Url::parse(&format!("http://127.0.0.1{raw_url}")) else {
+        return (None, None, None);
+    };
+
     let mut code = None;
     let mut state = None;
     let mut error = None;
 
-    for pair in query.split('&') {
-        let mut parts = pair.splitn(2, '=');
-        let key = parts.next().unwrap_or("");
-        let val = parts.next().unwrap_or("");
-        let decoded = percent_decode(val);
-        match key {
-            "code" if !decoded.is_empty() => code = Some(decoded),
-            "state" if !decoded.is_empty() => state = Some(decoded),
-            "error" if !decoded.is_empty() => error = Some(decoded),
+    for (key, value) in parsed.query_pairs() {
+        if value.is_empty() {
+            continue;
+        }
+        match key.as_ref() {
+            "code" => code = Some(value.into_owned()),
+            "state" => state = Some(value.into_owned()),
+            "error" => error = Some(value.into_owned()),
             _ => {}
         }
     }
     (code, state, error)
 }
 
-fn percent_decode(input: &str) -> String {
-    let bytes = input.as_bytes();
-    let mut out = Vec::with_capacity(bytes.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'%' && i + 2 < bytes.len() {
-            if let Ok(hex) = std::str::from_utf8(&bytes[i + 1..i + 3]) {
-                if let Ok(val) = u8::from_str_radix(hex, 16) {
-                    out.push(val);
-                    i += 3;
-                    continue;
-                }
-            }
-        }
-        out.push(if bytes[i] == b'+' { b' ' } else { bytes[i] });
-        i += 1;
+fn respond_html(request: Request, status_code: u16, title: &str, message: &str) {
+    let body = CALLBACK_HTML_TEMPLATE
+        .replace("{{TITLE}}", title)
+        .replace("{{MESSAGE}}", message);
+    let mut response = Response::from_string(body).with_status_code(status_code);
+    if let Ok(header) = Header::from_bytes(b"Content-Type", b"text/html; charset=utf-8") {
+        response = response.with_header(header);
     }
-    String::from_utf8_lossy(&out).to_string()
-}
-
-fn write_callback_html(
-    stream: &mut TcpStream,
-    status: &str,
-    title: &str,
-    message: &str,
-) -> std::io::Result<()> {
-    let body = format!(
-        "<!doctype html><html><head><meta charset='utf-8'><title>{title}</title></head>\
-         <body style='font-family:system-ui,sans-serif;background:#111;color:#eee;display:flex;align-items:center;justify-content:center;height:100vh;margin:0'>\
-         <div style='max-width:420px;text-align:center;padding:32px;border-radius:12px;background:#1c1c1e;border:1px solid #333'>\
-         <h2 style='margin:0 0 12px'>{title}</h2><p style='margin:0;color:#aaa;font-size:14px'>{message}</p>\
-         </div></body></html>"
-    );
-    let response = format!(
-        "HTTP/1.1 {status}\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-        body.len()
-    );
-    stream.write_all(response.as_bytes())
+    let _ = request.respond(response);
 }
