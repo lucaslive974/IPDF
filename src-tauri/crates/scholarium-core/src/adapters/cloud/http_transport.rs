@@ -1,4 +1,7 @@
+use std::io::Read;
 use std::time::Duration;
+
+pub const DEFAULT_HTTP_TIMEOUT: Duration = Duration::from_secs(15);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HttpMethod {
@@ -14,6 +17,7 @@ pub struct HttpRequest {
     pub url: String,
     pub headers: Vec<(String, String)>,
     pub body: Vec<u8>,
+    pub timeout: Option<Duration>,
 }
 
 #[derive(Debug, Clone)]
@@ -51,7 +55,7 @@ impl Default for UreqHttpTransport {
 impl UreqHttpTransport {
     pub fn new() -> Self {
         let config = ureq::Agent::config_builder()
-            .timeout_global(Some(Duration::from_secs(60)))
+            .timeout_global(Some(DEFAULT_HTTP_TIMEOUT))
             .http_status_as_error(false)
             .build();
         Self {
@@ -65,6 +69,9 @@ impl HttpTransport for UreqHttpTransport {
         let response = match request.method {
             HttpMethod::Get => {
                 let mut req = self.agent.get(&request.url);
+                if let Some(timeout) = request.timeout {
+                    req = req.config().timeout_global(Some(timeout)).build();
+                }
                 for (k, v) in &request.headers {
                     req = req.header(k, v);
                 }
@@ -72,6 +79,9 @@ impl HttpTransport for UreqHttpTransport {
             }
             HttpMethod::Delete => {
                 let mut req = self.agent.delete(&request.url);
+                if let Some(timeout) = request.timeout {
+                    req = req.config().timeout_global(Some(timeout)).build();
+                }
                 for (k, v) in &request.headers {
                     req = req.header(k, v);
                 }
@@ -79,6 +89,9 @@ impl HttpTransport for UreqHttpTransport {
             }
             HttpMethod::Post => {
                 let mut req = self.agent.post(&request.url);
+                if let Some(timeout) = request.timeout {
+                    req = req.config().timeout_global(Some(timeout)).build();
+                }
                 for (k, v) in &request.headers {
                     req = req.header(k, v);
                 }
@@ -86,6 +99,9 @@ impl HttpTransport for UreqHttpTransport {
             }
             HttpMethod::Patch => {
                 let mut req = self.agent.patch(&request.url);
+                if let Some(timeout) = request.timeout {
+                    req = req.config().timeout_global(Some(timeout)).build();
+                }
                 for (k, v) in &request.headers {
                     req = req.header(k, v);
                 }
@@ -103,9 +119,11 @@ impl HttpTransport for UreqHttpTransport {
                     .map(|val| (k.as_str().to_string(), val.to_string()))
             })
             .collect();
-        let body = response
+        let mut body = Vec::new();
+        response
             .into_body()
-            .read_to_vec()
+            .into_reader()
+            .read_to_end(&mut body)
             .map_err(|e| e.to_string())?;
 
         Ok(HttpResponse {

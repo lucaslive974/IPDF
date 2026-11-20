@@ -225,6 +225,7 @@ impl GoogleOAuthPkceAdapter {
                 "application/x-www-form-urlencoded".to_string(),
             )],
             body,
+            timeout: None,
         })?;
 
         if !(200..300).contains(&response.status) {
@@ -306,6 +307,7 @@ impl CloudAuthProvider for GoogleOAuthPkceAdapter {
                     "application/x-www-form-urlencoded".to_string(),
                 )],
                 body,
+                timeout: None,
             });
         }
         self.credentials.delete_secret(GOOGLE_DRIVE_PROVIDER_ID)

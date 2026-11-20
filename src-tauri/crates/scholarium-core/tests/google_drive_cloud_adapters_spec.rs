@@ -501,6 +501,7 @@ fn ureq_http_transport_executes_all_methods_against_local_loopback_server() {
                 } else {
                     vec![]
                 },
+                timeout: None,
             })
             .unwrap();
         assert_eq!(resp.status, 200);

@@ -6,6 +6,9 @@ use crate::core::ports::{CloudObjectMeta, CloudStorageError, CloudStorageProvide
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
+const TRANSFER_TIMEOUT: Duration = Duration::from_secs(600);
 
 const DRIVE_FILES_API: &str = "https://www.googleapis.com/drive/v3/files";
 const DRIVE_UPLOAD_API: &str = "https://www.googleapis.com/upload/drive/v3/files";
@@ -84,7 +87,7 @@ impl GoogleDriveAppDataAdapter {
         body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
 
         let url = format!("{DRIVE_UPLOAD_API}?uploadType=multipart&fields={DRIVE_FILE_FIELDS}");
-        let resp = self.send_authed(
+        let resp = self.send_authed_with_timeout(
             HttpMethod::Post,
             url,
             vec![(
@@ -92,6 +95,7 @@ impl GoogleDriveAppDataAdapter {
                 format!("multipart/related; boundary={boundary}"),
             )],
             body,
+            Some(TRANSFER_TIMEOUT),
         )?;
         let record: DriveFileRecord = parse_json(&resp.body)?;
         if let Ok(mut cache) = self.id_cache.lock() {
@@ -108,11 +112,12 @@ impl GoogleDriveAppDataAdapter {
     ) -> Result<CloudObjectMeta, CloudStorageError> {
         let url =
             format!("{DRIVE_UPLOAD_API}/{file_id}?uploadType=media&fields={DRIVE_FILE_FIELDS}");
-        let resp = self.send_authed(
+        let resp = self.send_authed_with_timeout(
             HttpMethod::Patch,
             url,
             vec![("Content-Type".to_string(), content_type.to_string())],
             bytes.to_vec(),
+            Some(TRANSFER_TIMEOUT),
         )?;
         let record: DriveFileRecord = parse_json(&resp.body)?;
         Ok(record_to_meta(&record))
@@ -125,6 +130,17 @@ impl GoogleDriveAppDataAdapter {
         headers: Vec<(String, String)>,
         body: Vec<u8>,
     ) -> Result<HttpResponse, CloudStorageError> {
+        self.send_authed_with_timeout(method, url, headers, body, None)
+    }
+
+    fn send_authed_with_timeout(
+        &self,
+        method: HttpMethod,
+        url: String,
+        headers: Vec<(String, String)>,
+        body: Vec<u8>,
+        timeout: Option<Duration>,
+    ) -> Result<HttpResponse, CloudStorageError> {
         let resp = self
             .http
             .send(HttpRequest {
@@ -132,6 +148,7 @@ impl GoogleDriveAppDataAdapter {
                 url,
                 headers,
                 body,
+                timeout,
             })
             .map_err(|err| {
                 if let Some(msg) = err.strip_prefix("Unauthorized: ") {
@@ -159,7 +176,13 @@ impl CloudStorageProvider for GoogleDriveAppDataAdapter {
             return Ok(None);
         };
         let url = format!("{DRIVE_FILES_API}/{}?alt=media", record.id);
-        let resp = self.send_authed(HttpMethod::Get, url, vec![], vec![])?;
+        let resp = self.send_authed_with_timeout(
+            HttpMethod::Get,
+            url,
+            vec![],
+            vec![],
+            Some(TRANSFER_TIMEOUT),
+        )?;
         Ok(Some((resp.body, record_to_meta(&record))))
     }
 
