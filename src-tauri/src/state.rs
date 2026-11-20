@@ -145,8 +145,7 @@ impl Default for BackendState {
                 )
             }),
         );
-        let client_id_override = config_store.get("google_oauth_client_id").ok().flatten();
-        let cloud_auth = restore_google_session(&credential_store, client_id_override);
+        let cloud_auth = restore_google_session(&credential_store);
         if let Some(ref auth) = cloud_auth {
             let remote: Arc<dyn CloudStorageProvider> = Arc::new(GoogleDriveAppDataAdapter::new(
                 auth.clone(),
@@ -177,14 +176,8 @@ impl Default for BackendState {
 
 fn restore_google_session(
     credential_store: &Arc<FileCloudCredentialStore>,
-    client_id_override: Option<String>,
 ) -> Option<Arc<GoogleOAuthPkceAdapter>> {
-    let cfg = GoogleOAuthConfig::resolve(
-        client_id_override,
-        None,
-        "http://127.0.0.1:42813/oauth/callback",
-    )
-    .ok()?;
+    let cfg = GoogleOAuthConfig::resolve("http://127.0.0.1:42813/oauth/callback").ok()?;
     let adapter = Arc::new(GoogleOAuthPkceAdapter::new(
         cfg,
         credential_store.clone(),

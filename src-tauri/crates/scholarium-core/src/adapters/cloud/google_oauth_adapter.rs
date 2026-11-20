@@ -35,51 +35,37 @@ pub struct GoogleOAuthConfig {
 }
 
 impl GoogleOAuthConfig {
-    /// Resolves `client_id` in priority order:
-    /// 1. Explicit BYOC override (e.g. from Settings)
-    /// 2. Runtime environment variable `SCHOLARIUM_GOOGLE_CLIENT_ID`
-    /// 3. Compile-time build variable `option_env!("SCHOLARIUM_GOOGLE_CLIENT_ID")`
-    pub fn resolve(
-        override_client_id: Option<String>,
-        override_client_secret: Option<String>,
+    pub fn new(
+        client_id: impl Into<String>,
+        client_secret: Option<String>,
         redirect_uri: impl Into<String>,
-    ) -> Result<Self, String> {
-        let client_id = override_client_id
-            .filter(|s| !s.trim().is_empty())
-            .or_else(|| {
-                std::env::var("SCHOLARIUM_GOOGLE_CLIENT_ID")
-                    .ok()
-                    .filter(|s| !s.trim().is_empty())
-            })
-            .or_else(|| {
-                option_env!("SCHOLARIUM_GOOGLE_CLIENT_ID")
-                    .map(str::to_string)
-                    .filter(|s| !s.trim().is_empty())
-            })
+    ) -> Self {
+        Self {
+            client_id: client_id.into(),
+            client_secret: client_secret.filter(|s| !s.trim().is_empty()),
+            redirect_uri: redirect_uri.into(),
+            scope: GOOGLE_DRIVE_APPDATA_SCOPE.to_string(),
+        }
+    }
+
+    /// Resolves compile-time Google OAuth credentials (`SCHOLARIUM_GOOGLE_CLIENT_ID`
+    /// and optional `SCHOLARIUM_GOOGLE_CLIENT_SECRET`).
+    pub fn resolve(redirect_uri: impl Into<String>) -> Result<Self, String> {
+        let client_id = option_env!("SCHOLARIUM_GOOGLE_CLIENT_ID")
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string)
             .ok_or_else(|| {
-                "Google OAuth client ID is not configured (set SCHOLARIUM_GOOGLE_CLIENT_ID)"
+                "Google OAuth client ID is not configured (set SCHOLARIUM_GOOGLE_CLIENT_ID at build time)"
                     .to_string()
             })?;
 
-        let client_secret = override_client_secret
-            .filter(|s| !s.trim().is_empty())
-            .or_else(|| {
-                std::env::var("SCHOLARIUM_GOOGLE_CLIENT_SECRET")
-                    .ok()
-                    .filter(|s| !s.trim().is_empty())
-            })
-            .or_else(|| {
-                option_env!("SCHOLARIUM_GOOGLE_CLIENT_SECRET")
-                    .map(str::to_string)
-                    .filter(|s| !s.trim().is_empty())
-            });
+        let client_secret = option_env!("SCHOLARIUM_GOOGLE_CLIENT_SECRET")
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string);
 
-        Ok(Self {
-            client_id,
-            client_secret,
-            redirect_uri: redirect_uri.into(),
-            scope: GOOGLE_DRIVE_APPDATA_SCOPE.to_string(),
-        })
+        Ok(Self::new(client_id, client_secret, redirect_uri))
     }
 }
 

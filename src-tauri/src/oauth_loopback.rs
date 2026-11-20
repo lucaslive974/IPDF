@@ -23,7 +23,7 @@ pub fn run_desktop_oauth_loopback(
         .ok_or_else(|| "Failed to resolve loopback server port".to_string())?;
     let redirect_uri = format!("http://127.0.0.1:{port}/oauth/callback");
 
-    let cfg = GoogleOAuthConfig::resolve(None, None, &redirect_uri)?;
+    let cfg = GoogleOAuthConfig::resolve(&redirect_uri)?;
     let http = Arc::new(UreqHttpTransport::new());
     let adapter = Arc::new(GoogleOAuthPkceAdapter::new(cfg, credential_store, http));
 

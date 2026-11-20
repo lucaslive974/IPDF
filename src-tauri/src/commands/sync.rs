@@ -18,7 +18,6 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 use tauri::State;
 
-const GOOGLE_CLIENT_ID_CONFIG_KEY: &str = "google_oauth_client_id";
 const DEFAULT_OAUTH_REDIRECT_URI: &str = "http://127.0.0.1:42813/oauth/callback";
 
 #[derive(Debug, Serialize)]
@@ -50,32 +49,17 @@ pub fn get_cloud_sync_status(
 
 #[tauri::command]
 pub fn begin_google_oauth(
-    client_id_override: Option<String>,
+    _client_id_override: Option<String>,
     redirect_uri: Option<String>,
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<OAuthStartResultDto, String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
 
-    let effective_override = match client_id_override {
-        Some(ref id) if !id.trim().is_empty() => {
-            let trimmed = id.trim().to_string();
-            let _ = guard
-                .config_store
-                .set(GOOGLE_CLIENT_ID_CONFIG_KEY, &trimmed);
-            Some(trimmed)
-        }
-        _ => guard
-            .config_store
-            .get(GOOGLE_CLIENT_ID_CONFIG_KEY)
-            .ok()
-            .flatten(),
-    };
-
     let resolved_redirect = redirect_uri
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| DEFAULT_OAUTH_REDIRECT_URI.to_string());
 
-    let cfg = GoogleOAuthConfig::resolve(effective_override, None, &resolved_redirect)?;
+    let cfg = GoogleOAuthConfig::resolve(&resolved_redirect)?;
     let http = Arc::new(UreqHttpTransport::new());
     let adapter = Arc::new(GoogleOAuthPkceAdapter::new(
         cfg,

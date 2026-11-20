@@ -303,12 +303,11 @@ fn google_oauth_pkce_adapter_handles_auth_url_exchange_refresh_and_sign_out() {
     let creds = Arc::new(FileCloudCredentialStore::new(&path));
     let transport = Arc::new(FakeGoogleTransport::new());
 
-    let cfg = GoogleOAuthConfig::resolve(
-        Some("client-id-123".to_string()),
+    let cfg = GoogleOAuthConfig::new(
+        "client-id-123",
         Some("client-secret-opt".to_string()),
         "http://127.0.0.1:42813/callback",
-    )
-    .unwrap();
+    );
     let auth = GoogleOAuthPkceAdapter::new(cfg, creds, transport.clone());
 
     let desc = auth.descriptor();
@@ -370,12 +369,7 @@ fn google_drive_appdata_adapter_supports_optimistic_concurrency_and_prefix_listi
     let path = temp_cred_path("drive");
     let creds = Arc::new(FileCloudCredentialStore::new(&path));
     let transport = Arc::new(FakeGoogleTransport::new());
-    let cfg = GoogleOAuthConfig::resolve(
-        Some("client-id-drive".to_string()),
-        None,
-        "http://127.0.0.1:42813/callback",
-    )
-    .unwrap();
+    let cfg = GoogleOAuthConfig::new("client-id-drive", None, "http://127.0.0.1:42813/callback");
     let auth = Arc::new(GoogleOAuthPkceAdapter::new(cfg, creds, transport.clone()));
     auth.exchange_code("code", "verifier", None, 1_000).unwrap();
 
