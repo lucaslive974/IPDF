@@ -1,4 +1,4 @@
-import { BookCard } from '@components/library/BookCard';
+import { BookCard, type BookCardCloudState } from '@components/library/BookCard';
 import type { BookMetadata } from '@domain/BookMetadata';
 import { BookFormat } from '@domain/types';
 import { ServiceContainerProvider } from '@providers/ServiceContainerContext';
@@ -7,7 +7,13 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { MockBackend } from '../../mocks/MockBackend';
 
-function renderBookCard(book: BookMetadata): string {
+function renderBookCard(
+  book: BookMetadata,
+  options?: {
+    onEvictBook?: (b: BookMetadata) => void;
+    cloudState?: BookCardCloudState;
+  }
+): string {
   const mock = new MockBackend();
   return renderToStaticMarkup(
     React.createElement(
@@ -22,6 +28,8 @@ function renderBookCard(book: BookMetadata): string {
       React.createElement(BookCard, {
         book,
         onOpenBook: vi.fn(),
+        onEvictBook: options?.onEvictBook,
+        cloudState: options?.cloudState,
       })
     )
   );
@@ -95,5 +103,27 @@ describe('BookCard', () => {
 
     expect(markup).toContain('Stoicism');
     expect(markup).toContain('Philosophy');
+  });
+
+  it('renders Cloud badge for remoteOnly books and Downloading state while fetching', () => {
+    const remoteMarkup = renderBookCard(baseBook, {
+      cloudState: { availability: 'remoteOnly', isDownloading: false, isCloudConnected: true },
+    });
+    expect(remoteMarkup).toContain('data-testid="book-cloud-badge"');
+    expect(remoteMarkup).toContain('Cloud');
+
+    const downloadingMarkup = renderBookCard(baseBook, {
+      cloudState: { availability: 'remoteOnly', isDownloading: true, isCloudConnected: true },
+    });
+    expect(downloadingMarkup).toContain('Downloading...');
+  });
+
+  it('renders Remove local download button when connected and book is local', () => {
+    const markup = renderBookCard(baseBook, {
+      onEvictBook: vi.fn(),
+      cloudState: { availability: 'local', isDownloading: false, isCloudConnected: true },
+    });
+    expect(markup).toContain('Remove local download');
+    expect(markup).not.toContain('data-testid="book-cloud-badge"');
   });
 });

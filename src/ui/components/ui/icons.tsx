@@ -273,6 +273,31 @@ export function CloudIcon({ className = 'h-4 w-4', ...props }: SVGProps<SVGSVGEl
   );
 }
 
+export function CloudOffIcon({ className = 'h-4 w-4', ...props }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      className={className}
+      {...props}
+    >
+      <title>Remove local download</title>
+      <path
+        d="M6.25 15.25h7.75a3.25 3.25 0 0 0 .48-6.46A4.5 4.5 0 0 0 5.8 7.52a3.5 3.5 0 0 0 .45 7.73Z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M10 9.5v3.75m-1.5-1.5L10 13.25l1.5-1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function ArrowRightIcon({ className = 'h-4 w-4', ...props }: SVGProps<SVGSVGElement>) {
   return (
     <svg

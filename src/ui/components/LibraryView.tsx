@@ -1,8 +1,10 @@
 import type { BookMetadata } from '@domain/BookMetadata';
+import { executeDownloadRemoteBook, executeEvictLocalBook } from '@hooks/useCloudSync';
 import { useLibrary } from '@hooks/useLibrary';
 import { useNavigation } from '@providers/NavigationContext';
 import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useTheme } from '@providers/ThemeContext';
+import { useSyncStore } from '@stores/useSyncStore';
 import { appLogger } from '@utils/logger';
 import { type ChangeEvent, useEffect, useRef, useState } from 'react';
 import { BooksGrid } from './library/BooksGrid';
@@ -31,12 +33,34 @@ export function LibraryView({
   const library = useLibrary();
   const navigation = useNavigation();
   const { theme, toggleTheme } = useTheme();
-  const { presenceService } = useServiceContainer();
+  const { presenceService, syncService } = useServiceContainer();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const books = propBooks ?? library.books;
   const onOpenBook = propOnOpenBook ?? navigation.openReader;
   const onOpenSettings = propOnOpenSettings ?? navigation.openSettings;
+
+  const handleOpenBook = async (book: BookMetadata) => {
+    if (__ENABLE_CLOUD_SYNC__) {
+      const syncState = useSyncStore.getState();
+      if (syncState.downloadingHashes[book.bookHash]) {
+        return;
+      }
+      if (syncState.availabilities[book.bookHash] === 'remoteOnly') {
+        await executeDownloadRemoteBook(syncService, book.bookHash);
+        if (useSyncStore.getState().availabilities[book.bookHash] === 'remoteOnly') {
+          return;
+        }
+      }
+    }
+    onOpenBook(book);
+  };
+
+  const handleEvictBook = (book: BookMetadata) => {
+    if (__ENABLE_CLOUD_SYNC__) {
+      void executeEvictLocalBook(syncService, book.bookHash);
+    }
+  };
 
   const [activeTab, setActiveTab] = useState<LibraryTabId>('recents');
   const [searchQuery, setSearchQuery] = useState('');
@@ -117,16 +141,19 @@ export function LibraryView({
         {(activeTab === 'recents' || activeTab === 'all') && (
           <BooksGrid
             books={filteredBooks}
-            onOpenBook={onOpenBook}
+            onOpenBook={(book) => void handleOpenBook(book)}
             onRenameBook={setBookToRename}
             onDeleteBook={setBookToDelete}
+            onEvictBook={__ENABLE_CLOUD_SYNC__ ? handleEvictBook : undefined}
             onImportClick={handleOpenFileInput}
           />
         )}
 
         {activeTab === 'highlights' && <LibraryAnnotationsTab searchQuery={searchQuery} />}
 
-        {activeTab === 'lists' && <LibraryCollectionsTab onOpenBook={onOpenBook} />}
+        {activeTab === 'lists' && (
+          <LibraryCollectionsTab onOpenBook={(book) => void handleOpenBook(book)} />
+        )}
       </main>
 
       <EditBookMetadataModal
