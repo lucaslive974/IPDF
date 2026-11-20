@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Default permissions for Scholarium Active Study Reader",
   "windows": ["main"],
-  "permissions": ["core:default", "dialog:default", "fs:default"]
+  "permissions": ["core:default", "dialog:default", "fs:default", "opener:default"]
 }
