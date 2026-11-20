@@ -3,6 +3,15 @@ use serde::{Deserialize, Serialize};
 const BACKUP_PREFIX: &str = "scholarium-backup-";
 const BACKUP_EXT: &str = ".zip";
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum BackupLocation {
+    #[default]
+    Local,
+    Remote,
+    Both,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BackupArtifact {
@@ -12,6 +21,8 @@ pub struct BackupArtifact {
     pub platform: String,
     pub size_bytes: u64,
     pub created_at_ms: i64,
+    #[serde(default)]
+    pub location: BackupLocation,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]

@@ -58,6 +58,8 @@ macro_rules! build_invoke_handler {
             backup::list_local_backups,
             backup::restore_local_backup,
             backup::delete_local_backup,
+            backup::upload_backup_to_cloud,
+            backup::delete_remote_backup,
             backup::export_local_backup,
             backup::import_and_restore_backup,
             $($extra,)*

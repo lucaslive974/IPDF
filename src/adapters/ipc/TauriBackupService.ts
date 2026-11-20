@@ -7,8 +7,10 @@ import type {
 import { invoke } from '@tauri-apps/api/core';
 
 export class TauriBackupService implements IBackupService {
-  public async createLocalBackup(): Promise<CreateBackupResult> {
-    return invoke<CreateBackupResult>('create_local_backup');
+  public async createLocalBackup(uploadToCloud?: boolean): Promise<CreateBackupResult> {
+    return invoke<CreateBackupResult>('create_local_backup', {
+      uploadToCloud: uploadToCloud ?? false,
+    });
   }
 
   public async listLocalBackups(): Promise<BackupArtifact[]> {
@@ -23,11 +25,21 @@ export class TauriBackupService implements IBackupService {
     return invoke<boolean>('delete_local_backup', { backupId });
   }
 
+  public async uploadBackupToCloud(backupId: string): Promise<BackupArtifact> {
+    return invoke<BackupArtifact>('upload_backup_to_cloud', { backupId });
+  }
+
+  public async deleteRemoteBackup(backupId: string): Promise<boolean> {
+    return invoke<boolean>('delete_remote_backup', { backupId });
+  }
+
   public async exportLocalBackup(backupId: string): Promise<string | null> {
     return invoke<string | null>('export_local_backup', { backupId });
   }
 
-  public async importAndRestoreBackup(): Promise<BackupReport | null> {
-    return invoke<BackupReport | null>('import_and_restore_backup');
+  public async importAndRestoreBackup(uploadToCloud?: boolean): Promise<BackupReport | null> {
+    return invoke<BackupReport | null>('import_and_restore_backup', {
+      uploadToCloud: uploadToCloud ?? false,
+    });
   }
 }

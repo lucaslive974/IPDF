@@ -1,3 +1,5 @@
+export type BackupLocation = 'local' | 'remote' | 'both';
+
 export interface BackupArtifact {
   readonly id: string;
   readonly name: string;
@@ -5,6 +7,7 @@ export interface BackupArtifact {
   readonly platform: string;
   readonly sizeBytes: number;
   readonly createdAtMs: number;
+  readonly location?: BackupLocation;
 }
 
 export interface BackupReport {
@@ -20,10 +23,12 @@ export interface CreateBackupResult {
 }
 
 export interface IBackupService {
-  createLocalBackup(): Promise<CreateBackupResult>;
+  createLocalBackup(uploadToCloud?: boolean): Promise<CreateBackupResult>;
   listLocalBackups(): Promise<BackupArtifact[]>;
   restoreLocalBackup(backupId: string): Promise<BackupReport>;
   deleteLocalBackup(backupId: string): Promise<boolean>;
+  uploadBackupToCloud(backupId: string): Promise<BackupArtifact>;
+  deleteRemoteBackup(backupId: string): Promise<boolean>;
   exportLocalBackup(backupId: string): Promise<string | null>;
-  importAndRestoreBackup(): Promise<BackupReport | null>;
+  importAndRestoreBackup(uploadToCloud?: boolean): Promise<BackupReport | null>;
 }

@@ -401,7 +401,7 @@ export class MockBackend
     this.startupBook = null;
   }
 
-  public async createLocalBackup(): Promise<CreateBackupResult> {
+  public async createLocalBackup(uploadToCloud?: boolean): Promise<CreateBackupResult> {
     const nowMs = Date.now();
     const deviceLabel = 'mock_desktop';
     const platform = 'linux';
@@ -422,9 +422,31 @@ export class MockBackend
       platform,
       sizeBytes: report.totalBytes,
       createdAtMs: nowMs,
+      location: uploadToCloud ? 'both' : 'local',
     };
     this.backups.set(id, { artifact, report, books, highlights, settings });
     return { artifact, report };
+  }
+
+  public async uploadBackupToCloud(backupId: string): Promise<BackupArtifact> {
+    const entry = this.backups.get(backupId);
+    if (!entry) {
+      throw new Error(`Backup not found: ${backupId}`);
+    }
+    const updated: BackupArtifact = { ...entry.artifact, location: 'both' };
+    this.backups.set(backupId, { ...entry, artifact: updated });
+    return updated;
+  }
+
+  public async deleteRemoteBackup(backupId: string): Promise<boolean> {
+    const entry = this.backups.get(backupId);
+    if (!entry) return false;
+    if (entry.artifact.location === 'remote') {
+      return this.backups.delete(backupId);
+    }
+    const updated: BackupArtifact = { ...entry.artifact, location: 'local' };
+    this.backups.set(backupId, { ...entry, artifact: updated });
+    return true;
   }
 
   public async listLocalBackups(): Promise<BackupArtifact[]> {

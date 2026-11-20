@@ -1,15 +1,18 @@
 use crate::state::BackendState;
 use crate::utils::current_epoch_ms;
-use scholarium_core::adapters::backup::LocalBackupDestination;
+use scholarium_core::adapters::backup::{
+    CloudBackupDestination, HybridBackupDestination, LocalBackupDestination,
+};
 use scholarium_core::adapters::configuration::SqliteConfigurationStore;
 use scholarium_core::adapters::persistence::{SqliteBookRepository, SqliteHighlightRepository};
 use scholarium_core::core::ports::{
-    BackupArtifact, BackupDestination, BackupReport, BookRepository, ConfigurationStore,
-    HighlightRepository, LogEntry, LogLevel, LogService, StorageProvider,
+    format_backup_filename, sanitize_device_label, BackupArtifact, BackupDestination, BackupReport,
+    BookRepository, ConfigurationStore, HighlightRepository, LogEntry, LogLevel, LogService,
+    StorageProvider,
 };
 use scholarium_core::core::services::{BackupService, LibraryManager};
 use serde::Serialize;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::State;
 
 #[derive(Debug, Serialize)]
@@ -19,9 +22,22 @@ pub struct CreateBackupResultDto {
     pub report: BackupReport,
 }
 
-fn default_backup_destination(state: &BackendState) -> Result<LocalBackupDestination, String> {
+fn hybrid_backup_destination(
+    state: &BackendState,
+) -> Result<HybridBackupDestination<LocalBackupDestination>, String> {
     let backup_dir = state.platform_env.backups_dir()?;
-    Ok(LocalBackupDestination::new(backup_dir))
+    let local = LocalBackupDestination::new(backup_dir);
+    #[cfg(feature = "cloud-sync")]
+    let remote = state
+        .storage
+        .remote()
+        .map(|cloud| Arc::new(CloudBackupDestination::new(cloud)) as Arc<dyn BackupDestination>);
+    #[cfg(not(feature = "cloud-sync"))]
+    let remote: Option<Arc<dyn BackupDestination>> = {
+        let _ = CloudBackupDestination::new;
+        None
+    };
+    Ok(HybridBackupDestination::new(local, remote))
 }
 
 fn clear_state_for_restore(guard: &mut BackendState) -> Result<(), String> {
@@ -44,13 +60,18 @@ fn reopen_repositories(guard: &mut BackendState) -> Result<(), String> {
 
 #[tauri::command]
 pub fn create_local_backup(
+    upload_to_cloud: Option<bool>,
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<CreateBackupResultDto, String> {
     let guard = state.lock().map_err(|e| e.to_string())?;
-    let destination = default_backup_destination(&guard)?;
+    let destination = hybrid_backup_destination(&guard)?;
     let service = BackupService::new();
-    let (artifact, report) =
+    let (mut artifact, report) =
         service.create_backup(&*guard.platform_env, &destination, current_epoch_ms())?;
+
+    if upload_to_cloud.unwrap_or(false) && destination.remote().is_some() {
+        artifact = destination.upload_local_to_remote(&artifact.id)?;
+    }
 
     let _ = guard.logger.log(LogEntry::new(
         current_epoch_ms(),
@@ -70,7 +91,7 @@ pub fn list_local_backups(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<Vec<BackupArtifact>, String> {
     let guard = state.lock().map_err(|e| e.to_string())?;
-    let destination = default_backup_destination(&guard)?;
+    let destination = hybrid_backup_destination(&guard)?;
     destination.list_backups()
 }
 
@@ -80,7 +101,7 @@ pub fn restore_local_backup(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<BackupReport, String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
-    let destination = default_backup_destination(&guard)?;
+    let destination = hybrid_backup_destination(&guard)?;
 
     clear_state_for_restore(&mut guard)?;
     let service = BackupService::new();
@@ -106,8 +127,28 @@ pub fn delete_local_backup(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<bool, String> {
     let guard = state.lock().map_err(|e| e.to_string())?;
-    let destination = default_backup_destination(&guard)?;
+    let destination = hybrid_backup_destination(&guard)?;
     destination.delete_backup(&backup_id)
+}
+
+#[tauri::command]
+pub fn upload_backup_to_cloud(
+    backup_id: String,
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<BackupArtifact, String> {
+    let guard = state.lock().map_err(|e| e.to_string())?;
+    let destination = hybrid_backup_destination(&guard)?;
+    destination.upload_local_to_remote(&backup_id)
+}
+
+#[tauri::command]
+pub fn delete_remote_backup(
+    backup_id: String,
+    state: State<'_, Mutex<BackendState>>,
+) -> Result<bool, String> {
+    let guard = state.lock().map_err(|e| e.to_string())?;
+    let destination = hybrid_backup_destination(&guard)?;
+    destination.delete_remote(&backup_id)
 }
 
 #[tauri::command]
@@ -118,7 +159,7 @@ pub async fn export_local_backup(
 ) -> Result<Option<String>, String> {
     let bytes = {
         let guard = state.lock().map_err(|e| e.to_string())?;
-        let destination = default_backup_destination(&guard)?;
+        let destination = hybrid_backup_destination(&guard)?;
         destination.load_backup(&backup_id)?
     };
 
@@ -152,6 +193,7 @@ pub async fn export_local_backup(
 #[tauri::command]
 pub async fn import_and_restore_backup(
     app: tauri::AppHandle,
+    upload_to_cloud: Option<bool>,
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<Option<BackupReport>, String> {
     let Some(file_path) = crate::utils::pick_file_dialog(
@@ -174,6 +216,22 @@ pub async fn import_and_restore_backup(
     let service = BackupService::new();
     let report = service.restore_from_bytes(&*guard.platform_env, &zip_bytes)?;
     reopen_repositories(&mut guard)?;
+
+    if upload_to_cloud.unwrap_or(false) {
+        let destination = hybrid_backup_destination(&guard)?;
+        if let Some(remote) = destination.remote() {
+            let now_ms = current_epoch_ms();
+            let filename = format_backup_filename(
+                &sanitize_device_label(
+                    &guard.platform_env.device_label(),
+                    guard.platform_env.platform_kind().as_str(),
+                ),
+                guard.platform_env.platform_kind().as_str(),
+                now_ms,
+            );
+            remote.save_backup(&filename, &zip_bytes)?;
+        }
+    }
 
     let _ = guard.logger.log(LogEntry::new(
         current_epoch_ms(),

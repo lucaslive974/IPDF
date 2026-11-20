@@ -16,7 +16,8 @@ pub mod system_bridge;
 pub mod tts_provider;
 
 pub use backup_destination::{
-    format_backup_filename, parse_backup_filename, BackupArtifact, BackupDestination, BackupReport,
+    format_backup_filename, parse_backup_filename, BackupArtifact, BackupDestination,
+    BackupLocation, BackupReport,
 };
 pub use book_cover_extractor::{BookCoverExtractor, ExtractedCover};
 pub use book_paginator::BookPaginator;

@@ -108,3 +108,127 @@ fn test_device_label_sanitization_and_mobile_fallbacks() {
     let ios = IosEnvironment::default();
     assert_eq!(ios.device_label(), "ios_device");
 }
+
+#[test]
+fn test_cloud_and_hybrid_backup_destination_lifecycle() {
+    use scholarium_core::adapters::backup::{CloudBackupDestination, HybridBackupDestination};
+    use scholarium_core::core::ports::{
+        BackupLocation, CloudObjectMeta, CloudStorageError, CloudStorageProvider,
+    };
+    use std::collections::BTreeMap;
+    use std::sync::{Arc, Mutex};
+
+    struct InMemoryCloud(Mutex<BTreeMap<String, Vec<u8>>>);
+    impl InMemoryCloud {
+        fn meta(path: &str, len: usize) -> CloudObjectMeta {
+            CloudObjectMeta {
+                path: path.to_string(),
+                size_bytes: len as u64,
+                etag: "etag-1".to_string(),
+                modified_at_ms: Some(1_000),
+            }
+        }
+    }
+    impl CloudStorageProvider for InMemoryCloud {
+        fn provider_id(&self) -> &'static str {
+            "fake_cloud"
+        }
+        fn head(&self, path: &str) -> Result<Option<CloudObjectMeta>, CloudStorageError> {
+            let map = self.0.lock().unwrap();
+            Ok(map.get(path).map(|b| Self::meta(path, b.len())))
+        }
+        fn read(
+            &self,
+            path: &str,
+        ) -> Result<Option<(Vec<u8>, CloudObjectMeta)>, CloudStorageError> {
+            let map = self.0.lock().unwrap();
+            Ok(map
+                .get(path)
+                .map(|b| (b.clone(), Self::meta(path, b.len()))))
+        }
+        fn write_unconditional(
+            &self,
+            path: &str,
+            bytes: &[u8],
+            _content_type: &str,
+        ) -> Result<CloudObjectMeta, CloudStorageError> {
+            self.0
+                .lock()
+                .unwrap()
+                .insert(path.to_string(), bytes.to_vec());
+            Ok(Self::meta(path, bytes.len()))
+        }
+        fn write_if_absent(
+            &self,
+            path: &str,
+            bytes: &[u8],
+            content_type: &str,
+        ) -> Result<CloudObjectMeta, CloudStorageError> {
+            self.write_unconditional(path, bytes, content_type)
+        }
+        fn write_if_match(
+            &self,
+            path: &str,
+            bytes: &[u8],
+            content_type: &str,
+            _expected_etag: &str,
+        ) -> Result<CloudObjectMeta, CloudStorageError> {
+            self.write_unconditional(path, bytes, content_type)
+        }
+        fn delete_if_match(&self, path: &str, _etag: &str) -> Result<(), CloudStorageError> {
+            self.delete_unconditional(path)
+        }
+        fn delete_unconditional(&self, path: &str) -> Result<(), CloudStorageError> {
+            self.0.lock().unwrap().remove(path);
+            Ok(())
+        }
+        fn list_prefix(&self, prefix: &str) -> Result<Vec<CloudObjectMeta>, CloudStorageError> {
+            let map = self.0.lock().unwrap();
+            Ok(map
+                .iter()
+                .filter(|(k, _)| k.starts_with(prefix))
+                .map(|(k, v)| Self::meta(k, v.len()))
+                .collect())
+        }
+    }
+
+    let root = std::env::temp_dir().join("scholarium_hybrid_backup_spec");
+    let _ = fs::remove_dir_all(&root);
+    let local = LocalBackupDestination::new(root.join("backups"));
+    let cloud = Arc::new(InMemoryCloud(Mutex::new(BTreeMap::new())));
+    let remote = Arc::new(CloudBackupDestination::new(cloud));
+    let hybrid = HybridBackupDestination::new(local, Some(remote.clone()));
+
+    let local_name = "scholarium-backup-pc-linux-1000.zip";
+    let remote_only_name = "scholarium-backup-phone-android-2000.zip";
+    hybrid.save_backup(local_name, b"local-zip").unwrap();
+    remote.save_backup(remote_only_name, b"remote-zip").unwrap();
+
+    // List merges local + remote
+    let list = hybrid.list_backups().unwrap();
+    assert_eq!(list.len(), 2);
+    assert_eq!(list[0].id, remote_only_name);
+    assert_eq!(list[0].location, BackupLocation::Remote);
+    assert_eq!(list[1].id, local_name);
+    assert_eq!(list[1].location, BackupLocation::Local);
+
+    // Explicit upload marks as Both
+    assert!(hybrid.remote().is_some());
+    assert!(hybrid.local().backup_dir().ends_with("backups"));
+    let uploaded = hybrid.upload_local_to_remote(local_name).unwrap();
+    assert_eq!(uploaded.location, BackupLocation::Both);
+    let list_after_upload = hybrid.list_backups().unwrap();
+    assert_eq!(list_after_upload[1].location, BackupLocation::Both);
+
+    // Load remote-only backup transparently + missing error
+    assert_eq!(hybrid.load_backup(remote_only_name).unwrap(), b"remote-zip");
+    assert!(hybrid.load_backup("missing.zip").is_err());
+
+    // Delete local and remote explicitly
+    assert!(hybrid.delete_backup(local_name).unwrap());
+    assert!(hybrid.delete_remote(remote_only_name).unwrap());
+    assert!(hybrid.delete_remote(local_name).unwrap());
+    assert!(hybrid.list_backups().unwrap().is_empty());
+
+    let _ = fs::remove_dir_all(&root);
+}

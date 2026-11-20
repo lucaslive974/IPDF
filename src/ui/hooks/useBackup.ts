@@ -54,9 +54,10 @@ export function formatBackupDeviceLabel(deviceLabel: string): string {
 }
 
 export async function executeCreateBackup(
-  backupService: Pick<IBackupService, 'createLocalBackup'>
+  backupService: Pick<IBackupService, 'createLocalBackup'>,
+  uploadToCloud = false
 ): Promise<CreateBackupResult> {
-  return backupService.createLocalBackup();
+  return backupService.createLocalBackup(uploadToCloud);
 }
 
 export interface RestoreBackupDependencies {
@@ -85,12 +86,13 @@ export interface ImportBackupDependencies {
   readonly highlightService: Pick<IHighlightService, 'loadAllHighlights'>;
   readonly setBooks: (books: readonly BookMetadata[]) => void;
   readonly setHighlights: (highlights: readonly Highlight[]) => void;
+  readonly uploadToCloud?: boolean;
 }
 
 export async function executeImportBackup(
   deps: ImportBackupDependencies
 ): Promise<BackupReport | null> {
-  const report = await deps.backupService.importAndRestoreBackup();
+  const report = await deps.backupService.importAndRestoreBackup(deps.uploadToCloud);
   if (!report) {
     return null;
   }
@@ -108,15 +110,20 @@ export interface UseBackupReturn {
   readonly isLoading: boolean;
   readonly isCreating: boolean;
   readonly isRestoring: boolean;
+  readonly uploadingBackupId: string | null;
+  readonly uploadToCloud: boolean;
   readonly pendingRestoreId: string | null;
   readonly statusMessage: string | null;
   readonly error: string | null;
+  setUploadToCloud(enabled: boolean): void;
   refreshBackups(): Promise<void>;
   createBackup(): Promise<void>;
   requestRestore(backupId: string): void;
   cancelRestore(): void;
   confirmRestore(backupId: string): Promise<void>;
   deleteBackup(backupId: string): Promise<void>;
+  uploadBackupToCloud(backupId: string): Promise<void>;
+  deleteRemoteBackup(backupId: string): Promise<void>;
   exportBackup(backupId: string): Promise<void>;
   importBackup(): Promise<void>;
 }
@@ -130,6 +137,8 @@ export function useBackup(): UseBackupReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [uploadingBackupId, setUploadingBackupId] = useState<string | null>(null);
+  const [uploadToCloud, setUploadToCloud] = useState(false);
   const [pendingRestoreId, setPendingRestoreId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -157,7 +166,7 @@ export function useBackup(): UseBackupReturn {
     setError(null);
     setStatusMessage(null);
     try {
-      const result = await executeCreateBackup(backupService);
+      const result = await executeCreateBackup(backupService, uploadToCloud);
       setStatusMessage(formatBackupReportSummary('Backup created', result.report));
       await refreshBackups();
     } catch (err) {
@@ -167,7 +176,7 @@ export function useBackup(): UseBackupReturn {
     } finally {
       setIsCreating(false);
     }
-  }, [backupService, refreshBackups]);
+  }, [backupService, refreshBackups, uploadToCloud]);
 
   const requestRestore = useCallback((backupId: string) => {
     setPendingRestoreId(backupId);
@@ -223,6 +232,44 @@ export function useBackup(): UseBackupReturn {
     [backupService, pendingRestoreId, refreshBackups]
   );
 
+  const uploadBackupToCloud = useCallback(
+    async (backupId: string) => {
+      setUploadingBackupId(backupId);
+      setError(null);
+      setStatusMessage(null);
+      try {
+        await backupService.uploadBackupToCloud(backupId);
+        setStatusMessage(`Uploaded backup ${backupId} to cloud`);
+        await refreshBackups();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        appLogger.error(`Failed to upload backup ${backupId}: ${msg}`, 'backup');
+        setError(msg);
+      } finally {
+        setUploadingBackupId(null);
+      }
+    },
+    [backupService, refreshBackups]
+  );
+
+  const deleteRemoteBackup = useCallback(
+    async (backupId: string) => {
+      setError(null);
+      try {
+        await backupService.deleteRemoteBackup(backupId);
+        if (pendingRestoreId === backupId) {
+          setPendingRestoreId(null);
+        }
+        await refreshBackups();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        appLogger.error(`Failed to delete remote backup ${backupId}: ${msg}`, 'backup');
+        setError(msg);
+      }
+    },
+    [backupService, pendingRestoreId, refreshBackups]
+  );
+
   const exportBackup = useCallback(
     async (backupId: string) => {
       setError(null);
@@ -251,10 +298,12 @@ export function useBackup(): UseBackupReturn {
         highlightService,
         setBooks,
         setHighlights,
+        uploadToCloud,
       });
       if (report) {
         setPendingRestoreId(null);
         setStatusMessage(formatBackupReportSummary('Backup imported', report));
+        await refreshBackups();
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -263,22 +312,35 @@ export function useBackup(): UseBackupReturn {
     } finally {
       setIsRestoring(false);
     }
-  }, [backupService, highlightService, libraryService, setBooks, setHighlights]);
+  }, [
+    backupService,
+    highlightService,
+    libraryService,
+    refreshBackups,
+    setBooks,
+    setHighlights,
+    uploadToCloud,
+  ]);
 
   return {
     backups,
     isLoading,
     isCreating,
     isRestoring,
+    uploadingBackupId,
+    uploadToCloud,
     pendingRestoreId,
     statusMessage,
     error,
+    setUploadToCloud,
     refreshBackups,
     createBackup,
     requestRestore,
     cancelRestore,
     confirmRestore,
     deleteBackup,
+    uploadBackupToCloud,
+    deleteRemoteBackup,
     exportBackup,
     importBackup,
   };

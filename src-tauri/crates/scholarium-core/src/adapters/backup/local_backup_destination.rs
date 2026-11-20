@@ -1,4 +1,6 @@
-use crate::core::ports::{parse_backup_filename, BackupArtifact, BackupDestination};
+use crate::core::ports::{
+    parse_backup_filename, BackupArtifact, BackupDestination, BackupLocation,
+};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
@@ -35,6 +37,7 @@ impl LocalBackupDestination {
             platform,
             size_bytes,
             created_at_ms,
+            location: BackupLocation::Local,
         }
     }
 }
