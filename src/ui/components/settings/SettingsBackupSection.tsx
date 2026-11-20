@@ -7,7 +7,7 @@ import {
 } from '@hooks/useBackup';
 import type { BackupArtifact, BackupLocation } from '@ports/IBackupService';
 import { useSyncStore } from '@stores/useSyncStore';
-import { Badge, Button, Card } from '@ui';
+import { Badge, BlockingModal, Button, Card } from '@ui';
 import { memo } from 'react';
 
 export interface SettingsBackupSectionProps {
@@ -322,6 +322,16 @@ export const SettingsBackupSection = memo(function SettingsBackupSection({
           ))}
         </div>
       )}
+
+      <BlockingModal
+        isOpen={isBusy}
+        title={isCreating ? 'Creating Backup…' : 'Restoring Backup…'}
+        message={
+          isCreating
+            ? 'Consolidating your backup snapshot. Please wait and do not close the app.'
+            : 'Restoring your library snapshot. Please wait and do not close the app.'
+        }
+      />
     </Card>
   );
 });

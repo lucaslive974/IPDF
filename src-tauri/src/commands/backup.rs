@@ -66,12 +66,19 @@ pub async fn create_local_backup(
     let should_upload = upload_to_cloud.unwrap_or(false);
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<Mutex<BackendState>>();
-        let (destination, mut artifact, report) = {
+        let (destination, platform_env) = {
             let guard = state.lock().map_err(|e| e.to_string())?;
-            let destination = hybrid_backup_destination(&guard)?;
-            let service = BackupService::new();
-            let (artifact, report) =
-                service.create_backup(&*guard.platform_env, &destination, current_epoch_ms())?;
+            (
+                hybrid_backup_destination(&guard)?,
+                guard.platform_env.clone(),
+            )
+        };
+
+        let service = BackupService::new();
+        let (mut artifact, report) =
+            service.create_backup(&*platform_env, &destination, current_epoch_ms())?;
+
+        if let Ok(guard) = state.lock() {
             let _ = guard.logger.log(LogEntry::new(
                 current_epoch_ms(),
                 LogLevel::Status,
@@ -81,8 +88,7 @@ pub async fn create_local_backup(
                     artifact.name, report.books_count, report.covers_count
                 ),
             ));
-            (destination, artifact, report)
-        };
+        }
 
         if should_upload && destination.remote().is_some() {
             artifact = destination.upload_local_to_remote(&artifact.id)?;

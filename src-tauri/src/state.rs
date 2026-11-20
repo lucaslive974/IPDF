@@ -22,7 +22,6 @@ use scholarium_core::core::ports::{
     ConfigurationStore, LogEntry, LogLevel, LogService, PlatformEnvironment,
 };
 use scholarium_core::core::services::{EpubContentService, LibraryManager, RichPresenceManager};
-#[cfg(feature = "cloud-sync")]
 use std::sync::Arc;
 
 pub type AppStorage = StorageManagerDecorator<LocalFolderStorageAdapter>;
@@ -39,7 +38,7 @@ pub struct BackendState {
     pub epub_content: EpubContentService<AppStorage, EpubBookPaginator>,
     pub highlight_repo: SqliteHighlightRepository,
     pub config_store: SqliteConfigurationStore,
-    pub platform_env: Box<dyn PlatformEnvironment + Send>,
+    pub platform_env: Arc<dyn PlatformEnvironment + Send + Sync>,
     pub startup_book: Option<BookMetadata>,
     pub presence_manager: RichPresenceManager,
     pub logger: AsyncFileLogger,
@@ -54,13 +53,17 @@ pub struct BackendState {
 impl Default for BackendState {
     fn default() -> Self {
         #[cfg(target_os = "windows")]
-        let platform: Box<dyn PlatformEnvironment + Send> = Box::new(WindowsEnvironment::default());
+        let platform: Arc<dyn PlatformEnvironment + Send + Sync> =
+            Arc::new(WindowsEnvironment::default());
         #[cfg(target_os = "ios")]
-        let platform: Box<dyn PlatformEnvironment + Send> = Box::new(IosEnvironment::default());
+        let platform: Arc<dyn PlatformEnvironment + Send + Sync> =
+            Arc::new(IosEnvironment::default());
         #[cfg(target_os = "android")]
-        let platform: Box<dyn PlatformEnvironment + Send> = Box::new(AndroidEnvironment::default());
+        let platform: Arc<dyn PlatformEnvironment + Send + Sync> =
+            Arc::new(AndroidEnvironment::default());
         #[cfg(not(any(target_os = "windows", target_os = "ios", target_os = "android")))]
-        let platform: Box<dyn PlatformEnvironment + Send> = Box::new(LinuxEnvironment::default());
+        let platform: Arc<dyn PlatformEnvironment + Send + Sync> =
+            Arc::new(LinuxEnvironment::default());
 
         let logger = AsyncFileLogger::for_platform(&*platform, true).unwrap_or_else(|_| {
             AsyncFileLogger::new(std::env::temp_dir().join("scholarium-logs"), true)

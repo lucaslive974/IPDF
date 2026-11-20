@@ -123,7 +123,9 @@ impl<'a, W: Write + Seek> BackupArchiveWriter<'a, W> {
             }
 
             let file_name = entry.file_name().to_string_lossy().to_string();
-            let bytes = fs::read(&path).map_err(|e| e.to_string())?;
+            let Some(bytes) = read_file_if_present(&path)? else {
+                continue;
+            };
             self.write_zip_file(&format!("{zip_prefix}/{file_name}"), &bytes)?;
             count += 1;
         }
@@ -136,7 +138,7 @@ impl<'a, W: Write + Seek> BackupArchiveWriter<'a, W> {
             return Ok(false);
         }
 
-        let bytes = fs::read(&db_path).map_err(|e| e.to_string())?;
+        let bytes = snapshot_database_bytes(&db_path)?;
         self.write_zip_file(&AppStoragePaths::database_relative_path(), &bytes)?;
         Ok(true)
     }
@@ -242,5 +244,46 @@ impl BackupArchiveRestorer {
         rel_path.starts_with(&format!("{}/", AppStoragePaths::BOOKS_DIR))
             || rel_path.starts_with(&format!("{}/", AppStoragePaths::COVERS_DIR))
             || rel_path.starts_with(&format!("{}/", AppStoragePaths::CONFIG_DIR))
+    }
+}
+
+fn current_epoch_nanos() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0)
+}
+
+fn read_file_if_present(path: &Path) -> Result<Option<Vec<u8>>, String> {
+    match fs::read(path) {
+        Ok(bytes) => Ok(Some(bytes)),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(err) => Err(err.to_string()),
+    }
+}
+
+fn snapshot_database_bytes(db_path: &Path) -> Result<Vec<u8>, String> {
+    let temp_path = std::env::temp_dir().join(format!(
+        "scholarium-backup-{}-{}.db",
+        std::process::id(),
+        current_epoch_nanos()
+    ));
+    let temp_path_str = temp_path
+        .to_str()
+        .ok_or_else(|| "Temporary backup path is not valid UTF-8".to_string())?;
+
+    let snapshot_res = (|| -> Result<Vec<u8>, String> {
+        let conn = rusqlite::Connection::open(db_path).map_err(|e| e.to_string())?;
+        conn.execute_batch("PRAGMA busy_timeout = 5000;")
+            .map_err(|e| e.to_string())?;
+        conn.execute("VACUUM INTO ?", [temp_path_str])
+            .map_err(|e| e.to_string())?;
+        fs::read(&temp_path).map_err(|e| e.to_string())
+    })();
+    let _ = fs::remove_file(&temp_path);
+
+    match snapshot_res {
+        Ok(bytes) => Ok(bytes),
+        Err(_) => fs::read(db_path).map_err(|e| e.to_string()),
     }
 }

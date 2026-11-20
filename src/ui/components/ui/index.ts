@@ -1,5 +1,6 @@
 export * from './AutocompleteInput';
 export * from './Badge';
+export * from './BlockingModal';
 export * from './Button';
 export * from './Card';
 export * from './ColorPicker';
