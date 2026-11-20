@@ -2,13 +2,10 @@ use crate::adapters::cloud::google_oauth_adapter::{url_encode, GOOGLE_DRIVE_PROV
 use crate::adapters::cloud::http_transport::{
     HttpMethod, HttpRequest, HttpResponse, HttpTransport,
 };
-use crate::core::ports::{
-    CloudAuthProvider, CloudObjectMeta, CloudStorageError, CloudStorageProvider,
-};
+use crate::core::ports::{CloudObjectMeta, CloudStorageError, CloudStorageProvider};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 const DRIVE_FILES_API: &str = "https://www.googleapis.com/drive/v3/files";
 const DRIVE_UPLOAD_API: &str = "https://www.googleapis.com/upload/drive/v3/files";
@@ -34,46 +31,16 @@ struct DriveListResponse {
 /// All objects live strictly inside `spaces=appDataFolder` so end-users cannot accidentally
 /// modify or delete sync state files in their visible Google Drive.
 pub struct GoogleDriveAppDataAdapter {
-    auth: Arc<dyn CloudAuthProvider>,
     http: Arc<dyn HttpTransport>,
-    clock: Arc<dyn Fn() -> i64 + Send + Sync>,
     id_cache: Mutex<HashMap<String, String>>,
 }
 
 impl GoogleDriveAppDataAdapter {
-    pub fn new(auth: Arc<dyn CloudAuthProvider>, http: Arc<dyn HttpTransport>) -> Self {
-        let clock = Arc::new(|| {
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .map(|d| d.as_millis() as i64)
-                .unwrap_or(0)
-        });
-        Self::with_clock(auth, http, clock)
-    }
-
-    pub fn with_clock(
-        auth: Arc<dyn CloudAuthProvider>,
-        http: Arc<dyn HttpTransport>,
-        clock: Arc<dyn Fn() -> i64 + Send + Sync>,
-    ) -> Self {
+    pub fn new(http: Arc<dyn HttpTransport>) -> Self {
         Self {
-            auth,
             http,
-            clock,
             id_cache: Mutex::new(HashMap::new()),
         }
-    }
-
-    fn bearer_header(&self) -> Result<(String, String), CloudStorageError> {
-        let now_ms = (self.clock)();
-        let token = self
-            .auth
-            .get_valid_access_token(now_ms)
-            .map_err(CloudStorageError::Unauthorized)?;
-        Ok((
-            "Authorization".to_string(),
-            format!("Bearer {}", token.access_token),
-        ))
     }
 
     fn find_file_record(&self, path: &str) -> Result<Option<DriveFileRecord>, CloudStorageError> {
@@ -155,10 +122,9 @@ impl GoogleDriveAppDataAdapter {
         &self,
         method: HttpMethod,
         url: String,
-        mut headers: Vec<(String, String)>,
+        headers: Vec<(String, String)>,
         body: Vec<u8>,
     ) -> Result<HttpResponse, CloudStorageError> {
-        headers.push(self.bearer_header()?);
         let resp = self
             .http
             .send(HttpRequest {
@@ -167,7 +133,13 @@ impl GoogleDriveAppDataAdapter {
                 headers,
                 body,
             })
-            .map_err(CloudStorageError::Network)?;
+            .map_err(|err| {
+                if let Some(msg) = err.strip_prefix("Unauthorized: ") {
+                    CloudStorageError::Unauthorized(msg.to_string())
+                } else {
+                    CloudStorageError::Network(err)
+                }
+            })?;
         check_http_status(&resp)?;
         Ok(resp)
     }

@@ -2,8 +2,8 @@ use crate::seed::seed_bundled_assets_if_needed;
 use crate::utils::find_file_argument;
 #[cfg(feature = "cloud-sync")]
 use scholarium_core::adapters::cloud::{
-    FileCloudCredentialStore, GoogleDriveAppDataAdapter, GoogleOAuthConfig, GoogleOAuthPkceAdapter,
-    PkceChallenge, UreqHttpTransport,
+    AuthenticatedHttpTransport, FileCloudCredentialStore, GoogleDriveAppDataAdapter,
+    GoogleOAuthConfig, GoogleOAuthPkceAdapter, PkceChallenge, UreqHttpTransport,
 };
 use scholarium_core::adapters::configuration::SqliteConfigurationStore;
 use scholarium_core::adapters::logging::AsyncFileLogger;
@@ -155,10 +155,12 @@ impl Default for BackendState {
         let cloud_auth = restore_google_session(&credential_store);
         #[cfg(feature = "cloud-sync")]
         if let Some(ref auth) = cloud_auth {
-            let remote: Arc<dyn CloudStorageProvider> = Arc::new(GoogleDriveAppDataAdapter::new(
-                auth.clone(),
+            let authed_http = Arc::new(AuthenticatedHttpTransport::new(
                 Arc::new(UreqHttpTransport::new()),
+                auth.clone(),
             ));
+            let remote: Arc<dyn CloudStorageProvider> =
+                Arc::new(GoogleDriveAppDataAdapter::new(authed_http));
             storage.set_remote(Some(remote));
         }
 

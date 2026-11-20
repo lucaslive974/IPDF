@@ -1,9 +1,9 @@
 #![cfg(feature = "cloud-sync")]
 
 use scholarium_core::adapters::cloud::{
-    FileCloudCredentialStore, GoogleDriveAppDataAdapter, GoogleOAuthConfig, GoogleOAuthPkceAdapter,
-    HttpMethod, HttpRequest, HttpResponse, HttpTransport, PkceChallenge,
-    GOOGLE_DRIVE_APPDATA_SCOPE, GOOGLE_DRIVE_PROVIDER_ID,
+    AuthenticatedHttpTransport, FileCloudCredentialStore, GoogleDriveAppDataAdapter,
+    GoogleOAuthConfig, GoogleOAuthPkceAdapter, HttpMethod, HttpRequest, HttpResponse,
+    HttpTransport, PkceChallenge, GOOGLE_DRIVE_APPDATA_SCOPE, GOOGLE_DRIVE_PROVIDER_ID,
 };
 use scholarium_core::adapters::platform::LinuxEnvironment;
 use scholarium_core::core::domain::{AppStoragePaths, PlatformKind};
@@ -375,7 +375,12 @@ fn google_drive_appdata_adapter_supports_optimistic_concurrency_and_prefix_listi
     let auth = Arc::new(GoogleOAuthPkceAdapter::new(cfg, creds, transport.clone()));
     auth.exchange_code("code", "verifier", None, 1_000).unwrap();
 
-    let drive = GoogleDriveAppDataAdapter::with_clock(auth, transport.clone(), Arc::new(|| 5_000));
+    let authed_http = Arc::new(AuthenticatedHttpTransport::with_clock(
+        transport.clone(),
+        auth,
+        Arc::new(|| 5_000),
+    ));
+    let drive = GoogleDriveAppDataAdapter::new(authed_http);
     assert_eq!(drive.provider_id(), GOOGLE_DRIVE_PROVIDER_ID);
     assert!(drive.head("sync-manifest.json").unwrap().is_none());
     assert!(drive.read("sync-manifest.json").unwrap().is_none());

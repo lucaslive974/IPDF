@@ -5,8 +5,8 @@ use crate::sync_scheduler::{
 };
 use crate::utils::current_epoch_ms;
 use scholarium_core::adapters::cloud::{
-    GoogleDriveAppDataAdapter, GoogleOAuthConfig, GoogleOAuthPkceAdapter, PkceChallenge,
-    UreqHttpTransport,
+    AuthenticatedHttpTransport, GoogleDriveAppDataAdapter, GoogleOAuthConfig,
+    GoogleOAuthPkceAdapter, PkceChallenge, UreqHttpTransport,
 };
 use scholarium_core::core::domain::{BookAvailability, SyncReport};
 use scholarium_core::core::ports::{
@@ -111,11 +111,12 @@ pub async fn complete_google_oauth(
     .await
     .map_err(|e| e.to_string())??;
 
-    let http = Arc::new(UreqHttpTransport::new());
-    let drive_storage: Arc<dyn CloudStorageProvider> = Arc::new(GoogleDriveAppDataAdapter::new(
+    let authed_http = Arc::new(AuthenticatedHttpTransport::new(
+        Arc::new(UreqHttpTransport::new()),
         pending.adapter.clone(),
-        http,
     ));
+    let drive_storage: Arc<dyn CloudStorageProvider> =
+        Arc::new(GoogleDriveAppDataAdapter::new(authed_http));
 
     let status = {
         let mut guard = state.lock().map_err(|e| e.to_string())?;
@@ -148,9 +149,12 @@ pub async fn connect_google_drive(
     .await
     .map_err(|e| e.to_string())??;
 
-    let http = Arc::new(UreqHttpTransport::new());
+    let authed_http = Arc::new(AuthenticatedHttpTransport::new(
+        Arc::new(UreqHttpTransport::new()),
+        adapter.clone(),
+    ));
     let drive_storage: Arc<dyn CloudStorageProvider> =
-        Arc::new(GoogleDriveAppDataAdapter::new(adapter.clone(), http));
+        Arc::new(GoogleDriveAppDataAdapter::new(authed_http));
 
     let status = {
         let mut guard = state.lock().map_err(|e| e.to_string())?;
