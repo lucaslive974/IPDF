@@ -139,7 +139,9 @@ impl Default for BackendState {
         let credential_store = Arc::new(
             FileCloudCredentialStore::for_platform(&*platform).unwrap_or_else(|_| {
                 FileCloudCredentialStore::new(
-                    std::env::temp_dir().join(FileCloudCredentialStore::CREDENTIALS_FILENAME),
+                    std::env::temp_dir().join(
+                        scholarium_core::core::domain::AppStoragePaths::CLOUD_CREDENTIALS_FILENAME,
+                    ),
                 )
             }),
         );

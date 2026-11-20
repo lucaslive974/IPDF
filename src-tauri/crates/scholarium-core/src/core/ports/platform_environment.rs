@@ -88,4 +88,14 @@ pub trait PlatformEnvironment {
         let cfg = self.config_dir()?;
         Ok(cfg.join(file_name))
     }
+
+    fn var_dir(&self) -> Result<PathBuf, String> {
+        Ok(self.data_dir()?.join(AppStoragePaths::VAR_DIR))
+    }
+
+    fn resolve_cloud_credentials_path(&self) -> Result<PathBuf, String> {
+        Ok(self
+            .var_dir()?
+            .join(AppStoragePaths::CLOUD_CREDENTIALS_FILENAME))
+    }
 }

@@ -16,8 +16,6 @@ pub struct FileCloudCredentialStore {
 }
 
 impl FileCloudCredentialStore {
-    pub const CREDENTIALS_FILENAME: &'static str = "cloud_credentials.json";
-
     pub fn new<P: AsRef<Path>>(file_path: P) -> Self {
         Self {
             file_path: file_path.as_ref().to_path_buf(),
@@ -26,8 +24,8 @@ impl FileCloudCredentialStore {
     }
 
     pub fn for_platform<E: PlatformEnvironment + ?Sized>(env: &E) -> Result<Self, String> {
-        let dir = env.config_dir()?;
-        Ok(Self::new(dir.join(Self::CREDENTIALS_FILENAME)))
+        let path = env.resolve_cloud_credentials_path()?;
+        Ok(Self::new(path))
     }
 
     pub fn file_path(&self) -> &Path {

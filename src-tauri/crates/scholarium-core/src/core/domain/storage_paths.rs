@@ -6,10 +6,12 @@ impl AppStoragePaths {
     pub const BOOKS_DIR: &'static str = ".books";
     pub const COVERS_DIR: &'static str = ".covers";
     pub const CONFIG_DIR: &'static str = ".config";
+    pub const VAR_DIR: &'static str = ".var";
     pub const LOGS_DIR: &'static str = ".logs";
     pub const BACKUPS_DIR: &'static str = "backups";
     pub const HIGHLIGHTS_SUBDIR: &'static str = "highlights";
     pub const DATABASE_FILENAME: &'static str = "scholarium.db";
+    pub const CLOUD_CREDENTIALS_FILENAME: &'static str = "cloud_credentials.json";
     pub const LOG_FILE_PREFIX: &'static str = "scholarium.log";
 
     pub fn cover_entry_name(book_hash: &str, ext: &str) -> String {

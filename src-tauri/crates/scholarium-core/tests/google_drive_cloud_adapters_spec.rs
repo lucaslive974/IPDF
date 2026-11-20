@@ -4,7 +4,7 @@ use scholarium_core::adapters::cloud::{
     GOOGLE_DRIVE_APPDATA_SCOPE, GOOGLE_DRIVE_PROVIDER_ID,
 };
 use scholarium_core::adapters::platform::LinuxEnvironment;
-use scholarium_core::core::domain::PlatformKind;
+use scholarium_core::core::domain::{AppStoragePaths, PlatformKind};
 use scholarium_core::core::ports::{
     CloudAuthKind, CloudAuthProvider, CloudCredentialStore, CloudStorageError, CloudStorageProvider,
 };
@@ -292,7 +292,7 @@ fn file_credential_store_persists_and_deletes_secrets_isolated_from_db() {
     let plat_store = FileCloudCredentialStore::for_platform(&env).unwrap();
     assert!(plat_store
         .file_path()
-        .ends_with(FileCloudCredentialStore::CREDENTIALS_FILENAME));
+        .ends_with(AppStoragePaths::CLOUD_CREDENTIALS_FILENAME));
 
     let _ = std::fs::remove_file(&path);
 }
