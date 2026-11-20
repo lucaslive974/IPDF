@@ -11,6 +11,7 @@ use scholarium_core::adapters::cloud::{
 use scholarium_core::core::domain::{BookAvailability, SyncReport};
 use scholarium_core::core::ports::{
     BookRepository, CloudAuthProvider, CloudStorageProvider, ConfigurationStore,
+    HighlightRepository, StorageProvider,
 };
 use scholarium_core::core::services::LocalSyncCursor;
 use serde::Serialize;
@@ -192,7 +193,9 @@ pub async fn disconnect_cloud_provider(
         let _ = tauri::async_runtime::spawn_blocking(move || auth.sign_out()).await;
     }
 
-    let guard = state.lock().map_err(|e| e.to_string())?;
+    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    prune_remote_only_books(&mut guard)?;
+    LocalSyncCursor::default().save(&mut guard.config_store)?;
     scheduler.emit_current(&app, &guard);
     Ok(scheduler.snapshot(&guard))
 }
@@ -314,5 +317,22 @@ pub async fn clear_cloud_sync_data(state: State<'_, Mutex<BackendState>>) -> Res
 
     let mut guard = state.lock().map_err(|e| e.to_string())?;
     LocalSyncCursor::default().save(&mut guard.config_store)?;
+    prune_remote_only_books(&mut guard)?;
     Ok(deleted)
+}
+
+fn prune_remote_only_books(guard: &mut BackendState) -> Result<usize, String> {
+    let books = guard.library.list_books()?;
+    let mut pruned = 0usize;
+    for book in books {
+        if !guard.storage.has_book_binary(&book.book_hash)? {
+            let _ = guard.highlight_repo.delete_by_book(&book.book_hash)?;
+            guard.epub_content.clear_cache(&book.book_hash);
+            let _ = guard.storage.delete_book_cover(&book.book_hash);
+            if guard.library.delete_book(&book.book_hash)? {
+                pruned += 1;
+            }
+        }
+    }
+    Ok(pruned)
 }

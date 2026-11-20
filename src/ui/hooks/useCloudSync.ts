@@ -109,13 +109,22 @@ export async function executeConnectGoogleDrive(syncService: ISyncService): Prom
   }
 }
 
-export async function executeDisconnectCloud(syncService: ISyncService): Promise<void> {
+export async function executeDisconnectCloud(
+  syncService: ISyncService,
+  libraryService?: ILibraryService,
+  highlightService?: IHighlightService
+): Promise<void> {
   useSyncStore.getState().setIsBusy(true);
   useSyncStore.getState().setError(null);
   try {
     const nextStatus = await syncService.disconnectCloudProvider();
     useSyncStore.getState().setStatus(nextStatus);
     useSyncStore.getState().setPendingAuthUrl(null);
+    if (libraryService && highlightService) {
+      await rehydrateSyncedStores(libraryService, highlightService, syncService);
+    } else {
+      await executeRefreshSyncStatus(syncService);
+    }
   } catch (err) {
     useSyncStore.getState().setError(toErrorMessage(err));
   } finally {
@@ -186,12 +195,20 @@ export async function executeEvictLocalBook(
   }
 }
 
-export async function executeClearCloudData(syncService: ISyncService): Promise<number> {
+export async function executeClearCloudData(
+  syncService: ISyncService,
+  libraryService?: ILibraryService,
+  highlightService?: IHighlightService
+): Promise<number> {
   useSyncStore.getState().setIsBusy(true);
   useSyncStore.getState().setError(null);
   try {
     const deleted = await syncService.clearCloudSyncData();
-    await executeRefreshSyncStatus(syncService);
+    if (libraryService && highlightService) {
+      await rehydrateSyncedStores(libraryService, highlightService, syncService);
+    } else {
+      await executeRefreshSyncStatus(syncService);
+    }
     return deleted;
   } catch (err) {
     useSyncStore.getState().setError(toErrorMessage(err));
@@ -278,7 +295,10 @@ export function useCloudSync(): UseCloudSyncReturn {
     () => executeConnectGoogleDrive(syncService),
     [syncService]
   );
-  const disconnect = useCallback(() => executeDisconnectCloud(syncService), [syncService]);
+  const disconnect = useCallback(
+    () => executeDisconnectCloud(syncService, libraryService, highlightService),
+    [syncService, libraryService, highlightService]
+  );
   const syncNow = useCallback(
     () => executeSyncNow(syncService, libraryService, highlightService),
     [syncService, libraryService, highlightService]
@@ -295,7 +315,10 @@ export function useCloudSync(): UseCloudSyncReturn {
     (bookHash: string) => executeEvictLocalBook(syncService, bookHash),
     [syncService]
   );
-  const clearCloudData = useCallback(() => executeClearCloudData(syncService), [syncService]);
+  const clearCloudData = useCallback(
+    () => executeClearCloudData(syncService, libraryService, highlightService),
+    [syncService, libraryService, highlightService]
+  );
 
   return {
     status,
