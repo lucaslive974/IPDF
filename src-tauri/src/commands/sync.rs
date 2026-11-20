@@ -240,17 +240,23 @@ pub fn set_cloud_sync_interval(
 }
 
 #[tauri::command]
-pub fn list_book_availabilities(
+pub async fn list_book_availabilities(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<BTreeMap<String, BookAvailability>, String> {
-    let mut guard = state.lock().map_err(|e| e.to_string())?;
-    let books = guard.library.list_books()?;
-    let mut map = BTreeMap::new();
-    for book in books {
-        let availability = guard.storage.book_availability(&book.book_hash)?;
-        map.insert(book.book_hash, availability);
-    }
-    Ok(map)
+    let (books, storage) = {
+        let mut guard = state.lock().map_err(|e| e.to_string())?;
+        (guard.library.list_books()?, guard.storage.clone())
+    };
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut map = BTreeMap::new();
+        for book in books {
+            let availability = storage.book_availability(&book.book_hash)?;
+            map.insert(book.book_hash, availability);
+        }
+        Ok(map)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]

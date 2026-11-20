@@ -1,5 +1,7 @@
 use crate::state::BackendState;
 use crate::utils::current_epoch_ms;
+use scholarium_core::adapters::configuration::SqliteConfigurationStore;
+use scholarium_core::adapters::persistence::{SqliteBookRepository, SqliteHighlightRepository};
 use scholarium_core::core::domain::{PlatformKind, SyncReport};
 use scholarium_core::core::ports::{
     CloudAuthKind, CloudAuthProvider, ConfigurationStore, LogEntry, LogLevel, LogService,
@@ -127,13 +129,19 @@ impl SyncSchedulerHandle {
             .try_state::<Mutex<BackendState>>()
             .ok_or_else(|| "Backend state unavailable".to_string())?;
 
-        let should_sync = {
+        let (cloud, db_path) = {
             let guard = state.lock().map_err(|e| e.to_string())?;
             let Some(cloud) = guard.storage.remote() else {
                 return Ok(None);
             };
+            let db_path = guard.platform_env.default_database_path()?;
+            (cloud, db_path)
+        };
+
+        let should_sync = {
+            let config_store = SqliteConfigurationStore::open_file(&db_path)?;
             let engine = CloudSyncEngine::new();
-            engine.check_remote_changed(&guard.config_store, cloud.as_ref())?
+            engine.check_remote_changed(&config_store, cloud.as_ref())?
         };
 
         if should_sync {
@@ -159,44 +167,39 @@ impl SyncSchedulerHandle {
             .try_state::<Mutex<BackendState>>()
             .ok_or_else(|| "Backend state unavailable".to_string())?;
 
-        {
+        let (cloud, mut storage, db_path) = {
             let guard = state.lock().map_err(|e| e.to_string())?;
-            if guard.storage.remote().is_none() {
+            let Some(cloud) = guard.storage.remote() else {
                 return Err("No cloud provider connected".to_string());
-            }
+            };
+            let db_path = guard.platform_env.default_database_path()?;
             self.update_and_emit(app, &guard, |s| {
                 s.state = "syncing".to_string();
                 s.last_error = None;
             });
-        }
+            (cloud, guard.storage.clone(), db_path)
+        };
 
-        let sync_result = {
-            let mut guard = state.lock().map_err(|e| e.to_string())?;
-            let Some(cloud) = guard.storage.remote() else {
-                return Err("No cloud provider connected".to_string());
-            };
-            let now_ms = current_epoch_ms();
+        let now_ms = current_epoch_ms();
+        let sync_result = (|| -> Result<SyncReport, String> {
+            let mut book_repo = SqliteBookRepository::open_file(&db_path)?;
+            let mut highlight_repo = SqliteHighlightRepository::open_file(&db_path)?;
+            let mut config_store = SqliteConfigurationStore::open_file(&db_path)?;
             let engine = CloudSyncEngine::new();
-            let BackendState {
-                ref mut library,
-                ref mut highlight_repo,
-                ref mut storage,
-                ref mut config_store,
-                ref logger,
-                ..
-            } = *guard;
-
-            let res = engine.sync_once(
-                library.book_repo_mut(),
-                highlight_repo,
-                storage,
-                config_store,
+            engine.sync_once(
+                &mut book_repo,
+                &mut highlight_repo,
+                &mut storage,
+                &mut config_store,
                 cloud.as_ref(),
                 now_ms,
-            );
-            match &res {
+            )
+        })();
+
+        if let Ok(guard) = state.lock() {
+            match &sync_result {
                 Ok(report) => {
-                    let _ = logger.log(LogEntry::new(
+                    let _ = guard.logger.log(LogEntry::new(
                         now_ms,
                         LogLevel::Status,
                         "cloud_sync",
@@ -208,22 +211,6 @@ impl SyncSchedulerHandle {
                             report.uploaded_blobs
                         ),
                     ));
-                }
-                Err(err) => {
-                    let _ = logger.log(LogEntry::new(
-                        now_ms,
-                        LogLevel::Error,
-                        "cloud_sync",
-                        format!("Cloud sync failed: {err}"),
-                    ));
-                }
-            }
-            res
-        };
-
-        if let Ok(guard) = state.lock() {
-            match &sync_result {
-                Ok(report) => {
                     self.update_and_emit(app, &guard, |s| {
                         s.state = "synced".to_string();
                         s.last_synced_at_ms = Some(report.synced_at_ms);
@@ -234,6 +221,12 @@ impl SyncSchedulerHandle {
                     });
                 }
                 Err(err) => {
+                    let _ = guard.logger.log(LogEntry::new(
+                        now_ms,
+                        LogLevel::Error,
+                        "cloud_sync",
+                        format!("Cloud sync failed: {err}"),
+                    ));
                     self.update_and_emit(app, &guard, |s| {
                         s.state = "error".to_string();
                         s.last_error = Some(err.clone());
