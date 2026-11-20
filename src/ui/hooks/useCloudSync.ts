@@ -4,6 +4,7 @@ import { useServiceContainer } from '@providers/ServiceContainerContext';
 import { useHighlightStore } from '@stores/useHighlightStore';
 import { useLibraryStore } from '@stores/useLibraryStore';
 import { useSyncStore } from '@stores/useSyncStore';
+import { hasDocument } from '@utils/dom';
 import { useCallback, useEffect } from 'react';
 
 export interface UseCloudSyncReturn {
@@ -200,16 +201,13 @@ export async function executeClearCloudData(syncService: ISyncService): Promise<
   }
 }
 
-export function useCloudSync(): UseCloudSyncReturn {
+/**
+ * Global listener mounted once at the app root (when `__ENABLE_CLOUD_SYNC__` is true).
+ * Subscribes to backend `sync:status` events, triggers resume checks on visibility change,
+ * and rehydrates library/highlight stores whenever remote changes are pulled.
+ */
+export function useCloudSyncListener(): void {
   const { syncService, libraryService, highlightService } = useServiceContainer();
-  const status = useSyncStore((s) => s.status);
-  const availabilities = useSyncStore((s) => s.availabilities);
-  const downloadingHashes = useSyncStore((s) => s.downloadingHashes);
-  const pendingAuthUrl = useSyncStore((s) => s.pendingAuthUrl);
-  const isBusy = useSyncStore((s) => s.isBusy);
-  const error = useSyncStore((s) => s.error);
-
-  const refreshStatus = useCallback(() => executeRefreshSyncStatus(syncService), [syncService]);
 
   useEffect(() => {
     let active = true;
@@ -232,11 +230,40 @@ export function useCloudSync(): UseCloudSyncReturn {
         }
       });
 
+    const handleVisibilityChange = () => {
+      if (hasDocument() && !document.hidden) {
+        void syncService.notifyAppResumed().then((report) => {
+          if (active && report && report.pulledBooks > 0) {
+            void rehydrateSyncedStores(libraryService, highlightService, syncService);
+          }
+        });
+      }
+    };
+
+    if (hasDocument()) {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+
     return () => {
       active = false;
       unlisten?.();
+      if (hasDocument()) {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
     };
   }, [syncService, libraryService, highlightService]);
+}
+
+export function useCloudSync(): UseCloudSyncReturn {
+  const { syncService, libraryService, highlightService } = useServiceContainer();
+  const status = useSyncStore((s) => s.status);
+  const availabilities = useSyncStore((s) => s.availabilities);
+  const downloadingHashes = useSyncStore((s) => s.downloadingHashes);
+  const pendingAuthUrl = useSyncStore((s) => s.pendingAuthUrl);
+  const isBusy = useSyncStore((s) => s.isBusy);
+  const error = useSyncStore((s) => s.error);
+
+  const refreshStatus = useCallback(() => executeRefreshSyncStatus(syncService), [syncService]);
 
   const beginGoogleOAuth = useCallback(
     (clientIdOverride?: string) => executeBeginGoogleOAuth(syncService, clientIdOverride),

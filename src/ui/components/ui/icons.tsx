@@ -253,6 +253,26 @@ export function CheckIcon({ className = 'h-4 w-4', ...props }: SVGProps<SVGSVGEl
   );
 }
 
+export function CloudIcon({ className = 'h-4 w-4', ...props }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      className={className}
+      {...props}
+    >
+      <title>Cloud</title>
+      <path
+        d="M6.25 15.25h7.75a3.25 3.25 0 0 0 .48-6.46A4.5 4.5 0 0 0 5.8 7.52a3.5 3.5 0 0 0 .45 7.73Z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function ArrowRightIcon({ className = 'h-4 w-4', ...props }: SVGProps<SVGSVGElement>) {
   return (
     <svg

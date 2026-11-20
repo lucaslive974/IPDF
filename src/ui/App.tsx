@@ -1,4 +1,5 @@
 import { LoadingSplash, TransitionOverlay } from '@ui';
+import { CloudSyncOverlay } from './components/CloudSyncOverlay';
 import { LibraryView } from './components/LibraryView';
 import { ReaderView } from './components/ReaderView';
 import { SettingsView } from './components/SettingsView';
@@ -30,6 +31,7 @@ function AppShell() {
   return (
     <>
       <AppRouter />
+      {__ENABLE_CLOUD_SYNC__ && <CloudSyncOverlay />}
       <TransitionOverlay
         isVisible={startup.isOverlayVisible}
         minDisplayMs={startup.minDisplayMs}

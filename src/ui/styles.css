@@ -203,6 +203,10 @@
   right: calc(1rem + env(safe-area-inset-right, 0px));
 }
 
+@utility safe-left-4 {
+  left: calc(1rem + env(safe-area-inset-left, 0px));
+}
+
 /* Reveal overlay controls on hover/focus when a fine pointer is present; always visible on touch */
 @utility hover-reveal {
   opacity: 1;
