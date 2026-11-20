@@ -7,11 +7,13 @@ const host = process.env.TAURI_DEV_HOST;
 const port = Number(process.env.VITE_PORT) || 1420;
 const tauriPlatform = process.env.TAURI_ENV_PLATFORM ?? 'desktop';
 const isMobile = tauriPlatform === 'android' || tauriPlatform === 'ios';
+const enableCloudSync = process.env.SCHOLARIUM_CLOUD_SYNC === 'true';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   define: {
     __IS_MOBILE__: JSON.stringify(isMobile),
+    __ENABLE_CLOUD_SYNC__: JSON.stringify(enableCloudSync),
   },
   resolve: {
     alias: {

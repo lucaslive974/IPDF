@@ -4,5 +4,6 @@ pub mod highlights;
 pub mod library;
 pub mod reader;
 pub mod settings;
+#[cfg(feature = "cloud-sync")]
 pub mod sync;
 pub mod system;

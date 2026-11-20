@@ -1,6 +1,7 @@
 import {
   CachedReaderServiceDecorator,
   NoopPresenceService,
+  NoopSyncService,
   TauriBackupService,
   TauriHighlightService,
   TauriLibraryService,
@@ -75,7 +76,9 @@ export function createServiceContainer(
   const settingsService = overrides.settingsService ?? new TauriSettingsService();
   const logService = overrides.logService ?? new TauriLogService();
   const backupService = overrides.backupService ?? new TauriBackupService();
-  const syncService = overrides.syncService ?? new TauriSyncService();
+  const syncService =
+    overrides.syncService ??
+    (__ENABLE_CLOUD_SYNC__ ? new TauriSyncService() : new NoopSyncService());
 
   const readerService = overrides.readerService
     ? overrides.enablePageCache === true &&

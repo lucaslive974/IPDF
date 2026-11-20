@@ -1,40 +1,16 @@
-use crate::commands::{ai, backup, highlights, library, reader, settings, sync, system};
+#[cfg(feature = "cloud-sync")]
+use crate::commands::sync;
+use crate::commands::{ai, backup, highlights, library, reader, settings, system};
 use crate::state::BackendState;
+#[cfg(feature = "cloud-sync")]
 use crate::sync_scheduler::{empty_status, load_configured_interval_secs, SyncSchedulerHandle};
 use scholarium_core::core::ports::StorageProvider;
 use std::sync::Mutex;
 use tauri::Manager;
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
-    #[allow(unused_mut)]
-    let mut builder = tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_opener::init());
-
-    #[cfg(not(any(target_os = "android", target_os = "ios")))]
-    {
-        builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-            handle_single_instance(app, &args);
-        }));
-    }
-
-    let backend_state = BackendState::default();
-    let initial_interval = load_configured_interval_secs(&backend_state.config_store);
-    let initial_status = empty_status(initial_interval, &backend_state);
-    let sync_scheduler = SyncSchedulerHandle::new(initial_interval, initial_status);
-    let bg_scheduler = sync_scheduler.clone();
-
-    builder
-        .manage(Mutex::new(backend_state))
-        .manage(sync_scheduler)
-        .setup(move |app| {
-            bg_scheduler.spawn_background_loop(app.handle().clone());
-            Ok(())
-        })
-        .register_asynchronous_uri_scheme_protocol("cover", handle_cover_protocol_request)
-        .invoke_handler(tauri::generate_handler![
+macro_rules! build_invoke_handler {
+    ($($extra:path),* $(,)?) => {
+        tauri::generate_handler![
             // System routes
             system::healthcheck,
             system::write_log,
@@ -84,7 +60,53 @@ pub fn run() {
             backup::delete_local_backup,
             backup::export_local_backup,
             backup::import_and_restore_backup,
-            // Cloud Sync & On-Demand Storage routes
+            $($extra,)*
+        ]
+    };
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    #[allow(unused_mut)]
+    let mut builder = tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_opener::init());
+
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            handle_single_instance(app, &args);
+        }));
+    }
+
+    let backend_state = BackendState::default();
+    let builder = configure_cloud_sync(builder, &backend_state);
+
+    builder
+        .manage(Mutex::new(backend_state))
+        .register_asynchronous_uri_scheme_protocol("cover", handle_cover_protocol_request)
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
+
+#[cfg(feature = "cloud-sync")]
+fn configure_cloud_sync(
+    builder: tauri::Builder<tauri::Wry>,
+    backend_state: &BackendState,
+) -> tauri::Builder<tauri::Wry> {
+    let initial_interval = load_configured_interval_secs(&backend_state.config_store);
+    let initial_status = empty_status(initial_interval, backend_state);
+    let sync_scheduler = SyncSchedulerHandle::new(initial_interval, initial_status);
+    let bg_scheduler = sync_scheduler.clone();
+
+    builder
+        .manage(sync_scheduler)
+        .setup(move |app| {
+            bg_scheduler.spawn_background_loop(app.handle().clone());
+            Ok(())
+        })
+        .invoke_handler(build_invoke_handler!(
             sync::list_cloud_providers,
             sync::get_cloud_sync_status,
             sync::begin_google_oauth,
@@ -98,9 +120,15 @@ pub fn run() {
             sync::download_remote_book,
             sync::evict_local_book,
             sync::clear_cloud_sync_data,
-        ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        ))
+}
+
+#[cfg(not(feature = "cloud-sync"))]
+fn configure_cloud_sync(
+    builder: tauri::Builder<tauri::Wry>,
+    _backend_state: &BackendState,
+) -> tauri::Builder<tauri::Wry> {
+    builder.invoke_handler(build_invoke_handler!())
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]

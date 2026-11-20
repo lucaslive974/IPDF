@@ -24,7 +24,7 @@ const llvmCov = join(llvmBinDir, 'llvm-cov');
 
 const testRun = spawnSync(
   'cargo',
-  ['test', '--manifest-path', manifestPath, '--message-format=json'],
+  ['test', '--manifest-path', manifestPath, '--all-features', '--message-format=json'],
   {
     cwd: rootDir,
     env: {

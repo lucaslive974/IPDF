@@ -20,7 +20,7 @@ export function SettingsView() {
       <main className="flex-1 mx-auto w-full max-w-3xl px-6 py-8 flex flex-col gap-6">
         <SettingsAppearanceSection theme={theme} onSetTheme={setTheme} />
 
-        <SettingsSyncSection />
+        {__ENABLE_CLOUD_SYNC__ && <SettingsSyncSection />}
 
         {!__IS_MOBILE__ && settings.supportsDiscordPresence && (
           <SettingsIntegrationsSection

@@ -1,5 +1,6 @@
 use crate::seed::seed_bundled_assets_if_needed;
 use crate::utils::find_file_argument;
+#[cfg(feature = "cloud-sync")]
 use scholarium_core::adapters::cloud::{
     FileCloudCredentialStore, GoogleDriveAppDataAdapter, GoogleOAuthConfig, GoogleOAuthPkceAdapter,
     PkceChallenge, UreqHttpTransport,
@@ -15,15 +16,18 @@ use scholarium_core::adapters::platform::{
 use scholarium_core::adapters::presence::NativeDiscordPresenceAdapter;
 use scholarium_core::adapters::storage::{LocalFolderStorageAdapter, StorageManagerDecorator};
 use scholarium_core::core::domain::BookMetadata;
+#[cfg(feature = "cloud-sync")]
+use scholarium_core::core::ports::{CloudAuthProvider, CloudStorageProvider};
 use scholarium_core::core::ports::{
-    CloudAuthProvider, CloudStorageProvider, ConfigurationStore, LogEntry, LogLevel, LogService,
-    PlatformEnvironment,
+    ConfigurationStore, LogEntry, LogLevel, LogService, PlatformEnvironment,
 };
 use scholarium_core::core::services::{EpubContentService, LibraryManager, RichPresenceManager};
+#[cfg(feature = "cloud-sync")]
 use std::sync::Arc;
 
 pub type AppStorage = StorageManagerDecorator<LocalFolderStorageAdapter>;
 
+#[cfg(feature = "cloud-sync")]
 pub struct PendingGoogleOAuth {
     pub pkce: PkceChallenge,
     pub adapter: Arc<GoogleOAuthPkceAdapter>,
@@ -39,8 +43,11 @@ pub struct BackendState {
     pub startup_book: Option<BookMetadata>,
     pub presence_manager: RichPresenceManager,
     pub logger: AsyncFileLogger,
+    #[cfg(feature = "cloud-sync")]
     pub credential_store: Arc<FileCloudCredentialStore>,
+    #[cfg(feature = "cloud-sync")]
     pub cloud_auth: Option<Arc<GoogleOAuthPkceAdapter>>,
+    #[cfg(feature = "cloud-sync")]
     pub pending_oauth: Option<PendingGoogleOAuth>,
 }
 
@@ -136,16 +143,17 @@ impl Default for BackendState {
             presence_manager.register_provider(discord_adapter);
         }
 
+        #[cfg(feature = "cloud-sync")]
         let credential_store = Arc::new(
             FileCloudCredentialStore::for_platform(&*platform).unwrap_or_else(|_| {
-                FileCloudCredentialStore::new(
-                    std::env::temp_dir().join(
-                        scholarium_core::core::domain::AppStoragePaths::CLOUD_CREDENTIALS_FILENAME,
-                    ),
-                )
+                FileCloudCredentialStore::new(std::env::temp_dir().join(
+                    scholarium_core::core::domain::AppStoragePaths::CLOUD_CREDENTIALS_FILENAME,
+                ))
             }),
         );
+        #[cfg(feature = "cloud-sync")]
         let cloud_auth = restore_google_session(&credential_store);
+        #[cfg(feature = "cloud-sync")]
         if let Some(ref auth) = cloud_auth {
             let remote: Arc<dyn CloudStorageProvider> = Arc::new(GoogleDriveAppDataAdapter::new(
                 auth.clone(),
@@ -167,13 +175,17 @@ impl Default for BackendState {
             startup_book,
             presence_manager,
             logger,
+            #[cfg(feature = "cloud-sync")]
             credential_store,
+            #[cfg(feature = "cloud-sync")]
             cloud_auth,
+            #[cfg(feature = "cloud-sync")]
             pending_oauth: None,
         }
     }
 }
 
+#[cfg(feature = "cloud-sync")]
 fn restore_google_session(
     credential_store: &Arc<FileCloudCredentialStore>,
 ) -> Option<Arc<GoogleOAuthPkceAdapter>> {

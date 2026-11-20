@@ -1,4 +1,5 @@
 pub mod backup;
+#[cfg(feature = "cloud-sync")]
 pub mod cloud;
 pub mod configuration;
 pub mod extractor;

@@ -1,3 +1,5 @@
+#![cfg(feature = "cloud-sync")]
+
 use scholarium_core::adapters::cloud::{
     FileCloudCredentialStore, GoogleDriveAppDataAdapter, GoogleOAuthConfig, GoogleOAuthPkceAdapter,
     HttpMethod, HttpRequest, HttpResponse, HttpTransport, PkceChallenge,

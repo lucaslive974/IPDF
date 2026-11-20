@@ -4,6 +4,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   define: {
     __IS_MOBILE__: false,
+    __ENABLE_CLOUD_SYNC__: true,
   },
   resolve: {
     alias: {
