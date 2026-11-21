@@ -212,8 +212,8 @@ export function useCloudSyncListener(): void {
     let unlisten: (() => void) | null = null;
 
     void executeRefreshSyncStatus(syncService);
-    void syncService
-      .subscribeStatus((nextStatus) => {
+    const subscribe = async () => {
+      const fn = await syncService.subscribeStatus((nextStatus) => {
         if (!active) return;
         useSyncStore.getState().setStatus(nextStatus);
         if (nextStatus.connected) {
@@ -222,14 +222,16 @@ export function useCloudSyncListener(): void {
         if (nextStatus.state === 'synced' && nextStatus.lastPulledBooks > 0) {
           void rehydrateSyncedStores(libraryService, highlightService, syncService);
         }
-      })
-      .then((fn) => {
-        if (active) {
-          unlisten = fn;
-        } else {
-          fn();
-        }
       });
+
+      if (active) {
+        unlisten = fn;
+      } else {
+        fn();
+      }
+    };
+
+    void subscribe();
 
     const handleVisibilityChange = () => {
       if (hasDocument() && !document.hidden) {
