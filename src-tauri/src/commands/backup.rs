@@ -7,8 +7,7 @@ use scholarium_core::adapters::configuration::SqliteConfigurationStore;
 use scholarium_core::adapters::persistence::{SqliteBookRepository, SqliteHighlightRepository};
 use scholarium_core::core::ports::{
     format_backup_filename, sanitize_device_label, BackupArtifact, BackupDestination, BackupReport,
-    BookRepository, ConfigurationStore, HighlightRepository, LogEntry, LogLevel, LogService,
-    StorageProvider,
+    LogEntry, LogLevel, LogService, StorageProvider,
 };
 use scholarium_core::core::services::{BackupService, LibraryManager};
 use serde::Serialize;
@@ -42,10 +41,18 @@ fn hybrid_backup_destination(
 
 fn clear_state_for_restore(guard: &mut BackendState) -> Result<(), String> {
     guard.presence_manager.clear_all_presence();
-    guard.highlight_repo.clear()?;
-    guard.library.book_repo_mut().clear()?;
     guard.storage.clear()?;
-    guard.config_store.clear()?;
+
+    // Drop file-backed SQLite connections before overwriting the database file
+    // so WAL/SHM handles are released cleanly.
+    guard.highlight_repo = SqliteHighlightRepository::new_in_memory()?;
+    let in_memory_books = SqliteBookRepository::new_in_memory()?;
+    guard.library = LibraryManager::new_with_repo(guard.storage.clone(), in_memory_books);
+    guard.config_store = SqliteConfigurationStore::new_in_memory()?;
+
+    if let Ok(db_path) = guard.platform_env.default_database_path() {
+        scholarium_core::utils::remove_sqlite_files(&db_path);
+    }
     Ok(())
 }
 

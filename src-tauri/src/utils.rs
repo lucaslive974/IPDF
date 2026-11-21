@@ -1,6 +1,6 @@
 use scholarium_core::core::domain::BookFormat;
+pub use scholarium_core::utils::current_epoch_ms;
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct LocalBookFile {
     pub raw_bytes: Vec<u8>,
@@ -33,13 +33,6 @@ pub fn read_local_book_file(path: &Path) -> Result<LocalBookFile, String> {
         title,
         format,
     })
-}
-
-pub fn current_epoch_ms() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or(0)
 }
 
 pub fn find_file_argument(args: &[String]) -> Option<PathBuf> {

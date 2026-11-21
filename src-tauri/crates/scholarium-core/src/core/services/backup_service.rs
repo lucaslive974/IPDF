@@ -138,7 +138,7 @@ impl<'a, W: Write + Seek> BackupArchiveWriter<'a, W> {
             return Ok(false);
         }
 
-        let bytes = snapshot_database_bytes(&db_path)?;
+        let bytes = crate::utils::snapshot_database_bytes(&db_path)?;
         self.write_zip_file(&AppStoragePaths::database_relative_path(), &bytes)?;
         Ok(true)
     }
@@ -223,6 +223,9 @@ impl BackupArchiveRestorer {
         entry
             .read_to_end(&mut contents)
             .map_err(|e| e.to_string())?;
+        if rel_path == AppStoragePaths::database_relative_path() {
+            crate::utils::remove_sqlite_sidecars(&target_path);
+        }
         fs::write(&target_path, &contents).map_err(|e| e.to_string())?;
 
         self.record_entry(&rel_path, contents.len() as u64);
@@ -247,43 +250,10 @@ impl BackupArchiveRestorer {
     }
 }
 
-fn current_epoch_nanos() -> u128 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(0)
-}
-
 fn read_file_if_present(path: &Path) -> Result<Option<Vec<u8>>, String> {
     match fs::read(path) {
         Ok(bytes) => Ok(Some(bytes)),
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
         Err(err) => Err(err.to_string()),
-    }
-}
-
-fn snapshot_database_bytes(db_path: &Path) -> Result<Vec<u8>, String> {
-    let temp_path = std::env::temp_dir().join(format!(
-        "scholarium-backup-{}-{}.db",
-        std::process::id(),
-        current_epoch_nanos()
-    ));
-    let temp_path_str = temp_path
-        .to_str()
-        .ok_or_else(|| "Temporary backup path is not valid UTF-8".to_string())?;
-
-    let snapshot_res = (|| -> Result<Vec<u8>, String> {
-        let conn = rusqlite::Connection::open(db_path).map_err(|e| e.to_string())?;
-        conn.execute_batch("PRAGMA busy_timeout = 5000;")
-            .map_err(|e| e.to_string())?;
-        conn.execute("VACUUM INTO ?", [temp_path_str])
-            .map_err(|e| e.to_string())?;
-        fs::read(&temp_path).map_err(|e| e.to_string())
-    })();
-    let _ = fs::remove_file(&temp_path);
-
-    match snapshot_res {
-        Ok(bytes) => Ok(bytes),
-        Err(_) => fs::read(db_path).map_err(|e| e.to_string()),
     }
 }
