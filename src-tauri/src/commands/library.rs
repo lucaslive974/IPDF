@@ -63,6 +63,10 @@ pub fn import_books_from_paths(
         }
     }
 
+    if !results.is_empty() {
+        guard.mark_sync_dirty();
+    }
+
     Ok(results)
 }
 
@@ -76,7 +80,10 @@ pub fn import_book_from_bytes(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<BookMetadata, String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
-    import_book_into_state(&mut guard, raw_bytes, title, author, format, total_pages)
+    let metadata =
+        import_book_into_state(&mut guard, raw_bytes, title, author, format, total_pages)?;
+    guard.mark_sync_dirty();
+    Ok(metadata)
 }
 
 #[tauri::command]
@@ -100,6 +107,7 @@ pub async fn pick_and_import_book(
     if let FilePath::Path(ref path) = file_path {
         let mut guard = state.lock().map_err(|e| e.to_string())?;
         let metadata = process_single_book_path(&mut guard, &app, path)?;
+        guard.mark_sync_dirty();
         return Ok(Some(metadata));
     }
 
@@ -128,6 +136,7 @@ pub async fn pick_and_import_book(
         format,
         0,
     )?;
+    guard.mark_sync_dirty();
     Ok(Some(metadata))
 }
 
@@ -140,7 +149,9 @@ pub fn rename_book(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<BookMetadata, String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
-    guard.library.rename_book(&book_hash, &new_title)
+    let updated = guard.library.rename_book(&book_hash, &new_title)?;
+    guard.mark_sync_dirty();
+    Ok(updated)
 }
 
 #[tauri::command]
@@ -153,9 +164,15 @@ pub fn update_book_metadata(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<BookMetadata, String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
-    guard
-        .library
-        .update_book_metadata(&book_hash, &title, &author, &tags, description.as_deref())
+    let updated = guard.library.update_book_metadata(
+        &book_hash,
+        &title,
+        &author,
+        &tags,
+        description.as_deref(),
+    )?;
+    guard.mark_sync_dirty();
+    Ok(updated)
 }
 
 #[tauri::command]
@@ -167,7 +184,11 @@ pub fn delete_book(
     let _ = guard.highlight_repo.delete_by_book(&book_hash)?;
     guard.epub_content.clear_cache(&book_hash);
     let _ = guard.storage.delete_book_cover(&book_hash);
-    guard.library.delete_book(&book_hash)
+    let deleted = guard.library.delete_book(&book_hash)?;
+    if deleted {
+        guard.mark_sync_dirty();
+    }
+    Ok(deleted)
 }
 
 // Helpers
@@ -256,6 +277,7 @@ pub async fn save_book_cover(
             .storage
             .write_book_cover(book_hash, bytes, mime_type)?;
     }
+    guard.mark_sync_dirty();
     Ok(())
 }
 
@@ -265,5 +287,7 @@ pub async fn delete_book_cover(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<(), String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
-    guard.storage.delete_book_cover(&book_hash)
+    guard.storage.delete_book_cover(&book_hash)?;
+    guard.mark_sync_dirty();
+    Ok(())
 }

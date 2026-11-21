@@ -38,6 +38,7 @@ pub fn save_highlight(
     let mut guard = state.lock().map_err(|e| e.to_string())?;
     let domain = ipc_highlight_to_domain(&highlight, current_epoch_ms());
     guard.highlight_repo.save(domain)?;
+    guard.mark_sync_dirty();
     Ok(())
 }
 
@@ -47,7 +48,9 @@ pub fn delete_highlight(
     state: State<'_, Mutex<BackendState>>,
 ) -> Result<(), String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
-    guard.highlight_repo.delete(&highlight_id)
+    guard.highlight_repo.delete(&highlight_id)?;
+    guard.mark_sync_dirty();
+    Ok(())
 }
 
 #[tauri::command]

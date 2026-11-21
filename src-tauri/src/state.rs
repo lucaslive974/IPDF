@@ -22,6 +22,8 @@ use scholarium_core::core::ports::{
     ConfigurationStore, LogEntry, LogLevel, LogService, PlatformEnvironment,
 };
 use scholarium_core::core::services::{EpubContentService, LibraryManager, RichPresenceManager};
+#[cfg(feature = "cloud-sync")]
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 pub type AppStorage = StorageManagerDecorator<LocalFolderStorageAdapter>;
@@ -42,6 +44,8 @@ pub struct BackendState {
     pub startup_book: Option<BookMetadata>,
     pub presence_manager: RichPresenceManager,
     pub logger: AsyncFileLogger,
+    #[cfg(feature = "cloud-sync")]
+    pub sync_dirty: Arc<AtomicBool>,
     #[cfg(feature = "cloud-sync")]
     pub credential_store: Arc<FileCloudCredentialStore>,
     #[cfg(feature = "cloud-sync")]
@@ -181,6 +185,8 @@ impl Default for BackendState {
             presence_manager,
             logger,
             #[cfg(feature = "cloud-sync")]
+            sync_dirty: Arc::new(AtomicBool::new(false)),
+            #[cfg(feature = "cloud-sync")]
             credential_store,
             #[cfg(feature = "cloud-sync")]
             cloud_auth,
@@ -208,6 +214,15 @@ fn restore_google_session(
 }
 
 impl BackendState {
+    #[cfg(feature = "cloud-sync")]
+    pub fn mark_sync_dirty(&self) {
+        self.sync_dirty.store(true, Ordering::SeqCst);
+    }
+
+    #[cfg(not(feature = "cloud-sync"))]
+    #[inline]
+    pub fn mark_sync_dirty(&self) {}
+
     pub(crate) fn import_book_from_cli_args(
         library: &mut LibraryManager<AppStorage>,
         epub_content: &EpubContentService<AppStorage, EpubBookPaginator>,

@@ -67,11 +67,13 @@ pub fn update_book_progress(
 ) -> Result<BookMetadata, String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
     let now = current_epoch_ms();
-    guard.library.update_reading_progress(
+    let updated = guard.library.update_reading_progress(
         &payload.book_hash,
         payload.current_page,
         payload.total_pages,
         payload.page_offset_ratio.unwrap_or(0.0),
         now,
-    )
+    )?;
+    guard.mark_sync_dirty();
+    Ok(updated)
 }

@@ -100,7 +100,11 @@ fn configure_cloud_sync(
 ) -> tauri::Builder<tauri::Wry> {
     let initial_interval = load_configured_interval_secs(&backend_state.config_store);
     let initial_status = empty_status(initial_interval, backend_state);
-    let sync_scheduler = SyncSchedulerHandle::new(initial_interval, initial_status);
+    let sync_scheduler = SyncSchedulerHandle::new(
+        initial_interval,
+        initial_status,
+        backend_state.sync_dirty.clone(),
+    );
     let bg_scheduler = sync_scheduler.clone();
 
     builder

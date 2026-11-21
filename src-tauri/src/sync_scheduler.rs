@@ -54,10 +54,14 @@ pub struct SyncSchedulerHandle {
 }
 
 impl SyncSchedulerHandle {
-    pub fn new(initial_interval_secs: u64, initial_status: CloudSyncStatusDto) -> Self {
+    pub fn new(
+        initial_interval_secs: u64,
+        initial_status: CloudSyncStatusDto,
+        dirty: Arc<AtomicBool>,
+    ) -> Self {
         Self {
             interval_secs: Arc::new(AtomicU64::new(initial_interval_secs)),
-            dirty: Arc::new(AtomicBool::new(false)),
+            dirty,
             syncing: Arc::new(AtomicBool::new(false)),
             last_status: Arc::new(Mutex::new(initial_status)),
         }
