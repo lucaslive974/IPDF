@@ -71,8 +71,8 @@ describe('SettingsSyncSection', () => {
     expect(html).toContain('Local Only');
     expect(html).toContain('Connect Google Drive');
     expect(html).not.toContain('BYOC Google OAuth Client ID');
-    expect(html).toContain('Complete Sign-In');
-    expect(html).toContain('https://accounts.google.com/o/oauth2/v2/auth?test=1');
+    expect(html).toContain('Waiting for Google sign-in in your browser');
+    expect(html).not.toContain('Complete Sign-In');
   });
 
   it('renders connected state with interval selector, Sync Now, Clear Cloud Data, and error banner', () => {

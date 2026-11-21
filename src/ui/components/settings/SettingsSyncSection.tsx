@@ -1,6 +1,6 @@
 import { type UseCloudSyncReturn, useCloudSync } from '@hooks/useCloudSync';
-import { Badge, Button, Card, Input } from '@ui';
-import { memo, useState } from 'react';
+import { Badge, Button, Card } from '@ui';
+import { memo } from 'react';
 
 export interface SettingsSyncSectionProps {
   readonly state?: UseCloudSyncReturn;
@@ -30,15 +30,12 @@ export const SettingsSyncSection = memo(function SettingsSyncSection({
     isBusy,
     error,
     beginGoogleOAuth,
-    completeGoogleOAuth,
     connectGoogleDrive,
     disconnect,
     syncNow,
     setIntervalSecs,
     clearCloudData,
   } = injectedState ?? hookState;
-
-  const [authCodeInput, setAuthCodeInput] = useState('');
 
   const isConnected = status?.connected ?? false;
   const isSyncing = isBusy || status?.state === 'syncing';
@@ -51,13 +48,6 @@ export const SettingsSyncSection = memo(function SettingsSyncSection({
     } else {
       void connectGoogleDrive();
     }
-  };
-
-  const handleCompleteOAuth = async () => {
-    const trimmed = authCodeInput.trim();
-    if (!trimmed) return;
-    await completeGoogleOAuth(trimmed);
-    setAuthCodeInput('');
   };
 
   return (
@@ -133,31 +123,8 @@ export const SettingsSyncSection = memo(function SettingsSyncSection({
       </Card>
 
       {!isConnected && pendingAuthUrl && (
-        <Card variant="subtle" padding="sm" rounded="lg" className="flex flex-col gap-2">
-          <span className="text-xs text-tx-secondary">
-            Open the authorization URL in your browser and paste the returned code below:
-          </span>
-          <code className="block truncate rounded bg-surface p-2 text-xs text-tx-muted">
-            {pendingAuthUrl}
-          </code>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            <Input
-              type="text"
-              placeholder="Authorization code"
-              value={authCodeInput}
-              onChange={(e) => setAuthCodeInput(e.target.value)}
-              disabled={isSyncing}
-            />
-            <Button
-              variant="primary"
-              size="sm"
-              className="whitespace-nowrap"
-              disabled={isSyncing || authCodeInput.trim().length === 0}
-              onClick={() => void handleCompleteOAuth()}
-            >
-              Complete Sign-In
-            </Button>
-          </div>
+        <Card variant="subtle" padding="sm" rounded="lg" className="text-xs text-tx-secondary">
+          Waiting for Google sign-in in your browser…
         </Card>
       )}
 

@@ -18,7 +18,11 @@ use serde::Serialize;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 use tauri::State;
+use tauri_plugin_opener::OpenerExt;
 
+#[cfg(any(target_os = "android", target_os = "ios"))]
+const DEFAULT_OAUTH_REDIRECT_URI: &str = "com.scholarium.reader:/oauth2redirect";
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 const DEFAULT_OAUTH_REDIRECT_URI: &str = "http://127.0.0.1:42813/oauth/callback";
 
 #[derive(Debug, Serialize)]
@@ -50,6 +54,7 @@ pub fn get_cloud_sync_status(
 
 #[tauri::command]
 pub fn begin_google_oauth(
+    app: tauri::AppHandle,
     _client_id_override: Option<String>,
     redirect_uri: Option<String>,
     state: State<'_, Mutex<BackendState>>,
@@ -78,6 +83,10 @@ pub fn begin_google_oauth(
     let auth_url = adapter.build_authorization_url(&pkce);
     let state_token = pkce.state.clone();
     guard.pending_oauth = Some(PendingGoogleOAuth { pkce, adapter });
+
+    app.opener()
+        .open_url(&auth_url, None::<&str>)
+        .map_err(|e| format!("Failed to open system browser: {e}"))?;
 
     Ok(OAuthStartResultDto {
         auth_url,
