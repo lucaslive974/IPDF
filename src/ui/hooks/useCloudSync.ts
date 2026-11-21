@@ -16,7 +16,6 @@ export interface UseCloudSyncReturn {
   readonly error: string | null;
   refreshStatus(): Promise<void>;
   beginGoogleOAuth(clientIdOverride?: string): Promise<string | null>;
-  completeGoogleOAuth(code: string, accountLabel?: string): Promise<void>;
   connectGoogleDrive(): Promise<void>;
   disconnect(): Promise<void>;
   syncNow(): Promise<void>;
@@ -72,24 +71,6 @@ export async function executeBeginGoogleOAuth(
   } catch (err) {
     useSyncStore.getState().setError(toErrorMessage(err));
     return null;
-  } finally {
-    useSyncStore.getState().setIsBusy(false);
-  }
-}
-
-export async function executeCompleteGoogleOAuth(
-  syncService: ISyncService,
-  code: string,
-  accountLabel?: string
-): Promise<void> {
-  useSyncStore.getState().setIsBusy(true);
-  useSyncStore.getState().setError(null);
-  try {
-    const nextStatus = await syncService.completeGoogleOAuth(code, accountLabel);
-    useSyncStore.getState().setStatus(nextStatus);
-    useSyncStore.getState().setPendingAuthUrl(null);
-  } catch (err) {
-    useSyncStore.getState().setError(toErrorMessage(err));
   } finally {
     useSyncStore.getState().setIsBusy(false);
   }
@@ -235,6 +216,9 @@ export function useCloudSyncListener(): void {
       .subscribeStatus((nextStatus) => {
         if (!active) return;
         useSyncStore.getState().setStatus(nextStatus);
+        if (nextStatus.connected) {
+          useSyncStore.getState().setPendingAuthUrl(null);
+        }
         if (nextStatus.state === 'synced' && nextStatus.lastPulledBooks > 0) {
           void rehydrateSyncedStores(libraryService, highlightService, syncService);
         }
@@ -286,11 +270,6 @@ export function useCloudSync(): UseCloudSyncReturn {
     (clientIdOverride?: string) => executeBeginGoogleOAuth(syncService, clientIdOverride),
     [syncService]
   );
-  const completeGoogleOAuth = useCallback(
-    (code: string, accountLabel?: string) =>
-      executeCompleteGoogleOAuth(syncService, code, accountLabel),
-    [syncService]
-  );
   const connectGoogleDrive = useCallback(
     () => executeConnectGoogleDrive(syncService),
     [syncService]
@@ -329,7 +308,6 @@ export function useCloudSync(): UseCloudSyncReturn {
     error,
     refreshStatus,
     beginGoogleOAuth,
-    completeGoogleOAuth,
     connectGoogleDrive,
     disconnect,
     syncNow,

@@ -72,6 +72,7 @@ pub fn run() {
     #[allow(unused_mut)]
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init());
 
@@ -105,7 +106,20 @@ fn configure_cloud_sync(
     builder
         .manage(sync_scheduler)
         .setup(move |app| {
+            use tauri_plugin_deep_link::DeepLinkExt;
             bg_scheduler.spawn_background_loop(app.handle().clone());
+
+            if let Ok(Some(urls)) = app.deep_link().get_current() {
+                for url in urls {
+                    sync::handle_oauth_callback_url(app.handle(), url.as_str());
+                }
+            }
+            let deep_link_app = app.handle().clone();
+            app.deep_link().on_open_url(move |event| {
+                for url in event.urls() {
+                    sync::handle_oauth_callback_url(&deep_link_app, url.as_str());
+                }
+            });
             Ok(())
         })
         .invoke_handler(build_invoke_handler!(

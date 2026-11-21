@@ -30,7 +30,6 @@ function createMockState(overrides: Partial<UseCloudSyncReturn> = {}): UseCloudS
     error: null,
     refreshStatus: vi.fn(),
     beginGoogleOAuth: vi.fn(),
-    completeGoogleOAuth: vi.fn(),
     connectGoogleDrive: vi.fn(),
     disconnect: vi.fn(),
     syncNow: vi.fn(),

@@ -17,7 +17,7 @@ use scholarium_core::core::services::LocalSyncCursor;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
-use tauri::State;
+use tauri::{Manager, State};
 use tauri_plugin_opener::OpenerExt;
 
 #[cfg(any(target_os = "android", target_os = "ios"))]
@@ -101,7 +101,6 @@ pub async fn complete_google_oauth(
     account_label: Option<String>,
     app: tauri::AppHandle,
     state: State<'_, Mutex<BackendState>>,
-    scheduler: State<'_, SyncSchedulerHandle>,
 ) -> Result<CloudSyncStatusDto, String> {
     let pending = {
         let mut guard = state.lock().map_err(|e| e.to_string())?;
@@ -111,6 +110,15 @@ pub async fn complete_google_oauth(
             .ok_or_else(|| "No pending Google OAuth flow".to_string())?
     };
 
+    finish_google_oauth(pending, code, account_label, &app).await
+}
+
+async fn finish_google_oauth(
+    pending: PendingGoogleOAuth,
+    code: String,
+    account_label: Option<String>,
+    app: &tauri::AppHandle,
+) -> Result<CloudSyncStatusDto, String> {
     let adapter = pending.adapter.clone();
     let verifier = pending.pkce.code_verifier.clone();
     let now_ms = current_epoch_ms();
@@ -128,16 +136,81 @@ pub async fn complete_google_oauth(
     let drive_storage: Arc<dyn CloudStorageProvider> =
         Arc::new(GoogleDriveAppDataAdapter::new(authed_http));
 
+    let state = app.state::<Mutex<BackendState>>();
+    let scheduler = app.state::<SyncSchedulerHandle>();
     let status = {
         let mut guard = state.lock().map_err(|e| e.to_string())?;
         guard.cloud_auth = Some(pending.adapter);
         guard.storage.set_remote(Some(drive_storage));
         scheduler.mark_dirty();
-        scheduler.emit_current(&app, &guard);
+        scheduler.emit_current(app, &guard);
         scheduler.snapshot(&guard)
     };
 
     Ok(status)
+}
+
+pub fn handle_oauth_callback_url(app: &tauri::AppHandle, url_str: &str) {
+    let Ok(parsed) = url::Url::parse(url_str) else {
+        return;
+    };
+    if parsed.scheme() != "com.scholarium.reader" || parsed.path() != "/oauth2redirect" {
+        return;
+    }
+
+    let mut code: Option<String> = None;
+    let mut returned_state: Option<String> = None;
+    let mut oauth_error: Option<String> = None;
+    for (k, v) in parsed.query_pairs() {
+        match k.as_ref() {
+            "code" => code = Some(v.into_owned()),
+            "state" => returned_state = Some(v.into_owned()),
+            "error" => oauth_error = Some(v.into_owned()),
+            _ => {}
+        }
+    }
+
+    let state_handle = app.state::<Mutex<BackendState>>();
+    let pending = {
+        let Ok(mut guard) = state_handle.lock() else {
+            return;
+        };
+        guard.pending_oauth.take()
+    };
+
+    let Some(pending) = pending else {
+        return;
+    };
+
+    if let Some(err) = oauth_error {
+        emit_oauth_error(app, &format!("Google OAuth error: {err}"));
+        return;
+    }
+
+    if returned_state.as_deref() != Some(pending.pkce.state.as_str()) {
+        emit_oauth_error(app, "Google OAuth state mismatch");
+        return;
+    }
+
+    let Some(code) = code else {
+        emit_oauth_error(app, "Google OAuth callback missing authorization code");
+        return;
+    };
+
+    let app_handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        if let Err(err) = finish_google_oauth(pending, code, None, &app_handle).await {
+            emit_oauth_error(&app_handle, &err);
+        }
+    });
+}
+
+fn emit_oauth_error(app: &tauri::AppHandle, message: &str) {
+    let state = app.state::<Mutex<BackendState>>();
+    let scheduler = app.state::<SyncSchedulerHandle>();
+    if let Ok(guard) = state.lock() {
+        scheduler.emit_error(app, &guard, message);
+    };
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]

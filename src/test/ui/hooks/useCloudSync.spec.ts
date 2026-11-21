@@ -11,7 +11,6 @@ import { BookFormat } from '@domain/types';
 import {
   executeBeginGoogleOAuth,
   executeClearCloudData,
-  executeCompleteGoogleOAuth,
   executeConnectGoogleDrive,
   executeDisconnectCloud,
   executeDownloadRemoteBook,
@@ -151,10 +150,6 @@ describe('useCloudSync controllers & store', () => {
     const authUrl = await executeBeginGoogleOAuth(service, 'custom-client');
     expect(authUrl).toContain('accounts.google.com');
     expect(useSyncStore.getState().pendingAuthUrl).toBe(authUrl);
-
-    await executeCompleteGoogleOAuth(service, 'code-123');
-    expect(useSyncStore.getState().status?.connected).toBe(true);
-    expect(useSyncStore.getState().pendingAuthUrl).toBeNull();
 
     await executeSetSyncInterval(service, 300);
     expect(useSyncStore.getState().status?.intervalSecs).toBe(300);

@@ -96,6 +96,13 @@ impl SyncSchedulerHandle {
         let _ = app.emit(SYNC_STATUS_EVENT, &dto);
     }
 
+    pub fn emit_error(&self, app: &tauri::AppHandle, backend: &BackendState, message: &str) {
+        self.update_and_emit(app, backend, |s| {
+            s.state = "error".to_string();
+            s.last_error = Some(message.to_string());
+        });
+    }
+
     /// Starts the backend-owned background polling/debounce loop.
     pub fn spawn_background_loop(&self, app: tauri::AppHandle) {
         let handle = self.clone();
