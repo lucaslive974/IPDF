@@ -44,6 +44,8 @@ pub struct LocalSyncCursor {
     pub last_manifest_etag: Option<String>,
     pub last_revision: u64,
     #[serde(default)]
+    pub last_synced_at_ms: Option<i64>,
+    #[serde(default)]
     pub synced_book_hashes: BTreeSet<String>,
     #[serde(default)]
     pub deleted_books: BTreeMap<String, i64>,
@@ -296,6 +298,7 @@ where
         if !manifest_changed {
             self.cursor.last_manifest_etag = remote_etag;
             self.cursor.last_revision = remote_manifest.revision;
+            self.cursor.last_synced_at_ms = Some(self.now_ms);
             self.cursor.save(self.config)?;
             self.report.revision = remote_manifest.revision;
             return Ok(AttemptOutcome::Completed(self.report.clone()));
@@ -528,6 +531,7 @@ where
             Ok(new_meta) => {
                 self.cursor.last_manifest_etag = Some(new_meta.etag);
                 self.cursor.last_revision = next_revision;
+                self.cursor.last_synced_at_ms = Some(self.now_ms);
                 self.cursor.save(self.config)?;
                 self.report.revision = next_revision;
                 Ok(AttemptOutcome::Completed(self.report.clone()))

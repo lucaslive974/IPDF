@@ -6,7 +6,7 @@ use scholarium_core::core::domain::{PlatformKind, SyncReport};
 use scholarium_core::core::ports::{
     CloudAuthKind, CloudAuthProvider, ConfigurationStore, LogEntry, LogLevel, LogService,
 };
-use scholarium_core::core::services::CloudSyncEngine;
+use scholarium_core::core::services::{CloudSyncEngine, LocalSyncCursor};
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -290,14 +290,20 @@ pub fn available_providers_for_platform(platform: PlatformKind) -> Vec<CloudProv
 }
 
 pub fn empty_status(interval_secs: u64, backend: &BackendState) -> CloudSyncStatusDto {
+    let cursor = LocalSyncCursor::load(&backend.config_store).unwrap_or_default();
+    let initial_state = if cursor.last_revision > 0 && backend.cloud_auth.is_some() {
+        "synced".to_string()
+    } else {
+        "idle".to_string()
+    };
     let mut dto = CloudSyncStatusDto {
-        state: "idle".to_string(),
+        state: initial_state,
         connected: false,
         provider_id: None,
         account_label: None,
         interval_secs,
-        last_synced_at_ms: None,
-        last_revision: 0,
+        last_synced_at_ms: cursor.last_synced_at_ms,
+        last_revision: cursor.last_revision,
         last_pulled_books: 0,
         last_pushed_books: 0,
         last_error: None,

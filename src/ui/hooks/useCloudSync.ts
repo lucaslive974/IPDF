@@ -212,7 +212,7 @@ export function useCloudSyncListener(): void {
     let unlisten: (() => void) | null = null;
 
     void executeRefreshSyncStatus(syncService);
-    const subscribe = async () => {
+    (async () => {
       const fn = await syncService.subscribeStatus((nextStatus) => {
         if (!active) return;
         useSyncStore.getState().setStatus(nextStatus);
@@ -229,9 +229,7 @@ export function useCloudSyncListener(): void {
       } else {
         fn();
       }
-    };
-
-    void subscribe();
+    })();
 
     const handleVisibilityChange = () => {
       if (hasDocument() && !document.hidden) {
