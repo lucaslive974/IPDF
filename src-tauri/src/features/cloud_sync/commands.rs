@@ -1,4 +1,5 @@
-use crate::state::{BackendState, PendingGoogleOAuth};
+use crate::features::cloud_sync::PendingGoogleOAuth;
+use crate::state::BackendState;
 use crate::sync_scheduler::{
     available_providers_for_platform, CloudProviderDto, CloudSyncStatusDto, SyncSchedulerHandle,
     SYNC_INTERVAL_CONFIG_KEY,
@@ -69,7 +70,7 @@ pub fn begin_google_oauth(
     let http = Arc::new(UreqHttpTransport::new());
     let adapter = Arc::new(GoogleOAuthPkceAdapter::new(
         cfg,
-        guard.credential_store.clone(),
+        guard.cloud_sync.credential_store.clone(),
         http,
     ));
 
@@ -82,7 +83,7 @@ pub fn begin_google_oauth(
 
     let auth_url = adapter.build_authorization_url(&pkce);
     let state_token = pkce.state.clone();
-    guard.pending_oauth = Some(PendingGoogleOAuth { pkce, adapter });
+    guard.cloud_sync.pending_oauth = Some(PendingGoogleOAuth { pkce, adapter });
 
     app.opener()
         .open_url(&auth_url, None::<&str>)
@@ -105,6 +106,7 @@ pub async fn complete_google_oauth(
     let pending = {
         let mut guard = state.lock().map_err(|e| e.to_string())?;
         guard
+            .cloud_sync
             .pending_oauth
             .take()
             .ok_or_else(|| "No pending Google OAuth flow".to_string())?
@@ -140,7 +142,7 @@ async fn finish_google_oauth(
     let scheduler = app.state::<SyncSchedulerHandle>();
     let status = {
         let mut guard = state.lock().map_err(|e| e.to_string())?;
-        guard.cloud_auth = Some(pending.adapter);
+        guard.cloud_sync.cloud_auth = Some(pending.adapter);
         guard.storage.set_remote(Some(drive_storage));
         scheduler.mark_dirty();
         scheduler.emit_current(app, &guard);
@@ -175,7 +177,7 @@ pub fn handle_oauth_callback_url(app: &tauri::AppHandle, url_str: &str) {
         let Ok(mut guard) = state_handle.lock() else {
             return;
         };
-        guard.pending_oauth.take()
+        guard.cloud_sync.pending_oauth.take()
     };
 
     let Some(pending) = pending else {
@@ -222,12 +224,15 @@ pub async fn connect_google_drive(
 ) -> Result<CloudSyncStatusDto, String> {
     let credential_store = {
         let guard = state.lock().map_err(|e| e.to_string())?;
-        guard.credential_store.clone()
+        guard.cloud_sync.credential_store.clone()
     };
 
     let app_handle = app.clone();
     let adapter = tauri::async_runtime::spawn_blocking(move || {
-        crate::oauth_loopback::run_desktop_oauth_loopback(&app_handle, credential_store)
+        crate::features::cloud_sync::oauth_loopback::run_desktop_oauth_loopback(
+            &app_handle,
+            credential_store,
+        )
     })
     .await
     .map_err(|e| e.to_string())??;
@@ -241,8 +246,8 @@ pub async fn connect_google_drive(
 
     let status = {
         let mut guard = state.lock().map_err(|e| e.to_string())?;
-        guard.pending_oauth = None;
-        guard.cloud_auth = Some(adapter);
+        guard.cloud_sync.pending_oauth = None;
+        guard.cloud_sync.cloud_auth = Some(adapter);
         guard.storage.set_remote(Some(drive_storage));
         scheduler.mark_dirty();
         scheduler.emit_current(&app, &guard);
@@ -267,8 +272,8 @@ pub async fn disconnect_cloud_provider(
     let auth_opt = {
         let mut guard = state.lock().map_err(|e| e.to_string())?;
         guard.storage.set_remote(None);
-        guard.pending_oauth = None;
-        guard.cloud_auth.take()
+        guard.cloud_sync.pending_oauth = None;
+        guard.cloud_sync.cloud_auth.take()
     };
 
     if let Some(auth) = auth_opt {

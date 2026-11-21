@@ -295,7 +295,7 @@ pub fn available_providers_for_platform(platform: PlatformKind) -> Vec<CloudProv
 
 pub fn empty_status(interval_secs: u64, backend: &BackendState) -> CloudSyncStatusDto {
     let cursor = LocalSyncCursor::load(&backend.config_store).unwrap_or_default();
-    let initial_state = if cursor.last_revision > 0 && backend.cloud_auth.is_some() {
+    let initial_state = if cursor.last_revision > 0 && backend.cloud_sync.cloud_auth.is_some() {
         "synced".to_string()
     } else {
         "idle".to_string()
@@ -325,7 +325,7 @@ fn refresh_connection_fields(
     dto.interval_secs = interval_secs;
     dto.available_providers =
         available_providers_for_platform(backend.platform_env.platform_kind());
-    if let Some(auth) = &backend.cloud_auth {
+    if let Some(auth) = &backend.cloud_sync.cloud_auth {
         if let Ok(session) = auth.session() {
             dto.connected = session.connected;
             dto.provider_id = if session.connected {

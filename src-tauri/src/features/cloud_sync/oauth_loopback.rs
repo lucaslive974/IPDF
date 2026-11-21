@@ -9,7 +9,7 @@ use tauri_plugin_opener::OpenerExt;
 use tiny_http::{Header, Request, Response, Server};
 use url::Url;
 
-const CALLBACK_HTML_TEMPLATE: &str = include_str!("../../assets/oauth_callback.html");
+const CALLBACK_HTML_TEMPLATE: &str = include_str!("../../../../assets/oauth_callback.html");
 
 pub fn run_desktop_oauth_loopback(
     app: &tauri::AppHandle,

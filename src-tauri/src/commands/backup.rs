@@ -1,8 +1,6 @@
 use crate::state::BackendState;
 use crate::utils::current_epoch_ms;
-use scholarium_core::adapters::backup::{
-    CloudBackupDestination, HybridBackupDestination, LocalBackupDestination,
-};
+use scholarium_core::adapters::backup::{HybridBackupDestination, LocalBackupDestination};
 use scholarium_core::adapters::configuration::SqliteConfigurationStore;
 use scholarium_core::adapters::persistence::{SqliteBookRepository, SqliteHighlightRepository};
 use scholarium_core::core::ports::{
@@ -11,7 +9,7 @@ use scholarium_core::core::ports::{
 };
 use scholarium_core::core::services::{BackupService, LibraryManager};
 use serde::Serialize;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use tauri::{Manager, State};
 
 #[derive(Debug, Serialize)]
@@ -26,16 +24,7 @@ fn hybrid_backup_destination(
 ) -> Result<HybridBackupDestination<LocalBackupDestination>, String> {
     let backup_dir = state.platform_env.backups_dir()?;
     let local = LocalBackupDestination::new(backup_dir);
-    #[cfg(feature = "cloud-sync")]
-    let remote = state
-        .storage
-        .remote()
-        .map(|cloud| Arc::new(CloudBackupDestination::new(cloud)) as Arc<dyn BackupDestination>);
-    #[cfg(not(feature = "cloud-sync"))]
-    let remote: Option<Arc<dyn BackupDestination>> = {
-        let _ = CloudBackupDestination::new;
-        None
-    };
+    let remote = crate::features::cloud_sync::remote_backup_destination(&state.storage);
     Ok(HybridBackupDestination::new(local, remote))
 }
 

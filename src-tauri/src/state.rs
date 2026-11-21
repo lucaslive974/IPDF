@@ -1,10 +1,6 @@
+use crate::features::cloud_sync::CloudSyncState;
 use crate::seed::seed_bundled_assets_if_needed;
 use crate::utils::find_file_argument;
-#[cfg(feature = "cloud-sync")]
-use scholarium_core::adapters::cloud::{
-    AuthenticatedHttpTransport, FileCloudCredentialStore, GoogleDriveAppDataAdapter,
-    GoogleOAuthConfig, GoogleOAuthPkceAdapter, PkceChallenge, UreqHttpTransport,
-};
 use scholarium_core::adapters::configuration::SqliteConfigurationStore;
 use scholarium_core::adapters::logging::AsyncFileLogger;
 use scholarium_core::adapters::pagination::EpubBookPaginator;
@@ -16,23 +12,13 @@ use scholarium_core::adapters::platform::{
 use scholarium_core::adapters::presence::NativeDiscordPresenceAdapter;
 use scholarium_core::adapters::storage::{LocalFolderStorageAdapter, StorageManagerDecorator};
 use scholarium_core::core::domain::BookMetadata;
-#[cfg(feature = "cloud-sync")]
-use scholarium_core::core::ports::{CloudAuthProvider, CloudStorageProvider};
 use scholarium_core::core::ports::{
     ConfigurationStore, LogEntry, LogLevel, LogService, PlatformEnvironment,
 };
 use scholarium_core::core::services::{EpubContentService, LibraryManager, RichPresenceManager};
-#[cfg(feature = "cloud-sync")]
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 pub type AppStorage = StorageManagerDecorator<LocalFolderStorageAdapter>;
-
-#[cfg(feature = "cloud-sync")]
-pub struct PendingGoogleOAuth {
-    pub pkce: PkceChallenge,
-    pub adapter: Arc<GoogleOAuthPkceAdapter>,
-}
 
 pub struct BackendState {
     pub storage: AppStorage,
@@ -44,14 +30,7 @@ pub struct BackendState {
     pub startup_book: Option<BookMetadata>,
     pub presence_manager: RichPresenceManager,
     pub logger: AsyncFileLogger,
-    #[cfg(feature = "cloud-sync")]
-    pub sync_dirty: Arc<AtomicBool>,
-    #[cfg(feature = "cloud-sync")]
-    pub credential_store: Arc<FileCloudCredentialStore>,
-    #[cfg(feature = "cloud-sync")]
-    pub cloud_auth: Option<Arc<GoogleOAuthPkceAdapter>>,
-    #[cfg(feature = "cloud-sync")]
-    pub pending_oauth: Option<PendingGoogleOAuth>,
+    pub cloud_sync: CloudSyncState,
 }
 
 impl Default for BackendState {
@@ -150,26 +129,7 @@ impl Default for BackendState {
             presence_manager.register_provider(discord_adapter);
         }
 
-        #[cfg(feature = "cloud-sync")]
-        let credential_store = Arc::new(
-            FileCloudCredentialStore::for_platform(&*platform).unwrap_or_else(|_| {
-                FileCloudCredentialStore::new(std::env::temp_dir().join(
-                    scholarium_core::core::domain::AppStoragePaths::CLOUD_CREDENTIALS_FILENAME,
-                ))
-            }),
-        );
-        #[cfg(feature = "cloud-sync")]
-        let cloud_auth = restore_google_session(&credential_store);
-        #[cfg(feature = "cloud-sync")]
-        if let Some(ref auth) = cloud_auth {
-            let authed_http = Arc::new(AuthenticatedHttpTransport::new(
-                Arc::new(UreqHttpTransport::new()),
-                auth.clone(),
-            ));
-            let remote: Arc<dyn CloudStorageProvider> =
-                Arc::new(GoogleDriveAppDataAdapter::new(authed_http));
-            storage.set_remote(Some(remote));
-        }
+        let cloud_sync = CloudSyncState::init(&*platform, &mut storage);
 
         let args: Vec<String> = std::env::args().collect();
         let startup_book = Self::import_book_from_cli_args(&mut library, &epub_content, &args);
@@ -184,44 +144,15 @@ impl Default for BackendState {
             startup_book,
             presence_manager,
             logger,
-            #[cfg(feature = "cloud-sync")]
-            sync_dirty: Arc::new(AtomicBool::new(false)),
-            #[cfg(feature = "cloud-sync")]
-            credential_store,
-            #[cfg(feature = "cloud-sync")]
-            cloud_auth,
-            #[cfg(feature = "cloud-sync")]
-            pending_oauth: None,
+            cloud_sync,
         }
     }
 }
 
-#[cfg(feature = "cloud-sync")]
-fn restore_google_session(
-    credential_store: &Arc<FileCloudCredentialStore>,
-) -> Option<Arc<GoogleOAuthPkceAdapter>> {
-    let cfg = GoogleOAuthConfig::resolve("http://127.0.0.1:42813/oauth/callback").ok()?;
-    let adapter = Arc::new(GoogleOAuthPkceAdapter::new(
-        cfg,
-        credential_store.clone(),
-        Arc::new(UreqHttpTransport::new()),
-    ));
-    if adapter.session().ok()?.connected {
-        Some(adapter)
-    } else {
-        None
-    }
-}
-
 impl BackendState {
-    #[cfg(feature = "cloud-sync")]
     pub fn mark_sync_dirty(&self) {
-        self.sync_dirty.store(true, Ordering::SeqCst);
+        self.cloud_sync.mark_dirty();
     }
-
-    #[cfg(not(feature = "cloud-sync"))]
-    #[inline]
-    pub fn mark_sync_dirty(&self) {}
 
     pub(crate) fn import_book_from_cli_args(
         library: &mut LibraryManager<AppStorage>,
