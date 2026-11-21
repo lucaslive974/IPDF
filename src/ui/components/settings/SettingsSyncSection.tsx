@@ -179,7 +179,7 @@ export const SettingsSyncSection = memo(function SettingsSyncSection({
 
   const isConnected = status?.connected ?? false;
   const isSyncing = isBusy || status?.state === 'syncing';
-  const intervalSecs = status?.intervalSecs ?? 120;
+  const intervalSecs = status?.intervalSecs ?? 300;
   const displayError = error ?? status?.lastError ?? null;
 
   const handleConnect = () => {

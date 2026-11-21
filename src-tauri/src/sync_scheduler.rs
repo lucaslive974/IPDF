@@ -15,7 +15,7 @@ use tauri::{Emitter, Manager};
 
 pub const SYNC_STATUS_EVENT: &str = "sync:status";
 pub const SYNC_INTERVAL_CONFIG_KEY: &str = "cloud_sync_interval_secs";
-pub const DEFAULT_SYNC_INTERVAL_SECS: u64 = 120;
+pub const DEFAULT_SYNC_INTERVAL_SECS: u64 = 300;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -113,7 +113,7 @@ impl SyncSchedulerHandle {
         std::thread::spawn(move || {
             let mut last_poll = Instant::now();
             loop {
-                std::thread::sleep(Duration::from_secs(5));
+                std::thread::sleep(Duration::from_secs(DEFAULT_SYNC_INTERVAL_SECS));
 
                 let is_dirty = handle.dirty.swap(false, Ordering::SeqCst);
                 if is_dirty {
